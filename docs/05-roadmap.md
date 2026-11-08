@@ -180,6 +180,23 @@ Done when: all four language groups have diagnostics, completion and navigation.
 | L3 Debugger | DAP, breakpoints, variables (Delve first) | same pattern as LSP |
 | L4 Shell integration | `EDITOR=ayaz open` from the terminal (e.g. `sf` in mysh opens a buffer), OSC 7 for the current directory (mysh extension) | `pty` + single instance/CLI |
 
+## Extended – UI polish
+
+The M1 UI is usable but not finished (user feedback 2026-11-08: "much better, still needs work"). Collected here, done when it fits or as its own milestone after M14. Reference: the user's nvim setup (`~/.config/nvim`: snacks, lualine, noice, nvim-web-devicons).
+
+| | What | Notes |
+|---|---|---|
+| E1 Fonts | font family, size and ligatures as settings | today hard-coded FiraCode Nerd Font, 13 px |
+| E2 Icons | bundle "Symbols Nerd Font" as a fallback, more file types and special names | without a Nerd Font installed, icons show as boxes |
+| E3 Tree | dim hidden/ignored files, git status colors (L2), indent lines in the tree, filter by typing | like the snacks explorer |
+| E4 Status line | git branch, diagnostics, LSP status, encoding, powerline shapes like lualine bubbles | segments come with M7/L2 |
+| E5 Cmdline and messages | `:` line and messages as a floating box like noice, notifications that fade out | today codemirror-vim's bottom panel |
+| E6 Scrolling and motion | smooth scrolling (like snacks.scroll), animated indent scope | check that 120 fps holds (S1) |
+| E7 Welcome screen | dashboard with recent folders and keys, like the snacks dashboard | today one button |
+| E8 Window | inset title bar on macOS, window title with folder and file | |
+| E9 Theme | follow the desktop theme like the nvim colorscheme (caelestia), more themes than Kanagawa | tokens are already CSS variables |
+| E10 Details | scrollbar style, cursor line edge, spacing between tree and editor, hover states | small fixes from daily use |
+
 ---
 
 ## What I write myself, and why
