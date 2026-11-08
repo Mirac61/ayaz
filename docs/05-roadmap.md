@@ -89,10 +89,11 @@ Done when: everything that runs in a native terminal runs here, in the panel and
 
 - [Own] `mdlive` part 1: headings, emphasis, inline code, links (markers hidden outside the cursor line), `atomicRanges`.
 - [Glue] Links: `gx` → system browser, `gf` on relative `.md` links.
+- [Own] Resizable panes (added 2026-11-09): drag split borders and the panel's top edge; sizes kept per folder. Panel maximize toggle. Vim keys `<C-w>+/-/</>/=`. Reason: the panel at 35 % is too small for btop (needs 24 rows).
 
-Tests: ≥ 30 Node fixtures for the decoration function, browser test of marker visibility with `j/k`.
+Tests: ≥ 30 Node fixtures for the decoration function, browser test of marker visibility with `j/k`. Node tests for layout sizes, E2E drag and `<C-w>=`.
 
-Done when: notes read as if rendered, and Vim motions move cleanly over hidden markers.
+Done when: notes read as if rendered, and Vim motions move cleanly over hidden markers. btop runs in the panel after enlarging it.
 
 ## M6 – Markdown live preview, blocks
 
