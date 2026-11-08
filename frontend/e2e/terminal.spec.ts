@@ -3,7 +3,7 @@ import { homedir } from "node:os";
 
 // The whole path: page → stream → Go → PTY shell → stream → xterm.
 test("terminal runs a command and shows its output", async ({ page }) => {
-  await page.goto("/?renderer=dom");
+  await page.goto("/?view=term&renderer=dom");
   const term = page.locator(".xterm");
   await expect(term).toBeVisible();
   await term.click();

@@ -22,6 +22,9 @@ jobs:
       - run: mkdir -p frontend/dist && touch frontend/dist/index.html
       - run: go vet ./...
       - run: go test -race ./...
+      - name: Fuzz the path jail
+        if: runner.os == 'Linux'
+        run: go test -run='^$' -fuzz=FuzzResolve -fuzztime=30s ./internal/workspace
 
   frontend:
     runs-on: ubuntu-24.04
@@ -34,3 +37,24 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run typecheck
       - run: bun run test
+
+  # Vitest browser mode and Playwright E2E, both in WebKit. E2E runs against the server build (no GUI libraries needed).
+  browser:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+        working-directory: frontend
+      - run: bunx playwright install --with-deps webkit
+        working-directory: frontend
+      - run: bun run test:browser
+        working-directory: frontend
+      - run: bun run build
+        working-directory: frontend
+      - run: go build -tags server,production -o bin/ayaz-server .
+      - run: bun run e2e
+        working-directory: frontend

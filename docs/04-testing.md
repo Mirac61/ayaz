@@ -96,6 +96,7 @@ Not needed for v1: `:g`, `:normal`, `gv`, `Ctrl-a/Ctrl-x`, `gq`, spell checking.
 - Scrolling `big.md` and `200p.pdf` is smooth.
 - Drag and drop a file to open it.
 - Terminal: `htop`, `lazygit`, `nvim` work (colors, mouse, resize), copy/paste, Alt keys.
+- Editor: `"+yy` then paste in another app, and copy elsewhere then `"+p` (system clipboard isn't testable headless).
 - Open and close a second window, then no orphaned shell/LSP processes (`ps`).
 - HiDPI and fractional scaling on Hyprland look right.
 - Target: ≤ 10 minutes. If it takes longer, automate something.

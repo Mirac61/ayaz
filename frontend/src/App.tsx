@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { backend } from "./core/backend";
 import { openTerminal } from "./terminal/terminal";
+import { Shell } from "./shell/Workbench";
 import { ScrollTest } from "./spikes/ScrollTest";
 import { runS4, type Stats } from "./spikes/bindingLatency";
 import { runS6, runS7 } from "./spikes/terminalBench";
 
 const fmt = (s: Stats) => `p50 ${s.p50.toFixed(3)} · p95 ${s.p95.toFixed(3)} · max ${s.max.toFixed(3)} ms`;
 
-// AYAZ_SPIKE picks the view: "" interactive terminal, "s1" scroll test, "bench" runs S4/S6/S7 and reports to stdout.
+// AYAZ_SPIKE picks the view: "" editor (?view=term: terminal only), "s1" scroll test, "bench" runs S4/S6/S7 and reports to stdout.
+const termOnly = new URLSearchParams(location.search).get("view") === "term";
+
 export default function App() {
   const [mode, setMode] = useState<string | null>(null);
   const [status, setStatus] = useState("");
@@ -24,7 +27,7 @@ export default function App() {
 
   useEffect(() => {
     const el = termEl.current;
-    if (mode === "" && el) {
+    if (mode === "" && termOnly && el) {
       // ?renderer=dom for E2E (WebGL draws to a canvas, so there's no text to assert on) and Linux checks.
       const renderer = new URLSearchParams(location.search).get("renderer") === "dom" ? "dom" : "webgl";
       const h = openTerminal(el, { renderer });
@@ -47,6 +50,7 @@ export default function App() {
   }, [mode]);
 
   if (mode === null) return null;
+  if (mode === "" && !termOnly) return <Shell />;
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <div style={{ flex: 1, minHeight: 0, padding: mode === "s1" ? 0 : 4 }}>

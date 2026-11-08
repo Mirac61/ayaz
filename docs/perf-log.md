@@ -2,6 +2,20 @@
 
 Measurements against the budgets in [00-vision.md](00-vision.md#performance-budgets). Newest first. Machine: M-series MacBook (ProMotion), macOS 27.2.
 
+## 2026-11-08 · M1 editor (macOS)
+
+App state: folder open (this repo), tree visible, no file open. The terminal is no longer in the default view (`?view=term`).
+
+| | Value | Budget (macOS) | How |
+|---|---|---|---|
+| K1 start → `app:ready` | median 389 ms, range 367–407 ms (20 runs) | ≤ 500 ms | `hyperfine -w 2 -r 20 -N 'env AYAZ_EXIT_ON_READY=1 ./bin/ayaz <folder>'` |
+| K2 idle RAM after 10 s | 96 MB (ayaz ~32, WebContent 41, GPU 18, Networking 5); welcome screen 91 MB | ≤ 150 MB | `scripts/ram.sh bin/ayaz <folder>` |
+| K12 binary size | 10.6 MB | ≤ 30 MB | `ls -l bin/ayaz` |
+
+Notes:
+- K2 dropped from 150 MB (M0) because the xterm WebGL renderer isn't in the default view anymore. It comes back with the bottom panel in M4, so measure again then.
+- The first run right after a fresh build gave 287 MB (GPU 120, WebContent 128). Three runs after that gave 96–97 MB. Probably a one-time effect after the build, worth watching.
+
 ## 2026-11-08 · M0 skeleton (macOS)
 
 App state: terminal view only, no folder or file open yet, so K1/K2 are a lower bound for later milestones.

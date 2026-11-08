@@ -389,3 +389,26 @@ S7, LSP-shaped messages (`Content-Length` + JSON) through the `echo` stream and 
 
 - `task build:server` + `bun run e2e`: Playwright WebKit types `echo $PWD` into the terminal and sees the home directory. So Wails streams also work in the server build (open point from S7).
 - The E2E uses `?renderer=dom`, because WebGL draws into a canvas and leaves no text to check.
+
+## Vim core list results (M1)
+
+Test: `frontend/src/editor/vim/core.browser.test.ts`, real key presses in WebKit against our editor setup (`@replit/codemirror-vim` 6.4.0). 100 checks pass, 8 are known gaps (`test.fails`, so a fix upstream shows up as a red test).
+
+What we had to add ourselves:
+- **Folds** `za zc zo zR zM`: codemirror-vim has none. Mapped to CM6's `toggleFold/foldCode/unfoldCode/foldAll/unfoldAll` in `editor/vim/setup.ts`.
+- **Block mode** (`Ctrl-v`, `I`/`A` in block) needs `EditorState.allowMultipleSelections`. Without it only one line changes.
+- **Leader**: `<Space>` is a default synonym for `l` and a full match beats a partial one, so `<Space>e` never fires. We `unmap` the default `<Space>`.
+- `jk` → `Esc` via `Vim.map(..., "insert")`.
+
+Gaps, and what we do about them:
+
+| Gap | nvim | codemirror-vim | Verdict |
+|---|---|---|---|
+| `dit` `dat` | tag text objects | nothing happens | matters for HTML/JSX: own text object with M9 (web) |
+| `dG` | removes the lines | leaves an empty last line | annoying: own fix in M2 or upstream issue |
+| `d}` | exclusive → linewise at column 0 | leaves an empty line | small, live with it |
+| `P` | cursor on last pasted char | one char further | small, live with it |
+| `da"` `da'` | takes trailing whitespace | doesn't | small, live with it |
+| `"+y` `"+p` | system clipboard | via `navigator.clipboard`, headless WebKit denies it | manual checklist in the real app |
+
+Test gotcha: `EditorView.destroy()` detaches `view.dom`, so `view.dom.parentElement` is null afterwards. Remove the container you created, or the page grows with every test, new editors land off-screen and CM6's viewport commands (`H M L`, `Ctrl-d`, `zz`) and even counts behave strangely.

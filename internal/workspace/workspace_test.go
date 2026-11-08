@@ -1,0 +1,139 @@
+package workspace
+
+import (
+	"errors"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+// newTestWS builds root/{a.txt, sub/b.go, out -> ../outside, in -> sub} next to an outside folder.
+func newTestWS(t testing.TB) *Workspace {
+	t.Helper()
+	base := t.TempDir()
+	root := filepath.Join(base, "root")
+	must(t, os.MkdirAll(filepath.Join(root, "sub"), 0o755))
+	must(t, os.MkdirAll(filepath.Join(base, "outside"), 0o755))
+	must(t, os.WriteFile(filepath.Join(root, "a.txt"), []byte("a"), 0o644))
+	must(t, os.WriteFile(filepath.Join(root, "sub", "b.go"), []byte("package b"), 0o644))
+	must(t, os.WriteFile(filepath.Join(base, "outside", "secret"), []byte("s"), 0o644))
+	must(t, os.Symlink("../outside", filepath.Join(root, "out")))
+	must(t, os.Symlink("sub", filepath.Join(root, "in")))
+	w, err := New("1", root)
+	must(t, err)
+	return w
+}
+
+func must(t testing.TB, err error) {
+	t.Helper()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestResolve(t *testing.T) {
+	w := newTestWS(t)
+	ok := []string{"", ".", "a.txt", "sub/b.go", "sub/../a.txt", "in/b.go", "new.txt", "sub/new.go"}
+	for _, rel := range ok {
+		if _, err := w.Resolve(rel); err != nil {
+			t.Errorf("Resolve(%q) = %v, want ok", rel, err)
+		}
+	}
+	bad := []string{"..", "../outside/secret", "/etc/passwd", "sub/../../outside", "out/secret", "out", "a\x00b"}
+	for _, rel := range bad {
+		if _, err := w.Resolve(rel); !errors.Is(err, ErrOutside) {
+			t.Errorf("Resolve(%q) = %v, want ErrOutside", rel, err)
+		}
+	}
+}
+
+func FuzzResolve(f *testing.F) {
+	for _, s := range []string{"a.txt", "..", "out/secret", "sub/../../x", "%2e%2e/x", "in/../out", "/x"} {
+		f.Add(s)
+	}
+	w := newTestWS(f)
+	f.Fuzz(func(t *testing.T, rel string) {
+		p, err := w.Resolve(rel)
+		if err != nil {
+			return
+		}
+		if p != w.Root && !strings.HasPrefix(p, w.Root+string(filepath.Separator)) {
+			t.Fatalf("Resolve(%q) = %q escapes %q", rel, p, w.Root)
+		}
+	})
+}
+
+func TestList(t *testing.T) {
+	w := newTestWS(t)
+	got, err := w.List("")
+	must(t, err)
+	want := []Entry{{"in", true}, {"out", true}, {"sub", true}, {"a.txt", false}}
+	if len(got) != len(want) {
+		t.Fatalf("List = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("List = %v, want %v", got, want)
+		}
+	}
+	if _, err := w.List("out"); !errors.Is(err, ErrOutside) {
+		t.Fatalf("List(out) = %v, want ErrOutside", err)
+	}
+}
+
+func TestWriteText(t *testing.T) {
+	w := newTestWS(t)
+	f, err := w.ReadText("a.txt")
+	must(t, err)
+	must(t, os.Chmod(filepath.Join(w.Root, "a.txt"), 0o600))
+	f, err = w.ReadText("a.txt") // chmod changes ctime only, but read again to be safe
+	must(t, err)
+
+	m, err := w.WriteText("a.txt", "new", f.Mtime)
+	must(t, err)
+	got, _ := os.ReadFile(filepath.Join(w.Root, "a.txt"))
+	if string(got) != "new" {
+		t.Fatalf("content = %q", got)
+	}
+	if st, _ := os.Stat(filepath.Join(w.Root, "a.txt")); st.Mode().Perm() != 0o600 {
+		t.Fatalf("perm = %v, want 0600 kept", st.Mode().Perm())
+	}
+	if ents, _ := os.ReadDir(w.Root); len(ents) != 4 {
+		t.Fatalf("temp file left behind: %v", ents)
+	}
+
+	// Stale mtime: someone else wrote in between.
+	if _, err := w.WriteText("a.txt", "lost", f.Mtime); !errors.Is(err, ErrConflict) {
+		t.Fatalf("stale write = %v, want ErrConflict", err)
+	}
+	if _, err := w.WriteText("a.txt", "again", m); err != nil {
+		t.Fatalf("write with fresh mtime: %v", err)
+	}
+
+	// New file: expectedMtime 0, and only while it doesn't exist.
+	if _, err := w.WriteText("sub/c.go", "package c", 0); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w.WriteText("sub/c.go", "x", 0); !errors.Is(err, ErrConflict) {
+		t.Fatalf("overwrite via new-file write = %v, want ErrConflict", err)
+	}
+	if _, err := w.WriteText("out/secret", "x", 0); !errors.Is(err, ErrOutside) {
+		t.Fatalf("write outside = %v, want ErrOutside", err)
+	}
+}
+
+func TestRegistry(t *testing.T) {
+	r := NewRegistry()
+	w, err := r.Open(t.TempDir())
+	must(t, err)
+	if got, _ := r.Get(w.ID); got != w {
+		t.Fatal("Get after Open")
+	}
+	if _, err := r.Get("nope"); !errors.Is(err, ErrUnknown) {
+		t.Fatalf("Get(nope) = %v", err)
+	}
+	if _, err := r.Open(filepath.Join(t.TempDir(), "missing")); err == nil {
+		t.Fatal("Open(missing) succeeded")
+	}
+}

@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"log"
+	"os"
 
 	"github.com/Mirac61/ayaz/app"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -18,6 +19,7 @@ func main() {
 		Description: "Keyboard-first code editor",
 		Services: []application.Service{
 			application.NewService(&app.PingService{}),
+			application.NewService(app.NewWorkspaceService(os.Args[1:])),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),

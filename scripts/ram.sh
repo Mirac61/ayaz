@@ -1,15 +1,16 @@
 #!/bin/sh
 # K2: memory of Ayaz plus its WebView processes, in MB.
-# Usage: scripts/ram.sh [binary]   (default bin/ayaz; starts it, waits 10 s, measures, quits it)
+# Usage: scripts/ram.sh [binary [args...]]   (default bin/ayaz; starts it, waits 10 s, measures, quits it)
 set -eu
 bin=${1:-bin/ayaz}
+[ $# -gt 0 ] && shift
 
 case $(uname) in
 Darwin)
 	# WebKit runs as XPC services owned by launchd, not as our children, so take the ones that appear after launch.
 	webkit() { pgrep -f 'com.apple.WebKit\.' | sort; }
 	before=$(webkit)
-	"$bin" >/dev/null 2>&1 &
+	"$bin" "$@" >/dev/null 2>&1 &
 	pid=$!
 	sleep 10
 	new=$(webkit | comm -13 /dev/fd/3 - 3<<EOF2
@@ -25,7 +26,7 @@ EOF2
 	done
 	;;
 Linux)
-	"$bin" >/dev/null 2>&1 &
+	"$bin" "$@" >/dev/null 2>&1 &
 	pid=$!
 	sleep 10
 	tree() { echo "$1"; for c in $(pgrep -P "$1"); do tree "$c"; done; }

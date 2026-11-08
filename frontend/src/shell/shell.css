@@ -1,0 +1,17 @@
+.workbench { display: grid; grid-template-columns: 240px 1fr; grid-template-rows: 1fr auto; height: 100%; }
+.workbench > .editor { min-width: 0; min-height: 0; }
+.tree { overflow: auto; background: var(--bg-dim); border-right: 1px solid var(--sumi-ink-3); outline: none; }
+.tree-row { position: absolute; left: 0; right: 0; display: flex; align-items: center; white-space: nowrap; cursor: default; }
+.tree-icon { width: 14px; color: var(--fg-dim); flex: none; }
+.tree-dir { color: var(--accent); }
+.tree-row.cursor { background: var(--sumi-ink-3); }
+.tree:focus .tree-row.cursor { background: #2d4f67; }
+.statusline { grid-column: 1 / -1; display: flex; gap: 12px; padding: 0 8px; background: var(--bg-dim); border-top: 1px solid var(--sumi-ink-3); white-space: nowrap; overflow: hidden; }
+.statusline .mode { color: var(--bg); background: var(--accent); padding: 0 6px; font-weight: bold; }
+.statusline .mode.insert { background: var(--spring-green); }
+.statusline .mode.visual { background: var(--oni-violet); }
+.statusline .msg { margin-left: auto; color: var(--fg-dim); overflow: hidden; text-overflow: ellipsis; }
+.statusline .msg.error { color: var(--samurai-red); }
+.welcome { height: 100%; display: grid; place-content: center; gap: 12px; text-align: center; color: var(--fg-dim); }
+.welcome button { font: inherit; color: var(--fg); background: var(--sumi-ink-3); border: 1px solid var(--border); padding: 4px 12px; }
+.welcome button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
