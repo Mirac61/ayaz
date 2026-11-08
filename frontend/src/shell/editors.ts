@@ -4,7 +4,7 @@ import { getCM } from "@replit/codemirror-vim";
 import type { Files } from "../core/backend";
 import { Buffers, diff, isDirty, type Buffer } from "../core/buffers";
 import { createState, editorExtensions } from "../editor/editor";
-import { linkAt } from "../editor/mdlive";
+import { isReading, linkAt, toggleReading } from "../editor/mdlive";
 import { openTerminal, type TermHandle, type TermOptions } from "../terminal/terminal";
 
 export interface Status {
@@ -109,6 +109,12 @@ export class Editors {
     return v ? linkAt(v.state, v.state.selection.main.head) : null;
   }
 
+  // Reading view in the active editor; false if it isn't a Markdown file.
+  toggleReading(): boolean {
+    const v = this.panes.get(this.active)?.view;
+    return !!v && toggleReading(v) !== null;
+  }
+
   current(): Buffer | null { return this.panes.get(this.active)?.buf ?? null; }
 
   // From a terminal pane, the file opens in the editor pane used last.
@@ -187,7 +193,7 @@ export class Editors {
       pane: this.active,
       path: p.buf?.path ?? null,
       dirty: p.buf ? isDirty(p.buf) : false,
-      mode: p.mode,
+      mode: isReading(st) ? "read" : p.mode,
       line: l.number,
       col: head - l.from + 1,
       lines: st.doc.lines,

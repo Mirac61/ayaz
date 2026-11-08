@@ -35,6 +35,7 @@
 .statusline .seg { display: inline-flex; align-items: center; padding: 0 10px; border-radius: 999px; }
 .statusline .mode, .statusline .location { color: var(--bg); background: var(--accent); font-weight: 700; }
 .statusline .insert, .statusline .terminal { background: var(--spring-green); }
+.statusline .read { background: var(--carp-yellow); }
 .statusline .visual { background: var(--oni-violet); }
 .statusline .replace { background: var(--carp-yellow); }
 .statusline .file { background: var(--sumi-ink-3); }

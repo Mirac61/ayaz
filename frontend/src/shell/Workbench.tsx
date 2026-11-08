@@ -219,6 +219,11 @@ export function Workbench({ ws }: { ws: Info }) {
           await ed.open(p);
         },
       },
+      {
+        id: "md.reading",
+        title: "Toggle reading view",
+        run: () => { if (!ed.toggleReading()) fail("Reading view is for Markdown files"); },
+      },
       { id: "app.quit", title: "Quit (:qa)", run: (a) => quit(bang(a).force) },
       { id: "pane.close", title: "Close pane (:q)", run: (a) => closePane(bang(a).force) },
       { id: "pane.splitDown", title: "Split pane down (:split)", run: () => splitPane("col") },

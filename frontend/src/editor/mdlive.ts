@@ -1,4 +1,4 @@
-import type { EditorState, Range } from "@codemirror/state";
+import { EditorState, StateEffect, StateField, type Range } from "@codemirror/state";
 import { Decoration, EditorView, ViewPlugin, type DecorationSet, type ViewUpdate } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
 import type { SyntaxNode } from "@lezer/common";
@@ -12,10 +12,28 @@ export interface MdDeco {
   lines: { at: number; cls: string }[];
 }
 
+// Reading view: no line counts as active, not even the cursor's, and the document is read-only.
+const setReading = StateEffect.define<boolean>();
+const reading = StateField.define<boolean>({
+  create: () => false,
+  update: (v, tr) => tr.effects.reduce((acc, e) => (e.is(setReading) ? e.value : acc), v),
+  provide: (f) => [EditorState.readOnly.from(f), EditorView.editorAttributes.from(f, (on): Record<string, string> => (on ? { class: "cm-reading" } : {}))],
+});
+
+// null: this state has no live preview (not a Markdown file). Otherwise the new value.
+export function toggleReading(v: EditorView): boolean | null {
+  const on = v.state.field(reading, false);
+  if (on === undefined) return null;
+  v.dispatch({ effects: setReading.of(!on) });
+  return !on;
+}
+
+export const isReading = (state: EditorState) => state.field(reading, false) === true;
+
 // Pure: what to hide and style in [from, to]. Plain data, so Node tests need no DOM.
 export function mdDecorations(state: EditorState, from = 0, to = state.doc.length): MdDeco {
   const doc = state.doc;
-  const active = state.selection.ranges.map((r) => [doc.lineAt(r.from).from, doc.lineAt(r.to).to]);
+  const active = isReading(state) ? [] : state.selection.ranges.map((r) => [doc.lineAt(r.from).from, doc.lineAt(r.to).to]);
   const out: MdDeco = { hide: [], marks: [], lines: [] };
   // Replacing a line break isn't allowed from a ViewPlugin, and markers on a cursor line stay visible.
   const hide = (a: number, b: number) => {
@@ -103,7 +121,7 @@ class Live {
   hidden: DecorationSet;
   constructor(v: EditorView) { [this.deco, this.hidden] = build(v); }
   update(u: ViewUpdate) {
-    if (u.docChanged || u.viewportChanged || u.selectionSet || syntaxTree(u.state) !== syntaxTree(u.startState))
+    if (u.docChanged || u.viewportChanged || u.selectionSet || isReading(u.state) !== isReading(u.startState) || syntaxTree(u.state) !== syntaxTree(u.startState))
       [this.deco, this.hidden] = build(u.view);
   }
 }
@@ -129,7 +147,8 @@ const theme = EditorView.baseTheme({
   ".cm-md-h4, .cm-md-h5, .cm-md-h6": { fontSize: "1.05em" },
   ".cm-md-code": { backgroundColor: "#2a2a37", borderRadius: "3px", padding: "0 2px" },
   ".cm-md-link": { color: "#7e9cd8", textDecoration: "underline" },
+  "&.cm-reading .cm-activeLine": { backgroundColor: "transparent" },
 });
 
 // Hidden markers are atomic, so the mouse and CM's own motions step over them.
-export const mdlive = [live, theme, EditorView.atomicRanges.of((v) => v.plugin(live)?.hidden ?? Decoration.none)];
+export const mdlive = [reading, live, theme, EditorView.atomicRanges.of((v) => v.plugin(live)?.hidden ?? Decoration.none)];

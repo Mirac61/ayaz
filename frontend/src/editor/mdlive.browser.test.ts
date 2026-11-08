@@ -2,6 +2,7 @@ import { afterEach, expect, test } from "vitest";
 import { userEvent } from "vitest/browser";
 import { EditorView } from "@codemirror/view";
 import { createState } from "./editor";
+import { toggleReading } from "./mdlive";
 import { installVim } from "./vim/setup";
 import { defaultKeymap } from "../core/keymap";
 
@@ -54,4 +55,20 @@ test("gx, gf and the resize keys run their commands", async () => {
   await userEvent.keyboard("gxgf");
   await userEvent.keyboard("{Control>}w{/Control}<{Control>}w{/Control}>{Control>}w{/Control}+{Control>}w{/Control}-{Control>}w{/Control}=");
   expect(ran).toEqual(["link.browser", "link.file", "pane.narrower", "pane.wider", "pane.taller", "pane.shorter", "pane.equal"]);
+});
+
+test("reading view: everything rendered, Vim moves but cannot edit", async () => {
+  await mount("# Title\nsome **bold** text\nend");
+  expect(toggleReading(view!)).toBe(true);
+  expect(lines()).toEqual(["Title", "some bold text", "end"]);
+  expect(view!.dom.classList.contains("cm-reading")).toBe(true);
+  await userEvent.keyboard("j");
+  expect(view!.state.doc.lineAt(view!.state.selection.main.head).number).toBe(2);
+  expect(lines()).toEqual(["Title", "some bold text", "end"]);
+  await userEvent.keyboard("x");
+  expect(view!.state.doc.toString()).toBe("# Title\nsome **bold** text\nend");
+  expect(toggleReading(view!)).toBe(false);
+  expect(lines()).toEqual(["Title", "some **bold** text", "end"]);
+  await userEvent.keyboard("x");
+  expect(view!.state.doc.toString()).not.toBe("# Title\nsome **bold** text\nend");
 });

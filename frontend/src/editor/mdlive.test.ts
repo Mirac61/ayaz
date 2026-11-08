@@ -1,8 +1,8 @@
 import { expect, test } from "vitest";
-import { EditorSelection, EditorState } from "@codemirror/state";
+import { EditorSelection, EditorState, StateEffect } from "@codemirror/state";
 import { ensureSyntaxTree } from "@codemirror/language";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
-import { browsable, linkAt, mdDecorations, resolveLink } from "./mdlive";
+import { browsable, linkAt, mdDecorations, mdlive, resolveLink, toggleReading } from "./mdlive";
 
 // "|" marks the cursor; "«" and "»" a selection instead. No marker: cursor at the very end.
 function state(src: string) {
@@ -97,4 +97,21 @@ test("browsable: only real URLs go to the browser", () => {
   expect(browsable("javascript:alert(1)")).toBe(false);
   expect(browsable("file:///etc/passwd")).toBe(false);
   expect(browsable("a.md")).toBe(false);
+});
+
+test("reading view hides the markers of the cursor line too", () => {
+  const view = { state: null as unknown as EditorState, dispatch(tr: { effects: StateEffect<unknown> }) { this.state = this.state.update(tr).state; } };
+  view.state = EditorState.create({ doc: "# H\n**b**", selection: { anchor: 6 }, extensions: [markdown({ base: markdownLanguage }), mdlive] });
+  ensureSyntaxTree(view.state, 10, 5000);
+  expect(mdDecorations(view.state).hide).toEqual([[0, 2]]); // the cursor line stays raw
+  expect(toggleReading(view as never)).toBe(true);
+  expect(mdDecorations(view.state).hide).toEqual([[0, 2], [4, 6], [7, 9]]);
+  expect(view.state.readOnly).toBe(true);
+  expect(toggleReading(view as never)).toBe(false);
+  expect(view.state.readOnly).toBe(false);
+});
+
+test("toggleReading is null without live preview", () => {
+  const view = { state: state("# H\n|") };
+  expect(toggleReading(view as never)).toBeNull();
 });
