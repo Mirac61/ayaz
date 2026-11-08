@@ -2,6 +2,15 @@
 
 Measurements against the budgets in [00-vision.md](00-vision.md#performance-budgets). Newest first. Machine: M-series MacBook (ProMotion), macOS 27.2.
 
+## 2026-11-08 · M3 file watching (macOS)
+| | Value | Budget | How |
+|---|---|---|---|
+| K11 file written → batch in Go | median 113 ms, max 115 ms (30 writes) | ≤ 500 ms | scratch test on `internal/watch` (FSEvents); 50 ms cooldown + 50 ms batch window |
+
+Notes:
+- Go → frontend adds one Wails event plus one `ReadText` per open buffer; the E2E test (`external changes reach tree and clean buffers`) passes well inside Playwright's default timeout.
+- Linux (inotify) not measured yet, CI runs the same tests there.
+
 ## 2026-11-08 · M2 fuzzy finder (macOS)
 
 | | Value | Budget | How |

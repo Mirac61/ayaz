@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { EditorState } from "@codemirror/state";
-import { Buffers, isDirty } from "./buffers";
+import { Buffers, diff, isDirty } from "./buffers";
 import type { Files } from "./backend";
 
 // In-memory Files with the same conflict rule as Go's WriteText.
@@ -73,4 +73,38 @@ describe("Buffers", () => {
     expect(fresh.state.doc.toString()).toBe("x");
     expect(bufs.dirty()).toEqual([]);
   });
+
+  test("checkDisk: own save is same, clean reloads, dirty conflicts, matching dirty turns clean", async () => {
+    const { bufs, disk, touch } = make({ "a.go": "x" });
+    const b = await bufs.open("a.go");
+    b.state = edit(b.state, "y");
+    await bufs.save(b);
+    expect(await bufs.checkDisk(b)).toEqual({ kind: "same" });
+
+    touch("a.go", "theirs");
+    expect(await bufs.checkDisk(b)).toEqual({ kind: "reload", content: "theirs", mtime: disk.get("a.go")!.mtime });
+
+    b.state = edit(b.state, "z");
+    expect(await bufs.checkDisk(b)).toEqual({ kind: "conflict" });
+
+    touch("a.go", b.state.doc.toString());
+    expect(await bufs.checkDisk(b)).toEqual({ kind: "same" });
+    expect(isDirty(b)).toBe(false);
+    await bufs.save(b); // mtime was taken over, so no conflict
+  });
+
+  test("checkDisk: deleted file, and a new buffer that never was on disk", async () => {
+    const { bufs, disk } = make({ "a.go": "x" });
+    const b = await bufs.open("a.go");
+    disk.delete("a.go");
+    expect(await bufs.checkDisk(b)).toEqual({ kind: "deleted" });
+    expect(await bufs.checkDisk(await bufs.open("new.go"))).toEqual({ kind: "same" });
+  });
+});
+
+test("diff replaces only the changed middle", () => {
+  expect(diff("abcXdef", "abcYYdef")).toEqual({ from: 3, to: 4, insert: "YY" });
+  expect(diff("aaa", "aa")).toEqual({ from: 2, to: 3, insert: "" });
+  expect(diff("", "new")).toEqual({ from: 0, to: 0, insert: "new" });
+  expect(diff("same", "same")).toEqual({ from: 4, to: 4, insert: "" });
 });

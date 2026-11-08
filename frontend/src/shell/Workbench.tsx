@@ -187,6 +187,14 @@ export function Workbench({ ws }: { ws: Info }) {
     return off;
   }, [ed]);
 
+  // Changes on disk (git checkout, codegen, our own saves) reach the tree and the open buffers.
+  useEffect(() => backend.onFsChanged(ws.id, async (c) => {
+    const paths = c.rescan ? null : c.paths ?? [];
+    tree.current?.refresh(paths);
+    const note = await ed.diskChanged(paths);
+    if (note) fail(note);
+  }), [ed, ws.id]);
+
   const bindingsRef = useRef(bindings);
   bindingsRef.current = bindings;
 

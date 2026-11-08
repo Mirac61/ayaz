@@ -5,7 +5,13 @@ import { fileIcon, folderIcon } from "../theme/icons";
 interface Row { path: string; name: string; dir: boolean; depth: number }
 const ROW = 24; // px, fixed so we can window the rows by scrollTop
 
-export interface TreeHandle { focus(): void }
+export interface TreeHandle {
+  focus(): void;
+  // Re-lists loaded folders touched by changed paths, all of them for null.
+  refresh(paths: string[] | null): void;
+}
+
+const parent = (p: string) => p.slice(0, Math.max(p.lastIndexOf("/"), 0));
 
 interface Props {
   files: Files;
@@ -22,10 +28,23 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
   const [height, setHeight] = useState(0);
   const el = useRef<HTMLDivElement>(null);
 
-  useImperativeHandle(ref, () => ({ focus: () => el.current?.focus() }));
+  const loaded = useRef(children);
+  loaded.current = children;
 
+  // A folder that can't be listed (deleted) is forgotten, so it reloads fresh if it comes back.
   const load = (dir: string) =>
-    files.list(dir).then((es) => setChildren((m) => new Map(m).set(dir, es)), () => {});
+    files.list(dir).then(
+      (es) => setChildren((m) => new Map(m).set(dir, es)),
+      () => setChildren((m) => { const n = new Map(m); n.delete(dir); return n; }),
+    );
+
+  useImperativeHandle(ref, () => ({
+    focus: () => el.current?.focus(),
+    refresh(paths) {
+      const dirs = paths ? new Set(paths.flatMap((p) => [p, parent(p)])) : null;
+      for (const d of loaded.current.keys()) if (!dirs || dirs.has(d)) load(d);
+    },
+  }));
   useEffect(() => void load(""), [files]);
 
   useEffect(() => {

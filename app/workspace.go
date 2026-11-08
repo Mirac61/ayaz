@@ -1,10 +1,13 @@
 package app
 
 import (
+	"context"
+	"log"
 	"path/filepath"
 	"sync"
 
 	"github.com/Mirac61/ayaz/internal/index"
+	"github.com/Mirac61/ayaz/internal/watch"
 	"github.com/Mirac61/ayaz/internal/workspace"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -64,7 +67,32 @@ func (s *WorkspaceService) Open(root string) (*Info, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Off the critical path: on Linux, inotify walks every folder first.
+	// shortcut: the watcher runs until the process ends; stop it when Close lands (M13, multiple windows).
+	go func() {
+		if err := watch.Start(context.Background(), w.Root, func(b watch.Batch) { s.changed(w.ID, b) }); err != nil {
+			log.Printf("watch %s: %v", w.Root, err)
+		}
+	}()
 	return &Info{ID: w.ID, Name: filepath.Base(w.Root), Root: w.Root}, nil
+}
+
+// FsChange is the "fs:changed" event payload.
+type FsChange struct {
+	WS string `json:"ws"`
+	watch.Batch
+}
+
+// changed drops the file indexes, so the next Find rebuilds them, and tells the frontend.
+// shortcut: a rebuild per batch instead of patching the index; fine while K10 holds, patch it if big repos lag.
+func (s *WorkspaceService) changed(ws string, b watch.Batch) {
+	s.mu.Lock()
+	delete(s.indexes, indexKey{ws, false})
+	delete(s.indexes, indexKey{ws, true})
+	s.mu.Unlock()
+	if a := application.Get(); a != nil {
+		a.Event.Emit("fs:changed", FsChange{WS: ws, Batch: b})
+	}
 }
 
 func (s *WorkspaceService) List(ws, dir string) ([]workspace.Entry, error) {
@@ -93,8 +121,7 @@ func (s *WorkspaceService) WriteText(ws, path, content string, expectedMtime int
 }
 
 // Find fuzzy-matches workspace paths. The index is built on the first call (K10) and kept;
-// ignored=true searches files Git ignores too (Q26).
-// shortcut: the index never refreshes until M3 (file watching) updates it.
+// ignored=true searches files Git ignores too (Q26). File changes drop it, see changed.
 func (s *WorkspaceService) Find(ws, query string, limit int, ignored bool) ([]index.Match, error) {
 	w, err := s.reg.Get(ws)
 	if err != nil {

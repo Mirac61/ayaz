@@ -21,3 +21,9 @@ Option 2 behind `internal/watch.Watcher` (one implementation file per library). 
 - − Young project with few users. The interface keeps a switch small; the fallback is fsnotify with our own recursive walk on Linux.
 - Our own writes must be filtered (path + time window), otherwise every `:w` shows up as an external change.
 - Overflow → full rescan of the affected subtree.
+
+## Implementation notes (M3)
+- `internal/watch.Start(ctx, root, fn)` is the interface; fswatcher is only used in `watch.go`. Hidden files are watched (`WithHidden`), `.git/`, `node_modules/` and our save temp files (`.*.ayaz-*`) are excluded.
+- Self-write filter is by **mtime, not time window**, in the frontend: a buffer whose mtime matches disk does nothing. Own saves still reach the tree and the index, so a new file from `:w` shows up.
+- Overflow sends `rescan: true`; the frontend then re-lists every loaded folder and checks every buffer.
+- The index is dropped per batch and rebuilt on the next Find, not patched (K10 holds).

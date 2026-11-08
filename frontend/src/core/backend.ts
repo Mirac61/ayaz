@@ -7,6 +7,9 @@ import type { Match as FileMatch } from "../../bindings/github.com/Mirac61/ayaz/
 
 export type { Entry, FileMatch, Info, Match, TextFile };
 
+// A batch of changes on disk. Paths are workspace-relative, files or folders; rescan: events were lost, check everything.
+export interface FsChange { paths: string[] | null; rescan: boolean }
+
 export interface Backend {
   ping(): Promise<string>;
   matches(n: number): Promise<Match[]>;
@@ -21,6 +24,8 @@ export interface Backend {
   keymap(): Promise<string>; // the user's keymap.json, "" if none
   // Fuzzy-ranks a short list (recent files, buffers, commands) with the Go matcher.
   rank(items: string[], query: string, limit: number): Promise<FileMatch[]>;
+  // Calls fn for changes on disk in workspace ws, also our own saves. Returns the unsubscribe function.
+  onFsChanged(ws: string, fn: (c: FsChange) => void): () => void;
 }
 
 // File access bound to one workspace; paths are workspace-relative with "/".
@@ -46,6 +51,10 @@ export const backend: Backend = {
   openFolderDialog: () => WorkspaceService.OpenDialog(),
   keymap: () => ConfigService.Keymap(),
   rank: async (items, q, limit) => (await WorkspaceService.Rank(items, q, limit)) ?? [],
+  onFsChanged: (ws, fn) =>
+    Events.On("fs:changed", (e: { data: FsChange & { ws: string } }) => {
+      if (e.data.ws === ws) fn(e.data);
+    }),
   files: (ws) => ({
     list: async (dir) => (await WorkspaceService.List(ws, dir)) ?? [],
     readText: (path) => WorkspaceService.ReadText(ws, path),

@@ -2,7 +2,7 @@ import { EditorState, Transaction, Annotation } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { getCM } from "@replit/codemirror-vim";
 import type { Files } from "../core/backend";
-import { Buffers, isDirty, type Buffer } from "../core/buffers";
+import { Buffers, diff, isDirty, type Buffer } from "../core/buffers";
 import { createState, editorExtensions } from "../editor/editor";
 
 export interface Status {
@@ -70,6 +70,28 @@ export class Editors {
   async reload() {
     const b = this.current();
     if (b) this.show(this.active, await this.buffers.load(b.path));
+  }
+
+  // Brings loaded buffers in line with disk after a watcher event (null = check all). Clean buffers reload in place,
+  // keeping cursor and undo; returns a notice for dirty or deleted ones.
+  async diskChanged(paths: string[] | null): Promise<string | null> {
+    const hit = (p: string) => !paths || paths.some((c) => p === c || p.startsWith(c + "/")); // a folder covers its files
+    let note: string | null = null;
+    for (const b of this.buffers.list().filter((b) => hit(b.path))) {
+      const r = await this.buffers.checkDisk(b).catch(() => ({ kind: "same" as const })); // unreadable now: leave it
+      if (r.kind === "conflict") note ??= `"${b.path}" changed on disk. :w! overwrites, :e! reloads`;
+      else if (r.kind === "deleted") note ??= `"${b.path}" was deleted on disk`;
+      else if (r.kind === "reload") {
+        const change = diff(b.state.doc.toString(), r.content);
+        const pane = [...this.panes.values()].find((p) => p.buf === b);
+        if (pane) pane.view.dispatch({ changes: change }); // dispatch() copies it to other panes and into b.state
+        else b.state = b.state.update({ changes: change }).state;
+        b.saved = b.state.doc;
+        b.mtime = r.mtime;
+      }
+    }
+    this.emit();
+    return note;
   }
 
   show(id: number, b: Buffer) {

@@ -50,7 +50,7 @@ func New(paths []string) *Index {
 func (ix *Index) Len() int { return len(ix.paths) }
 
 // gitFiles returns nil if root is not inside a Git work tree or git is missing.
-// shortcut: tracked files deleted from disk still show up until M3 rebuilds the index on changes.
+// Tracked files deleted from disk still show up until the next commit; opening one gives an empty buffer.
 func gitFiles(root string) []string {
 	out, err := exec.Command("git", "-C", root, "ls-files", "-z", "--cached", "--others", "--exclude-standard").Output()
 	if err != nil {

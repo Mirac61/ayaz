@@ -23,8 +23,7 @@ import * as $models from "./models.js";
 
 /**
  * Find fuzzy-matches workspace paths. The index is built on the first call (K10) and kept;
- * ignored=true searches files Git ignores too (Q26).
- * shortcut: the index never refreshes until M3 (file watching) updates it.
+ * ignored=true searches files Git ignores too (Q26). File changes drop it, see changed.
  */
 export function Find(ws: string, query: string, limit: number, ignored: boolean): $CancellablePromise<index$0.Match[] | null> {
     return $Call.ByID(2721793854, ws, query, limit, ignored);
