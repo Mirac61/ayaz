@@ -44,6 +44,12 @@ export function installVim(r: Run, normal: Binding[], p: Prime) {
     Vim.mapCommand(b.keys, "action", action, {}, { context: "normal" });
   });
 
+  // Links under the cursor; editor-only, so the tree keeps its own g keys.
+  for (const [keys, command] of Object.entries({ gx: "link.browser", gf: "link.file" })) {
+    Vim.defineAction(keys, () => run(command));
+    Vim.mapCommand(keys, "action", keys, {}, { context: "normal" });
+  }
+
   // codemirror-vim has no folds, CM6 does.
   const folds = { za: toggleFold, zc: foldCode, zo: unfoldCode, zM: foldAll, zR: unfoldAll };
   for (const [keys, cmd] of Object.entries(folds)) {

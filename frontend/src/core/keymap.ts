@@ -36,6 +36,12 @@ export function defaultKeymap(mac = isMac): Binding[] {
     n("<C-w>v", "pane.splitRight"),
     n("<C-w>c", "pane.close"),
     n("<C-w>q", "pane.close"),
+    n("<C-w>+", "pane.taller"),
+    n("<C-w>-", "pane.shorter"),
+    n("<C-w>>", "pane.wider"),
+    n("<C-w><", "pane.narrower"),
+    n("<C-w>=", "pane.equal"),
+    n("<C-w>z", "term.maximize"),
     ...(mac
       ? [g("<D-p>", "find.files"), g("<D-S-p>", "find.commands"), g("<D-j>", "term.panel")]
       : [g("<C-S-p>", "find.files"), g("<C-S-j>", "term.panel")]),

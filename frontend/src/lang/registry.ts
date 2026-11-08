@@ -19,7 +19,7 @@ const langs: Record<string, () => Promise<LanguageSupport>> = {
   css: () => import("@codemirror/lang-css").then((m) => m.css()),
   json: () => import("@codemirror/lang-json").then((m) => m.json()),
   java: () => import("@codemirror/lang-java").then((m) => m.java()),
-  md: () => import("@codemirror/lang-markdown").then((m) => m.markdown()),
+  md: () => import("@codemirror/lang-markdown").then((m) => m.markdown({ base: m.markdownLanguage })), // GFM (Q7)
 };
 
 export const extOf = (path: string) => {

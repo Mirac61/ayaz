@@ -4,6 +4,7 @@ import { getCM } from "@replit/codemirror-vim";
 import type { Files } from "../core/backend";
 import { Buffers, diff, isDirty, type Buffer } from "../core/buffers";
 import { createState, editorExtensions } from "../editor/editor";
+import { linkAt } from "../editor/mdlive";
 import { openTerminal, type TermHandle, type TermOptions } from "../terminal/terminal";
 
 export interface Status {
@@ -101,6 +102,12 @@ export class Editors {
 
   // Ctrl-\ Ctrl-n in the active terminal.
   termNormal() { this.panes.get(this.active)?.term?.setMode("normal"); }
+
+  // The link target under the active editor's cursor (gx, gf).
+  linkAtCursor(): string | null {
+    const v = this.panes.get(this.active)?.view;
+    return v ? linkAt(v.state, v.state.selection.main.head) : null;
+  }
 
   current(): Buffer | null { return this.panes.get(this.active)?.buf ?? null; }
 

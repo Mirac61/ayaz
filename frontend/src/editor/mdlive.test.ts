@@ -1,0 +1,100 @@
+import { expect, test } from "vitest";
+import { EditorSelection, EditorState } from "@codemirror/state";
+import { ensureSyntaxTree } from "@codemirror/language";
+import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
+import { browsable, linkAt, mdDecorations, resolveLink } from "./mdlive";
+
+// "|" marks the cursor; "«" and "»" a selection instead. No marker: cursor at the very end.
+function state(src: string) {
+  const s = src.indexOf("«"), at = src.indexOf("|");
+  const doc = src.replace(/[|«»]/g, "");
+  const sel = s >= 0 ? EditorSelection.single(s, src.indexOf("»") - 1) : EditorSelection.cursor(at >= 0 ? at : doc.length);
+  const st = EditorState.create({ doc, selection: sel, extensions: markdown({ base: markdownLanguage }) });
+  ensureSyntaxTree(st, doc.length, 5000);
+  return st;
+}
+
+// The text as it reads with the hidden markers gone.
+function shown(src: string) {
+  const st = state(src);
+  const doc = st.doc.toString();
+  return mdDecorations(st).hide.sort((x, y) => x[0] - y[0]).reduceRight((d, [a, b]) => d.slice(0, a) + d.slice(b), doc);
+}
+
+const cases: [src: string, want: string][] = [
+  ["# Title\n|", "Title\n"],
+  ["## Sub\n|", "Sub\n"],
+  ["###### Six\n|", "Six\n"],
+  ["#   Spaces\n|", "Spaces\n"],
+  ["# Closed ##\n|", "Closed\n"],
+  ["#\n|", "\n"],
+  ["# Ti|tle", "# Title"], // cursor line keeps its markers
+  ["#Title\n|", "#Title\n"], // no space: a paragraph, not a heading
+  ["*em*\n|", "em\n"],
+  ["_em_\n|", "em\n"],
+  ["**strong**\n|", "strong\n"],
+  ["__strong__\n|", "strong\n"],
+  ["***both***\n|", "both\n"],
+  ["a **b** c\n|", "a b c\n"],
+  ["~~gone~~\n|", "gone\n"],
+  ["`code`\n|", "code\n"],
+  ["``a ` b``\n|", "a ` b\n"],
+  ["[text](https://x.org)\n|", "text\n"],
+  ['[text](a.md "Title")\n|', "text\n"],
+  ["[text][ref]\n\n[ref]: https://x.org\n|", "text\n\n[ref]: https://x.org\n"],
+  ["[**bold** link](x)\n|", "bold link\n"],
+  ["![alt](img.png)\n|", "![alt](img.png)\n"], // images come in M6
+  ["<https://x.org>\n|", "<https://x.org>\n"],
+  ["```\n**x**\n```\n|", "```\n**x**\n```\n"], // code blocks stay literal
+  ["    *x*\n\n|", "    *x*\n\n"], // indented code too
+  ["*a*\n|*b*", "a\n*b*"],
+  ["|*a*\n*b*", "*a*\nb"],
+  ["«*a*\n*b*»\n*c*", "*a*\n*b*\nc"], // a selection keeps all its lines raw
+  ["# H\n**s** `c` [l](u)\n|", "H\ns c l\n"],
+  ["*un closed\n|", "*un closed\n"],
+  ["- *item*\n|", "- item\n"],
+  ["> **quote**\n|", "> quote\n"],
+];
+
+test.each(cases)("%j reads as %j", (src, want) => expect(shown(src)).toBe(want));
+
+test("headings get a line class, code and link text a mark", () => {
+  const d = mdDecorations(state("## H\n`c` [l](u)\n|"));
+  expect(d.lines).toEqual([{ at: 0, cls: "cm-md-h2" }]);
+  expect(d.marks).toEqual([{ from: 6, to: 7, cls: "cm-md-code" }, { from: 10, to: 11, cls: "cm-md-link" }]);
+});
+
+test("a range limits the work to it", () => {
+  const st = state("*a*\n*b*\n|");
+  expect(mdDecorations(st, 4, 7).hide).toEqual([[4, 5], [6, 7]]);
+});
+
+test("linkAt finds the URL of links, autolinks and bare URLs", () => {
+  const at = (src: string) => { const st = state(src); return linkAt(st, st.selection.main.head); };
+  expect(at("see [te|xt](https://x.org) now")).toBe("https://x.org");
+  expect(at("see [text](https://x.|org) now")).toBe("https://x.org");
+  expect(at("see [text](|a.md#top)")).toBe("a.md#top");
+  expect(at("<https://|x.org>")).toBe("https://x.org");
+  expect(at("go to https://x.org/a|b.")).toBe("https://x.org/ab");
+  expect(at("[te|xt][ref]")).toBeNull();
+  expect(at("pl|ain text")).toBeNull();
+});
+
+test("resolveLink stays inside the workspace", () => {
+  expect(resolveLink("docs/a.md", "b.md")).toBe("docs/b.md");
+  expect(resolveLink("docs/a.md", "./sub/b.md#x")).toBe("docs/sub/b.md");
+  expect(resolveLink("docs/a.md", "../README.md")).toBe("README.md");
+  expect(resolveLink("docs/a.md", "my%20file.md")).toBe("docs/my file.md");
+  expect(resolveLink("a.md", "../x.md")).toBeNull();
+  expect(resolveLink("a.md", "/etc/passwd")).toBeNull();
+  expect(resolveLink("a.md", "https://x.org")).toBeNull();
+  expect(resolveLink("a.md", "#anchor")).toBeNull();
+});
+
+test("browsable: only real URLs go to the browser", () => {
+  expect(browsable("https://x.org")).toBe(true);
+  expect(browsable("mailto:a@b.c")).toBe(true);
+  expect(browsable("javascript:alert(1)")).toBe(false);
+  expect(browsable("file:///etc/passwd")).toBe(false);
+  expect(browsable("a.md")).toBe(false);
+});

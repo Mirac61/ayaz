@@ -4,9 +4,10 @@ import { Commands } from "../core/commands";
 import { defaultKeymap, keyName, mergeKeymap, parseKeys, parseUserKeymap, Sequencer, type Binding } from "../core/keymap";
 import { isDirty } from "../core/buffers";
 import { installVim } from "../editor/vim/setup";
+import { browsable, resolveLink } from "../editor/mdlive";
 import type { TermOptions } from "../terminal/terminal";
 import { Editors, type Status } from "./editors";
-import { close, neighbor, panes, rects, split, type Dir, type Layout } from "./layout";
+import { borders, close, equalize, neighbor, panes, rects, resize, setBorder, split, type Dir, type Layout } from "./layout";
 import { Picker, type Item, type PickerSource } from "./Picker";
 import { Glyph, Tree, type TreeHandle } from "./Tree";
 import { fileIcon, folderIcon } from "../theme/icons";
@@ -22,6 +23,8 @@ const bang = (arg = "") => {
 };
 
 const LIMIT = 50;
+const STEP = 0.05; // <C-w>+/-/</>: share of the parent split (or of the window for the panel)
+const clampPanel = (h: number) => Math.min(0.9, Math.max(0.1, h));
 const PANEL = -1; // pane id of the bottom panel; split panes count up from 1
 
 // One workspace: tree on the left, editor panes in splits, status line. Every action is a command (ADR-0010).
@@ -37,6 +40,22 @@ export function Workbench({ ws }: { ws: Info }) {
   const [panel, setPanel] = useState<"shown" | "hidden" | null>(null);
   const panelRef = useRef(panel);
   panelRef.current = panel;
+  // Panel height as a share of the window, kept per folder like recent files.
+  const sizeKey = `ayaz.layout:${ws.root}`;
+  const [panelH, setPanelH] = useState(() => {
+    try {
+      const h = JSON.parse(localStorage.getItem(sizeKey) ?? "{}")?.panel;
+      return typeof h === "number" ? clampPanel(h) : 0.35;
+    } catch {
+      return 0.35; // storage blocked or corrupt
+    }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(sizeKey, JSON.stringify({ panel: panelH })); } catch { /* a convenience */ }
+  }, [panelH]);
+  const [max, setMax] = useState(false); // the panel fills the editor area
+  const panesEl = useRef<HTMLDivElement>(null);
+  const panelEl = useRef<HTMLDivElement>(null);
   const termFor = useRef(new Map<number, TermOptions>()); // new pane → the terminal it runs
   const seq = useRef<Sequencer | null>(null);
   const [hints, setHints] = useState<{ keys: string[]; next: Binding[] } | null>(null);
@@ -126,6 +145,7 @@ export function Workbench({ ws }: { ws: Info }) {
       const p = panelRef.current;
       if (p === "shown") {
         setPanel("hidden");
+        setMax(false);
         return ed.focus(lastSplit.current);
       }
       setPanel("shown");
@@ -139,6 +159,18 @@ export function Workbench({ ws }: { ws: Info }) {
       if (n !== null) ed.focus(n);
       else if (d === "left") tree.current?.focus();
       else if (d === "down" && panelRef.current === "shown") ed.focus(PANEL);
+    };
+
+    // <C-w>+/-/</>; on the panel only the height changes.
+    const grow = (dir: "row" | "col", d: number) => {
+      if (ed.active === PANEL) return dir === "col" && setPanelH((h) => clampPanel(h + d));
+      setLayout(resize(lay.current, ed.active, dir, d));
+    };
+
+    const toggleMax = () => {
+      if (panelRef.current !== "shown") togglePanel();
+      setMax((m) => !m);
+      requestAnimationFrame(() => ed.focus(PANEL));
     };
 
     const filePicker = (title: string, list: () => string[], hint?: (p: string) => string | undefined): PickerSource => ({
@@ -168,6 +200,25 @@ export function Workbench({ ws }: { ws: Info }) {
           await ed.reload();
         },
       },
+      {
+        id: "link.browser",
+        title: "Open link in browser (gx)",
+        async run() {
+          const t = ed.linkAtCursor();
+          if (!t || !browsable(t)) return fail("No URL under the cursor");
+          await backend.openURL(t);
+        },
+      },
+      {
+        id: "link.file",
+        title: "Go to linked file (gf)",
+        async run() {
+          const b = ed.current(), t = ed.linkAtCursor();
+          const p = b && t ? resolveLink(b.path, t) : null;
+          if (!p) return fail("No relative file link under the cursor");
+          await ed.open(p);
+        },
+      },
       { id: "app.quit", title: "Quit (:qa)", run: (a) => quit(bang(a).force) },
       { id: "pane.close", title: "Close pane (:q)", run: (a) => closePane(bang(a).force) },
       { id: "pane.splitDown", title: "Split pane down (:split)", run: () => splitPane("col") },
@@ -176,6 +227,12 @@ export function Workbench({ ws }: { ws: Info }) {
       { id: "pane.down", title: "Go to pane below", run: () => move("down") },
       { id: "pane.up", title: "Go to pane above", run: () => move("up") },
       { id: "pane.right", title: "Go to right pane", run: () => move("right") },
+      { id: "pane.taller", title: "Pane taller (<C-w>+)", run: () => grow("col", STEP) },
+      { id: "pane.shorter", title: "Pane shorter (<C-w>-)", run: () => grow("col", -STEP) },
+      { id: "pane.wider", title: "Pane wider (<C-w>>)", run: () => grow("row", STEP) },
+      { id: "pane.narrower", title: "Pane narrower (<C-w><)", run: () => grow("row", -STEP) },
+      { id: "pane.equal", title: "Equal pane sizes (<C-w>=)", run: () => setLayout(equalize(lay.current)) },
+      { id: "term.maximize", title: "Maximize terminal panel", run: toggleMax },
       { id: "tree.focus", title: "Focus file tree", run: () => tree.current?.focus() },
       { id: "term.panel", title: "Toggle terminal panel", run: togglePanel },
       { id: "term.split", title: "Terminal in a split (:terminal)", run: () => termSplit() },
@@ -253,6 +310,9 @@ export function Workbench({ ws }: { ws: Info }) {
     if (note) fail(note);
   }), [ed, ws.id]);
 
+  // Leaving the maximized panel (Ctrl-k, a picked file) brings the editors back.
+  useEffect(() => { if (status.pane !== PANEL) setMax(false); }, [status.pane]);
+
   const bindingsRef = useRef(bindings);
   bindingsRef.current = bindings;
 
@@ -292,12 +352,12 @@ export function Workbench({ ws }: { ws: Info }) {
 
   const rs = rects(layout);
   return (
-    <div className="workbench">
+    <div className={max && panel === "shown" ? "workbench max" : "workbench"}>
       <aside className="sidebar">
         <div className="sidebar-title"><Glyph icon={folderIcon(true)} />{ws.name}</div>
         <Tree ref={tree} files={files} onOpen={(p) => run("file.open", p)} onLeave={() => ed.focus(ed.active)} />
       </aside>
-      <div className="panes">
+      <div className="panes" ref={panesEl}>
         {[...rs].map(([id, r]) => (
           <Pane
             key={id}
@@ -314,9 +374,27 @@ export function Workbench({ ws }: { ws: Info }) {
             }}
           />
         ))}
+        {borders(layout).map((b) => (
+          <Handle
+            key={`${b.path.join(".")}:${b.i}`}
+            dir={b.dir}
+            style={b.dir === "row"
+              ? { left: `${b.at.x * 100}%`, top: `${b.at.y * 100}%`, height: `${b.at.h * 100}%` }
+              : { top: `${b.at.y * 100}%`, left: `${b.at.x * 100}%`, width: `${b.at.w * 100}%` }}
+            onDrag={(e) => {
+              const box = panesEl.current!.getBoundingClientRect();
+              const at = b.dir === "row" ? ((e.clientX - box.left) / box.width - b.r.x) / b.r.w : ((e.clientY - box.top) / box.height - b.r.y) / b.r.h;
+              setLayout((l) => setBorder(l, b.path, b.i, at));
+            }}
+          />
+        ))}
       </div>
       {panel && (
-        <div className="panel" hidden={panel === "hidden"}>
+        <div className="panel" ref={panelEl} hidden={panel === "hidden"} style={{ height: `${panelH * 100}vh` }}>
+          <Handle dir="col" style={{ top: 0, left: 0, right: 0 }} onDrag={(e) => {
+            setMax(false);
+            setPanelH(clampPanel((panelEl.current!.getBoundingClientRect().bottom - e.clientY) / window.innerHeight));
+          }} />
           <Pane
             id={PANEL}
             active={status.pane === PANEL}
@@ -376,6 +454,23 @@ function Hints({ keys, next, title }: { keys: string[]; next: Binding[]; title(i
         })}
       </ul>
     </div>
+  );
+}
+
+// A split border or the panel's top edge; dragging it calls onDrag with each pointer move.
+function Handle({ dir, style, onDrag }: { dir: "row" | "col"; style: React.CSSProperties; onDrag(e: PointerEvent): void }) {
+  return (
+    <div
+      className={`resize ${dir}`}
+      style={style}
+      onPointerDown={(e) => {
+        const el = e.currentTarget;
+        el.setPointerCapture(e.pointerId);
+        el.addEventListener("pointermove", onDrag);
+        el.addEventListener("pointerup", () => el.removeEventListener("pointermove", onDrag), { once: true });
+        e.preventDefault(); // no text selection while dragging
+      }}
+    />
   );
 }
 
