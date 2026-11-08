@@ -5,7 +5,8 @@ import { backend, type Info } from "../core/backend";
 import { Buffers, isDirty, type Buffer } from "../core/buffers";
 import { createState } from "../editor/editor";
 import { installVim } from "../editor/vim/setup";
-import { Tree, type TreeHandle } from "./Tree";
+import { Glyph, Tree, type TreeHandle } from "./Tree";
+import { fileIcon, folderIcon } from "../theme/icons";
 import "./shell.css";
 
 // Wails rejects with an Error whose message is Go's error string.
@@ -19,6 +20,7 @@ export function Workbench({ ws }: { ws: Info }) {
   const [path, setPath] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
   const [mode, setMode] = useState("normal");
+  const [pos, setPos] = useState({ line: 1, col: 1, lines: 1 });
   const [msg, setMsg] = useState<{ text: string; error?: boolean } | null>(null);
   const open = useRef<(path: string) => void>(() => {});
 
@@ -41,6 +43,7 @@ export function Workbench({ ws }: { ws: Info }) {
       setPath(b.path);
       setDirty(isDirty(b));
       setMode("normal");
+      setPos({ line: 1, col: 1, lines: b.state.doc.lines });
       view.focus();
     };
     open.current = (p) => buffers.open(p).then(show, (e) => fail(errText(e)));
@@ -85,6 +88,8 @@ export function Workbench({ ws }: { ws: Info }) {
         state,
         dispatchTransactions(trs, v) {
           v.update(trs);
+          const head = v.state.selection.main.head, l = v.state.doc.lineAt(head);
+          setPos({ line: l.number, col: head - l.from + 1, lines: v.state.doc.lines });
           if (cur) {
             cur.state = v.state;
             setDirty(isDirty(cur));
@@ -102,13 +107,22 @@ export function Workbench({ ws }: { ws: Info }) {
 
   return (
     <div className="workbench">
-      <Tree ref={tree} files={files} onOpen={(p) => open.current(p)} onLeave={() => editorEl.current?.querySelector<HTMLElement>(".cm-content")?.focus()} />
+      <aside className="sidebar">
+        <div className="sidebar-title"><Glyph icon={folderIcon(true)} />{ws.name}</div>
+        <Tree ref={tree} files={files} onOpen={(p) => open.current(p)} onLeave={() => editorEl.current?.querySelector<HTMLElement>(".cm-content")?.focus()} />
+      </aside>
       <div className="editor" ref={editorEl} />
-      <div className="statusline">
-        <span className={`mode ${mode}`}>{mode.toUpperCase()}</span>
-        <span>{ws.name}/{path ?? "[No Name]"}{dirty ? " [+]" : ""}</span>
-        {msg && <span className={msg.error ? "msg error" : "msg"}>{msg.text}</span>}
-      </div>
+      <footer className="statusline">
+        <span className={`seg mode ${mode}`}>{"\ue7c5"} {mode.toUpperCase()}</span>
+        <span className="seg file">
+          {path && <Glyph icon={fileIcon(path)} />}
+          {path ?? "[No Name]"}
+          {dirty && <span className="dirty"> [+]</span>}
+        </span>
+        <span className={msg?.error ? "msg error" : "msg"}>{msg?.text}</span>
+        <span className="seg progress">{pos.line === 1 ? "Top" : pos.line === pos.lines ? "Bot" : `${Math.round((pos.line / pos.lines) * 100)}%`}</span>
+        <span className={`seg location ${mode}`}>{pos.line}:{pos.col}</span>
+      </footer>
     </div>
   );
 }

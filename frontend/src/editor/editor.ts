@@ -7,6 +7,7 @@ import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirro
 import { bracketMatching, codeFolding, indentOnInput } from "@codemirror/language";
 import { search } from "@codemirror/search";
 import { vim } from "@replit/codemirror-vim";
+import { indentationMarkers } from "@replit/codemirror-indentation-markers";
 import { kanagawaCM } from "../theme/kanagawa-cm";
 import { loadLanguage } from "../lang/registry";
 
@@ -42,6 +43,11 @@ export const editorExtensions = (): Extension[] => [
   drawSelection(),
   codeFolding(),
   bracketMatching(),
+  // Like snacks.indent: a thin line per level, the block around the cursor a bit brighter.
+  indentationMarkers({
+    markerType: "codeOnly",
+    colors: { dark: "#363646", light: "#363646", activeDark: "#727169", activeLight: "#727169" },
+  }),
   indentOnInput(),
   search(),
   keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),

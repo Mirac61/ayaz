@@ -1,8 +1,9 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import type { Entry, Files } from "../core/backend";
+import { fileIcon, folderIcon } from "../theme/icons";
 
 interface Row { path: string; name: string; dir: boolean; depth: number }
-const ROW = 22; // px, fixed so we can window the rows by scrollTop
+const ROW = 24; // px, fixed so we can window the rows by scrollTop
 
 export interface TreeHandle { focus(): void }
 
@@ -115,11 +116,12 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
               aria-selected={i === cur}
               aria-expanded={r.dir ? expanded.has(r.path) : undefined}
               className={i === cur ? "tree-row cursor" : "tree-row"}
-              style={{ top: i * ROW, height: ROW, paddingLeft: 8 + r.depth * 14 }}
+              style={{ top: i * ROW, height: ROW, paddingLeft: 6 + r.depth * 16 }}
               onClick={() => { setCursor(i); activate(i, true); }}
             >
-              <span className="tree-icon">{r.dir ? (expanded.has(r.path) ? "▾" : "▸") : " "}</span>
-              <span className={r.dir ? "tree-dir" : undefined}>{r.name}</span>
+              <span className="tree-chevron" aria-hidden>{r.dir ? (expanded.has(r.path) ? "\uf47c" : "\uf460") : ""}</span>
+              <Glyph icon={r.dir ? folderIcon(expanded.has(r.path)) : fileIcon(r.name)} />
+              <span className={r.dir ? "tree-name dir" : "tree-name"}>{r.name}</span>
             </div>
           );
         })}
@@ -127,3 +129,7 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
     </div>
   );
 });
+
+export const Glyph = ({ icon: [glyph, color] }: { icon: [string, string] }) => (
+  <span className="glyph" style={{ color }} aria-hidden>{glyph}</span>
+);

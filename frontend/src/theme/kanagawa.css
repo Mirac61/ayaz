@@ -19,7 +19,7 @@
   --border: var(--sumi-ink-4);
   --accent: var(--crystal-blue);
 
-  --font-mono: "JetBrainsMono Nerd Font", "JetBrains Mono", Menlo, monospace;
+  --font-mono: "FiraCode Nerd Font", "JetBrainsMono Nerd Font", "Symbols Nerd Font", "JetBrains Mono", Menlo, monospace;
 }
 
 html, body, #root {
