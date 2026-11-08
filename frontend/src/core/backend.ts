@@ -3,8 +3,9 @@ import { Application, Events, Stream } from "@wailsio/runtime";
 import { PingService, WorkspaceService } from "../../bindings/github.com/Mirac61/ayaz/app";
 import type { Info, Match } from "../../bindings/github.com/Mirac61/ayaz/app";
 import type { Entry, TextFile } from "../../bindings/github.com/Mirac61/ayaz/internal/workspace";
+import type { Match as FileMatch } from "../../bindings/github.com/Mirac61/ayaz/internal/index";
 
-export type { Entry, Info, Match, TextFile };
+export type { Entry, FileMatch, Info, Match, TextFile };
 
 export interface Backend {
   ping(): Promise<string>;
@@ -25,6 +26,8 @@ export interface Files {
   readText(path: string): Promise<TextFile>;
   // Resolves to the new mtime. Rejects with "file changed on disk" if the file moved past expectedMtime.
   writeText(path: string, content: string, expectedMtime: number): Promise<number>;
+  // Fuzzy file search, best first; positions index into the path's code points. ignored: include Git-ignored files.
+  find(query: string, limit: number, ignored: boolean): Promise<FileMatch[]>;
 }
 
 export const backend: Backend = {
@@ -42,5 +45,6 @@ export const backend: Backend = {
     list: async (dir) => (await WorkspaceService.List(ws, dir)) ?? [],
     readText: (path) => WorkspaceService.ReadText(ws, path),
     writeText: (path, content, mtime) => WorkspaceService.WriteText(ws, path, content, mtime),
+    find: async (q, limit, ignored) => (await WorkspaceService.Find(ws, q, limit, ignored)) ?? [],
   }),
 };

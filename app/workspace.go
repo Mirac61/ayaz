@@ -2,7 +2,9 @@ package app
 
 import (
 	"path/filepath"
+	"sync"
 
+	"github.com/Mirac61/ayaz/internal/index"
 	"github.com/Mirac61/ayaz/internal/workspace"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -11,6 +13,20 @@ import (
 type WorkspaceService struct {
 	reg  *workspace.Registry
 	args []string
+
+	mu      sync.Mutex
+	indexes map[indexKey]*lazyIndex
+}
+
+type indexKey struct {
+	ws      string
+	ignored bool
+}
+
+type lazyIndex struct {
+	once sync.Once
+	ix   *index.Index
+	err  error
 }
 
 type Info struct {
@@ -20,7 +36,7 @@ type Info struct {
 
 // NewWorkspaceService takes the CLI arguments: `ayaz <folder>` or `ayaz --workspace <folder>`.
 func NewWorkspaceService(args []string) *WorkspaceService {
-	return &WorkspaceService{reg: workspace.NewRegistry(), args: args}
+	return &WorkspaceService{reg: workspace.NewRegistry(), args: args, indexes: map[indexKey]*lazyIndex{}}
 }
 
 // Initial opens the folder from the command line, nil if there was none.
@@ -73,6 +89,28 @@ func (s *WorkspaceService) WriteText(ws, path, content string, expectedMtime int
 		return 0, err
 	}
 	return w.WriteText(path, content, expectedMtime)
+}
+
+// Find fuzzy-matches workspace paths. The index is built on the first call (K10) and kept;
+// ignored=true searches files Git ignores too (Q26).
+// shortcut: the index never refreshes until M3 (file watching) updates it.
+func (s *WorkspaceService) Find(ws, query string, limit int, ignored bool) ([]index.Match, error) {
+	w, err := s.reg.Get(ws)
+	if err != nil {
+		return nil, err
+	}
+	s.mu.Lock()
+	l := s.indexes[indexKey{ws, ignored}]
+	if l == nil {
+		l = &lazyIndex{}
+		s.indexes[indexKey{ws, ignored}] = l
+	}
+	s.mu.Unlock()
+	l.once.Do(func() { l.ix, l.err = index.Build(w.Root, ignored) })
+	if l.err != nil {
+		return nil, l.err
+	}
+	return l.ix.Find(query, limit), nil
 }
 
 func folderArg(args []string) string {

@@ -12,11 +12,23 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as index$0 from "../internal/index/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as workspace$0 from "../internal/workspace/models.js";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as $models from "./models.js";
+
+/**
+ * Find fuzzy-matches workspace paths. The index is built on the first call (K10) and kept;
+ * ignored=true searches files Git ignores too (Q26).
+ * shortcut: the index never refreshes until M3 (file watching) updates it.
+ */
+export function Find(ws: string, query: string, limit: number, ignored: boolean): $CancellablePromise<index$0.Match[] | null> {
+    return $Call.ByID(2721793854, ws, query, limit, ignored);
+}
 
 /**
  * Initial opens the folder from the command line, nil if there was none.
