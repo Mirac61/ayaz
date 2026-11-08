@@ -378,3 +378,14 @@ S7, LSP-shaped messages (`Content-Length` + JSON) through the `echo` stream and 
 | 200 KB | 1.05 ms | 1.20 ms | 1.35 ms |
 
 → K16 (≤ 5 ms) holds even for 200 KB. Open: streams in the server build (Playwright), Hyprland.
+
+### S5 – Vitest browser mode with WebKit under Bun (2026-11-08, macOS)
+
+- Works: Vitest 4.1.12 + `@vitest/browser-playwright` + Playwright 1.65 WebKit, started with `bun run test:browser`. Bun is only the script runner; Vitest itself runs on Node as planned in ADR-0008. One run takes ~1 s.
+- Setup: `frontend/vitest.config.ts` with two projects, `node` (`*.test.ts`) and `browser` (`*.browser.test.ts`).
+- Gotcha: xterm's DOM renderer paints one frame after `write()` returns → use `expect.poll`, not a plain `expect`.
+
+### Server build + Playwright E2E (2026-11-08, macOS)
+
+- `task build:server` + `bun run e2e`: Playwright WebKit types `echo $PWD` into the terminal and sees the home directory. So Wails streams also work in the server build (open point from S7).
+- The E2E uses `?renderer=dom`, because WebGL draws into a canvas and leaves no text to check.

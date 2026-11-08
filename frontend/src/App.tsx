@@ -25,7 +25,9 @@ export default function App() {
   useEffect(() => {
     const el = termEl.current;
     if (mode === "" && el) {
-      const h = openTerminal(el, { renderer: "webgl" });
+      // ?renderer=dom for E2E (WebGL draws to a canvas, so there's no text to assert on) and Linux checks.
+      const renderer = new URLSearchParams(location.search).get("renderer") === "dom" ? "dom" : "webgl";
+      const h = openTerminal(el, { renderer });
       h.then((t) => t.term.focus());
       return () => void h.then((t) => t.dispose());
     }

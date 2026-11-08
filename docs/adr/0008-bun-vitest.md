@@ -1,6 +1,6 @@
 # ADR-0008: Bun as package manager, Vitest as test runner
 
-Status: proposed · 2026-11-08
+Status: **accepted** · 2026-11-08 (S5: Vitest browser mode with Playwright WebKit runs via Bun scripts)
 
 ## Context
 - Bun instead of npm is a given.
