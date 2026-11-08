@@ -95,3 +95,23 @@ test("Sequencer: sequences, prefixes with timeout, fallthrough", () => {
   vi.advanceTimersByTime(400);
   expect(fired.length).toBe(5);
 });
+
+test("Sequencer: a pure prefix waits and reports what may follow (which-key)", () => {
+  vi.useFakeTimers();
+  const fired: string[] = [], seen: string[] = [];
+  const s = new Sequencer((b) => fired.push(b.command), (keys, next) => seen.push(`${keys.join("")}:${next.map((b) => b.command).join(",")}`));
+  const bs: Binding[] = [
+    { keys: "<Space>t", command: "term", context: "normal" },
+    { keys: "<Space>tc", command: "termSplit", context: "normal" },
+    { keys: "<Space>ff", command: "files", context: "normal" },
+  ];
+  s.feed("<Space>", bs);
+  vi.advanceTimersByTime(5000); // no timeout: still waiting
+  s.feed("t", bs);
+  vi.advanceTimersByTime(400);
+  expect(fired).toEqual(["term"]);
+  expect(seen).toEqual(["<Space>:term,termSplit,files", "<Space>t:termSplit", ":"]);
+  s.feed("<Space>", bs);
+  s.feed("<Esc>", bs); // dead end: hints close
+  expect(seen[seen.length - 1]).toBe(":");
+});

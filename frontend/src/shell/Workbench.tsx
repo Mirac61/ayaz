@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { backend, type Info } from "../core/backend";
 import { Commands } from "../core/commands";
-import { defaultKeymap, keyName, mergeKeymap, parseUserKeymap, Sequencer, type Binding } from "../core/keymap";
+import { defaultKeymap, keyName, mergeKeymap, parseKeys, parseUserKeymap, Sequencer, type Binding } from "../core/keymap";
 import { isDirty } from "../core/buffers";
 import { installVim } from "../editor/vim/setup";
 import type { TermOptions } from "../terminal/terminal";
@@ -39,6 +39,17 @@ export function Workbench({ ws }: { ws: Info }) {
   panelRef.current = panel;
   const termFor = useRef(new Map<number, TermOptions>()); // new pane → the terminal it runs
   const seq = useRef<Sequencer | null>(null);
+  const [hints, setHints] = useState<{ keys: string[]; next: Binding[] } | null>(null);
+  const hintTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const hintsShown = useRef(false);
+  // which-key: after 200 ms in a sequence, show what may follow; once shown, follow along at once.
+  const showHints = (keys: string[], next: Binding[]) => {
+    clearTimeout(hintTimer.current);
+    const set = (h: typeof hints) => { hintsShown.current = !!h; setHints(h); };
+    if (!keys.length) return set(null);
+    if (hintsShown.current) set({ keys, next });
+    else hintTimer.current = setTimeout(() => set({ keys, next }), 200);
+  };
   const [layout, setLayout] = useState<Layout>({ pane: 1 });
   const [msg, setMsg] = useState<{ text: string; error?: boolean } | null>(null);
   const [picker, setPicker] = useState<PickerSource | null>(null);
@@ -102,9 +113,13 @@ export function Workbench({ ws }: { ws: Info }) {
       return nid;
     };
 
-    // A shell that exits closes its pane, unless it's the last one (then it shows "[process exited]").
+    // A shell that exits closes its pane; the last pane turns back into an empty editor.
+    const termExit = (id: number) => (panes(lay.current).length > 1 ? void closePane(true, id) : ed.replace(id));
+    // An empty editor pane (no file) is taken over, otherwise the terminal splits off to the right.
     const termSplit = (cmd?: string) => {
-      const id = splitPane("row", { ws: ws.id, cmd, onExit: () => panes(lay.current).length > 1 && void closePane(true, id) });
+      const target = ed.active === PANEL ? lastSplit.current : ed.active;
+      if (ed.isEmpty(target)) return ed.replace(target, { ws: ws.id, cmd, onExit: () => termExit(target) });
+      const id = splitPane("row", { ws: ws.id, cmd, onExit: () => termExit(id) });
     };
 
     const togglePanel = () => {
@@ -245,23 +260,29 @@ export function Workbench({ ws }: { ws: Info }) {
   // Inside the editor, codemirror-vim runs the normal-mode bindings (and primes this Sequencer for prefixes).
   useEffect(() => {
     if (!bindings || picker) return;
-    const s = (seq.current = new Sequencer((b) => run(b.command, b.arg)));
+    const s = (seq.current = new Sequencer((b) => run(b.command, b.arg), showHints));
+    // In the editor, Vim runs the normal bindings; this one only follows along for the hints.
+    let shadowOn = false;
+    const shadow = new Sequencer(() => {}, (keys, next) => { shadowOn = keys.length > 0; showHints(keys, next); });
     const of = (...cs: string[]) => bindings.filter((b) => cs.includes(b.context));
     const global = of("global"), normal = of("global", "normal"), terminal = of("global", "terminal");
     const onKey = (e: KeyboardEvent) => {
       const k = keyName(e);
       const t = e.target as Element | null;
       if (!k || t?.tagName === "INPUT") return; // the terminal's search box
+      const inEditor = !!t?.closest?.(".cm-editor");
       const term = t?.closest?.("[data-term]");
-      const list = t?.closest?.(".cm-editor") ? global : term?.getAttribute("data-mode") === "terminal" ? terminal : normal;
+      const list = inEditor ? global : term?.getAttribute("data-mode") === "terminal" ? terminal : normal;
       if (s.feed(k, list)) {
         e.preventDefault();
         e.stopPropagation();
-      }
+        shadow.reset();
+      } else if (inEditor && (shadowOn || ed.vimIdle())) shadow.feed(k, of("normal"));
     };
     window.addEventListener("keydown", onKey, true);
     return () => {
       s.reset();
+      shadow.reset();
       seq.current = null;
       window.removeEventListener("keydown", onKey, true);
     };
@@ -323,7 +344,37 @@ export function Workbench({ ws }: { ws: Info }) {
         <span className="seg progress">{status.line === 1 ? "Top" : status.line === status.lines ? "Bot" : `${Math.round((status.line / status.lines) * 100)}%`}</span>
         <span className={`seg location ${status.mode}`}>{status.line}:{status.col}</span>
       </footer>
+      {hints && <Hints keys={hints.keys} next={hints.next} title={(id) => commands.list().find((c) => c.id === id)?.title ?? id} />}
       {picker && <Picker source={picker} onClose={() => { setPicker(null); if (!document.activeElement?.closest(".sidebar")) ed.focus(ed.active); }} />}
+    </div>
+  );
+}
+
+// The which-key box: one row per next key; a key that only leads further shows how many bindings follow.
+function Hints({ keys, next, title }: { keys: string[]; next: Binding[]; title(id: string): string }) {
+  const groups = new Map<string, Binding[]>();
+  for (const b of next) {
+    const k = parseKeys(b.keys)[keys.length];
+    groups.set(k, [...(groups.get(k) ?? []), b]);
+  }
+  return (
+    <div className="hints" role="status" aria-label="Next keys">
+      <div className="hints-title">{keys.join("")}</div>
+      <ul>
+        {[...groups].sort(([a], [b]) => a.localeCompare(b)).map(([k, bs]) => {
+          const exact = bs.find((b) => parseKeys(b.keys).length === keys.length + 1);
+          const more = bs.length - (exact ? 1 : 0);
+          return (
+            <li key={k}>
+              <kbd>{k}</kbd>
+              <span className={exact ? "" : "group"}>
+                {exact ? title(exact.command) : `+${more} keymap${more > 1 ? "s" : ""}`}
+                {exact && more > 0 && <span className="group"> +{more}</span>}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }

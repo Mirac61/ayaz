@@ -109,13 +109,25 @@ export function keyName(e: KeyEv): string {
 }
 
 // Turns key presses into bindings, with multi-key sequences and Vim's timeout:
-// "<Space>t" fires after `timeout` ms unless "<Space>tc" continues it.
+// "<Space>t" fires after `timeout` ms unless "<Space>tc" continues it. A prefix that is no binding itself ("<Space>")
+// waits without timeout, like which-key, so its hints can be read. onPending gets the keys so far and what may follow.
 export class Sequencer {
   private pending: string[] = [];
   private scope: Binding[] | null = null; // set by prime: what the pending keys may continue into
   private timer: ReturnType<typeof setTimeout> | undefined;
 
-  constructor(private fire: (b: Binding) => void, private timeout = 400) {} // nvim timeoutlen from my config
+  constructor(
+    private fire: (b: Binding) => void,
+    private onPending: (keys: string[], next: Binding[]) => void = () => {},
+    private timeout = 400, // nvim timeoutlen from my config
+  ) {}
+
+  private setPending(keys: string[], scope: Binding[] = []) {
+    const was = this.pending.length;
+    this.pending = keys;
+    if (keys.length) this.onPending(keys, scope.filter((b) => parseKeys(b.keys).length > keys.length && startsWith(parseKeys(b.keys), keys)));
+    else if (was) this.onPending([], []);
+  }
 
   // Returns true if the key was used (part of a binding), so the caller stops the event.
   feed(token: string, bindings: Binding[]): boolean {
@@ -129,29 +141,30 @@ export class Sequencer {
       if (!this.pending.length) return false;
       // Dead end: like Vim, a complete shorter binding ("<Space>t" before "x") runs, then the key counts on its own.
       const done = scope.find((b) => parseKeys(b.keys).length === this.pending.length && startsWith(parseKeys(b.keys), this.pending));
-      this.pending = [];
+      this.setPending([]);
       this.scope = null;
       if (done) this.fire(done);
       return this.feed(token, bindings);
     }
     if (exact && !longer) {
-      this.pending = [];
+      this.setPending([]);
       this.scope = null;
       this.fire(exact);
       return true;
     }
-    this.pending = seq;
-    this.timer = setTimeout(() => {
-      this.pending = [];
-      this.scope = null;
-      if (exact) this.fire(exact);
-    }, this.timeout);
+    this.setPending(seq, scope);
+    if (exact)
+      this.timer = setTimeout(() => {
+        this.setPending([]);
+        this.scope = null;
+        this.fire(exact);
+      }, this.timeout);
     return true;
   }
 
   reset() {
     clearTimeout(this.timer);
-    this.pending = [];
+    this.setPending([]);
     this.scope = null;
   }
 

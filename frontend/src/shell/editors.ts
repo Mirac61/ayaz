@@ -18,7 +18,7 @@ export interface Status {
 
 // A pane shows an editor (view) or a terminal (term).
 // shortcut: a terminal lives and dies with its pane, unlike nvim's terminal buffers; add hidden terminals if wanted.
-interface Pane { view?: EditorView; term?: TermHandle; title?: string; buf: Buffer | null; mode: string }
+interface Pane { el: HTMLElement; view?: EditorView; term?: TermHandle; title?: string; buf: Buffer | null; mode: string }
 
 // Marks changes copied from another pane showing the same buffer, so they aren't copied back.
 const synced = Annotation.define<boolean>();
@@ -42,7 +42,7 @@ export class Editors {
   // With term, the pane runs a terminal instead.
   attach(id: number, parent: HTMLElement, from?: number, term?: TermOptions) {
     if (term) {
-      const p: Pane = { buf: null, mode: "terminal", title: term.cmd ?? "shell" };
+      const p: Pane = { el: parent, buf: null, mode: "terminal", title: term.cmd ?? "shell" };
       this.panes.set(id, p);
       p.term = openTerminal(parent, { ...term, onMode: (m) => { p.mode = m; if (id === this.active) this.emit(); } });
       parent.addEventListener("focusin", () => this.setActive(id));
@@ -54,7 +54,7 @@ export class Editors {
       state: EditorState.create({ extensions: editorExtensions() }),
       dispatchTransactions: (trs, v) => this.dispatch(id, trs, v),
     });
-    const p: Pane = { view, buf: null, mode: "normal" };
+    const p: Pane = { el: parent, view, buf: null, mode: "normal" };
     this.panes.set(id, p);
     if (!this.panes.has(this.active)) this.active = id;
     view.contentDOM.addEventListener("focus", () => this.setActive(id));
@@ -78,6 +78,26 @@ export class Editors {
   }
 
   isTerm(id = this.active) { return !!this.panes.get(id)?.term; }
+
+  // An editor pane with no file: a new terminal takes it over instead of splitting.
+  isEmpty(id = this.active) { const p = this.panes.get(id); return !!p?.view && !p.buf; }
+
+  // Swaps what pane id shows: a terminal, or an empty editor without term.
+  replace(id: number, term?: TermOptions) {
+    const p = this.panes.get(id);
+    if (!p) return;
+    const wasActive = id === this.active;
+    this.detach(id);
+    this.attach(id, p.el, undefined, term);
+    if (wasActive) this.focus(id);
+  }
+
+  // Vim is between commands (no count, operator or partial keys), so a key may start a leader sequence.
+  vimIdle(id = this.active): boolean {
+    const v = this.panes.get(id)?.view;
+    const vim = v && (getCM(v)?.state.vim as { insertMode?: boolean; visualMode?: boolean; inputState?: { keyBuffer: string[]; operator: unknown } } | undefined);
+    return !!vim && !vim.insertMode && !vim.visualMode && !vim.inputState?.keyBuffer.length && !vim.inputState?.operator;
+  }
 
   // Ctrl-\ Ctrl-n in the active terminal.
   termNormal() { this.panes.get(this.active)?.term?.setMode("normal"); }

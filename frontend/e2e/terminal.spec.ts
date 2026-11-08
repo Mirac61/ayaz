@@ -27,10 +27,31 @@ test("terminal panel and split: shell in the workspace, modes, close", async ({ 
   await expect(panel).toContainText("ayaz-e2e-ws");
   await expect(page.locator(".panel textarea")).toBeFocused(); // focus comes one frame after showing
 
-  // :terminal from the editor pane splits right; `exit` closes the split again
+  // :terminal in the empty editor pane takes it over (no split); `exit` brings the empty editor back
   await page.keyboard.press("Control+k");
   await page.keyboard.type(":terminal\n");
   await expect(page.locator(".panes .pane[data-term]")).toHaveCount(1);
+  await expect(page.locator(".panes .pane")).toHaveCount(1);
   await page.keyboard.type("exit\n");
-  await expect(page.locator(".panes .pane")).toHaveCount(1, { timeout: 10_000 });
+  await expect(page.locator(".panes .pane .cm-editor")).toBeVisible({ timeout: 10_000 });
+});
+
+// which-key: after <Space> a box lists what may follow, also inside the editor (where Vim runs the bindings).
+test("leader hints", async ({ page }) => {
+  await page.goto("/?renderer=dom");
+  const hints = page.getByRole("status", { name: "Next keys" });
+  await expect(page.getByRole("tree", { name: "Files" })).toBeFocused();
+  await page.keyboard.press("Space");
+  await expect(hints).toContainText("Toggle terminal panel");
+  await expect(hints).toContainText("+4 keymaps"); // f leads to ff, fo, fb, fk
+  await page.keyboard.press("Escape");
+  await expect(hints).toBeHidden();
+
+  await page.keyboard.press("Control+l"); // into the editor
+  await page.keyboard.press("Space");
+  await page.keyboard.press("f");
+  await expect(hints).toContainText("Find files");
+  await page.keyboard.press("f");
+  await expect(hints).toBeHidden();
+  await expect(page.locator(".picker")).toBeVisible();
 });

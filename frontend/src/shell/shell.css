@@ -52,3 +52,11 @@
 .picker-label b { color: var(--carp-yellow); font-weight: 700; }
 .picker-hint { color: var(--fg-dim); padding-left: 12px; }
 .picker-empty { padding: 4px 8px; color: var(--fg-dim); }
+
+/* which-key: what may follow the keys typed so far */
+.hints { position: fixed; right: 12px; bottom: 34px; min-width: 260px; max-width: min(520px, calc(100% - 24px)); padding: 6px 10px 8px; background: var(--bg-dim); border: 1px solid var(--sumi-ink-3); border-radius: 8px; box-shadow: 0 8px 24px rgb(0 0 0 / 0.4); z-index: 9; }
+.hints-title { color: var(--accent); font-weight: 600; padding-bottom: 4px; }
+.hints ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 2px 16px; }
+.hints li { display: flex; gap: 10px; white-space: nowrap; }
+.hints kbd { font: inherit; color: var(--carp-yellow); min-width: 2.5em; }
+.hints .group { color: var(--oni-violet); }
