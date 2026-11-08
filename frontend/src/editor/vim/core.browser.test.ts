@@ -150,8 +150,11 @@ describe("viewport", () => {
     await settle();
     await press("<C-d>");
     expect(line(v)).toBeGreaterThan(1);
+    // From the end, not back to the top: if <C-d> didn't scroll (font metrics differ per OS), <C-u> has nothing to undo.
+    await press("G");
     await press("<C-u>");
-    expect(line(v)).toBe(1);
+    expect(line(v)).toBeLessThan(100);
+    expect(line(v)).toBeGreaterThan(80);
   });
   test("H M L", async () => {
     const v = mount(long);
