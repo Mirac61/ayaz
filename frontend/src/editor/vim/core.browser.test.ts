@@ -12,7 +12,8 @@ import { defaultKeymap } from "../../core/keymap";
 // "|" in start/want marks the cursor. A want without "|" checks only the text.
 
 // The real setup: jk, leader, folds, default keymap. Ex tests below swap in a recording runner.
-installVim(() => {}, defaultKeymap().filter((b) => b.context === "normal"));
+const primed: string[] = [];
+installVim(() => {}, defaultKeymap().filter((b) => b.context === "normal"), (k) => void primed.push(k));
 
 let view: EditorView | null = null;
 afterEach(() => {
@@ -185,10 +186,11 @@ describe("ex commands and leader keys run commands", () => {
     [":wq<CR>", "file.saveClose()"], [":e src/a.go<CR>", "file.open(src/a.go)"], [":e!<CR>", "file.open(!)"],
     [":sp<CR>", "pane.splitDown()"], [":vs<CR>", "pane.splitRight()"], [";w<CR>", "file.save()"],
     [" e", "tree.focus()"], [" ff", "find.files()"], [" fk", "find.commands()"],
+    [":terminal<CR>", "term.split()"], [" t", "prime(<Space>t)"], [" gg", "term.lazygit()"],
     ["<C-w>v", "pane.splitRight()"], ["<C-w>l", "pane.right()"], ["<C-h>", "pane.left()"], ["<C-j>", "pane.down()"],
   ])("%s", async (keys, want) => {
     const calls: string[] = [];
-    installVim((id, arg) => void calls.push(`${id}(${arg ?? ""})`), []);
+    installVim((id, arg) => void calls.push(`${id}(${arg ?? ""})`), [], (k) => void calls.push(`prime(${k})`));
     await run("|a", keys);
     await vi.waitFor(() => expect(calls.join(" ")).toBe(want), { timeout: 500 });
   });

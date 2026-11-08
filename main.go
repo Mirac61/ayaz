@@ -14,12 +14,13 @@ import (
 var assets embed.FS
 
 func main() {
+	ws := app.NewWorkspaceService(os.Args[1:])
 	a := application.New(application.Options{
 		Name:        "Ayaz",
 		Description: "Keyboard-first code editor",
 		Services: []application.Service{
 			application.NewService(&app.PingService{}),
-			application.NewService(app.NewWorkspaceService(os.Args[1:])),
+			application.NewService(ws),
 			application.NewService(&app.ConfigService{}),
 		},
 		Assets: application.AssetOptions{
@@ -31,7 +32,7 @@ func main() {
 	})
 
 	app.OnReady(a)
-	a.HandleStream("pty", app.HandleTerminal)
+	a.HandleStream("pty", ws.HandleTerminal)
 	a.HandleStream("echo", app.HandleEcho)
 
 	win := a.Window.NewWithOptions(application.WebviewWindowOptions{

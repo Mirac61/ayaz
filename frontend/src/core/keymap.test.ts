@@ -84,4 +84,14 @@ test("Sequencer: sequences, prefixes with timeout, fallthrough", () => {
   expect(s.feed("j", bs)).toBe(false);
   vi.advanceTimersByTime(400);
   expect(fired.length).toBe(3);
+
+  // prime: Vim already read "<Space>t"; the next key is matched against bs even if the caller passes others
+  s.prime("<Space>t", bs);
+  expect(s.feed("c", [])).toBe(true);
+  expect(fired).toEqual(["files", "termSplit", "term", "termSplit"]);
+  s.prime("<Space>t", bs);
+  expect(s.feed("x", [])).toBe(false); // not a continuation: the prefix runs now, x goes on to Vim
+  expect(fired[fired.length - 1]).toBe("term");
+  vi.advanceTimersByTime(400);
+  expect(fired.length).toBe(5);
 });

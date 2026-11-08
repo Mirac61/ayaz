@@ -31,8 +31,8 @@ export default function App() {
       // ?renderer=dom for E2E (WebGL draws to a canvas, so there's no text to assert on) and Linux checks.
       const renderer = new URLSearchParams(location.search).get("renderer") === "dom" ? "dom" : "webgl";
       const h = openTerminal(el, { renderer });
-      h.then((t) => t.term.focus());
-      return () => void h.then((t) => t.dispose());
+      h.focus();
+      return () => h.dispose();
     }
     if (mode === "bench" && el) {
       (async () => {

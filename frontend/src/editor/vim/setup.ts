@@ -1,6 +1,6 @@
 import { Vim, type CodeMirror } from "@replit/codemirror-vim";
 import { foldAll, foldCode, toggleFold, unfoldAll, unfoldCode } from "@codemirror/language";
-import type { Binding } from "../../core/keymap";
+import { parseKeys, type Binding } from "../../core/keymap";
 
 // Runs a command by ID (core/commands). Vim's maps and ex commands are global, so the latest workbench's runner wins.
 export type Run = (id: string, arg?: string) => void;
@@ -14,13 +14,20 @@ const EX: [name: string, prefix: string, command: string][] = [
   ["edit", "e", "file.open"],
   ["split", "sp", "pane.splitDown"],
   ["vsplit", "vs", "pane.splitRight"],
+  ["terminal", "ter", "term.split"],
 ];
 
 let installed = false;
 
+// codemirror-vim runs a full match at once, so for "<Space>t" next to "<Space>tc" it hands over to the
+// workbench's Sequencer, which waits like Vim's timeoutlen.
+export type Prime = (keys: string) => void;
+let prime: Prime = () => {};
+
 // normal: the "normal" bindings of the keymap; mapped once per app, so keymap.json changes need a restart.
-export function installVim(r: Run, normal: Binding[]) {
+export function installVim(r: Run, normal: Binding[], p: Prime) {
   run = r;
+  prime = p;
   if (installed) return;
   installed = true;
   Vim.map("jk", "<Esc>", "insert");
@@ -32,7 +39,8 @@ export function installVim(r: Run, normal: Binding[]) {
   Vim.unmap("<C-w>", "normal"); // a no-op by default, and it would swallow <C-w>h etc.
   normal.forEach((b, i) => {
     const action = `ayaz${i}`;
-    Vim.defineAction(action, () => run(b.command, b.arg));
+    const isPrefix = normal.some((o) => o.keys !== b.keys && parseKeys(o.keys).join("").startsWith(parseKeys(b.keys).join("")));
+    Vim.defineAction(action, () => (isPrefix ? prime(b.keys) : run(b.command, b.arg)));
     Vim.mapCommand(b.keys, "action", action, {}, { context: "normal" });
   });
 

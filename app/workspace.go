@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/Mirac61/ayaz/internal/index"
+	"github.com/Mirac61/ayaz/internal/pty"
 	"github.com/Mirac61/ayaz/internal/watch"
 	"github.com/Mirac61/ayaz/internal/workspace"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -19,6 +20,7 @@ type WorkspaceService struct {
 
 	mu      sync.Mutex
 	indexes map[indexKey]*lazyIndex
+	terms   map[*pty.Session]bool // running shells, hung up on quit
 }
 
 type indexKey struct {
@@ -40,7 +42,7 @@ type Info struct {
 
 // NewWorkspaceService takes the CLI arguments: `ayaz <folder>` or `ayaz --workspace <folder>`.
 func NewWorkspaceService(args []string) *WorkspaceService {
-	return &WorkspaceService{reg: workspace.NewRegistry(), args: args, indexes: map[indexKey]*lazyIndex{}}
+	return &WorkspaceService{reg: workspace.NewRegistry(), args: args, indexes: map[indexKey]*lazyIndex{}, terms: map[*pty.Session]bool{}}
 }
 
 // Initial opens the folder from the command line, nil if there was none.

@@ -20,7 +20,8 @@ function waitFor(read: () => string, marker: string, timeoutMs: number): Promise
 }
 
 export async function runS6(el: HTMLElement, opts: TermOptions): Promise<string> {
-  const h = await openTerminal(el, opts);
+  const h = openTerminal(el, opts);
+  await h.ready;
   const buffer = h.term.buffer;
   const screen = () => {
     let s = "";

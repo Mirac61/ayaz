@@ -1,8 +1,10 @@
 // Keymaps are data: context + keys → command ID (ADR-0010). Keys use Vim notation: "<Space>ff", "<C-w>h", "<D-p>" (Cmd).
 //   normal: Vim normal mode in the editor (mapped through codemirror-vim) and the file tree.
 //   global: everywhere, also in insert mode; meant for chords with Cmd/Ctrl.
+//   terminal: a terminal in terminal mode (keys go to the shell otherwise). Terminal normal mode uses "normal".
 
-export type Context = "normal" | "global";
+export type Context = "normal" | "global" | "terminal";
+const CONTEXTS: Context[] = ["normal", "global", "terminal"];
 
 export interface Binding {
   keys: string;
@@ -17,6 +19,7 @@ export const isMac = typeof navigator !== "undefined" && /Mac/.test(navigator.pl
 export function defaultKeymap(mac = isMac): Binding[] {
   const n = (keys: string, command: string, arg?: string): Binding => ({ keys, command, context: "normal", arg });
   const g = (keys: string, command: string): Binding => ({ keys, command, context: "global" });
+  const t = (keys: string, command: string): Binding => ({ keys, command, context: "terminal" });
   const panes = { h: "pane.left", j: "pane.down", k: "pane.up", l: "pane.right" };
   return [
     n("<Space>e", "tree.focus"),
@@ -24,14 +27,18 @@ export function defaultKeymap(mac = isMac): Binding[] {
     n("<Space>fo", "find.recent"),
     n("<Space>fb", "find.buffers"),
     n("<Space>fk", "find.commands"),
-    ...Object.entries(panes).flatMap(([k, cmd]) => [n(`<C-${k}>`, cmd), n(`<C-w>${k}`, cmd)]),
+    ...Object.entries(panes).flatMap(([k, cmd]) => [n(`<C-${k}>`, cmd), n(`<C-w>${k}`, cmd), t(`<C-${k}>`, cmd)]),
+    t("<C-\\><C-n>", "term.normal"),
+    n("<Space>t", "term.panel"),
+    n("<Space>tc", "term.split"),
+    n("<Space>gg", "term.lazygit"),
     n("<C-w>s", "pane.splitDown"),
     n("<C-w>v", "pane.splitRight"),
     n("<C-w>c", "pane.close"),
     n("<C-w>q", "pane.close"),
     ...(mac
-      ? [g("<D-p>", "find.files"), g("<D-S-p>", "find.commands")]
-      : [g("<C-S-p>", "find.files")]),
+      ? [g("<D-p>", "find.files"), g("<D-S-p>", "find.commands"), g("<D-j>", "term.panel")]
+      : [g("<C-S-p>", "find.files"), g("<C-S-j>", "term.panel")]),
     g("<F1>", "find.commands"),
   ];
 }
@@ -53,7 +60,7 @@ export function parseUserKeymap(json: string, known: (id: string) => boolean): B
     if (typeof b.command !== "string") throw new Error(`${where}: "command" missing`);
     if (b.command && !known(b.command)) throw new Error(`${where}: unknown command "${b.command}"`);
     const context = b.context ?? "normal";
-    if (context !== "normal" && context !== "global") throw new Error(`${where}: context is "normal" or "global"`);
+    if (!CONTEXTS.includes(context)) throw new Error(`${where}: context is "normal", "global" or "terminal"`);
     return { keys: b.keys, command: b.command, context, ...(typeof b.arg === "string" && { arg: b.arg }) };
   });
 }
@@ -105,6 +112,7 @@ export function keyName(e: KeyEv): string {
 // "<Space>t" fires after `timeout` ms unless "<Space>tc" continues it.
 export class Sequencer {
   private pending: string[] = [];
+  private scope: Binding[] | null = null; // set by prime: what the pending keys may continue into
   private timer: ReturnType<typeof setTimeout> | undefined;
 
   constructor(private fire: (b: Binding) => void, private timeout = 400) {} // nvim timeoutlen from my config
@@ -112,23 +120,30 @@ export class Sequencer {
   // Returns true if the key was used (part of a binding), so the caller stops the event.
   feed(token: string, bindings: Binding[]): boolean {
     clearTimeout(this.timer);
+    const scope = this.pending.length && this.scope ? this.scope : bindings;
     const seq = [...this.pending, token];
-    const matches = bindings.filter((b) => startsWith(parseKeys(b.keys), seq));
+    const matches = scope.filter((b) => startsWith(parseKeys(b.keys), seq));
     const exact = matches.find((b) => parseKeys(b.keys).length === seq.length);
     const longer = matches.some((b) => parseKeys(b.keys).length > seq.length);
     if (!matches.length) {
-      const had = this.pending.length > 0;
+      if (!this.pending.length) return false;
+      // Dead end: like Vim, a complete shorter binding ("<Space>t" before "x") runs, then the key counts on its own.
+      const done = scope.find((b) => parseKeys(b.keys).length === this.pending.length && startsWith(parseKeys(b.keys), this.pending));
       this.pending = [];
-      return had ? this.feed(token, bindings) : false;
+      this.scope = null;
+      if (done) this.fire(done);
+      return this.feed(token, bindings);
     }
     if (exact && !longer) {
       this.pending = [];
+      this.scope = null;
       this.fire(exact);
       return true;
     }
     this.pending = seq;
     this.timer = setTimeout(() => {
       this.pending = [];
+      this.scope = null;
       if (exact) this.fire(exact);
     }, this.timeout);
     return true;
@@ -137,6 +152,15 @@ export class Sequencer {
   reset() {
     clearTimeout(this.timer);
     this.pending = [];
+    this.scope = null;
+  }
+
+  // Continues a sequence another matcher already read (codemirror-vim fires "<Space>t" at once,
+  // this waits whether "c" follows). bindings: what it may continue into.
+  prime(keys: string, bindings: Binding[]) {
+    this.reset();
+    for (const k of parseKeys(keys)) this.feed(k, bindings);
+    if (this.pending.length) this.scope = bindings;
   }
 }
 

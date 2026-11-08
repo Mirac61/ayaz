@@ -1,5 +1,5 @@
 // The only place that imports generated bindings or the Wails runtime (02-architecture, principle 2).
-import { Application, Events, Stream } from "@wailsio/runtime";
+import { Application, Browser, Events, Stream } from "@wailsio/runtime";
 import { ConfigService, PingService, WorkspaceService } from "../../bindings/github.com/Mirac61/ayaz/app";
 import type { Info, Match } from "../../bindings/github.com/Mirac61/ayaz/app";
 import type { Entry, TextFile } from "../../bindings/github.com/Mirac61/ayaz/internal/workspace";
@@ -26,6 +26,7 @@ export interface Backend {
   rank(items: string[], query: string, limit: number): Promise<FileMatch[]>;
   // Calls fn for changes on disk in workspace ws, also our own saves. Returns the unsubscribe function.
   onFsChanged(ws: string, fn: (c: FsChange) => void): () => void;
+  openURL(url: string): Promise<void>; // in the system browser
 }
 
 // File access bound to one workspace; paths are workspace-relative with "/".
@@ -51,6 +52,7 @@ export const backend: Backend = {
   openFolderDialog: () => WorkspaceService.OpenDialog(),
   keymap: () => ConfigService.Keymap(),
   rank: async (items, q, limit) => (await WorkspaceService.Rank(items, q, limit)) ?? [],
+  openURL: (url) => Browser.OpenURL(url),
   onFsChanged: (ws, fn) =>
     Events.On("fs:changed", (e: { data: FsChange & { ws: string } }) => {
       if (e.data.ws === ws) fn(e.data);

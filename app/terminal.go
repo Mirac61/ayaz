@@ -3,6 +3,7 @@ package app
 import (
 	"encoding/json"
 	"log"
+	"maps"
 	"os"
 	"time"
 
@@ -23,10 +24,12 @@ type termConfig struct {
 	Rows     uint16 `json:"rows"`
 	WindowMs int    `json:"windowMs"`
 	MaxBytes int    `json:"maxBytes"`
+	WS       string `json:"ws"`  // workspace ID: the shell starts in its root; "" = home (spike views)
+	Cmd      string `json:"cmd"` // run this through the login shell instead of an interactive shell, e.g. "lazygit"
 }
 
 // HandleTerminal serves one shell per "pty" stream connection.
-func HandleTerminal(c *application.StreamConn) {
+func (s *WorkspaceService) HandleTerminal(c *application.StreamConn) {
 	defer c.Close()
 	var cfg termConfig
 	if err := c.ReceiveJSON(&cfg); err != nil || cfg.Cols == 0 || cfg.Rows == 0 {
@@ -42,16 +45,29 @@ func HandleTerminal(c *application.StreamConn) {
 	if shell == "" {
 		shell = "/bin/sh"
 	}
-	home, _ := os.UserHomeDir()
-	s, err := pty.Start(home, cfg.Cols, cfg.Rows, shell, "-l")
+	dir, _ := os.UserHomeDir()
+	if cfg.WS != "" {
+		w, err := s.reg.Get(cfg.WS)
+		if err != nil {
+			return
+		}
+		dir = w.Root
+	}
+	args := []string{"-l"} // login shell: a Finder-started app has a bare PATH
+	if cfg.Cmd != "" {
+		args = append(args, "-c", cfg.Cmd)
+	}
+	sess, err := pty.Start(dir, cfg.Cols, cfg.Rows, shell, args...)
 	if err != nil {
 		log.Println("pty:", err)
 		return
 	}
-	defer s.Close()
+	s.track(sess, true)
+	defer s.track(sess, false)
+	defer sess.Close()
 
 	go func() {
-		pty.Batch(s.Output(), c.Send, time.Duration(cfg.WindowMs)*time.Millisecond, cfg.MaxBytes)
+		pty.Batch(sess.Output(), c.Send, time.Duration(cfg.WindowMs)*time.Millisecond, cfg.MaxBytes)
 		c.Close() // shell exited: tell the frontend
 	}()
 
@@ -62,14 +78,35 @@ func HandleTerminal(c *application.StreamConn) {
 		}
 		switch f[0] {
 		case frameInput:
-			s.Write(f[1:])
+			sess.Write(f[1:])
 		case frameResize:
 			var sz termConfig
 			if json.Unmarshal(f[1:], &sz) == nil && sz.Cols > 0 && sz.Rows > 0 {
-				s.Resize(sz.Cols, sz.Rows)
+				sess.Resize(sz.Cols, sz.Rows)
 			}
 		}
 	}
+}
+
+func (s *WorkspaceService) track(sess *pty.Session, on bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if on {
+		s.terms[sess] = true
+	} else {
+		delete(s.terms, sess)
+	}
+}
+
+// ServiceShutdown hangs up every shell, so quitting leaves no processes behind (Wails calls it on quit).
+func (s *WorkspaceService) ServiceShutdown() error {
+	s.mu.Lock()
+	terms := maps.Keys(s.terms)
+	s.mu.Unlock()
+	for sess := range terms {
+		sess.Close()
+	}
+	return nil
 }
 
 // HandleEcho sends every frame straight back (Spike S7: stream overhead for LSP-like messages).

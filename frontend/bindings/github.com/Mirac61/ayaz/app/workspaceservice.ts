@@ -16,6 +16,9 @@ import * as index$0 from "../internal/index/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as workspace$0 from "../internal/workspace/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as application$0 from "../../../wailsapp/wails/v3/pkg/application/models.js";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -27,6 +30,13 @@ import * as $models from "./models.js";
  */
 export function Find(ws: string, query: string, limit: number, ignored: boolean): $CancellablePromise<index$0.Match[] | null> {
     return $Call.ByID(2721793854, ws, query, limit, ignored);
+}
+
+/**
+ * HandleTerminal serves one shell per "pty" stream connection.
+ */
+export function HandleTerminal(c: application$0.StreamConn | null): $CancellablePromise<void> {
+    return $Call.ByID(936635443, c);
 }
 
 /**

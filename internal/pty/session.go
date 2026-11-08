@@ -3,6 +3,7 @@ package pty
 import (
 	"os"
 	"os/exec"
+	"sync"
 	"syscall"
 
 	"github.com/creack/pty"
@@ -10,8 +11,9 @@ import (
 
 // Session is one shell on a pseudo terminal.
 type Session struct {
-	cmd *exec.Cmd
-	tty *os.File
+	cmd   *exec.Cmd
+	tty   *os.File
+	close sync.Once
 }
 
 // Start runs shell (with args) in dir on a new PTY of the given size.
@@ -52,9 +54,12 @@ func (s *Session) Resize(cols, rows uint16) error {
 }
 
 // Close hangs up the whole process group (the shell and everything it started) and waits for the shell.
+// Safe to call more than once and concurrently (stream end and app shutdown).
 func (s *Session) Close() {
-	// pty.Start runs the shell with Setsid, so its pid is the process group id.
-	syscall.Kill(-s.cmd.Process.Pid, syscall.SIGHUP)
-	s.tty.Close()
-	s.cmd.Wait()
+	s.close.Do(func() {
+		// pty.Start runs the shell with Setsid, so its pid is the process group id.
+		syscall.Kill(-s.cmd.Process.Pid, syscall.SIGHUP)
+		s.tty.Close()
+		s.cmd.Wait()
+	})
 }

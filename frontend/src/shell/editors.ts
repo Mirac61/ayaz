@@ -4,6 +4,7 @@ import { getCM } from "@replit/codemirror-vim";
 import type { Files } from "../core/backend";
 import { Buffers, diff, isDirty, type Buffer } from "../core/buffers";
 import { createState, editorExtensions } from "../editor/editor";
+import { openTerminal, type TermHandle, type TermOptions } from "../terminal/terminal";
 
 export interface Status {
   pane: number;
@@ -15,18 +16,21 @@ export interface Status {
   lines: number;
 }
 
-interface Pane { view: EditorView; buf: Buffer | null; mode: string }
+// A pane shows an editor (view) or a terminal (term).
+// shortcut: a terminal lives and dies with its pane, unlike nvim's terminal buffers; add hidden terminals if wanted.
+interface Pane { view?: EditorView; term?: TermHandle; title?: string; buf: Buffer | null; mode: string }
 
 // Marks changes copied from another pane showing the same buffer, so they aren't copied back.
 const synced = Annotation.define<boolean>();
 const RECENT_MAX = 100;
 
-// The editor panes of one workspace and the buffers they show. Layout (where panes sit) is the workbench's job.
+// The panes of one workspace (editors and terminals) and the buffers they show. Layout (where panes sit) is the workbench's job.
 export class Editors {
   readonly buffers: Buffers;
   private panes = new Map<number, Pane>();
   private mru: string[] = []; // buffers, most recent first
   private recentKey: string;
+  private lastEditor = 0; // where files open while a terminal pane is active
   active = 0;
 
   constructor(files: Files, root: string, private onStatus: (s: Status) => void) {
@@ -35,7 +39,16 @@ export class Editors {
   }
 
   // Creates the view for pane `id`. A split passes `from`, and the new pane shows the same buffer.
-  attach(id: number, parent: HTMLElement, from?: number) {
+  // With term, the pane runs a terminal instead.
+  attach(id: number, parent: HTMLElement, from?: number, term?: TermOptions) {
+    if (term) {
+      const p: Pane = { buf: null, mode: "terminal", title: term.cmd ?? "shell" };
+      this.panes.set(id, p);
+      p.term = openTerminal(parent, { ...term, onMode: (m) => { p.mode = m; if (id === this.active) this.emit(); } });
+      parent.addEventListener("focusin", () => this.setActive(id));
+      this.focus(id);
+      return;
+    }
     const view = new EditorView({
       parent,
       state: EditorState.create({ extensions: editorExtensions() }),
@@ -51,18 +64,30 @@ export class Editors {
   }
 
   detach(id: number) {
-    this.panes.get(id)?.view.destroy();
+    const p = this.panes.get(id);
+    p?.view?.destroy();
+    p?.term?.dispose();
     this.panes.delete(id);
   }
 
   focus(id: number) {
-    this.panes.get(id)?.view.focus();
+    const p = this.panes.get(id);
+    if (p?.view) p.view.focus();
+    else p?.term?.focus();
     this.setActive(id);
   }
 
+  isTerm(id = this.active) { return !!this.panes.get(id)?.term; }
+
+  // Ctrl-\ Ctrl-n in the active terminal.
+  termNormal() { this.panes.get(this.active)?.term?.setMode("normal"); }
+
   current(): Buffer | null { return this.panes.get(this.active)?.buf ?? null; }
 
+  // From a terminal pane, the file opens in the editor pane used last.
   async open(path: string, id = this.active) {
+    if (this.isTerm(id)) id = this.panes.get(this.lastEditor)?.view ? this.lastEditor : [...this.panes].find(([, p]) => p.view)?.[0] ?? -1;
+    if (!this.panes.get(id)?.view) throw new Error("No editor pane, split one off with :vsplit");
     this.show(id, await this.buffers.open(path));
   }
 
@@ -84,7 +109,7 @@ export class Editors {
       else if (r.kind === "reload") {
         const change = diff(b.state.doc.toString(), r.content);
         const pane = [...this.panes.values()].find((p) => p.buf === b);
-        if (pane) pane.view.dispatch({ changes: change }); // dispatch() copies it to other panes and into b.state
+        if (pane?.view) pane.view.dispatch({ changes: change }); // dispatch() copies it to other panes and into b.state
         else b.state = b.state.update({ changes: change }).state;
         b.saved = b.state.doc;
         b.mtime = r.mtime;
@@ -104,7 +129,7 @@ export class Editors {
   private setBuf(id: number, b: Buffer) {
     const p = this.panes.get(id)!;
     p.buf = b;
-    p.view.setState(b.state);
+    p.view!.setState(b.state);
     p.mode = "normal";
     this.watchMode(id); // setState recreates the vim plugin
   }
@@ -127,6 +152,9 @@ export class Editors {
   emit() {
     const p = this.panes.get(this.active);
     if (!p) return;
+    if (!p.view) {
+      return this.onStatus({ pane: this.active, path: `term://${p.title}`, dirty: false, mode: p.mode, line: 1, col: 1, lines: 1 });
+    }
     const st = p.view.state, head = st.selection.main.head, l = st.doc.lineAt(head);
     this.onStatus({
       pane: this.active,
@@ -142,6 +170,7 @@ export class Editors {
   private setActive(id: number) {
     if (!this.panes.has(id)) return;
     this.active = id;
+    if (this.panes.get(id)!.view) this.lastEditor = id;
     const b = this.panes.get(id)!.buf;
     if (b) this.touch(b.path);
     this.emit();
@@ -159,7 +188,7 @@ export class Editors {
 
   private watchMode(id: number) {
     const p = this.panes.get(id)!;
-    getCM(p.view)?.on("vim-mode-change", (e: { mode: string }) => {
+    getCM(p.view!)?.on("vim-mode-change", (e: { mode: string }) => {
       p.mode = e.mode;
       if (id === this.active) this.emit();
     });
@@ -175,7 +204,7 @@ export class Editors {
         if (!tr.docChanged || tr.annotation(synced)) continue;
         for (const [oid, o] of this.panes)
           if (oid !== id && o.buf === p.buf)
-            o.view.dispatch({ changes: tr.changes, annotations: [synced.of(true), Transaction.addToHistory.of(false)] });
+            o.view!.dispatch({ changes: tr.changes, annotations: [synced.of(true), Transaction.addToHistory.of(false)] });
       }
       p.buf.state = v.state; // the docs are equal now; keep the state of the pane that was typed in
     }

@@ -4,6 +4,7 @@ import { Commands } from "../core/commands";
 import { defaultKeymap, keyName, mergeKeymap, parseUserKeymap, Sequencer, type Binding } from "../core/keymap";
 import { isDirty } from "../core/buffers";
 import { installVim } from "../editor/vim/setup";
+import type { TermOptions } from "../terminal/terminal";
 import { Editors, type Status } from "./editors";
 import { close, neighbor, panes, rects, split, type Dir, type Layout } from "./layout";
 import { Picker, type Item, type PickerSource } from "./Picker";
@@ -21,12 +22,23 @@ const bang = (arg = "") => {
 };
 
 const LIMIT = 50;
+const PANEL = -1; // pane id of the bottom panel; split panes count up from 1
 
 // One workspace: tree on the left, editor panes in splits, status line. Every action is a command (ADR-0010).
 export function Workbench({ ws }: { ws: Info }) {
   const files = useMemo(() => backend.files(ws.id), [ws.id]);
   const [status, setStatus] = useState<Status>({ pane: 1, path: null, dirty: false, mode: "normal", line: 1, col: 1, lines: 1 });
-  const ed = useMemo(() => new Editors(files, ws.root, setStatus), [files, ws.root]);
+  const lastSplit = useRef(1); // the split pane to go back to from the panel
+  const ed = useMemo(() => new Editors(files, ws.root, (s) => {
+    if (s.pane !== PANEL) lastSplit.current = s.pane;
+    setStatus(s);
+  }), [files, ws.root]);
+  // null: no panel terminal; "hidden": it runs but isn't shown (Cmd+J toggles, like VS Code).
+  const [panel, setPanel] = useState<"shown" | "hidden" | null>(null);
+  const panelRef = useRef(panel);
+  panelRef.current = panel;
+  const termFor = useRef(new Map<number, TermOptions>()); // new pane → the terminal it runs
+  const seq = useRef<Sequencer | null>(null);
   const [layout, setLayout] = useState<Layout>({ pane: 1 });
   const [msg, setMsg] = useState<{ text: string; error?: boolean } | null>(null);
   const [picker, setPicker] = useState<PickerSource | null>(null);
@@ -67,26 +79,51 @@ export function Workbench({ ws }: { ws: Info }) {
       await backend.quit();
     };
 
-    const closePane = async (force: boolean) => {
-      const next = close(lay.current, ed.active);
+    const closePane = async (force: boolean, id = ed.active) => {
+      if (id === PANEL) {
+        setPanel(null);
+        return ed.focus(lastSplit.current);
+      }
+      const next = close(lay.current, id);
       if (!next) return quit(force);
-      const ids = panes(lay.current), i = ids.indexOf(ed.active);
+      const ids = panes(lay.current), i = ids.indexOf(id);
       const target = ids[i + 1] ?? ids[i - 1]; // like Vim: the next window, else the previous
-      ed.focus(target); // panes are siblings, so target stays mounted
+      if (id === ed.active) ed.focus(target); // panes are siblings, so target stays mounted
       setLayout(next);
     };
 
-    const splitPane = (dir: "row" | "col") => {
+    // Split panes only; from the panel, the split pane used last is split.
+    const splitPane = (dir: "row" | "col", term?: TermOptions) => {
+      const from = ed.active === PANEL ? lastSplit.current : ed.active;
       const nid = Math.max(...panes(lay.current)) + 1;
-      splitFrom.current.set(nid, ed.active);
-      setLayout(split(lay.current, ed.active, dir, nid));
+      if (term) termFor.current.set(nid, term);
+      else splitFrom.current.set(nid, from);
+      setLayout(split(lay.current, from, dir, nid));
+      return nid;
+    };
+
+    // A shell that exits closes its pane, unless it's the last one (then it shows "[process exited]").
+    const termSplit = (cmd?: string) => {
+      const id = splitPane("row", { ws: ws.id, cmd, onExit: () => panes(lay.current).length > 1 && void closePane(true, id) });
+    };
+
+    const togglePanel = () => {
+      const p = panelRef.current;
+      if (p === "shown") {
+        setPanel("hidden");
+        return ed.focus(lastSplit.current);
+      }
+      setPanel("shown");
+      if (p === "hidden") requestAnimationFrame(() => ed.focus(PANEL)); // after display:none is gone; a new one focuses itself
     };
 
     const move = (d: Dir) => {
       if (inTree()) return d === "right" && ed.focus(ed.active);
+      if (ed.active === PANEL) return d === "up" && ed.focus(lastSplit.current);
       const n = neighbor(lay.current, ed.active, d);
       if (n !== null) ed.focus(n);
       else if (d === "left") tree.current?.focus();
+      else if (d === "down" && panelRef.current === "shown") ed.focus(PANEL);
     };
 
     const filePicker = (title: string, list: () => string[], hint?: (p: string) => string | undefined): PickerSource => ({
@@ -125,6 +162,10 @@ export function Workbench({ ws }: { ws: Info }) {
       { id: "pane.up", title: "Go to pane above", run: () => move("up") },
       { id: "pane.right", title: "Go to right pane", run: () => move("right") },
       { id: "tree.focus", title: "Focus file tree", run: () => tree.current?.focus() },
+      { id: "term.panel", title: "Toggle terminal panel", run: togglePanel },
+      { id: "term.split", title: "Terminal in a split (:terminal)", run: () => termSplit() },
+      { id: "term.lazygit", title: "lazygit", run: () => termSplit("lazygit") },
+      { id: "term.normal", title: "Terminal normal mode", run: () => ed.termNormal() },
       {
         id: "find.files",
         title: "Find files",
@@ -177,11 +218,13 @@ export function Workbench({ ws }: { ws: Info }) {
         fail(errText(e));
       }
       const all = mergeKeymap(defaultKeymap(), user);
-      installVim(run, all.filter((b) => b.context === "normal"));
+      const normal = all.filter((b) => b.context === "normal");
+      installVim(run, normal, (keys) => seq.current?.prime(keys, normal));
       setBindings(all);
     }, (e) => {
       fail(errText(e));
-      installVim(run, defaultKeymap().filter((b) => b.context === "normal"));
+      const normal = defaultKeymap().filter((b) => b.context === "normal");
+      installVim(run, normal, (keys) => seq.current?.prime(keys, normal));
       setBindings(defaultKeymap());
     });
     return off;
@@ -198,23 +241,28 @@ export function Workbench({ ws }: { ws: Info }) {
   const bindingsRef = useRef(bindings);
   bindingsRef.current = bindings;
 
-  // Keys outside the editor (tree) and global chords everywhere. Inside the editor, codemirror-vim runs the normal-mode bindings.
+  // Global chords everywhere; "normal" bindings in the tree and terminal normal mode; "terminal" ones in terminal mode.
+  // Inside the editor, codemirror-vim runs the normal-mode bindings (and primes this Sequencer for prefixes).
   useEffect(() => {
     if (!bindings || picker) return;
-    const seq = new Sequencer((b) => run(b.command, b.arg));
-    const global = bindings.filter((b) => b.context === "global");
+    const s = (seq.current = new Sequencer((b) => run(b.command, b.arg)));
+    const of = (...cs: string[]) => bindings.filter((b) => cs.includes(b.context));
+    const global = of("global"), normal = of("global", "normal"), terminal = of("global", "terminal");
     const onKey = (e: KeyboardEvent) => {
       const k = keyName(e);
-      if (!k) return;
-      const inEditor = (e.target as Element | null)?.closest?.(".cm-editor");
-      if (seq.feed(k, inEditor ? global : bindings)) {
+      const t = e.target as Element | null;
+      if (!k || t?.tagName === "INPUT") return; // the terminal's search box
+      const term = t?.closest?.("[data-term]");
+      const list = t?.closest?.(".cm-editor") ? global : term?.getAttribute("data-mode") === "terminal" ? terminal : normal;
+      if (s.feed(k, list)) {
         e.preventDefault();
         e.stopPropagation();
       }
     };
     window.addEventListener("keydown", onKey, true);
     return () => {
-      seq.reset();
+      s.reset();
+      seq.current = null;
       window.removeEventListener("keydown", onKey, true);
     };
   }, [bindings, picker]);
@@ -237,14 +285,33 @@ export function Workbench({ ws }: { ws: Info }) {
             style={{ left: `${r.x * 100}%`, top: `${r.y * 100}%`, width: `${r.w * 100}%`, height: `${r.h * 100}%` }}
             edge={{ left: r.x > 0, top: r.y > 0 }}
             mount={(el) => {
-              ed.attach(id, el, splitFrom.current.get(id));
+              ed.attach(id, el, splitFrom.current.get(id), termFor.current.get(id));
               splitFrom.current.delete(id);
+              termFor.current.delete(id);
               if (id === 1) tree.current?.focus(); // no file open yet, so start in the tree
               return () => ed.detach(id);
             }}
           />
         ))}
       </div>
+      {panel && (
+        <div className="panel" hidden={panel === "hidden"}>
+          <Pane
+            id={PANEL}
+            active={status.pane === PANEL}
+            style={{ inset: 0 }}
+            edge={{ left: false, top: false }}
+            mount={(el) => {
+              ed.attach(PANEL, el, undefined, { ws: ws.id, onExit: () => {
+                const focused = ed.active === PANEL;
+                setPanel(null);
+                if (focused) ed.focus(lastSplit.current);
+              } });
+              return () => ed.detach(PANEL);
+            }}
+          />
+        </div>
+      )}
       <footer className="statusline">
         <span className={`seg mode ${status.mode}`}>{""} {status.mode.toUpperCase()}</span>
         <span className="seg file">

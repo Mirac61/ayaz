@@ -31,3 +31,10 @@ xterm.js 6 + creack/pty + one Wails stream per terminal session. Go batches PTY 
 - − Throughput (K14) depends on stream overhead and renderer; both measured in S6.
 - Shell and arguments are configurable (default `$SHELL -l`). A custom shell like `mysh` needs nothing special.
 - Shell processes belong to the workspace and get SIGHUP (process group) when the window closes.
+
+## Implementation notes (M4)
+- Renderer: WebGL on macOS, DOM elsewhere until Hyprland is measured; `?renderer=dom` forces DOM (E2E).
+- The first stream frame names the workspace (`ws`, shell starts in its root) and optionally `cmd` (run via `$SHELL -l -c`, used for lazygit).
+- `WorkspaceService.ServiceShutdown` hangs up every running shell on quit; closing a pane closes its stream, which does the same.
+- A terminal lives in its pane (split or bottom panel), not as a hidden buffer like in nvim. Switching that later is local to `shell/editors.ts`.
+- Prefix bindings like `<Space>t` next to `<Space>tc`: codemirror-vim fires full matches at once, so it hands such prefixes to the workbench's Sequencer, which waits 400 ms like `timeoutlen`.
