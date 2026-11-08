@@ -1,7 +1,7 @@
 // Spikes S6 (terminal echo K13 and throughput K14) and S7 (stream echo K16). Throwaway, removed after M0.
 import { backend } from "../core/backend";
 import { openTerminal, type TermOptions } from "../terminal/terminal";
-import { stats, type Stats } from "./bindingLatency";
+import { stats, type Stats } from "./stats";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const fmt = (s: Stats) => `p50 ${s.p50.toFixed(2)} · p95 ${s.p95.toFixed(2)} · max ${s.max.toFixed(2)} ms`;
