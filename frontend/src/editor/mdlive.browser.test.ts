@@ -108,3 +108,45 @@ test("a reading view does not toggle checkboxes", async () => {
   await userEvent.click(view!.contentDOM.querySelector(".cm-md-check")!);
   expect(view!.state.doc.toString()).toBe("- [ ] one\nend");
 });
+
+const doc3 = "above\n\n| a | b |\n|---|---|\n| 1 | <i>2</i> |\n\nbelow";
+const tableEl = () => view!.contentDOM.querySelector<HTMLElement>(".cm-md-table");
+const head = () => view!.state.doc.lineAt(view!.state.selection.main.head).number;
+
+test("a table renders as HTML outside the cursor, j and k go in and out of it", async () => {
+  await mount(doc3);
+  expect(tableEl()).not.toBeNull();
+  expect([...tableEl()!.querySelectorAll("th, td")].map((c) => c.textContent)).toEqual(["a", "b", "1", "<i>2</i>"]);
+  expect(tableEl()!.querySelector("i")).toBeNull(); // text, never markup
+  expect(lines().filter((l) => l?.includes("|"))).toEqual([]);
+  await userEvent.keyboard("jj"); // blank line, then into the table
+  expect(tableEl()).toBeNull();
+  expect(lines().filter((l) => l?.includes("|")).length).toBe(3);
+  expect(head()).toBeGreaterThanOrEqual(3);
+  expect(head()).toBeLessThanOrEqual(5);
+  await userEvent.keyboard("kk");
+  expect(head()).toBe(1);
+  expect(tableEl()).not.toBeNull();
+});
+
+test("k from below enters the table too", async () => {
+  await mount(doc3);
+  await userEvent.keyboard("G"); // "below"
+  expect(head()).toBe(7);
+  expect(tableEl()).not.toBeNull();
+  await userEvent.keyboard("kk");
+  expect(tableEl()).toBeNull();
+  expect(head()).toBeGreaterThanOrEqual(3);
+  expect(head()).toBeLessThanOrEqual(5);
+  await userEvent.keyboard("jj");
+  expect(head()).toBe(7);
+  expect(tableEl()).not.toBeNull();
+});
+
+test("clicking a table shows its source; the reading view keeps it rendered", async () => {
+  await mount(doc3);
+  await userEvent.click(tableEl()!.querySelector("td")!);
+  expect(tableEl()).toBeNull();
+  toggleReading(view!);
+  expect(tableEl()).not.toBeNull();
+});

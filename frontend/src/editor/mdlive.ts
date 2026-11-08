@@ -1,4 +1,4 @@
-import { EditorState, StateEffect, StateField, type Range } from "@codemirror/state";
+import { EditorSelection, EditorState, StateEffect, StateField, type Range } from "@codemirror/state";
 import { Decoration, EditorView, ViewPlugin, WidgetType, type DecorationSet, type ViewUpdate } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
 import type { SyntaxNode } from "@lezer/common";
@@ -31,10 +31,14 @@ export function toggleReading(v: EditorView): boolean | null {
 
 export const isReading = (state: EditorState) => state.field(reading, false) === true;
 
+// The line spans holding a cursor or selection; they show their raw source. None in the reading view.
+const activeRanges = (state: EditorState) =>
+  isReading(state) ? [] : state.selection.ranges.map((r) => [state.doc.lineAt(r.from).from, state.doc.lineAt(r.to).to]);
+
 // Pure: what to hide and style in [from, to]. Plain data, so Node tests need no DOM.
 export function mdDecorations(state: EditorState, from = 0, to = state.doc.length): MdDeco {
   const doc = state.doc;
-  const active = isReading(state) ? [] : state.selection.ranges.map((r) => [doc.lineAt(r.from).from, doc.lineAt(r.to).to]);
+  const active = activeRanges(state);
   const out: MdDeco = { hide: [], marks: [], lines: [], widgets: [] };
   // Replacing a line break isn't allowed from a ViewPlugin, and markers on a cursor line stay visible.
   const free = (a: number, b: number) => a < b && !doc.sliceString(a, b).includes("\n") && !active.some(([s, e]) => a <= e && b >= s);
@@ -104,6 +108,48 @@ export function mdDecorations(state: EditorState, from = 0, to = state.doc.lengt
   return out;
 }
 
+export interface MdTable {
+  from: number; // line start of the first row .. line end of the last
+  to: number;
+  head: string[];
+  align: (string | null)[];
+  rows: string[][];
+}
+
+// "| a | b\|c |" → ["a", "b|c"]: split on unescaped pipes, like GFM.
+function cells(line: string): string[] {
+  const t = line.trim().replace(/^\|/, ""), out: string[] = [];
+  let cur = "";
+  for (let i = 0; i < t.length; i++) {
+    if (t[i] === "\\" && t[i + 1] === "|") { cur += "|"; i++; }
+    else if (t[i] === "|") { out.push(cur.trim()); cur = ""; }
+    else cur += t[i];
+  }
+  if (cur.trim()) out.push(cur.trim());
+  return out;
+}
+
+// Pure: the top-level GFM tables of the document, as plain data. Tables inside quotes and lists stay raw in v1.
+// shortcut: walks the whole tree on each update; fine for a few hundred tables, limit to the viewport if big.md hurts (K5).
+export function mdTables(state: EditorState): MdTable[] {
+  const doc = state.doc, out: MdTable[] = [];
+  syntaxTree(state).iterate({
+    enter(n) {
+      if (n.name !== "Table") return n.name === "Document";
+      const first = doc.lineAt(n.from), last = doc.lineAt(n.to);
+      if (last.number - first.number < 1) return false;
+      const head = cells(first.text), width = head.length;
+      const row = (i: number) => Array.from({ length: width }, (_, c) => cells(doc.line(i).text)[c] ?? "");
+      const align = row(first.number + 1).map((d) => (/^:-+:$/.test(d) ? "center" : /^-+:$/.test(d) ? "right" : /^:-+$/.test(d) ? "left" : null));
+      const rows: string[][] = [];
+      for (let i = first.number + 2; i <= last.number; i++) rows.push(row(i));
+      out.push({ from: first.from, to: last.to, head, align, rows });
+      return false;
+    },
+  });
+  return out;
+}
+
 // The link target under pos: a Markdown link's URL, an autolink, or a bare http(s) URL in any file.
 export function linkAt(state: EditorState, pos: number): string | null {
   for (let n: SyntaxNode | null = syntaxTree(state).resolveInner(pos, 1); n; n = n.parent) {
@@ -166,6 +212,63 @@ class Check extends WidgetType {
     return i;
   }
 }
+const LINE_H = 20; // 13 px font × 1.5, see the theme
+
+class TableWidget extends WidgetType {
+  constructor(readonly t: MdTable) { super(); }
+  eq(o: TableWidget) { return JSON.stringify(o.t) === JSON.stringify(this.t); }
+  // One source line per row plus the delimiter row, so the scrollbar barely jumps once it is measured.
+  get estimatedHeight() { return (this.t.rows.length + 2) * LINE_H; }
+  ignoreEvent() { return false; } // a click reaches the editor, puts the cursor in and shows the source
+  toDOM() {
+    const wrap = document.createElement("div"), table = wrap.appendChild(document.createElement("table"));
+    wrap.className = "cm-md-table";
+    const add = (parent: HTMLElement, tag: "th" | "td", row: string[]) => {
+      const tr = parent.appendChild(document.createElement("tr"));
+      row.forEach((text, i) => {
+        const c = tr.appendChild(document.createElement(tag));
+        c.textContent = text; // never innerHTML: no raw HTML from files (Q8)
+        if (this.t.align[i]) c.style.textAlign = this.t.align[i]!;
+      });
+    };
+    add(table.createTHead(), "th", this.t.head);
+    const body = table.createTBody();
+    for (const r of this.t.rows) add(body, "td", r);
+    return wrap;
+  }
+}
+
+// Block widgets can't come from a ViewPlugin (ADR-0003), so tables live in a StateField.
+const tables = StateField.define<DecorationSet>({
+  create: (state) => tableDecos(state),
+  update: (deco, tr) =>
+    tr.docChanged || tr.selection || syntaxTree(tr.state) !== syntaxTree(tr.startState) || isReading(tr.state) !== isReading(tr.startState)
+      ? tableDecos(tr.state) : deco,
+  provide: (f) => [EditorView.decorations.from(f), EditorView.atomicRanges.of((v) => v.state.field(f))],
+});
+
+// Vertical motion hops over a block widget, so j/k from the line next to a table would never reach it.
+// A one-line step across a table lands on it instead; the table then shows its source.
+const enterTables = EditorState.transactionFilter.of((tr) => {
+  const sel = tr.selection;
+  if (!sel || tr.docChanged || isReading(tr.startState)) return tr;
+  const doc = tr.startState.doc, line = (pos: number) => doc.lineAt(pos).number;
+  const was = line(tr.startState.selection.main.head), now = sel.main;
+  let to: number | null = null;
+  tr.startState.field(tables).between(0, doc.length, (from, end) => {
+    if (was === line(from) - 1 && line(now.head) === line(end) + 1) to = from;
+    else if (was === line(end) + 1 && line(now.head) === line(from) - 1) to = end;
+  });
+  return to === null ? tr : [tr, { selection: now.empty ? EditorSelection.cursor(to) : EditorSelection.range(now.anchor, to) }];
+});
+
+// A table holding a cursor or selection shows its raw source.
+function tableDecos(state: EditorState): DecorationSet {
+  const active = activeRanges(state);
+  return Decoration.set(mdTables(state).filter((t) => !active.some(([s, e]) => t.from <= e && t.to >= s))
+    .map((t) => Decoration.replace({ widget: new TableWidget(t), block: true }).range(t.from, t.to)));
+}
+
 const check = (on: boolean) => Decoration.replace({ widget: new Check(on) });
 
 class Live {
@@ -202,10 +305,14 @@ const theme = EditorView.baseTheme({
   ".cm-md-link": { color: "#7e9cd8", textDecoration: "underline" },
   ".cm-md-code-line": { backgroundColor: "#1f1f28" },
   ".cm-md-quote": { borderLeft: "3px solid #54546d", paddingLeft: "8px", color: "#c8c093" },
+  ".cm-md-table": { overflowX: "auto", padding: "4px 0" },
+  ".cm-md-table table": { borderCollapse: "collapse" },
+  ".cm-md-table th, .cm-md-table td": { border: "1px solid #54546d", padding: "2px 10px" },
+  ".cm-md-table th": { backgroundColor: "#2a2a37", fontWeight: "bold" },
   ".cm-md-check": { margin: "0 4px 0 0", verticalAlign: "middle", accentColor: "#7e9cd8" },
   ".cm-md-fence": { color: "#727169" },
   "&.cm-reading .cm-activeLine": { backgroundColor: "transparent" },
 });
 
 // Hidden markers are atomic, so the mouse and CM's own motions step over them.
-export const mdlive = [reading, live, theme, EditorView.atomicRanges.of((v) => v.plugin(live)?.hidden ?? Decoration.none)];
+export const mdlive = [reading, tables, enterTables, live, theme, EditorView.atomicRanges.of((v) => v.plugin(live)?.hidden ?? Decoration.none)];

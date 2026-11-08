@@ -4,7 +4,7 @@ import { ensureSyntaxTree } from "@codemirror/language";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { codeLanguages } from "../lang/registry";
 import { LanguageDescription } from "@codemirror/language";
-import { browsable, linkAt, mdDecorations, mdlive, resolveLink, toggleReading } from "./mdlive";
+import { browsable, linkAt, mdDecorations, mdTables, mdlive, resolveLink, toggleReading } from "./mdlive";
 
 // "|" marks the cursor; "«" and "»" a selection instead. No marker: cursor at the very end.
 function state(src: string) {
@@ -206,4 +206,56 @@ test("only real task items count", () => {
 test("the cursor line shows the raw task", () => {
   expect(checks("- [ ] a\n|- [x] b")).toEqual(["_@2"]);
   expect(shown("|- [ ] a")).toBe("- [ ] a");
+});
+
+const tbl = (src: string) => {
+  const st = EditorState.create({ doc: src, extensions: markdown({ base: markdownLanguage }) }); // "|" is table text here, no cursor
+  ensureSyntaxTree(st, src.length, 5000);
+  return mdTables(st);
+};
+
+test("a table becomes head, alignment and rows", () => {
+  const [t] = tbl("| a | b |\n|---|---|\n| 1 | 2 |\n| 3 | 4 |\n");
+  expect(t).toEqual({ from: 0, to: 39, head: ["a", "b"], align: [null, null], rows: [["1", "2"], ["3", "4"]] });
+});
+
+test("alignment comes from the colons", () => {
+  expect(tbl("| a | b | c | d |\n|:--|:-:|--:|---|\n")[0].align).toEqual(["left", "center", "right", null]);
+});
+
+test("pipes at the edges are optional", () => {
+  const [t] = tbl("a | b\n--|--\n1 | 2\n");
+  expect([t.head, t.rows]).toEqual([["a", "b"], [["1", "2"]]]);
+});
+
+test("short rows are padded, long rows cut", () => {
+  const [t] = tbl("| a | b |\n|---|---|\n| 1 |\n| 1 | 2 | 3 |\n");
+  expect(t.rows).toEqual([["1", ""], ["1", "2"]]);
+});
+
+test("empty cells and escaped pipes", () => {
+  const [t] = tbl("| a | b |\n|---|---|\n| | x \\| y |\n");
+  expect(t.rows).toEqual([["", "x | y"]]);
+});
+
+test("cell text stays text, HTML included", () => {
+  expect(tbl("| a |\n|---|\n| <b>x</b> **y** |\n")[0].rows).toEqual([["<b>x</b> **y**"]]);
+});
+
+test("a header with no body is still a table", () => {
+  expect(tbl("| a |\n|---|\n")[0]).toMatchObject({ head: ["a"], rows: [] });
+});
+
+test("two tables, and text around them", () => {
+  const t = tbl("x\n\n| a |\n|---|\n| 1 |\n\ny\n\n| b |\n|---|\n| 2 |\n");
+  expect(t.map((x) => x.head[0])).toEqual(["a", "b"]);
+  expect([t[0].from, t[0].to]).toEqual([3, 20]);
+});
+
+test("not tables: no delimiter row, quotes, lists, code", () => {
+  expect(tbl("| a | b |\n| 1 | 2 |\n")).toEqual([]);
+  expect(tbl("> | a |\n> |---|\n> | 1 |\n")).toEqual([]);
+  expect(tbl("- | a |\n  |---|\n  | 1 |\n")).toEqual([]);
+  expect(tbl("```\n| a |\n|---|\n| 1 |\n```\n")).toEqual([]);
+  expect(tbl("plain text\n")).toEqual([]);
 });
