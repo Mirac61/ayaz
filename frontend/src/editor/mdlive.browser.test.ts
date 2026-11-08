@@ -150,3 +150,12 @@ test("clicking a table shows its source; the reading view keeps it rendered", as
   toggleReading(view!);
   expect(tableEl()).not.toBeNull();
 });
+
+test("a rule reads as a line and is raw under the cursor", async () => {
+  await mount("x\n\n---\n\nb");
+  expect(lines()).toEqual(["x", "", "", "", "b"]);
+  expect(view!.contentDOM.querySelectorAll(".cm-md-hr").length).toBe(1);
+  await userEvent.keyboard("jj");
+  expect(lines()).toEqual(["x", "", "---", "", "b"]);
+  expect(view!.contentDOM.querySelector(".cm-md-hr")).toBeNull();
+});

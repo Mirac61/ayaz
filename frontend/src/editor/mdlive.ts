@@ -94,6 +94,11 @@ export function mdDecorations(state: EditorState, from = 0, to = state.doc.lengt
         return false;
       } else if (name === "Blockquote") {
         if (n.node.parent?.name !== "Blockquote") eachLine(n, (at) => out.lines.push({ at, cls: "cm-md-quote" })); // nested: once
+      } else if (name === "HorizontalRule") {
+        if (free(n.from, n.to)) { // the line stays (empty), so heights hold; the class draws the rule
+          out.hide.push([n.from, n.to]);
+          out.lines.push({ at: doc.lineAt(n.from).from, cls: "cm-md-hr" });
+        }
       } else if (name === "QuoteMark") {
         hideQuote(n.from, n.to);
       } else if (name === "ListMark" && n.node.parent?.parent?.name === "BulletList") {
@@ -310,6 +315,7 @@ const theme = EditorView.baseTheme({
   ".cm-md-table th, .cm-md-table td": { border: "1px solid #54546d", padding: "2px 10px" },
   ".cm-md-table th": { backgroundColor: "#2a2a37", fontWeight: "bold" },
   ".cm-md-check": { margin: "0 4px 0 0", verticalAlign: "middle", accentColor: "#7e9cd8" },
+  ".cm-md-hr": { background: "linear-gradient(#54546d, #54546d) center / 100% 1px no-repeat" },
   ".cm-md-fence": { color: "#727169" },
   "&.cm-reading .cm-activeLine": { backgroundColor: "transparent" },
 });

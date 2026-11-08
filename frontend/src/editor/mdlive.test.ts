@@ -259,3 +259,23 @@ test("not tables: no delimiter row, quotes, lists, code", () => {
   expect(tbl("```\n| a |\n|---|\n| 1 |\n```\n")).toEqual([]);
   expect(tbl("plain text\n")).toEqual([]);
 });
+
+test.each<[string, string]>([
+  ["a\n\n---\n|", "a\n\n\n"],
+  ["***\n|", "\n"],
+  ["___\n|", "\n"],
+  ["* * *\n|", "\n"],
+  ["- - -\n|", "\n"],
+  ["-----\n|", "\n"],
+  ["---\n|x", "\nx"],
+  ["|---\nx", "---\nx"], // the cursor line keeps the raw rule
+  ["Title\n---\n|", "Title\n---\n"], // under text it is a setext heading, not a rule
+  ["```\n---\n```\n|", "```\n---\n```\n"],
+  ["--\n|", "--\n"],
+])("rule %j reads as %j", (src, want) => expect(shown(src)).toBe(want));
+
+test("a rule gets a line class only while it is hidden", () => {
+  const rules = (src: string) => mdDecorations(state(src)).lines.filter((l) => l.cls === "cm-md-hr").map((l) => l.at);
+  expect(rules("a\n\n---\n|")).toEqual([3]);
+  expect(rules("a\n\n|---")).toEqual([]);
+});
