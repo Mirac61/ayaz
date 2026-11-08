@@ -5,3 +5,7 @@ import * as PingService from "./pingservice.js";
 export {
     PingService
 };
+
+export type {
+    Match
+} from "./models.js";

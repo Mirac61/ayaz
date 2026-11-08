@@ -339,3 +339,14 @@ Sources: [xterm.js releases](https://github.com/xtermjs/xterm.js/releases) · [#
 
 - **macOS (ProMotion):** Wails v3.1.0 starts, binary 9.2 MB. WebKit caps `requestAnimationFrame` at 60 fps by default; turning off the internal flag `PreferPageRenderingUpdatesNear60FPSEnabled` (`app/framerate_darwin.go`, private API, looked up defensively) gives 120 fps. Scrolling 10,000 non-virtualized DOM rows: steady 120 fps, once a short dip to ~90 (cause not measured).
 - **Hyprland / Intel UHD:** open.
+
+### S4 – Binding round-trip latency (2026-11-08, macOS)
+
+Sequential calls, timed in batches of 20 (WebKit rounds `performance.now()` to 1 ms), 100 batches, 3 runs via `AYAZ_EXIT_AFTER_REPORT=1 ./bin/ayaz`:
+
+| Call | p50 | p95 | max |
+|---|---|---|---|
+| empty (`Ping`) | 0.20 ms | 0.25–0.30 ms | 0.3–1.0 ms |
+| 50 fuzzy-shaped results (`Matches(50)`) | 0.25 ms | 0.35 ms | 0.8 ms, once 21 ms (one batch, cause not measured, probably startup work) |
+
+→ The binding costs ~0.3 ms of the 30 ms K9 budget. ADR-0007 (fuzzy matcher in Go) accepted. Hyprland: open.

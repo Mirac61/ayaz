@@ -10,6 +10,25 @@
 // @ts-ignore: Unused imports
 import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wailsio/runtime";
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as $models from "./models.js";
+
+/**
+ * Matches returns n fake results, so S4 measures a realistic payload.
+ */
+export function Matches(n: number): $CancellablePromise<$models.Match[] | null> {
+    return $Call.ByID(2197043563, n);
+}
+
 export function Ping(): $CancellablePromise<string> {
     return $Call.ByID(3299497346);
+}
+
+/**
+ * Report prints a measurement line from the frontend to stdout, so spikes can be read without the UI.
+ * With AYAZ_EXIT_AFTER_REPORT=1 the app quits afterwards (for scripted runs).
+ */
+export function Report(line: string): $CancellablePromise<void> {
+    return $Call.ByID(28473168, line);
 }
