@@ -38,7 +38,7 @@ jobs:
       - run: bun run typecheck
       - run: bun run test
 
-  # Vitest browser mode and Playwright E2E, both in WebKit. E2E runs against the server build (no GUI libraries needed).
+  # Vitest browser mode and Playwright E2E, both in WebKit. E2E runs against the server build.
   browser:
     runs-on: ubuntu-24.04
     steps:
@@ -55,6 +55,8 @@ jobs:
         working-directory: frontend
       - run: bun run build
         working-directory: frontend
+      # Wails 3.1.0 still links GTK/WebKitGTK in the server build on Linux.
+      - run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev
       - run: go build -tags server,production -o bin/ayaz-server .
       - run: bun run e2e
         working-directory: frontend
