@@ -20,6 +20,7 @@ func main() {
 		Services: []application.Service{
 			application.NewService(&app.PingService{}),
 			application.NewService(app.NewWorkspaceService(os.Args[1:])),
+			application.NewService(&app.ConfigService{}),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),

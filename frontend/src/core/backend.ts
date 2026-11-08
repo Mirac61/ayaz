@@ -1,6 +1,6 @@
 // The only place that imports generated bindings or the Wails runtime (02-architecture, principle 2).
 import { Application, Events, Stream } from "@wailsio/runtime";
-import { PingService, WorkspaceService } from "../../bindings/github.com/Mirac61/ayaz/app";
+import { ConfigService, PingService, WorkspaceService } from "../../bindings/github.com/Mirac61/ayaz/app";
 import type { Info, Match } from "../../bindings/github.com/Mirac61/ayaz/app";
 import type { Entry, TextFile } from "../../bindings/github.com/Mirac61/ayaz/internal/workspace";
 import type { Match as FileMatch } from "../../bindings/github.com/Mirac61/ayaz/internal/index";
@@ -18,6 +18,9 @@ export interface Backend {
   initialWorkspace(): Promise<Info | null>;
   openFolderDialog(): Promise<Info | null>;
   files(ws: string): Files;
+  keymap(): Promise<string>; // the user's keymap.json, "" if none
+  // Fuzzy-ranks a short list (recent files, buffers, commands) with the Go matcher.
+  rank(items: string[], query: string, limit: number): Promise<FileMatch[]>;
 }
 
 // File access bound to one workspace; paths are workspace-relative with "/".
@@ -41,6 +44,8 @@ export const backend: Backend = {
   quit: () => Application.Quit(),
   initialWorkspace: () => WorkspaceService.Initial(),
   openFolderDialog: () => WorkspaceService.OpenDialog(),
+  keymap: () => ConfigService.Keymap(),
+  rank: async (items, q, limit) => (await WorkspaceService.Rank(items, q, limit)) ?? [],
   files: (ws) => ({
     list: async (dir) => (await WorkspaceService.List(ws, dir)) ?? [],
     readText: (path) => WorkspaceService.ReadText(ws, path),

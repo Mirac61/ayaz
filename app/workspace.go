@@ -32,6 +32,7 @@ type lazyIndex struct {
 type Info struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
+	Root string `json:"root"` // absolute; a key for per-folder state like recent files
 }
 
 // NewWorkspaceService takes the CLI arguments: `ayaz <folder>` or `ayaz --workspace <folder>`.
@@ -63,7 +64,7 @@ func (s *WorkspaceService) Open(root string) (*Info, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Info{ID: w.ID, Name: filepath.Base(w.Root)}, nil
+	return &Info{ID: w.ID, Name: filepath.Base(w.Root), Root: w.Root}, nil
 }
 
 func (s *WorkspaceService) List(ws, dir string) ([]workspace.Entry, error) {
@@ -111,6 +112,11 @@ func (s *WorkspaceService) Find(ws, query string, limit int, ignored bool) ([]in
 		return nil, l.err
 	}
 	return l.ix.Find(query, limit), nil
+}
+
+// Rank fuzzy-matches a short list from the frontend (recent files, buffers, commands) with the same matcher.
+func (s *WorkspaceService) Rank(items []string, query string, limit int) []index.Match {
+	return index.New(items).Find(query, limit)
 }
 
 func folderArg(args []string) string {

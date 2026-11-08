@@ -2,6 +2,17 @@
 
 Measurements against the budgets in [00-vision.md](00-vision.md#performance-budgets). Newest first. Machine: M-series MacBook (ProMotion), macOS 27.2.
 
+## 2026-11-08 · M2 fuzzy finder (macOS)
+
+| | Value | Budget | How |
+|---|---|---|---|
+| K9 matcher, 50,000 paths, per keystroke | 1.3–8.1 ms (worst: "cmdrouter", 19k candidates scored) | ≤ 30 ms | `go test -bench=Find ./internal/index` |
+| K10 index build, 50,000 files, warm cache | 0.84 s (walk); Git repos use `git ls-files` instead | ≤ 1 s | `go test -bench=BuildWalk ./internal/index` |
+
+Notes:
+- K9 adds the binding round trip (S4: p95 0.35 ms) and rendering 50 rows; not measured end to end yet.
+- K10 is close to the budget. The walk does one `ReadDir` per folder; if real repos outside Git miss it, walk folders in parallel.
+
 ## 2026-11-08 · M1 editor (macOS)
 
 App state: folder open (this repo), tree visible, no file open. The terminal is no longer in the default view (`?view=term`).

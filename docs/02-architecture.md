@@ -215,6 +215,27 @@ Leader is `<Space>`. All of these are only defaults and can be changed in the co
 | `<Space>rn` | rename |
 | `<Space>ds` / `<Space>ws` | document / workspace symbols |
 
+Also in M2: `<C-w>s` / `<C-w>v` split, `<C-w>c` / `<C-w>q` close a pane, `<C-w>h/j/k/l` like `Ctrl-h/j/k/l`, `:sp`, `:vs`.
+Outside Vim: find files `Cmd+P` (macOS) / `Ctrl+Shift+P` (Linux), command palette `Cmd+Shift+P` (macOS) and `F1` (both). Linux has no `Ctrl+Shift+P` palette because that chord is the file finder there (Q22 rule).
+In the pickers: `Ctrl-n/p` or `Ctrl-j/k` move, `Enter` opens, `Esc` closes.
+
+### User keymap
+
+`keymap.json` in the config folder (macOS: `~/Library/Application Support/ayaz/`, Linux: `~/.config/ayaz/`), read at start:
+
+```json
+[
+  { "keys": "<Space>p", "command": "find.files" },
+  { "keys": "<Space>e", "command": "" },
+  { "keys": "<D-o>", "command": "find.recent", "context": "global" }
+]
+```
+
+- Keys in Vim notation: `<Space>`, `<C-x>` (Ctrl), `<D-x>` (Cmd), `<A-x>`, `<S-x>`, `<F1>`.
+- `context`: `normal` (default; Vim normal mode and the file tree) or `global` (everywhere, also insert mode; meant for chords).
+- A binding replaces the default with the same context and keys; `"command": ""` removes it.
+- Command IDs: open the palette (`<Space>fk`). A broken file keeps the defaults and shows the reason in the status line.
+
 ## Extension points
 
 | Later | Plugs into | Core changes |

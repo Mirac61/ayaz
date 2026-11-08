@@ -52,6 +52,13 @@ export function OpenDialog(): $CancellablePromise<$models.Info | null> {
     return $Call.ByID(742162657);
 }
 
+/**
+ * Rank fuzzy-matches a short list from the frontend (recent files, buffers, commands) with the same matcher.
+ */
+export function Rank(items: string[] | null, query: string, limit: number): $CancellablePromise<index$0.Match[] | null> {
+    return $Call.ByID(3283811227, items, query, limit);
+}
+
 export function ReadText(ws: string, path: string): $CancellablePromise<workspace$0.TextFile> {
     return $Call.ByID(1737223586, ws, path);
 }

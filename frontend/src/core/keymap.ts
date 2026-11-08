@@ -1,0 +1,143 @@
+// Keymaps are data: context + keys → command ID (ADR-0010). Keys use Vim notation: "<Space>ff", "<C-w>h", "<D-p>" (Cmd).
+//   normal: Vim normal mode in the editor (mapped through codemirror-vim) and the file tree.
+//   global: everywhere, also in insert mode; meant for chords with Cmd/Ctrl.
+
+export type Context = "normal" | "global";
+
+export interface Binding {
+  keys: string;
+  command: string; // "" in a user keymap removes the default
+  context: Context;
+  arg?: string;
+}
+
+export const isMac = typeof navigator !== "undefined" && /Mac/.test(navigator.platform);
+
+// Defaults from ~/.config/nvim (02-architecture), plus Cmd+… on macOS and Ctrl+Shift+… on Linux (Q22).
+export function defaultKeymap(mac = isMac): Binding[] {
+  const n = (keys: string, command: string, arg?: string): Binding => ({ keys, command, context: "normal", arg });
+  const g = (keys: string, command: string): Binding => ({ keys, command, context: "global" });
+  const panes = { h: "pane.left", j: "pane.down", k: "pane.up", l: "pane.right" };
+  return [
+    n("<Space>e", "tree.focus"),
+    n("<Space>ff", "find.files"),
+    n("<Space>fo", "find.recent"),
+    n("<Space>fb", "find.buffers"),
+    n("<Space>fk", "find.commands"),
+    ...Object.entries(panes).flatMap(([k, cmd]) => [n(`<C-${k}>`, cmd), n(`<C-w>${k}`, cmd)]),
+    n("<C-w>s", "pane.splitDown"),
+    n("<C-w>v", "pane.splitRight"),
+    n("<C-w>c", "pane.close"),
+    n("<C-w>q", "pane.close"),
+    ...(mac
+      ? [g("<D-p>", "find.files"), g("<D-S-p>", "find.commands")]
+      : [g("<C-S-p>", "find.files")]),
+    g("<F1>", "find.commands"),
+  ];
+}
+
+// A user binding replaces the default with the same context and keys; command "" just removes it.
+export function mergeKeymap(defaults: Binding[], user: Binding[]): Binding[] {
+  const id = (b: Binding) => `${b.context} ${parseKeys(b.keys).join("")}`;
+  const replaced = new Set(user.map(id));
+  return [...defaults.filter((b) => !replaced.has(id(b))), ...user.filter((b) => b.command !== "")];
+}
+
+// Checks a user keymap.json; returns the bindings or throws with a message for the status line.
+export function parseUserKeymap(json: string, known: (id: string) => boolean): Binding[] {
+  const data: unknown = JSON.parse(json);
+  if (!Array.isArray(data)) throw new Error("keymap.json: expected a list of bindings");
+  return data.map((b, i) => {
+    const where = `keymap.json entry ${i + 1}`;
+    if (typeof b?.keys !== "string" || !parseKeys(b.keys).length) throw new Error(`${where}: "keys" missing`);
+    if (typeof b.command !== "string") throw new Error(`${where}: "command" missing`);
+    if (b.command && !known(b.command)) throw new Error(`${where}: unknown command "${b.command}"`);
+    const context = b.context ?? "normal";
+    if (context !== "normal" && context !== "global") throw new Error(`${where}: context is "normal" or "global"`);
+    return { keys: b.keys, command: b.command, context, ...(typeof b.arg === "string" && { arg: b.arg }) };
+  });
+}
+
+const MODS = ["C", "A", "S", "D"]; // canonical order inside <…>
+
+// "<Space>ff" → ["<Space>", "f", "f"], "<S-C-P>" → ["<C-S-p>"].
+export function parseKeys(keys: string): string[] {
+  const out: string[] = [];
+  for (const [, tok, ch] of keys.matchAll(/<([^<>]+)>|(.)/gs)) {
+    if (ch !== undefined) { out.push(ch); continue; }
+    const parts = tok.split("-");
+    let key = parts.pop()!;
+    if (key === "") key = "-"; // "<C-->"
+    key = CANON[key.toLowerCase()] ?? key;
+    const mods = parts.map((m) => m.toUpperCase()).filter((m) => MODS.includes(m));
+    if (mods.length && key.length === 1) key = key.toLowerCase();
+    out.push(mods.length ? `<${MODS.filter((m) => mods.includes(m)).join("-")}-${key}>` : key.length === 1 ? key : `<${key}>`);
+  }
+  return out;
+}
+
+const NAMED: Record<string, string> = {
+  " ": "Space", Escape: "Esc", Enter: "CR", Tab: "Tab", Backspace: "BS", Delete: "Del",
+  ArrowUp: "Up", ArrowDown: "Down", ArrowLeft: "Left", ArrowRight: "Right",
+};
+
+// "<space>", "<ESC>", "<f1>" → the spelling keyName produces.
+const CANON: Record<string, string> = Object.fromEntries(
+  [...Object.values(NAMED), ...Array.from({ length: 24 }, (_, i) => `F${i + 1}`)].map((n) => [n.toLowerCase(), n]),
+);
+
+type KeyEv = Pick<KeyboardEvent, "key" | "code" | "ctrlKey" | "altKey" | "shiftKey" | "metaKey">;
+
+// One key press in the same notation as parseKeys; "" for a lone modifier.
+export function keyName(e: KeyEv): string {
+  if (["Shift", "Control", "Alt", "Meta"].includes(e.key)) return "";
+  const named = NAMED[e.key] ?? (/^F\d+$/.test(e.key) ? e.key : undefined);
+  const mods = [e.ctrlKey && "C", e.altKey && "A", e.metaKey && "D"].filter(Boolean) as string[];
+  if (!mods.length) return named ? `<${(e.shiftKey && named !== "Space" ? "S-" : "") + named}>` : e.key;
+  if (e.shiftKey) mods.push("S");
+  // With Alt (macOS) or Shift, e.key is a different char; e.code still names the physical key.
+  const m = /^(?:Key|Digit)(.)$/.exec(e.code);
+  const key = named ?? (m ? m[1].toLowerCase() : e.key.toLowerCase());
+  return `<${MODS.filter((x) => mods.includes(x)).join("-")}-${key}>`;
+}
+
+// Turns key presses into bindings, with multi-key sequences and Vim's timeout:
+// "<Space>t" fires after `timeout` ms unless "<Space>tc" continues it.
+export class Sequencer {
+  private pending: string[] = [];
+  private timer: ReturnType<typeof setTimeout> | undefined;
+
+  constructor(private fire: (b: Binding) => void, private timeout = 400) {} // nvim timeoutlen from my config
+
+  // Returns true if the key was used (part of a binding), so the caller stops the event.
+  feed(token: string, bindings: Binding[]): boolean {
+    clearTimeout(this.timer);
+    const seq = [...this.pending, token];
+    const matches = bindings.filter((b) => startsWith(parseKeys(b.keys), seq));
+    const exact = matches.find((b) => parseKeys(b.keys).length === seq.length);
+    const longer = matches.some((b) => parseKeys(b.keys).length > seq.length);
+    if (!matches.length) {
+      const had = this.pending.length > 0;
+      this.pending = [];
+      return had ? this.feed(token, bindings) : false;
+    }
+    if (exact && !longer) {
+      this.pending = [];
+      this.fire(exact);
+      return true;
+    }
+    this.pending = seq;
+    this.timer = setTimeout(() => {
+      this.pending = [];
+      if (exact) this.fire(exact);
+    }, this.timeout);
+    return true;
+  }
+
+  reset() {
+    clearTimeout(this.timer);
+    this.pending = [];
+  }
+}
+
+const startsWith = (keys: string[], seq: string[]) => keys.length >= seq.length && seq.every((k, i) => keys[i] === k);

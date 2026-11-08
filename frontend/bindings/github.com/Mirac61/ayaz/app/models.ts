@@ -4,6 +4,11 @@
 export interface Info {
     "id": string;
     "name": string;
+
+    /**
+     * absolute; a key for per-folder state like recent files
+     */
+    "root": string;
 }
 
 /**

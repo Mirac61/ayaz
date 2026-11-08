@@ -5,13 +5,14 @@ import { EditorView } from "@codemirror/view";
 import { foldedRanges } from "@codemirror/language";
 import { javascript } from "@codemirror/lang-javascript";
 import { editorExtensions } from "../editor";
-import { installVim, type VimHost } from "./setup";
+import { installVim } from "./setup";
+import { defaultKeymap } from "../../core/keymap";
 
 // Vim core list (04-testing, Q20): real key presses into a real editor in WebKit.
 // "|" in start/want marks the cursor. A want without "|" checks only the text.
 
-// The real setup: jk, leader, folds. Ex tests below swap in a recording host.
-installVim({ write: async () => false, edit: async () => {}, quit: async () => {}, focusTree: () => {} });
+// The real setup: jk, leader, folds, default keymap. Ex tests below swap in a recording runner.
+installVim(() => {}, defaultKeymap().filter((b) => b.context === "normal"));
 
 let view: EditorView | null = null;
 afterEach(() => {
@@ -66,7 +67,7 @@ const groups: Record<string, Case[]> = {
     ["0", "  ab|c", "|  abc"], ["^", "  ab|c", "  |abc"], ["$", "|abc", "ab|c"],
     ["gg", "a\nb\n|c", "|a\nb\nc"], ["G", "|a\nb\nc", "a\nb\n|c"], ["2G", "|a\nb\nc", "a\n|b\nc"],
     ["fc", "|abcabc", "ab|cabc"], ["tc", "|abcabc", "a|bcabc"], ["Fa", "abcab|c", "abc|abc"], ["Ta", "abcab|c", "abca|bc"],
-    ["fc;", "|abcabc", "abcab|c"], ["fc;,", "|abcabc", "ab|cabc"], ["%", "|(a)", "(a|)"],
+    ["fc,", "abc|abc", "ab|cabc"], // ";" is ":" in my keymap, so only "," repeats ["%", "|(a)", "(a|)"],
   ],
   search: [
     ["/foo<CR>", "|foo bar foo", "foo bar |foo"], ["?bar<CR>", "foo bar |foo", "foo |bar foo"],
@@ -178,20 +179,16 @@ describe("viewport", () => {
   });
 });
 
-describe("ex commands reach the host", () => {
+describe("ex commands and leader keys run commands", () => {
   test.each([
-    [":w<CR>", "write(false)"], [":w!<CR>", "write(true)"], [":q<CR>", "quit(false)"], [":q!<CR>", "quit(true)"],
-    [":wq<CR>", "write(false) quit(false)"], [":e src/a.go<CR>", "edit(src/a.go,false)"], [":e!<CR>", "edit(,true)"],
-    [" e", "focusTree"],
+    [":w<CR>", "file.save()"], [":w!<CR>", "file.save(!)"], [":q<CR>", "pane.close()"], [":q!<CR>", "pane.close(!)"],
+    [":wq<CR>", "file.saveClose()"], [":e src/a.go<CR>", "file.open(src/a.go)"], [":e!<CR>", "file.open(!)"],
+    [":sp<CR>", "pane.splitDown()"], [":vs<CR>", "pane.splitRight()"], [";w<CR>", "file.save()"],
+    [" e", "tree.focus()"], [" ff", "find.files()"], [" fk", "find.commands()"],
+    ["<C-w>v", "pane.splitRight()"], ["<C-w>l", "pane.right()"], ["<C-h>", "pane.left()"], ["<C-j>", "pane.down()"],
   ])("%s", async (keys, want) => {
     const calls: string[] = [];
-    const host: VimHost = {
-      write: async (f) => (calls.push(`write(${f})`), true),
-      quit: async (f) => void calls.push(`quit(${f})`),
-      edit: async (p, f) => void calls.push(`edit(${p},${f})`),
-      focusTree: () => void calls.push("focusTree"),
-    };
-    installVim(host);
+    installVim((id, arg) => void calls.push(`${id}(${arg ?? ""})`), []);
     await run("|a", keys);
     await vi.waitFor(() => expect(calls.join(" ")).toBe(want), { timeout: 500 });
   });

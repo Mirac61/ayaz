@@ -1,44 +1,40 @@
 import { Vim, type CodeMirror } from "@replit/codemirror-vim";
 import { foldAll, foldCode, toggleFold, unfoldAll, unfoldCode } from "@codemirror/language";
+import type { Binding } from "../../core/keymap";
 
-// What the editor's Ex commands and leader keys do. The workbench provides it; vim's ex commands are global.
-export interface VimHost {
-  write(force: boolean): Promise<boolean>; // false if nothing was written (error shown)
-  edit(path: string, force: boolean): Promise<void>;
-  quit(force: boolean): Promise<void>;
-  focusTree(): void;
-}
+// Runs a command by ID (core/commands). Vim's maps and ex commands are global, so the latest workbench's runner wins.
+export type Run = (id: string, arg?: string) => void;
+let run: Run = () => {};
 
-let host: VimHost | null = null;
-
-// ":e! foo" arrives as argString "! foo", ":w" as undefined.
-const parse = (argString?: string) => {
-  const s = (argString ?? "").trim();
-  const force = s.startsWith("!");
-  return { force, arg: (force ? s.slice(1) : s).trim() };
-};
+// Ex commands are thin aliases for commands (ADR-0010); the arg is the rest of the line (":w!" → "!", ":e! a" → "! a").
+const EX: [name: string, prefix: string, command: string][] = [
+  ["write", "w", "file.save"],
+  ["quit", "q", "pane.close"],
+  ["wq", "wq", "file.saveClose"],
+  ["edit", "e", "file.open"],
+  ["split", "sp", "pane.splitDown"],
+  ["vsplit", "vs", "pane.splitRight"],
+];
 
 let installed = false;
 
-export function installVim(h: VimHost) {
-  host = h;
+// normal: the "normal" bindings of the keymap; mapped once per app, so keymap.json changes need a restart.
+export function installVim(r: Run, normal: Binding[]) {
+  run = r;
   if (installed) return;
   installed = true;
   Vim.map("jk", "<Esc>", "insert");
-  Vim.defineEx("write", "w", (_cm, p) => void host?.write(parse(p.argString).force));
-  Vim.defineEx("quit", "q", (_cm, p) => void host?.quit(parse(p.argString).force));
-  Vim.defineEx("wq", "wq", async (_cm, p) => {
-    const { force } = parse(p.argString);
-    if (await host?.write(force)) await host?.quit(force);
-  });
-  Vim.defineEx("edit", "e", (_cm, p) => {
-    const { force, arg } = parse(p.argString);
-    void host?.edit(arg, force);
-  });
+  Vim.map(";", ":", "normal");
+  for (const [name, prefix, command] of EX) Vim.defineEx(name, prefix, (_cm, p) => run(command, (p.argString ?? "").trim()));
+
   // Space is the leader, like most nvim setups; by default it is a synonym for l.
   Vim.unmap("<Space>", undefined as never);
-  Vim.defineAction("focusTree", () => host?.focusTree());
-  Vim.mapCommand("<Space>e", "action", "focusTree", {}, { context: "normal" });
+  Vim.unmap("<C-w>", "normal"); // a no-op by default, and it would swallow <C-w>h etc.
+  normal.forEach((b, i) => {
+    const action = `ayaz${i}`;
+    Vim.defineAction(action, () => run(b.command, b.arg));
+    Vim.mapCommand(b.keys, "action", action, {}, { context: "normal" });
+  });
 
   // codemirror-vim has no folds, CM6 does.
   const folds = { za: toggleFold, zc: foldCode, zo: unfoldCode, zM: foldAll, zR: unfoldAll };
