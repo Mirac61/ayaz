@@ -1,4 +1,4 @@
-import { afterEach, expect, test } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { EditorView } from "@codemirror/view";
 import { createState } from "./editor";
@@ -71,4 +71,12 @@ test("reading view: everything rendered, Vim moves but cannot edit", async () =>
   expect(lines()).toEqual(["Title", "some **bold** text", "end"]);
   await userEvent.keyboard("x");
   expect(view!.state.doc.toString()).not.toBe("# Title\nsome **bold** text\nend");
+});
+
+test("fenced code gets its language's highlighting and a background", async () => {
+  await mount("```go\nfunc main() {}\n```");
+  await vi.waitFor(() => expect(view!.contentDOM.querySelectorAll(".cm-md-code-line span[class]").length).toBeGreaterThan(0));
+  expect(view!.contentDOM.querySelectorAll(".cm-md-code-line").length).toBe(3);
+  expect(view!.contentDOM.querySelectorAll(".cm-md-fence").length).toBe(2);
+  expect(lines()).toEqual(["```go", "func main() {}", "```"]);
 });

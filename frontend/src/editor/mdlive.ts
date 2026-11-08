@@ -73,7 +73,15 @@ export function mdDecorations(state: EditorState, from = 0, to = state.doc.lengt
           hide(marks[0].from, marks[0].to);
           hide(marks[1].from, n.to);
         }
-      } else if (name === "Image" || name === "FencedCode" || name === "CodeBlock") return false; // M6
+      } else if (name === "FencedCode" || name === "CodeBlock") {
+        // Fence lines stay (dimmed), so line heights don't change; the code itself is highlighted by its own parser.
+        const first = doc.lineAt(n.from).number, last = doc.lineAt(n.to).number;
+        for (let i = Math.max(first, doc.lineAt(from).number); i <= Math.min(last, doc.lineAt(to).number); i++) {
+          const fence = name === "FencedCode" && (i === first || i === last && n.node.getChildren("CodeMark").length === 2);
+          out.lines.push({ at: doc.line(i).from, cls: fence ? "cm-md-code-line cm-md-fence" : "cm-md-code-line" });
+        }
+        return false;
+      } else if (name === "Image") return false; // M6
     },
   });
   return out;
@@ -147,6 +155,8 @@ const theme = EditorView.baseTheme({
   ".cm-md-h4, .cm-md-h5, .cm-md-h6": { fontSize: "1.05em" },
   ".cm-md-code": { backgroundColor: "#2a2a37", borderRadius: "3px", padding: "0 2px" },
   ".cm-md-link": { color: "#7e9cd8", textDecoration: "underline" },
+  ".cm-md-code-line": { backgroundColor: "#1f1f28" },
+  ".cm-md-fence": { color: "#727169" },
   "&.cm-reading .cm-activeLine": { backgroundColor: "transparent" },
 });
 

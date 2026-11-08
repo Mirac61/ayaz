@@ -2,6 +2,8 @@ import { expect, test } from "vitest";
 import { EditorSelection, EditorState, StateEffect } from "@codemirror/state";
 import { ensureSyntaxTree } from "@codemirror/language";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
+import { codeLanguages } from "../lang/registry";
+import { LanguageDescription } from "@codemirror/language";
 import { browsable, linkAt, mdDecorations, mdlive, resolveLink, toggleReading } from "./mdlive";
 
 // "|" marks the cursor; "«" and "»" a selection instead. No marker: cursor at the very end.
@@ -114,4 +116,38 @@ test("reading view hides the markers of the cursor line too", () => {
 test("toggleReading is null without live preview", () => {
   const view = { state: state("# H\n|") };
   expect(toggleReading(view as never)).toBeNull();
+});
+
+const codeLines = (src: string) => mdDecorations(state(src)).lines.map((l) => `${l.at}:${l.cls.replace(/cm-md-/g, "")}`);
+
+test("fenced code: every line gets the code class, the fences are dimmed", () => {
+  expect(codeLines("```go\nx := 1\n```\n|")).toEqual(["0:code-line fence", "6:code-line", "13:code-line fence"]);
+});
+
+test("an unclosed fence dims only its opening line", () => {
+  expect(codeLines("```\ncode\n|")).toEqual(["0:code-line fence", "4:code-line", "9:code-line"]);
+});
+
+test("tilde fences, empty blocks and fences with text around", () => {
+  expect(codeLines("~~~\na\n~~~\n|")).toEqual(["0:code-line fence", "4:code-line", "6:code-line fence"]);
+  expect(codeLines("```\n```\n|")).toEqual(["0:code-line fence", "4:code-line fence"]);
+  expect(codeLines("a\n\n```\nb\n```\nc\n|").map((l) => l.split(":")[1])).toEqual(["code-line fence", "code-line", "code-line fence"]);
+});
+
+test("indented code is a code line without fences", () => {
+  expect(codeLines("    x\n    y\n\n|")).toEqual(["0:code-line", "6:code-line"]);
+});
+
+test("a range clips the code lines to it", () => {
+  const st = state("```\na\nb\nc\n```\n|");
+  expect(mdDecorations(st, 6, 9).lines.map((l) => l.at)).toEqual([6, 8]);
+});
+
+test("info strings find their language, c and cpp share one parser", () => {
+  const find = (n: string) => LanguageDescription.matchLanguageName(codeLanguages, n, true);
+  expect(find("go")).toBe(find("golang"));
+  expect(find("ts")).toBe(find("typescript"));
+  expect(find("c")).toBe(find("cpp"));
+  expect(find("json")).not.toBeNull();
+  expect(find("brainfuck")).toBeNull();
 });
