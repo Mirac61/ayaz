@@ -1,0 +1,48 @@
+' Shared style for all diagrams. Build with: plantuml -tsvg docs/diagrams/*.puml
+!theme plain
+skinparam defaultFontName Helvetica
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam roundCorner 0
+skinparam backgroundColor #FFFFFF
+skinparam ArrowColor #333333
+skinparam ArrowThickness 1
+skinparam LineColor #333333
+skinparam BorderColor #333333
+skinparam FontColor #111111
+skinparam padding 2
+skinparam nodesep 30
+skinparam ranksep 40
+skinparam package {
+  BackgroundColor #F6F6F6
+  BorderColor #333333
+  FontStyle bold
+}
+skinparam rectangle {
+  BackgroundColor #FFFFFF
+  BorderColor #333333
+}
+skinparam interface {
+  BackgroundColor #ECECEC
+  BorderColor #333333
+}
+skinparam sequence {
+  ParticipantBackgroundColor #FFFFFF
+  ParticipantBorderColor #333333
+  LifeLineBorderColor #888888
+  GroupBorderColor #888888
+}
+skinparam activity {
+  BackgroundColor #FFFFFF
+  BorderColor #333333
+  DiamondBackgroundColor #ECECEC
+}
+skinparam caption {
+  FontSize 11
+}
+skinparam defaultTextAlignment center
+skinparam legend {
+  BackgroundColor #FFFFFF
+  BorderColor #888888
+  FontSize 11
+}

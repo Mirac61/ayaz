@@ -1,0 +1,23 @@
+@startuml sequence-lsp
+!include _style.iuml
+hide footbox
+autonumber
+participant "Editor\n(lsp-client)" as E
+participant "Transport adapter" as TR
+participant "LspService" as L
+participant "gopls" as G
+
+E -> TR : connect
+TR -> L : Ensure(ws, "go")
+L -> G : start process if not running
+L --> TR : streamName
+== Messages ==
+E -> TR : send(JSON)
+TR -> L : stream (JSON string)
+L -> G : Content-Length + JSON (stdin)
+G --> L : Content-Length + JSON (stdout)
+L --> TR : stream (JSON string)
+TR --> E : subscribe handler
+
+caption Fig. 3 – Sequence: connecting a language server
+@enduml

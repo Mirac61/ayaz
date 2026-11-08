@@ -1,0 +1,21 @@
+@startuml sequence-external-change
+!include _style.iuml
+hide footbox
+autonumber
+participant "File system" as D
+participant "watch" as W
+participant "app" as A
+participant "Frontend" as FE
+
+D -> W : events (debounced, own writes filtered)
+W -> A : Changed(paths) / Overflow
+A -> FE : event fs:changed / fs:rescan
+FE -> FE : update file tree
+alt buffer unchanged
+  FE -> FE : reload file
+else buffer modified
+  FE -> FE : show conflict notice
+end
+
+caption Fig. 4 – Sequence: external file change
+@enduml

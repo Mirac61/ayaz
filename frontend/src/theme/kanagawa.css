@@ -1,0 +1,31 @@
+/* Kanagawa (wave) palette, https://github.com/rebelot/kanagawa.nvim */
+:root {
+  --sumi-ink-0: #16161d;
+  --sumi-ink-1: #1f1f28;
+  --sumi-ink-3: #363646;
+  --sumi-ink-4: #54546d;
+  --fuji-white: #dcd7ba;
+  --fuji-gray: #727169;
+  --crystal-blue: #7e9cd8;
+  --spring-green: #98bb6c;
+  --carp-yellow: #e6c384;
+  --samurai-red: #e82424;
+  --oni-violet: #957fb8;
+
+  --bg: var(--sumi-ink-1);
+  --bg-dim: var(--sumi-ink-0);
+  --fg: var(--fuji-white);
+  --fg-dim: var(--fuji-gray);
+  --border: var(--sumi-ink-4);
+  --accent: var(--crystal-blue);
+
+  --font-mono: "JetBrainsMono Nerd Font", "JetBrains Mono", Menlo, monospace;
+}
+
+html, body, #root {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  font: 13px/1.5 var(--font-mono);
+}

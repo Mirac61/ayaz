@@ -1,0 +1,35 @@
+@startuml keyboard-routing
+!include _style.iuml
+start
+:keydown;
+if (Global shortcut with modifier?) then (yes)
+  :Command registry;
+  stop
+endif
+switch (Focused pane)
+case (Editor)
+  :codemirror-vim;
+  if (Ex command or leader?) then (yes)
+    :Command registry;
+  else (no)
+    :Vim handles the key;
+  endif
+case (Terminal)
+  if (Terminal mode) then (insert)
+    :To the shell (PTY);
+  else (normal)
+    :Keymap "terminal";
+    :Command registry;
+  endif
+case (PDF, image, file tree)
+  :Keymap of the context;
+  :Command registry;
+endswitch
+stop
+note right
+  The command palette calls
+  the command registry directly.
+end note
+
+caption Fig. 5 – Keyboard routing
+@enduml

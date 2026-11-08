@@ -1,0 +1,24 @@
+@startuml sequence-terminal
+!include _style.iuml
+hide footbox
+autonumber
+participant "terminal provider" as T
+participant "backend.ts" as B
+participant "TerminalService" as S
+participant "pty session" as P
+
+T -> B : start(cols, rows)
+B -> S : Start(ws, cols, rows)
+S -> P : start shell from config in workspace root
+S --> B : streamName
+B --> T : stream connected
+== Running ==
+T -> P : keystrokes (stream, bytes)
+P --> T : output, batched (stream, bytes)
+T -> B : resize(cols, rows)
+B -> S : Resize
+== Exit ==
+P --> B : event pty:exit
+
+caption Fig. 2 – Sequence: terminal session
+@enduml
