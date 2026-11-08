@@ -1,6 +1,6 @@
 # ADR-0009: LSP via @codemirror/lsp-client and Wails streams
 
-Status: proposed · 2026-11-08
+Status: **accepted** · 2026-11-08 (S7 on macOS: stream echo p95 1.2 ms at 200 KB; server build still open)
 
 ## Context
 - Ayaz is a code editor, so LSP is core, not an add-on.

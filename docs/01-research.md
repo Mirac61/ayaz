@@ -350,3 +350,31 @@ Sequential calls, timed in batches of 20 (WebKit rounds `performance.now()` to 1
 | 50 fuzzy-shaped results (`Matches(50)`) | 0.25 ms | 0.35 ms | 0.8 ms, once 21 ms (one batch, cause not measured, probably startup work) |
 
 → The binding costs ~0.3 ms of the 30 ms K9 budget. ADR-0007 (fuzzy matcher in Go) accepted. Hyprland: open.
+
+### S6 + S7 – Terminal stream and echo (2026-11-08, macOS)
+
+Run with `AYAZ_SPIKE=bench AYAZ_EXIT_AFTER_REPORT=1 ./bin/ayaz`. Login shell is `$SHELL -l` (zsh), xterm.js 6.0.0, `@xterm/addon-webgl` 0.19.0, output batching in `internal/pty/batch.go` (idle chunk sent at once, then batch per window or max bytes).
+
+| Renderer | Batching | K13 echo p50 / p95 / max | K14 `seq 1 1000000` |
+|---|---|---|---|
+| DOM | 4 ms / 16 KB | 2 / 3 / 10 ms | 1.13 s |
+| DOM | 8 ms / 16 KB | 2 / 3 / 9 ms | 1.13 s |
+| DOM | 8 ms / 64 KB | 2 / 3 / 11 ms | 1.16 s |
+| WebGL | 4 ms / 16 KB | 2 / 3 / 10 ms | 1.13 s |
+| WebGL | 8 ms / 16 KB | 2 / 3 / 10 ms | 1.11 s |
+| WebGL | 8 ms / 64 KB | 2 / 3 / 8 ms | 1.17 s |
+
+- K13 is measured from `input()` to the next xterm `onRender` (the event exists and fires as expected). 1 ms timer resolution.
+- Batching parameters make no measurable difference → keep 4 ms / 16 KB. Renderer makes none either on macOS → default WebGL on macOS (less main-thread work), Linux decided on Hyprland.
+- Baseline: `seq 1 1000000 > /dev/null` takes 0.11 s; native terminal and nvim `:terminal` comparison still open.
+- After the run no shell or `seq` processes were left behind (SIGHUP to the process group works).
+
+S7, LSP-shaped messages (`Content-Length` + JSON) through the `echo` stream and back, batches of 20:
+
+| Payload | p50 | p95 | max |
+|---|---|---|---|
+| 0.2 KB | 0.25 ms | 0.30 ms | 0.35 ms |
+| 10 KB | 0.35 ms | 0.40 ms | 0.45 ms |
+| 200 KB | 1.05 ms | 1.20 ms | 1.35 ms |
+
+→ K16 (≤ 5 ms) holds even for 200 KB. Open: streams in the server build (Playwright), Hyprland.

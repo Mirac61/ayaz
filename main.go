@@ -27,6 +27,9 @@ func main() {
 		},
 	})
 
+	a.HandleStream("pty", app.HandleTerminal)
+	a.HandleStream("echo", app.HandleEcho)
+
 	win := a.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:  "Ayaz",
 		Width:  1200,

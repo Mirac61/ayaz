@@ -32,3 +32,10 @@ export function Ping(): $CancellablePromise<string> {
 export function Report(line: string): $CancellablePromise<void> {
     return $Call.ByID(28473168, line);
 }
+
+/**
+ * SpikeMode tells the frontend which M0 spike to show: "" (terminal), "s1" (scroll test) or "bench" (S4, S6, S7).
+ */
+export function SpikeMode(): $CancellablePromise<string> {
+    return $Call.ByID(932594743);
+}

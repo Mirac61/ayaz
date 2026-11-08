@@ -1,6 +1,6 @@
 # ADR-0013: Terminal with xterm.js, creack/pty and Wails streams
 
-Status: proposed · 2026-11-08
+Status: **accepted** · 2026-11-08 (S6 on macOS: K13 p95 3 ms, K14 1.1 s; Linux renderer still open)
 
 ## Context
 - A real terminal is a core requirement: TUI programs, truecolor, mouse, Unicode.

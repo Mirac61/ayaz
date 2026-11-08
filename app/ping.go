@@ -32,6 +32,9 @@ func (PingService) Matches(n int) []Match {
 	return out
 }
 
+// SpikeMode tells the frontend which M0 spike to show: "" (terminal), "s1" (scroll test) or "bench" (S4, S6, S7).
+func (PingService) SpikeMode() string { return os.Getenv("AYAZ_SPIKE") }
+
 // Report prints a measurement line from the frontend to stdout, so spikes can be read without the UI.
 // With AYAZ_EXIT_AFTER_REPORT=1 the app quits afterwards (for scripted runs).
 func (PingService) Report(line string) {
