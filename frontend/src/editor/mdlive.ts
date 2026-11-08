@@ -10,7 +10,7 @@ export interface MdDeco {
   hide: [number, number][];
   marks: { from: number; to: number; cls: string }[];
   lines: { at: number; cls: string }[];
-  widgets: { from: number; to: number; kind: "bullet" }[]; // replaced by a small widget, outside active lines
+  widgets: { from: number; to: number; kind: "bullet" | "check"; checked?: boolean }[]; // replaced by a small widget, outside active lines
 }
 
 // Reading view: no line counts as active, not even the cursor's, and the document is read-only.
@@ -93,7 +93,11 @@ export function mdDecorations(state: EditorState, from = 0, to = state.doc.lengt
       } else if (name === "QuoteMark") {
         hideQuote(n.from, n.to);
       } else if (name === "ListMark" && n.node.parent?.parent?.name === "BulletList") {
-        if (free(n.from, n.to)) out.widgets.push({ from: n.from, to: n.to, kind: "bullet" });
+        // A task item shows its checkbox instead of a bullet.
+        if (n.node.nextSibling?.name === "Task") hide(n.from, n.to + 1);
+        else if (free(n.from, n.to)) out.widgets.push({ from: n.from, to: n.to, kind: "bullet" });
+      } else if (name === "TaskMarker") {
+        if (free(n.from, n.to)) out.widgets.push({ from: n.from, to: n.to, kind: "check", checked: doc.sliceString(n.from + 1, n.from + 2) !== " " });
       } else if (name === "Image") return false; // M6
     },
   });
@@ -143,6 +147,27 @@ class Bullet extends WidgetType {
 }
 const bullet = Decoration.replace({ widget: new Bullet() });
 
+// Clicking flips the x in the document, a normal transaction so undo works. A reading view only looks.
+class Check extends WidgetType {
+  constructor(readonly on: boolean) { super(); }
+  eq(o: Check) { return o.on === this.on; }
+  toDOM(view: EditorView) {
+    const i = document.createElement("input");
+    i.type = "checkbox";
+    i.checked = this.on;
+    i.className = "cm-md-check";
+    i.addEventListener("click", (e) => e.preventDefault()); // the redraw shows the new state
+    i.addEventListener("mousedown", (e) => {
+      e.preventDefault(); // no cursor move, no focus change
+      const at = view.posAtDOM(i);
+      if (view.state.readOnly || !/^\[[ xX]\]$/.test(view.state.doc.sliceString(at, at + 3))) return;
+      view.dispatch({ changes: { from: at + 1, to: at + 2, insert: view.state.doc.sliceString(at + 1, at + 2) === " " ? "x" : " " } });
+    });
+    return i;
+  }
+}
+const check = (on: boolean) => Decoration.replace({ widget: new Check(on) });
+
 class Live {
   deco: DecorationSet;
   hidden: DecorationSet;
@@ -160,7 +185,7 @@ function build(v: EditorView): [DecorationSet, DecorationSet] {
     for (const l of d.lines) all.push(Decoration.line({ class: l.cls }).range(l.at));
     for (const m of d.marks) if (m.from < m.to) all.push(Decoration.mark({ class: m.cls }).range(m.from, m.to));
     for (const [a, b] of d.hide) hides.push(hidden.range(a, b));
-    for (const w of d.widgets) hides.push(bullet.range(w.from, w.to)); // atomic like hidden marks
+    for (const w of d.widgets) hides.push((w.kind === "bullet" ? bullet : check(!!w.checked)).range(w.from, w.to)); // atomic like hidden marks
   }
   const h = Decoration.set(hides, true);
   return [Decoration.set([...all, ...hides], true), h];
@@ -177,6 +202,7 @@ const theme = EditorView.baseTheme({
   ".cm-md-link": { color: "#7e9cd8", textDecoration: "underline" },
   ".cm-md-code-line": { backgroundColor: "#1f1f28" },
   ".cm-md-quote": { borderLeft: "3px solid #54546d", paddingLeft: "8px", color: "#c8c093" },
+  ".cm-md-check": { margin: "0 4px 0 0", verticalAlign: "middle", accentColor: "#7e9cd8" },
   ".cm-md-fence": { color: "#727169" },
   "&.cm-reading .cm-activeLine": { backgroundColor: "transparent" },
 });

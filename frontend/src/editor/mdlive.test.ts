@@ -153,7 +153,7 @@ test("info strings find their language, c and cpp share one parser", () => {
 });
 
 const quoteLines = (src: string) => mdDecorations(state(src)).lines.filter((l) => l.cls === "cm-md-quote").map((l) => l.at);
-const bullets = (src: string) => mdDecorations(state(src)).widgets.map((w) => `${w.kind}@${w.from}`);
+const bullets = (src: string) => mdDecorations(state(src)).widgets.filter((w) => w.kind === "bullet").map((w) => `${w.kind}@${w.from}`);
 
 test.each<[string, string]>([
   ["> quote\n|", "quote\n"],
@@ -184,4 +184,26 @@ test("bullet markers - * + become a widget, ordered ones stay", () => {
   expect(bullets("- a\n- b\n\n---\n|")).toEqual(["bullet@0", "bullet@4"]); // a rule is no bullet
   expect(bullets("- *em*\n|")).toEqual(["bullet@0"]);
   expect(bullets("```\n- x\n```\n|")).toEqual([]);
+});
+
+const checks = (src: string) => mdDecorations(state(src)).widgets.filter((w) => w.kind === "check").map((w) => `${w.checked ? "x" : "_"}@${w.from}`);
+
+test("task items show a checkbox and no bullet", () => {
+  expect(checks("- [ ] a\n- [x] b\n- [X] c\n|")).toEqual(["_@2", "x@10", "x@18"]);
+  expect(bullets("- [ ] a\n- b\n|")).toEqual(["bullet@8"]);
+  expect(shown("- [ ] todo\n|")).toBe("[ ] todo\n");
+  expect(shown("- [x] **b**\n|")).toBe("[x] b\n");
+});
+
+test("only real task items count", () => {
+  expect(checks("- [ ]\n- [ ]x\n[ ] no\n|")).toEqual([]);
+  expect(checks("1. [ ] ordered\n|")).toEqual(["_@3"]);
+  expect(bullets("1. [ ] ordered\n|")).toEqual([]);
+  expect(checks("```\n- [ ] a\n```\n|")).toEqual([]);
+  expect(checks("> - [x] quoted\n|")).toEqual(["x@4"]);
+});
+
+test("the cursor line shows the raw task", () => {
+  expect(checks("- [ ] a\n|- [x] b")).toEqual(["_@2"]);
+  expect(shown("|- [ ] a")).toBe("- [ ] a");
 });

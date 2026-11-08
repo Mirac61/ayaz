@@ -88,3 +88,23 @@ test("quotes lose their mark, bullets become dots, the cursor line stays raw", a
   await userEvent.keyboard("jj");
   expect(lines()).toEqual(["plain", "quote", "- item", "1. one"]);
 });
+
+test("clicking a checkbox flips the x, undo brings it back", async () => {
+  await mount("end\n- [ ] one\n- [x] two");
+  const boxes = () => [...view!.contentDOM.querySelectorAll<HTMLInputElement>(".cm-md-check")];
+  expect(boxes().map((b) => b.checked)).toEqual([false, true]);
+  await userEvent.click(boxes()[0]);
+  expect(view!.state.doc.toString()).toBe("end\n- [x] one\n- [x] two");
+  expect(boxes().map((b) => b.checked)).toEqual([true, true]);
+  await userEvent.click(boxes()[1]);
+  expect(view!.state.doc.toString()).toBe("end\n- [x] one\n- [ ] two");
+  await userEvent.keyboard("{Escape}u");
+  expect(view!.state.doc.toString()).toBe("end\n- [x] one\n- [x] two");
+});
+
+test("a reading view does not toggle checkboxes", async () => {
+  await mount("- [ ] one\nend");
+  toggleReading(view!);
+  await userEvent.click(view!.contentDOM.querySelector(".cm-md-check")!);
+  expect(view!.state.doc.toString()).toBe("- [ ] one\nend");
+});
