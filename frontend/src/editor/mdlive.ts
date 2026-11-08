@@ -1,5 +1,5 @@
 import { EditorState, StateEffect, StateField, type Range } from "@codemirror/state";
-import { Decoration, EditorView, ViewPlugin, type DecorationSet, type ViewUpdate } from "@codemirror/view";
+import { Decoration, EditorView, ViewPlugin, WidgetType, type DecorationSet, type ViewUpdate } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
 import type { SyntaxNode } from "@lezer/common";
 
@@ -10,6 +10,7 @@ export interface MdDeco {
   hide: [number, number][];
   marks: { from: number; to: number; cls: string }[];
   lines: { at: number; cls: string }[];
+  widgets: { from: number; to: number; kind: "bullet" }[]; // replaced by a small widget, outside active lines
 }
 
 // Reading view: no line counts as active, not even the cursor's, and the document is read-only.
@@ -34,10 +35,15 @@ export const isReading = (state: EditorState) => state.field(reading, false) ===
 export function mdDecorations(state: EditorState, from = 0, to = state.doc.length): MdDeco {
   const doc = state.doc;
   const active = isReading(state) ? [] : state.selection.ranges.map((r) => [doc.lineAt(r.from).from, doc.lineAt(r.to).to]);
-  const out: MdDeco = { hide: [], marks: [], lines: [] };
+  const out: MdDeco = { hide: [], marks: [], lines: [], widgets: [] };
   // Replacing a line break isn't allowed from a ViewPlugin, and markers on a cursor line stay visible.
-  const hide = (a: number, b: number) => {
-    if (a < b && !doc.sliceString(a, b).includes("\n") && !active.some(([s, e]) => a <= e && b >= s)) out.hide.push([a, b]);
+  const free = (a: number, b: number) => a < b && !doc.sliceString(a, b).includes("\n") && !active.some(([s, e]) => a <= e && b >= s);
+  const hide = (a: number, b: number) => { if (free(a, b)) out.hide.push([a, b]); };
+  const hideQuote = (a: number, b: number) => hide(a, doc.sliceString(b, b + 1) === " " ? b + 1 : b);
+  // The lines of node n inside [from, to].
+  const eachLine = (n: { from: number; to: number }, f: (at: number, first: boolean) => void) => {
+    const first = doc.lineAt(n.from).number;
+    for (let i = Math.max(first, doc.lineAt(from).number); i <= Math.min(doc.lineAt(n.to).number, doc.lineAt(to).number); i++) f(doc.line(i).from, i === first);
   };
   syntaxTree(state).iterate({
     from, to,
@@ -75,12 +81,19 @@ export function mdDecorations(state: EditorState, from = 0, to = state.doc.lengt
         }
       } else if (name === "FencedCode" || name === "CodeBlock") {
         // Fence lines stay (dimmed), so line heights don't change; the code itself is highlighted by its own parser.
-        const first = doc.lineAt(n.from).number, last = doc.lineAt(n.to).number;
-        for (let i = Math.max(first, doc.lineAt(from).number); i <= Math.min(last, doc.lineAt(to).number); i++) {
-          const fence = name === "FencedCode" && (i === first || i === last && n.node.getChildren("CodeMark").length === 2);
-          out.lines.push({ at: doc.line(i).from, cls: fence ? "cm-md-code-line cm-md-fence" : "cm-md-code-line" });
-        }
+        const closed = n.node.getChildren("CodeMark").length === 2, last = doc.lineAt(n.to).from;
+        eachLine(n, (at, first) => {
+          const fence = name === "FencedCode" && (first || closed && at === last);
+          out.lines.push({ at, cls: fence ? "cm-md-code-line cm-md-fence" : "cm-md-code-line" });
+        });
+        for (const q of n.node.getChildren("QuoteMark")) hideQuote(q.from, q.to); // quoted code: the marks sit inside it
         return false;
+      } else if (name === "Blockquote") {
+        if (n.node.parent?.name !== "Blockquote") eachLine(n, (at) => out.lines.push({ at, cls: "cm-md-quote" })); // nested: once
+      } else if (name === "QuoteMark") {
+        hideQuote(n.from, n.to);
+      } else if (name === "ListMark" && n.node.parent?.parent?.name === "BulletList") {
+        if (free(n.from, n.to)) out.widgets.push({ from: n.from, to: n.to, kind: "bullet" });
       } else if (name === "Image") return false; // M6
     },
   });
@@ -124,6 +137,12 @@ export const browsable = (t: string) => isURL(t) && !/^(javascript|file|data):/i
 
 const hidden = Decoration.replace({});
 
+class Bullet extends WidgetType {
+  eq() { return true; }
+  toDOM() { const e = document.createElement("span"); e.textContent = "•"; return e; }
+}
+const bullet = Decoration.replace({ widget: new Bullet() });
+
 class Live {
   deco: DecorationSet;
   hidden: DecorationSet;
@@ -141,6 +160,7 @@ function build(v: EditorView): [DecorationSet, DecorationSet] {
     for (const l of d.lines) all.push(Decoration.line({ class: l.cls }).range(l.at));
     for (const m of d.marks) if (m.from < m.to) all.push(Decoration.mark({ class: m.cls }).range(m.from, m.to));
     for (const [a, b] of d.hide) hides.push(hidden.range(a, b));
+    for (const w of d.widgets) hides.push(bullet.range(w.from, w.to)); // atomic like hidden marks
   }
   const h = Decoration.set(hides, true);
   return [Decoration.set([...all, ...hides], true), h];
@@ -156,6 +176,7 @@ const theme = EditorView.baseTheme({
   ".cm-md-code": { backgroundColor: "#2a2a37", borderRadius: "3px", padding: "0 2px" },
   ".cm-md-link": { color: "#7e9cd8", textDecoration: "underline" },
   ".cm-md-code-line": { backgroundColor: "#1f1f28" },
+  ".cm-md-quote": { borderLeft: "3px solid #54546d", paddingLeft: "8px", color: "#c8c093" },
   ".cm-md-fence": { color: "#727169" },
   "&.cm-reading .cm-activeLine": { backgroundColor: "transparent" },
 });

@@ -55,7 +55,7 @@ const cases: [src: string, want: string][] = [
   ["# H\n**s** `c` [l](u)\n|", "H\ns c l\n"],
   ["*un closed\n|", "*un closed\n"],
   ["- *item*\n|", "- item\n"],
-  ["> **quote**\n|", "> quote\n"],
+  ["> **quote**\n|", "quote\n"], // M6 hides the quote mark too
 ];
 
 test.each(cases)("%j reads as %j", (src, want) => expect(shown(src)).toBe(want));
@@ -150,4 +150,38 @@ test("info strings find their language, c and cpp share one parser", () => {
   expect(find("c")).toBe(find("cpp"));
   expect(find("json")).not.toBeNull();
   expect(find("brainfuck")).toBeNull();
+});
+
+const quoteLines = (src: string) => mdDecorations(state(src)).lines.filter((l) => l.cls === "cm-md-quote").map((l) => l.at);
+const bullets = (src: string) => mdDecorations(state(src)).widgets.map((w) => `${w.kind}@${w.from}`);
+
+test.each<[string, string]>([
+  ["> quote\n|", "quote\n"],
+  [">quote\n|", "quote\n"],
+  ["> a\n> b\n|", "a\nb\n"],
+  ["> a\n>\n> b\n|", "a\n\nb\n"],
+  ["> > deep\n|", "deep\n"],
+  [">  two spaces\n|", " two spaces\n"],
+  ["> a\n|> b", "a\n> b"], // the cursor line keeps its mark
+  ["> - item\n|", "- item\n"],
+  ["> ```\n> x\n> ```\n|", "```\nx\n```\n"],
+  ["a > b\n|", "a > b\n"],
+])("quote %j reads as %j", (src, want) => expect(shown(src)).toBe(want));
+
+test("quote lines get the border class once, nested or not", () => {
+  expect(quoteLines("> a\n> b\n|")).toEqual([0, 4]);
+  expect(quoteLines("> a\n> > b\n|")).toEqual([0, 4]);
+  expect(quoteLines("> lazy\ncontinued\n\nplain\n|")).toEqual([0, 7]);
+  expect(quoteLines("plain\n|")).toEqual([]);
+});
+
+test("bullet markers - * + become a widget, ordered ones stay", () => {
+  expect(bullets("- a\n* b\n+ c\n|")).toEqual(["bullet@0", "bullet@4", "bullet@8"]);
+  expect(bullets("1. a\n2) b\n|")).toEqual([]);
+  expect(bullets("  - nested\n|")).toEqual(["bullet@2"]);
+  expect(bullets("- a\n  - b\n|")).toEqual(["bullet@0", "bullet@6"]);
+  expect(bullets("- a\n|- b")).toEqual(["bullet@0"]); // the cursor line keeps its marker
+  expect(bullets("- a\n- b\n\n---\n|")).toEqual(["bullet@0", "bullet@4"]); // a rule is no bullet
+  expect(bullets("- *em*\n|")).toEqual(["bullet@0"]);
+  expect(bullets("```\n- x\n```\n|")).toEqual([]);
 });

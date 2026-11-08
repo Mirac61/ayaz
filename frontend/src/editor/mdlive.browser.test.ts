@@ -80,3 +80,11 @@ test("fenced code gets its language's highlighting and a background", async () =
   expect(view!.contentDOM.querySelectorAll(".cm-md-fence").length).toBe(2);
   expect(lines()).toEqual(["```go", "func main() {}", "```"]);
 });
+
+test("quotes lose their mark, bullets become dots, the cursor line stays raw", async () => {
+  await mount("plain\n> quote\n- item\n1. one");
+  expect(lines()).toEqual(["plain", "quote", "• item", "1. one"]);
+  expect(view!.contentDOM.querySelectorAll(".cm-md-quote").length).toBe(1);
+  await userEvent.keyboard("jj");
+  expect(lines()).toEqual(["plain", "quote", "- item", "1. one"]);
+});
