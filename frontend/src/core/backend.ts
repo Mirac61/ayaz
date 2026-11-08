@@ -1,5 +1,5 @@
 // The only place that imports generated bindings or the Wails runtime (02-architecture, principle 2).
-import { Stream } from "@wailsio/runtime";
+import { Events, Stream } from "@wailsio/runtime";
 import { PingService } from "../../bindings/github.com/Mirac61/ayaz/app";
 import type { Match } from "../../bindings/github.com/Mirac61/ayaz/app";
 
@@ -11,6 +11,7 @@ export interface Backend {
   report(line: string): Promise<void>;
   spikeMode(): Promise<string>;
   stream(name: string): WebSocket;
+  ready(): void;
 }
 
 export const backend: Backend = {
@@ -20,4 +21,5 @@ export const backend: Backend = {
   spikeMode: () => PingService.SpikeMode(),
   // WailsSocket implements the WebSocket subset we use.
   stream: (name) => Stream(name) as WebSocket,
+  ready: () => void Events.Emit("app:ready"),
 };

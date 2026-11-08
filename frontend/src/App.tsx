@@ -17,6 +17,11 @@ export default function App() {
     backend.spikeMode().then(setMode, () => setMode(""));
   }, []);
 
+  // app:ready once the first real frame is painted (two rAFs: the second runs after the first paint).
+  useEffect(() => {
+    if (mode !== null) requestAnimationFrame(() => requestAnimationFrame(() => backend.ready()));
+  }, [mode !== null]);
+
   useEffect(() => {
     const el = termEl.current;
     if (mode === "" && el) {

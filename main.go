@@ -27,6 +27,7 @@ func main() {
 		},
 	})
 
+	app.OnReady(a)
 	a.HandleStream("pty", app.HandleTerminal)
 	a.HandleStream("echo", app.HandleEcho)
 
