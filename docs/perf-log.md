@@ -52,3 +52,14 @@ App state: terminal view only, no folder or file open yet, so K1/K2 are a lower 
 Notes:
 - K2 is already at the budget with an empty terminal. The WebContent process (83 MB) is most of it. Check again in M1 with the editor open; if it grows past 150 MB, look at the xterm WebGL renderer (GPU process) and scrollback first.
 - On macOS the WebKit processes are XPC services owned by launchd, not children of ayaz. `scripts/ram.sh` takes the WebKit processes that appear after launch. That's wrong if another WebKit app starts in those 10 s.
+
+## 2026-11-09 – K3/K5 on `big.md`, coarse (headless WebKit, not the app)
+
+`frontend/src/editor/big.browser.test.ts` opens `testdata/big.md` (5,000 lines, 20 tables, 30 code blocks, 50 image references, made by `scripts/gen-bigmd.mjs`) with mdlive and scrolls to the end in 300 px steps. Three runs, M5 + M6 blocks (no images yet):
+
+| | Value | How |
+|---|---|---|
+| K3-like: `createState` + 2 frames | 52–57 ms | `performance.now()` around the open, language loaded |
+| K5-like: frame delta while scrolling | p95 19 ms, worst 24–28 ms (401 frames) | rAF deltas, the test fails over 50 ms |
+
+Not the real K3/K5 numbers: no WKWebView, no GPU, headless timer. The real check on macOS and Hyprland comes with M6's "done when". `mdTables` walks the whole tree on every update; it did not show up here.
