@@ -6,6 +6,7 @@ import { ScrollTest } from "./spikes/ScrollTest";
 import { runS4, type Stats } from "./spikes/bindingLatency";
 import { runS6, runS7 } from "./spikes/terminalBench";
 import { runK8 } from "./spikes/pdfRam";
+import { runS8 } from "./spikes/pdfS8";
 
 const fmt = (s: Stats) => `p50 ${s.p50.toFixed(3)} · p95 ${s.p95.toFixed(3)} · max ${s.max.toFixed(3)} ms`;
 
@@ -49,6 +50,7 @@ export default function App() {
         await backend.report(lines.join("\n"));
       })().catch((e) => backend.report(`bench error: ${e}`));
     }
+    if (mode === "s8") runS8().catch((e) => backend.report(`s8 error: ${e}`));
     if (mode === "k8") runK8().catch((e) => backend.report(`k8 error: ${e}`));
   }, [mode]);
 

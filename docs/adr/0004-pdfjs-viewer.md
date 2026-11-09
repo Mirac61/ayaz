@@ -19,4 +19,5 @@ Option 2. pdf.js is loaded with dynamic `import()` on the first PDF. No scriptin
 - \+ Cold start unaffected while no PDF is open.
 - − Core and viewer versions must match exactly, so one pinned version.
 - − The web component API changes more often between majors than the core API. Upgrades are covered by an E2E test.
+- Page canvases render in a worker (pdf.js inside a module worker, `OffscreenCanvas` → `ImageBitmap`), so scrolling keeps 120 fps (S8, M11).
 - Open: Range requests through the Wails scheme (Spike S2, start of M6). Fallback: load the whole file.

@@ -379,6 +379,15 @@ S7, LSP-shaped messages (`Content-Length` + JSON) through the `echo` stream and 
 
 → K16 (≤ 5 ms) holds even for 200 KB. Open: streams in the server build (Playwright), Hyprland.
 
+### S8 – pdf.js renders in a worker (2026-11-09, macOS)
+
+For M11's 120 fps on PDFs: can pdf.js draw pages off the main thread? `frontend/src/spikes/pdfS8.ts` + `pdfS8.worker.ts`, test `pdfWorker.browser.test.ts`, native run `AYAZ_SPIKE=s8 bin/ayaz`.
+
+- **Works** in headless WebKit (Playwright) and in WKWebView: a module worker imports `pdfjs-dist`, renders page 1 at 2392×3098 onto an `OffscreenCanvas` and posts back `transferToImageBitmap()`; the bitmap has the text.
+- Options needed in the worker: `GlobalWorkerOptions.workerPort = new Worker(workerSrc, { type: "module" })` (pdf.js builds its own worker from `window.location`, which a worker lacks, and silently falls back to the in-thread "fake worker", which then hooks the worker's own `onmessage`); `url` as a `URL` object (same `window.location` reason); `CanvasFactory` on `OffscreenCanvas`; `ownerDocument: { fonts: self.fonts }`. WebKit has `FontFaceSet` in workers, so `disableFontFace` is not needed and glyphs go through `FontFace` as on the main thread.
+- Numbers (200-page test format, 10 pages in a row): first render 15 ms headless / 21 ms native, then 4–6 ms per page in the worker; `drawImage` of the bitmap on the main thread 0.0 ms (WebKit defers the upload, so the real cost shows in frame times, not here).
+- Headless rAF runs at 60 Hz (frames 17 ms either way), so frame times stay a visible-window measurement (K8).
+
 ### S5 – Vitest browser mode with WebKit under Bun (2026-11-08, macOS)
 
 - Works: Vitest 4.1.12 + `@vitest/browser-playwright` + Playwright 1.65 WebKit, started with `bun run test:browser`. Bun is only the script runner; Vitest itself runs on Node as planned in ADR-0008. One run takes ~1 s.
