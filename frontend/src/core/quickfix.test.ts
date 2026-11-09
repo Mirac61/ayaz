@@ -28,3 +28,10 @@ test("replaceEdits skips locations whose text moved", () => {
   expect(skipped).toBe(2);
   expect(changes.map((c) => doc.sliceString(c.from, c.to))).toEqual(["foo", "foo", "foo"]);
 });
+
+test("replaceEdits expands $1, $2 after a regex search, a literal one stays literal", () => {
+  const doc = Text.of(["var foo = 1"]);
+  const l: Loc = { path: "a", line: 1, col: 4, len: 7, text: "var foo = 1", groups: ["foo", "1"] };
+  expect(replaceEdits([l], doc, "$2 = $1 $$ $0 $3", true).changes[0].insert).toBe("1 = foo $ foo = 1 ");
+  expect(replaceEdits([l], doc, "$2 = $1 $$", false).changes[0].insert).toBe("$2 = $1 $$");
+});

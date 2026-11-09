@@ -3,7 +3,7 @@ import { backend, type Grep, type Info } from "../core/backend";
 import { Commands } from "../core/commands";
 import { defaultKeymap, keyName, mergeKeymap, parseKeys, parseUserKeymap, Sequencer, type Binding } from "../core/keymap";
 import { isDirty } from "../core/buffers";
-import { label, Quickfix, replaceEdits, type Loc } from "../core/quickfix";
+import { label, Quickfix, replaceEdits, replacement, type Loc } from "../core/quickfix";
 import { Text } from "@codemirror/state";
 import { closeLsp, references } from "../editor/lsp";
 import { installVim } from "../editor/vim/setup";
@@ -216,8 +216,8 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
       },
       start: Math.max(qf.index, 0),
     });
-    const setQf = (title: string, locs: Loc[]) => {
-      qf.set(title, locs);
+    const setQf = (title: string, locs: Loc[], regex = false) => {
+      qf.set(title, locs, regex);
       if (!locs.length) return fail(`${title}: no matches`);
       setMsg({ text: `${title}: ${locs.length} matches, :cn / :cp to move, :copen to list` });
       void qfMove(1);
@@ -226,14 +226,15 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
     let grepRegex = false;
     const grepPicker = (): PickerSource => {
       let g: Grep | null = null, hits: Loc[] = [], q = "";
+      const regex = grepRegex; // the quickfix list remembers it for :Replace's $1, $2
       return {
-        title: `Search in files${grepRegex ? " (regex)" : ""} · <C-q> to quickfix`,
+        title: `Search in files${regex ? " (regex)" : ""} · <C-q> to quickfix`,
         query(query, update) {
           g?.cancel();
           hits = [];
           q = query;
           if (!query.trim()) return Promise.resolve([]);
-          const cur = (g = files.grep(query, { regex: grepRegex, ignored: showIgnored }, (h) => {
+          const cur = (g = files.grep(query, { regex, ignored: showIgnored }, (h) => {
             hits.push(...h);
             update(hits.slice(0, SHOWN).map(locItem));
           }));
@@ -241,7 +242,7 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
           return Promise.resolve([]);
         },
         pick: (_, i) => void (hits[i] && jump(hits[i])),
-        all: () => setQf(`Search "${q}"`, hits),
+        all: () => setQf(`Search "${q}"`, hits, regex),
         close: () => g?.cancel(),
       };
     };
@@ -270,7 +271,7 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
         const before = await ed.buffers.open(path);
         if (before.state.readOnly) { skipped += locs.length; continue; }
         const wasDirty = isDirty(before);
-        const r = replaceEdits(locs, before.state.doc, to);
+        const r = replaceEdits(locs, before.state.doc, to, qf.regex);
         skipped += r.skipped;
         if (!r.changes.length) continue;
         const b = await ed.edit(path, r.changes);
@@ -418,7 +419,7 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
           setPicker({
             title: `Replace ${qf.items.length} matches in ${paths} files with "${to}" · Enter applies all, Esc cancels`,
             query: async () => qf.items.map((l) => ({
-              label: `${l.path}:${l.line}: ${(l.text.slice(0, l.col) + to + l.text.slice(l.col + l.len)).trim()}`,
+              label: `${l.path}:${l.line}: ${(l.text.slice(0, l.col) + replacement(l, to, qf.regex) + l.text.slice(l.col + l.len)).trim()}`,
               icon: fileIcon(l.path),
             })),
             pick: () => run("qf.replaceNow", to),

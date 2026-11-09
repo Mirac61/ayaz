@@ -27,6 +27,8 @@ type Hit struct {
 	Col  int    `json:"col"`
 	Len  int    `json:"len"`
 	Text string `json:"text"` // the line, cut at maxText bytes
+	// A regex's groups ($1, $2, … for replace; "" if one took no part), only when the match lies within Text.
+	Groups []string `json:"groups,omitempty"`
 }
 
 type Options struct {
@@ -125,11 +127,19 @@ func file(abs, rel string, re *regexp.Regexp, lit string) []Hit {
 			b = nil
 		}
 		line = bytes.TrimSuffix(line, []byte{'\r'})
-		for _, m := range re.FindAllIndex(line, -1) {
+		for _, m := range re.FindAllSubmatchIndex(line, -1) {
 			if m[0] == m[1] {
 				continue // empty matches (e.g. "x*") are noise
 			}
-			hits = append(hits, Hit{Path: rel, Line: n, Col: u16(line[:m[0]]), Len: u16(line[m[0]:m[1]]), Text: cut(line)})
+			h := Hit{Path: rel, Line: n, Col: u16(line[:m[0]]), Len: u16(line[m[0]:m[1]]), Text: cut(line)}
+			for i := 2; i < len(m) && m[1] <= len(h.Text); i += 2 {
+				g := ""
+				if m[i] >= 0 {
+					g = string(line[m[i]:m[i+1]])
+				}
+				h.Groups = append(h.Groups, g)
+			}
+			hits = append(hits, h)
 		}
 	}
 	return hits

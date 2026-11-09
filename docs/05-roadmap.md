@@ -124,7 +124,7 @@ Done when: writing Go feels like nvim with gopls.
 - [Own] `search` in Go with streaming and cancellation (ADR-0016).
 - [Own] `core/quickfix` with `:cn`, `:cp`, `:copen`. LSP references from M7 move in here.
 - [Glue] Search UI (`<Space>fw`), replace with preview.
-  - Done 2026-11-09: `internal/search` (worker pool, smart case, literal or RE2, skips binary and > 2 MB, stops at 10,000 hits), `search` stream (batches every 30 ms, closing it cancels), picker with `<C-q>` to quickfix, `:cn`/`:cp`/`]q`/`[q`/`:copen`, `:Replace text` with a preview picker (clean buffers are saved, dirty ones stay unsaved, moved matches are skipped), `gr` fills quickfix. Shortcuts: replace text is literal (no `$1` groups), `:copen` is a picker, not a window.
+  - Done 2026-11-09: `internal/search` (worker pool, smart case, literal or RE2, skips binary and > 2 MB, stops at 10,000 hits), `search` stream (batches every 30 ms, closing it cancels), picker with `<C-q>` to quickfix, `:cn`/`:cp`/`]q`/`[q`/`:copen`, `:Replace text` with a preview picker (clean buffers are saved, dirty ones stay unsaved, moved matches are skipped), `gr` fills quickfix. After a regex search `:Replace` expands `$1`…`$9`, `$0` and `$$` (Go sends each hit's groups, so RE2 decides them); after a literal search the text stays literal. Shortcut: `:copen` is a picker, not a window.
 
 Tests: Go table tests and K15 benchmark, E2E search and jump.
 

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"sync"
@@ -50,7 +51,7 @@ func TestRun(t *testing.T) {
 		"missing.go": "", // deleted below: unreadable files are skipped
 	})
 	os.Remove(filepath.Join(root, "missing.go"))
-	h := func(p string, l, c, n int, text string) Hit { return Hit{p, l, c, n, text} }
+	h := func(p string, l, c, n int, text string) Hit { return Hit{Path: p, Line: l, Col: c, Len: n, Text: text} }
 	cases := []struct {
 		o    Options
 		want []Hit
@@ -63,12 +64,26 @@ func TestRun(t *testing.T) {
 		{Options{Query: "x*", Regex: true}, nil}, // empty matches are dropped
 	}
 	for _, c := range cases {
-		if got := collect(t, root, paths, c.o); !slices.Equal(got, c.want) {
+		if got := collect(t, root, paths, c.o); !reflect.DeepEqual(got, c.want) {
 			t.Errorf("%+v:\n got %v\nwant %v", c.o, got, c.want)
 		}
 	}
 	if _, err := Compile(Options{Query: "(", Regex: true}); err == nil {
 		t.Error("bad regexp should fail")
+	}
+}
+
+// A regex with groups sends them along for :Replace's $1, $2; not when the match runs past the text sent along.
+func TestGroups(t *testing.T) {
+	root := t.TempDir()
+	paths := write(t, root, map[string]string{"a.go": "var foo = 1\nx := y\n", "long.txt": strings.Repeat("x", maxText) + "y = 2\n"})
+	want := []Hit{
+		{Path: "a.go", Line: 1, Col: 4, Len: 7, Text: "var foo = 1", Groups: []string{"foo", "1"}},
+		{Path: "a.go", Line: 2, Col: 0, Len: 5, Text: "x := y", Groups: []string{"x", ""}}, // the second group took no part
+		{Path: "long.txt", Line: 1, Col: 0, Len: maxText + 5, Text: strings.Repeat("x", maxText)},
+	}
+	if got := collect(t, root, paths, Options{Query: `(\w+) :?= (\d)?`, Regex: true}); !reflect.DeepEqual(got, want) {
+		t.Errorf("\n got %+v\nwant %+v", got, want)
 	}
 }
 

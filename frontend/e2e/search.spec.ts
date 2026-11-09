@@ -32,4 +32,21 @@ test("search, quickfix, replace", async ({ page }) => {
   await expect(status).toContainText("Replaced 2 in 1 files");
   await expect(page.locator(".cm-content")).toContainText("delta gamma");
   await expect.poll(() => readFileSync(join(e2eWorkspace, "search.txt"), "utf8")).toBe("alpha delta\ndelta gamma\n");
+
+  // After a regex search, $1 and $2 are its groups.
+  await page.keyboard.type(" fk");
+  await expect(page.getByRole("dialog", { name: "Commands" })).toBeVisible();
+  await page.keyboard.type("Toggle regex");
+  await expect(page.getByRole("option", { selected: true })).toHaveText(/Toggle regex/);
+  await page.keyboard.press("Enter");
+  await expect(status).toContainText("regex (Go RE2)");
+  await page.keyboard.type(" fw");
+  await page.keyboard.type("(alpha) (delta)");
+  await expect(picker.getByRole("option")).toHaveCount(1);
+  await page.keyboard.press("Control+q");
+  await page.keyboard.type(":Replace $2 $1");
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("dialog", { name: /Replace 1 matches/ }).getByRole("option")).toContainText("search.txt:1: delta alpha");
+  await page.keyboard.press("Enter");
+  await expect.poll(() => readFileSync(join(e2eWorkspace, "search.txt"), "utf8")).toBe("delta alpha\ndelta gamma\n");
 });
