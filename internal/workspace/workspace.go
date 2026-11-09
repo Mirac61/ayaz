@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -172,6 +173,77 @@ func (w *Workspace) WriteText(rel, content string, expectedMtime int64) (int64, 
 	}
 	return st.ModTime().UnixMicro(), nil
 }
+
+// entry resolves rel's folder but not rel itself, so a symlink is renamed or trashed as a link, never its target.
+// The root is no entry.
+func (w *Workspace) entry(rel string) (string, error) {
+	clean := path.Clean(rel)
+	if clean == "." || clean == ".." || strings.ContainsRune(clean, 0) {
+		return "", ErrOutside
+	}
+	dir, err := w.Resolve(path.Dir(clean))
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, path.Base(clean)), nil
+}
+
+// Create makes an empty file, or a folder with dir. Missing parent folders are created too; an existing rel is an error.
+func (w *Workspace) Create(rel string, dir bool) error {
+	parts := strings.Split(path.Clean(rel), "/")
+	for i := 1; i < len(parts); i++ {
+		p, err := w.entry(strings.Join(parts[:i], "/"))
+		if err != nil {
+			return err
+		}
+		if err := os.Mkdir(p, 0o755); err != nil && !errors.Is(err, fs.ErrExist) {
+			return err
+		}
+	}
+	p, err := w.entry(rel)
+	if err != nil {
+		return err
+	}
+	if dir {
+		return os.Mkdir(p, 0o755)
+	}
+	f, err := os.OpenFile(p, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
+	if err != nil {
+		return err
+	}
+	return f.Close()
+}
+
+// Rename moves a file or folder inside the workspace; it never replaces an existing target.
+func (w *Workspace) Rename(from, to string) error {
+	src, err := w.entry(from)
+	if err != nil {
+		return err
+	}
+	dst, err := w.entry(to)
+	if err != nil {
+		return err
+	}
+	if _, err := os.Lstat(dst); err == nil {
+		return fmt.Errorf("%s already exists", to)
+	}
+	return os.Rename(src, dst)
+}
+
+// Trash moves a file or folder to the system trash.
+func (w *Workspace) Trash(rel string) error {
+	p, err := w.entry(rel)
+	if err != nil {
+		return err
+	}
+	if _, err := os.Lstat(p); err != nil {
+		return err
+	}
+	return trash(p)
+}
+
+// Abs is rel as an absolute path (copy path, reveal in Finder).
+func (w *Workspace) Abs(rel string) (string, error) { return w.entry(rel) }
 
 // Registry maps workspace IDs to workspaces. IDs are checked on every call, a window only knows its own.
 type Registry struct {

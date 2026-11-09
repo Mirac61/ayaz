@@ -1,5 +1,5 @@
 // The only place that imports generated bindings or the Wails runtime (02-architecture, principle 2).
-import { Application, Browser, Events, Stream } from "@wailsio/runtime";
+import { Application, Browser, Clipboard, Events, Stream } from "@wailsio/runtime";
 import { ConfigService, PingService, WorkspaceService } from "../../bindings/github.com/Mirac61/ayaz/app";
 import type { Info, Match } from "../../bindings/github.com/Mirac61/ayaz/app";
 import type { Entry, TextFile } from "../../bindings/github.com/Mirac61/ayaz/internal/workspace";
@@ -38,6 +38,7 @@ export interface Backend {
   onFsChanged(ws: string, fn: (c: FsChange) => void): () => void;
   onLspStatus(ws: string, fn: (s: LspStatus) => void): () => void;
   openURL(url: string): Promise<void>; // in the system browser
+  copy(text: string): Promise<void>; // to the system clipboard
 }
 
 // A running project search; cancel() stops it (closes the stream). done resolves with an error text, or null.
@@ -53,6 +54,10 @@ export interface Files {
   find(query: string, limit: number, ignored: boolean): Promise<FileMatch[]>;
   // Project search over the same files as find (ADR-0016); hits arrive in batches.
   grep(query: string, opts: { regex: boolean; ignored: boolean }, onHits: (hits: Loc[]) => void): Grep;
+  create(path: string, dir: boolean): Promise<void>; // missing parent folders too; rejects if path exists
+  rename(from: string, to: string): Promise<void>; // rejects if `to` exists
+  trash(path: string): Promise<void>; // to the system trash
+  reveal(path: string): Promise<void>; // in Finder / the file manager
 }
 
 export const backend: Backend = {
@@ -74,6 +79,7 @@ export const backend: Backend = {
   keymap: () => ConfigService.Keymap(),
   rank: async (items, q, limit) => (await WorkspaceService.Rank(items, q, limit)) ?? [],
   openURL: (url) => Browser.OpenURL(url),
+  copy: (text) => Clipboard.SetText(text),
   onFsChanged: (ws, fn) =>
     Events.On("fs:changed", (e: { data: FsChange & { ws: string } }) => {
       if (e.data.ws === ws) fn(e.data);
@@ -87,6 +93,10 @@ export const backend: Backend = {
     readText: (path) => WorkspaceService.ReadText(ws, path),
     writeText: (path, content, mtime) => WorkspaceService.WriteText(ws, path, content, mtime),
     find: async (q, limit, ignored) => (await WorkspaceService.Find(ws, q, limit, ignored)) ?? [],
+    create: (path, dir) => WorkspaceService.Create(ws, path, dir),
+    rename: (from, to) => WorkspaceService.Rename(ws, from, to),
+    trash: (path) => WorkspaceService.Trash(ws, path),
+    reveal: (path) => WorkspaceService.Reveal(ws, path),
     grep(query, opts, onHits) {
       const sock = Stream("search") as WebSocket;
       sock.binaryType = "arraybuffer";

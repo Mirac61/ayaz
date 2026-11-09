@@ -35,6 +35,8 @@ export class Buffers {
   get(path: string) { return this.m.get(path); }
   list() { return [...this.m.values()]; }
   dirty() { return this.list().filter(isDirty); }
+  // Forgets a buffer whose file was renamed or trashed.
+  drop(path: string) { this.m.delete(path); }
 
   // Returns the loaded buffer, or reads the file. A missing file gives an empty new buffer (like `:e new.txt`).
   async open(path: string): Promise<Buffer> {

@@ -44,6 +44,10 @@ export function CloseWindow(): $CancellablePromise<void> {
  * Find fuzzy-matches workspace paths. The index is built on the first call (K10) and kept;
  * ignored=true searches files Git ignores too (Q26). File changes drop it, see changed.
  */
+export function Create(ws: string, path: string, dir: boolean): $CancellablePromise<void> {
+    return $Call.ByID(3601190305, ws, path, dir);
+}
+
 export function Find(ws: string, query: string, limit: number, ignored: boolean): $CancellablePromise<index$0.Match[] | null> {
     return $Call.ByID(2721793854, ws, query, limit, ignored);
 }
@@ -124,6 +128,21 @@ export function ReadText(ws: string, path: string): $CancellablePromise<workspac
  */
 export function Registry(): $CancellablePromise<workspace$0.Registry | null> {
     return $Call.ByID(365778722);
+}
+
+export function Rename(ws: string, $from: string, to: string): $CancellablePromise<void> {
+    return $Call.ByID(767183855, ws, $from, to);
+}
+
+/**
+ * Reveal shows the file in Finder (selected), on Linux opens its folder.
+ */
+export function Reveal(ws: string, path: string): $CancellablePromise<void> {
+    return $Call.ByID(1586829996, ws, path);
+}
+
+export function Trash(ws: string, path: string): $CancellablePromise<void> {
+    return $Call.ByID(1296708849, ws, path);
 }
 
 /**

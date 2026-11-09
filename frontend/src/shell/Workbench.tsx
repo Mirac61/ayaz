@@ -283,6 +283,26 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
       setMsg({ text: `Replaced ${n} in ${byPath.size} files` + (skipped ? `, ${skipped} skipped (changed since the search)` : "") + (unsaved.length ? `; not saved (had changes): ${unsaved.join(", ")}` : "") });
     };
 
+    // File commands act on the tree's row while the tree has focus, else on the active buffer.
+    const target = () => {
+      if (inTree()) return tree.current?.selected() ?? null;
+      const b = ed.current();
+      return b && !b.path.startsWith("/") ? { path: b.path, dir: false } : null; // not a library file outside the folder
+    };
+    const unsavedUnder = (path: string) =>
+      ed.buffers.dirty().find((b) => b.path === path || b.path.startsWith(path + "/"));
+    const dirOf = (p: string) => p.slice(0, Math.max(p.lastIndexOf("/"), 0));
+    // A one-line prompt in the picker: the item is what was typed, Enter runs act with it.
+    const prompt = (title: string, initial: string, act: (text: string) => Promise<unknown>) => {
+      const back = inTree();
+      setPicker({
+        title,
+        initial,
+        query: async (q) => (q.trim() ? [{ label: q.trim() }] : []),
+        pick: (it) => void act(it.label).then(() => back && tree.current?.focus(), (e) => fail(errText(e))),
+      });
+    };
+
     const keysFor = (id: string) => bindingsRef.current?.find((b) => b.command === id)?.keys;
 
     const off = commands.register(
@@ -298,6 +318,99 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
           if (!b) return;
           if (isDirty(b) && !force) return fail("No write since last change (add ! to override)");
           await ed.reload();
+        },
+      },
+      {
+        id: "file.new",
+        title: "New file or folder",
+        run() {
+          const t = target();
+          const dir = t ? (t.dir ? t.path : dirOf(t.path)) : "";
+          const at = dir ? `${dir}/` : "";
+          prompt(`New in ${at || "./"} · end with / for a folder`, at, async (path) => {
+            const isDir = path.endsWith("/");
+            const p = path.replace(/\/+$/, "").replace(/^\.\//, "");
+            await files.create(p, isDir);
+            await tree.current?.reveal(p);
+            if (!isDir) await ed.open(p);
+            setMsg({ text: `Created "${p}${isDir ? "/" : ""}"` });
+          });
+        },
+      },
+      {
+        id: "file.rename",
+        title: "Rename or move file",
+        run() {
+          const t = target();
+          if (!t) return fail("No file to rename");
+          const d = unsavedUnder(t.path);
+          if (d) return fail(`"${d.path}" has unsaved changes: save first (:w)`);
+          prompt(`Rename "${t.path}" to`, t.path, async (to) => {
+            if (to === t.path) return;
+            await files.rename(t.path, to);
+            await ed.moved(t.path, to);
+            await tree.current?.reveal(to);
+            setMsg({ text: `Renamed to "${to}"` });
+          });
+        },
+      },
+      {
+        id: "file.trash",
+        title: "Move file to trash",
+        run() {
+          const t = target();
+          if (!t) return fail("No file to delete");
+          const d = unsavedUnder(t.path);
+          if (d) return fail(`"${d.path}" has unsaved changes: save first (:w)`);
+          const back = inTree();
+          setPicker({
+            title: `Move "${t.path}${t.dir ? "/" : ""}" to the trash? · Enter confirms, Esc cancels`,
+            query: async () => [{ label: "Move to trash", icon: t.dir ? folderIcon(false) : fileIcon(t.path) }],
+            pick: () => void files.trash(t.path).then(async () => {
+              await ed.moved(t.path, null);
+              setMsg({ text: `"${t.path}" moved to the trash` });
+              if (back) tree.current?.focus();
+            }, (e) => fail(errText(e))),
+          });
+        },
+      },
+      {
+        id: "file.copyPath",
+        title: "Copy relative path",
+        async run() {
+          const t = target();
+          if (!t) return fail("No file");
+          await backend.copy(t.path);
+          setMsg({ text: `Copied "${t.path}"` });
+        },
+      },
+      {
+        id: "file.copyAbsPath",
+        title: "Copy absolute path",
+        async run() {
+          const t = target();
+          if (!t) return fail("No file");
+          await backend.copy(`${ws.root}/${t.path}`);
+          setMsg({ text: `Copied "${ws.root}/${t.path}"` });
+        },
+      },
+      {
+        id: "file.reveal",
+        title: "Reveal in Finder",
+        async run() {
+          const t = target();
+          if (!t) return fail("No file");
+          await files.reveal(t.path);
+        },
+      },
+      {
+        id: "tree.revealCurrent",
+        title: "Show current file in tree",
+        async run() {
+          const b = ed.current();
+          if (!b || b.path.startsWith("/")) return fail("No file from this folder");
+          await tree.current?.reveal(b.path);
+          tree.current?.focus();
         },
       },
       {
@@ -550,7 +663,13 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
       <div className="titlebar">{ws.name} — {status.path ?? "[No Name]"}</div>
       <aside className="sidebar">
         <div className="sidebar-title">{ws.name}</div>
-        <Tree ref={tree} files={files} onOpen={(p) => run("file.open", p)} onLeave={() => ed.focus(ed.active)} />
+        <Tree
+          ref={tree}
+          files={files}
+          onOpen={(p) => run("file.open", p)}
+          onLeave={() => ed.focus(ed.active)}
+          onCommand={(id) => run(id)}
+        />
       </aside>
       <div className="panes" ref={panesEl}>
         {[...rs].map(([id, r]) => (

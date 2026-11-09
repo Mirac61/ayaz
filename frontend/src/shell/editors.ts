@@ -304,6 +304,27 @@ export class Editors {
     return note;
   }
 
+  // A file or folder was renamed to `to`, or trashed (to null). Panes showing it follow, or turn empty;
+  // tabs and recent files are rewritten. The caller makes sure no affected buffer is dirty.
+  async moved(from: string, to: string | null) {
+    const map = (p: string) => (p === from || p.startsWith(from + "/") ? (to === null ? null : to + p.slice(from.length)) : p);
+    for (const [id, list] of this.tabs) this.tabs.set(id, list.map(map).filter((p): p is string => p !== null));
+    this.mru = this.mru.map(map).filter((p): p is string => p !== null);
+    try {
+      localStorage.setItem(this.recentKey, JSON.stringify(this.recent().map(map).filter((p) => p !== null)));
+    } catch { /* recent files are a convenience */ }
+    for (const [id, p] of this.panes) {
+      const shown = p.buf?.path ?? (p.viewer ? p.title : undefined);
+      if (shown === undefined || map(shown) === shown) continue;
+      const next = map(shown);
+      if (next) await this.open(next, id);
+      else this.replace(id);
+      this.renderTabs(id);
+    }
+    for (const b of this.buffers.list()) if (map(b.path) !== b.path) this.buffers.drop(b.path);
+    this.emit();
+  }
+
   show(id: number, b: Buffer) {
     // `:e!` creates a new Buffer object; other panes still showing the old one switch too.
     for (const [oid, o] of this.panes) if (oid === id || o.buf?.path === b.path && o.buf !== b) this.setBuf(oid, b);

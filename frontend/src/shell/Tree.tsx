@@ -9,6 +9,8 @@ export interface TreeHandle {
   focus(): void;
   // Re-lists loaded folders touched by changed paths, all of them for null.
   refresh(paths: string[] | null): void;
+  selected(): { path: string; dir: boolean } | null; // the row under the cursor
+  reveal(path: string): Promise<void>; // opens its folders and puts the cursor on it
 }
 
 const parent = (p: string) => p.slice(0, Math.max(p.lastIndexOf("/"), 0));
@@ -17,19 +19,26 @@ interface Props {
   files: Files;
   onOpen(path: string): void;
   onLeave(): void; // Esc: back to the editor
+  onCommand(id: string): void; // file keys: a new, r rename, d trash, y/Y copy path, s reveal in Finder
 }
 
+const KEYS: Record<string, string> = {
+  a: "file.new", r: "file.rename", d: "file.trash", y: "file.copyPath", Y: "file.copyAbsPath", s: "file.reveal",
+};
+
 // Virtualized file tree: folders load when first expanded, only the visible rows are in the DOM.
-export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen, onLeave }, ref) {
+export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen, onLeave, onCommand }, ref) {
   const [children, setChildren] = useState(new Map<string, Entry[]>());
   const [expanded, setExpanded] = useState(new Set<string>());
   const [cursor, setCursor] = useState(0);
   const [scrollTop, setScrollTop] = useState(0);
   const [height, setHeight] = useState(0);
   const el = useRef<HTMLDivElement>(null);
+  const revealing = useRef<string | null>(null); // reveal's target, until its row exists
 
   const loaded = useRef(children);
   loaded.current = children;
+  const current = useRef<Row | undefined>(undefined);
 
   // A folder that can't be listed (deleted) is forgotten, so it reloads fresh if it comes back.
   const load = (dir: string) =>
@@ -43,6 +52,13 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
     refresh(paths) {
       const dirs = paths ? new Set(paths.flatMap((p) => [p, parent(p)])) : null;
       for (const d of loaded.current.keys()) if (!dirs || dirs.has(d)) load(d);
+    },
+    selected: () => (current.current ? { path: current.current.path, dir: current.current.dir } : null),
+    async reveal(path) {
+      const dirs = path.split("/").slice(0, -1).map((_, i, a) => a.slice(0, i + 1).join("/"));
+      await Promise.all(["", ...dirs].map((d) => load(d))); // fresh lists: the file may be new
+      setExpanded((s) => new Set([...s, ...dirs]));
+      revealing.current = path;
     },
   }));
   useEffect(() => void load(""), [files]);
@@ -67,6 +83,16 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
   }, [children, expanded]);
 
   const cur = Math.min(cursor, Math.max(rows.length - 1, 0));
+  current.current = rows[cur];
+
+  // New rows (a save's temp file, a refresh) keep the cursor on its file, not on its row number; reveal moves it.
+  const cursorPath = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    const i = rows.findIndex((r) => r.path === (revealing.current ?? cursorPath.current));
+    if (i >= 0 && revealing.current) revealing.current = null;
+    if (i >= 0) setCursor(i);
+  }, [rows]);
+  useEffect(() => { cursorPath.current = rows[cur]?.path; }, [rows, cur]);
 
   // Keep the cursor row inside the viewport.
   useEffect(() => {
@@ -107,7 +133,9 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
         else if (r) go(rows.findIndex((x) => x.path === r.path.slice(0, r.path.lastIndexOf("/"))));
         break;
       case "Escape": onLeave(); break;
-      default: return;
+      default:
+        if (!KEYS[e.key] || e.metaKey || e.ctrlKey || e.altKey) return;
+        onCommand(KEYS[e.key]);
     }
     e.preventDefault();
   };

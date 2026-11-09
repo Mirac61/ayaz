@@ -3,7 +3,9 @@ package app
 import (
 	"context"
 	"log"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sync"
 
 	"github.com/Mirac61/ayaz/internal/index"
@@ -225,6 +227,46 @@ func (s *WorkspaceService) WriteText(ws, path, content string, expectedMtime int
 
 // Find fuzzy-matches workspace paths. The index is built on the first call (K10) and kept;
 // ignored=true searches files Git ignores too (Q26). File changes drop it, see changed.
+func (s *WorkspaceService) Create(ws, path string, dir bool) error {
+	w, err := s.reg.Get(ws)
+	if err != nil {
+		return err
+	}
+	return w.Create(path, dir)
+}
+
+func (s *WorkspaceService) Rename(ws, from, to string) error {
+	w, err := s.reg.Get(ws)
+	if err != nil {
+		return err
+	}
+	return w.Rename(from, to)
+}
+
+func (s *WorkspaceService) Trash(ws, path string) error {
+	w, err := s.reg.Get(ws)
+	if err != nil {
+		return err
+	}
+	return w.Trash(path)
+}
+
+// Reveal shows the file in Finder (selected), on Linux opens its folder.
+func (s *WorkspaceService) Reveal(ws, path string) error {
+	w, err := s.reg.Get(ws)
+	if err != nil {
+		return err
+	}
+	p, err := w.Abs(path)
+	if err != nil {
+		return err
+	}
+	if runtime.GOOS == "darwin" {
+		return exec.Command("open", "-R", p).Run()
+	}
+	return exec.Command("xdg-open", filepath.Dir(p)).Start()
+}
+
 func (s *WorkspaceService) Find(ws, query string, limit int, ignored bool) ([]index.Match, error) {
 	ix, _, err := s.index(ws, ignored)
 	if err != nil {

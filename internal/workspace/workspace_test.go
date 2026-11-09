@@ -2,6 +2,7 @@ package workspace
 
 import (
 	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -135,5 +136,40 @@ func TestRegistry(t *testing.T) {
 	}
 	if _, err := r.Open(filepath.Join(t.TempDir(), "missing")); err == nil {
 		t.Fatal("Open(missing) succeeded")
+	}
+}
+
+func TestCreateRename(t *testing.T) {
+	w := newTestWS(t)
+	must(t, w.Create("new/deep/c.txt", false))
+	must(t, w.Create("dir", true))
+	if st, err := os.Stat(filepath.Join(w.Root, "new", "deep", "c.txt")); err != nil || st.IsDir() {
+		t.Fatalf("created file: %v", err)
+	}
+	if err := w.Create("a.txt", false); !errors.Is(err, fs.ErrExist) {
+		t.Errorf("Create over a file = %v, want ErrExist", err)
+	}
+	must(t, w.Rename("new/deep/c.txt", "dir/d.txt"))
+	if _, err := os.Stat(filepath.Join(w.Root, "dir", "d.txt")); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Rename("dir/d.txt", "a.txt"); err == nil {
+		t.Error("Rename onto an existing file succeeded")
+	}
+	// A symlink is renamed as a link: its target folder stays where it is.
+	must(t, w.Rename("in", "in2"))
+	if _, err := os.Stat(filepath.Join(w.Root, "sub", "b.go")); err != nil {
+		t.Fatalf("renaming a link moved its target: %v", err)
+	}
+	for _, bad := range []string{"", ".", "..", "../x", "/etc/x", "out/secret", "sub/../../x"} {
+		if err := w.Create(bad, false); err == nil {
+			t.Errorf("Create(%q) succeeded", bad)
+		}
+		if err := w.Rename("a.txt", bad); err == nil {
+			t.Errorf("Rename to %q succeeded", bad)
+		}
+		if err := w.Trash(bad); err == nil {
+			t.Errorf("Trash(%q) succeeded", bad)
+		}
 	}
 }

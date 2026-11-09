@@ -11,6 +11,10 @@ function fakeFiles(init: Record<string, string>) {
     list: async () => [],
     find: async () => [],
     grep: () => ({ done: Promise.resolve(null), cancel() {} }),
+    create: async () => {},
+    rename: async () => {},
+    trash: async () => {},
+    reveal: async () => {},
     readText: async (path) => {
       const f = disk.get(path);
       if (!f) throw new Error(`open /x/${path}: no such file or directory`);

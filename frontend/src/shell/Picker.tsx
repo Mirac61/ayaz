@@ -16,11 +16,12 @@ export interface PickerSource {
   all?(): void; // <C-q>: everything to the quickfix list
   close?(): void; // the picker went away: stop work
   start?: number; // cursor at open, e.g. the current quickfix entry
+  initial?: string; // the input's text at open, e.g. the old name when renaming
 }
 
 // Fuzzy picker overlay (files, recent, buffers, commands). Every keystroke queries; stale answers are dropped by sequence number.
 export function Picker({ source, onClose }: { source: PickerSource; onClose(): void }) {
-  const [q, setQ] = useState("");
+  const [q, setQ] = useState(source.initial ?? "");
   const [items, setItems] = useState<Item[]>([]);
   const [cur, setCur] = useState(0);
   const seq = useRef(0);
