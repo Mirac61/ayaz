@@ -7,12 +7,11 @@ import "./pdf.css";
 const LINE = 40; // px per j/k
 const ZOOM = 1.1;
 
-const load = () => Promise.all([
-  import("pdfjs-dist"),
-  import("pdfjs-dist/web/pdf_viewer.mjs"),
-  import("pdfjs-dist/build/pdf.worker.min.mjs?url"),
-  import("pdfjs-dist/web/pdf_viewer.css"),
-]);
+// pdf_viewer.mjs reads globalThis.pdfjsLib, which pdfjs-dist sets when it loads, so the core must load first.
+const load = async () => {
+  const pdfjs = await import("pdfjs-dist");
+  return Promise.all([pdfjs, import("pdfjs-dist/web/pdf_viewer.mjs"), import("pdfjs-dist/build/pdf.worker.min.mjs?url"), import("pdfjs-dist/web/pdf_viewer.css")]);
+};
 
 export function mountPdf(el: HTMLElement, ctx: ViewContext): ViewHandle {
   const t0 = performance.now();
