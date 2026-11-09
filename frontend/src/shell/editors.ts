@@ -35,7 +35,7 @@ export class Editors {
   active = 0;
 
   constructor(files: Files, root: string, wsId: string, private onStatus: (s: Status) => void) {
-    this.buffers = new Buffers(files, (path, doc) => createState(path, doc, wsId));
+    this.buffers = new Buffers(files, (path, doc) => createState(path, doc, wsId, root));
     this.recentKey = `ayaz.recent:${root}`;
   }
 

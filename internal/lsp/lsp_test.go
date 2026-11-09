@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"io"
+	"os/exec"
 	"testing"
 	"testing/iotest"
 )
@@ -60,5 +61,24 @@ func TestServerEcho(t *testing.T) {
 	s.Close()
 	if _, err := s.Recv(); err == nil {
 		t.Fatal("Recv after Close should fail")
+	}
+}
+
+// The real thing, when installed: gopls answers initialize through our framing.
+func TestGopls(t *testing.T) {
+	s, err := Start(t.TempDir(), "/bin/sh", "gopls")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if _, err := exec.LookPath("gopls"); err != nil {
+		t.Skip("gopls not in PATH")
+	}
+	if err := s.Send([]byte(`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":null,"rootUri":null,"capabilities":{}}}`)); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.Recv()
+	if err != nil || !bytes.Contains(got, []byte(`"capabilities"`)) {
+		t.Fatalf("got %.200s, %v", got, err)
 	}
 }

@@ -111,6 +111,7 @@ Done when: `big.md` opens and scrolls within budget on both platforms.
 
 - [Own] `internal/lsp`: process management, framing, restart (ADR-0009).
 - [Glue] Transport adapter on streams, `@codemirror/lsp-client` for Go with `gopls`.
+  - Done 2026-11-09: `internal/lsp` + `lsp` stream, transport, client per (workspace, language) with reconnect/backoff, diagnostics, completion, hover, `gd`, `gr`. **Still open:** rename and format on save, cross-file `gd`/`gr` (needs `Workspace.displayFile`), missing-server hint, manual check with gopls in the real app.
 - [Glue] Diagnostics, completion, hover, go to definition (`gd`), references (`gr`), rename, format on save (per language, on for Go, Q25).
 - [Glue] Status line hint when a server is missing.
 

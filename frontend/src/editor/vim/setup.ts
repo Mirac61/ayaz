@@ -1,5 +1,6 @@
 import { Vim, type CodeMirror } from "@replit/codemirror-vim";
 import { foldAll, foldCode, toggleFold, unfoldAll, unfoldCode } from "@codemirror/language";
+import { findReferences, jumpToDefinition } from "@codemirror/lsp-client";
 import { parseKeys, type Binding } from "../../core/keymap";
 
 // Runs a command by ID (core/commands). Vim's maps and ex commands are global, so the latest workbench's runner wins.
@@ -47,6 +48,13 @@ export function installVim(r: Run, normal: Binding[], p: Prime) {
   // Links under the cursor; editor-only, so the tree keeps its own g keys.
   for (const [keys, command] of Object.entries({ gx: "link.browser", gf: "link.file" })) {
     Vim.defineAction(keys, () => run(command));
+    Vim.mapCommand(keys, "action", keys, {}, { context: "normal" });
+  }
+
+  // LSP; both are no-ops in files without a server.
+  const lsp = { gd: jumpToDefinition, gr: findReferences };
+  for (const [keys, cmd] of Object.entries(lsp)) {
+    Vim.defineAction(keys, (cm: CodeMirror) => void cmd(cm.cm6!));
     Vim.mapCommand(keys, "action", keys, {}, { context: "normal" });
   }
 
