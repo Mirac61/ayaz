@@ -34,8 +34,8 @@ export class Editors {
   private lastEditor = 0; // where files open while a terminal pane is active
   active = 0;
 
-  constructor(files: Files, root: string, private onStatus: (s: Status) => void) {
-    this.buffers = new Buffers(files, createState);
+  constructor(files: Files, root: string, wsId: string, private onStatus: (s: Status) => void) {
+    this.buffers = new Buffers(files, (path, doc) => createState(path, doc, wsId));
     this.recentKey = `ayaz.recent:${root}`;
   }
 

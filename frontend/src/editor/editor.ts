@@ -10,7 +10,7 @@ import { vim } from "@replit/codemirror-vim";
 import { indentationMarkers } from "@replit/codemirror-indentation-markers";
 import { kanagawaCM } from "../theme/kanagawa-cm";
 import { extOf, loadLanguage } from "../lang/registry";
-import { mdlive } from "./mdlive";
+import { mdImages, mdlive } from "./mdlive";
 
 class Num extends GutterMarker {
   constructor(readonly text: string) { super(); }
@@ -56,7 +56,7 @@ export const editorExtensions = (): Extension[] => [
 ];
 
 // Builds the state for a file, with its language loaded first so highlighting is there on the first frame.
-export async function createState(path: string | null, doc: string): Promise<EditorState> {
+export async function createState(path: string | null, doc: string, ws?: string): Promise<EditorState> {
   const lang = path ? await loadLanguage(path) : null;
-  return EditorState.create({ doc, extensions: [editorExtensions(), lang ?? [], path && extOf(path) === "md" ? mdlive : []] });
+  return EditorState.create({ doc, extensions: [editorExtensions(), lang ?? [], path && extOf(path) === "md" ? [mdlive, ws ? mdImages.of({ ws, file: path }) : []] : []] });
 }

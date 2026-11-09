@@ -32,10 +32,10 @@ export function Workbench({ ws }: { ws: Info }) {
   const files = useMemo(() => backend.files(ws.id), [ws.id]);
   const [status, setStatus] = useState<Status>({ pane: 1, path: null, dirty: false, mode: "normal", line: 1, col: 1, lines: 1 });
   const lastSplit = useRef(1); // the split pane to go back to from the panel
-  const ed = useMemo(() => new Editors(files, ws.root, (s) => {
+  const ed = useMemo(() => new Editors(files, ws.root, ws.id, (s) => {
     if (s.pane !== PANEL) lastSplit.current = s.pane;
     setStatus(s);
-  }), [files, ws.root]);
+  }), [files, ws.root, ws.id]);
   // null: no panel terminal; "hidden": it runs but isn't shown (Cmd+J toggles, like VS Code).
   const [panel, setPanel] = useState<"shown" | "hidden" | null>(null);
   const panelRef = useRef(panel);

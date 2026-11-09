@@ -1,4 +1,4 @@
-import { EditorSelection, EditorState, StateEffect, StateField, type Range } from "@codemirror/state";
+import { EditorSelection, EditorState, Facet, StateEffect, StateField, type Range } from "@codemirror/state";
 import { Decoration, EditorView, ViewPlugin, WidgetType, type DecorationSet, type ViewUpdate } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
 import type { SyntaxNode } from "@lezer/common";
@@ -10,7 +10,7 @@ export interface MdDeco {
   hide: [number, number][];
   marks: { from: number; to: number; cls: string }[];
   lines: { at: number; cls: string }[];
-  widgets: { from: number; to: number; kind: "bullet" | "check"; checked?: boolean }[]; // replaced by a small widget, outside active lines
+  widgets: { from: number; to: number; kind: "bullet" | "check" | "image"; checked?: boolean; alt?: string; url?: string }[]; // replaced by a small widget, outside active lines
 }
 
 // Reading view: no line counts as active, not even the cursor's, and the document is read-only.
@@ -107,7 +107,12 @@ export function mdDecorations(state: EditorState, from = 0, to = state.doc.lengt
         else if (free(n.from, n.to)) out.widgets.push({ from: n.from, to: n.to, kind: "bullet" });
       } else if (name === "TaskMarker") {
         if (free(n.from, n.to)) out.widgets.push({ from: n.from, to: n.to, kind: "check", checked: doc.sliceString(n.from + 1, n.from + 2) !== " " });
-      } else if (name === "Image") return false; // M6
+      } else if (name === "Image") {
+        const marks = n.node.getChildren("LinkMark"), u = n.node.getChild("URL");
+        if (marks.length >= 2 && u && free(n.from, n.to))
+          out.widgets.push({ from: n.from, to: n.to, kind: "image", alt: doc.sliceString(marks[0].to, marks[1].from), url: doc.sliceString(u.from, u.to) });
+        return false;
+      }
     },
   });
   return out;
@@ -191,6 +196,28 @@ export function resolveLink(file: string, target: string): string | null {
 export const browsable = (t: string) => isURL(t) && !/^(javascript|file|data):/i.test(t);
 
 const hidden = Decoration.replace({});
+
+// Where relative image paths point: the workspace ID and the open file. Without it (tests, no folder) images stay raw.
+export const mdImages = Facet.define<{ ws: string; file: string }, { ws: string; file: string } | null>({ combine: (v) => v[0] ?? null });
+
+// /fs/<ws>/<path> for a relative target, null for URLs and paths outside the workspace.
+export function imageSrc(ws: string, file: string, target: string): string | null {
+  const p = resolveLink(file, target);
+  return p ? `/fs/${encodeURIComponent(ws)}/${p.split("/").map(encodeURIComponent).join("/")}` : null;
+}
+
+class Img extends WidgetType {
+  constructor(readonly src: string, readonly alt: string) { super(); }
+  eq(o: Img) { return o.src === this.src && o.alt === this.alt; }
+  toDOM(view: EditorView) {
+    const i = document.createElement("img");
+    i.src = this.src;
+    i.alt = this.alt;
+    i.className = "cm-md-img";
+    i.addEventListener("load", () => view.requestMeasure()); // the line just grew
+    return i;
+  }
+}
 
 class Bullet extends WidgetType {
   eq() { return true; }
@@ -288,12 +315,21 @@ class Live {
 
 function build(v: EditorView): [DecorationSet, DecorationSet] {
   const all: Range<Decoration>[] = [], hides: Range<Decoration>[] = [];
+  const img = v.state.facet(mdImages);
   for (const { from, to } of v.visibleRanges) {
     const d = mdDecorations(v.state, from, to);
     for (const l of d.lines) all.push(Decoration.line({ class: l.cls }).range(l.at));
     for (const m of d.marks) if (m.from < m.to) all.push(Decoration.mark({ class: m.cls }).range(m.from, m.to));
     for (const [a, b] of d.hide) hides.push(hidden.range(a, b));
-    for (const w of d.widgets) hides.push((w.kind === "bullet" ? bullet : check(!!w.checked)).range(w.from, w.to)); // atomic like hidden marks
+    for (const w of d.widgets) {
+      let deco = w.kind === "bullet" ? bullet : check(!!w.checked);
+      if (w.kind === "image") {
+        const src = img && imageSrc(img.ws, img.file, w.url!);
+        if (!src) continue; // URLs and no workspace: raw source
+        deco = Decoration.replace({ widget: new Img(src, w.alt!) });
+      }
+      hides.push(deco.range(w.from, w.to)); // atomic like hidden marks
+    }
   }
   const h = Decoration.set(hides, true);
   return [Decoration.set([...all, ...hides], true), h];
@@ -316,6 +352,7 @@ const theme = EditorView.baseTheme({
   ".cm-md-table th": { backgroundColor: "#2a2a37", fontWeight: "bold" },
   ".cm-md-check": { margin: "0 4px 0 0", verticalAlign: "middle", accentColor: "#7e9cd8" },
   ".cm-md-hr": { background: "linear-gradient(#54546d, #54546d) center / 100% 1px no-repeat" },
+  ".cm-md-img": { maxWidth: "100%", maxHeight: "400px", verticalAlign: "middle" },
   ".cm-md-fence": { color: "#727169" },
   "&.cm-reading .cm-activeLine": { backgroundColor: "transparent" },
 });

@@ -4,7 +4,7 @@ import { ensureSyntaxTree } from "@codemirror/language";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { codeLanguages } from "../lang/registry";
 import { LanguageDescription } from "@codemirror/language";
-import { browsable, linkAt, mdDecorations, mdTables, mdlive, resolveLink, toggleReading } from "./mdlive";
+import { browsable, imageSrc, linkAt, mdDecorations, mdTables, mdlive, resolveLink, toggleReading } from "./mdlive";
 
 // "|" marks the cursor; "«" and "»" a selection instead. No marker: cursor at the very end.
 function state(src: string) {
@@ -278,4 +278,17 @@ test("a rule gets a line class only while it is hidden", () => {
   const rules = (src: string) => mdDecorations(state(src)).lines.filter((l) => l.cls === "cm-md-hr").map((l) => l.at);
   expect(rules("a\n\n---\n|")).toEqual([3]);
   expect(rules("a\n\n|---")).toEqual([]);
+});
+
+test("imageSrc maps a relative target next to the file onto /fs/", () => {
+  expect(imageSrc("w1", "docs/a.md", "img/x y.png")).toBe("/fs/w1/docs/img/x%20y.png");
+  expect(imageSrc("w1", "docs/a.md", "../p.png")).toBe("/fs/w1/p.png");
+  expect(imageSrc("w1", "a.md", "../p.png")).toBeNull();
+  expect(imageSrc("w1", "a.md", "https://x.org/p.png")).toBeNull();
+  expect(imageSrc("w1", "a.md", "/etc/passwd")).toBeNull();
+});
+
+test("an image is a widget off the cursor line, raw on it", () => {
+  expect(mdDecorations(state("![alt text](pic.png)\n|")).widgets).toEqual([{ from: 0, to: 20, kind: "image", alt: "alt text", url: "pic.png" }]);
+  expect(mdDecorations(state("![a](pic.png)|")).widgets).toEqual([]);
 });

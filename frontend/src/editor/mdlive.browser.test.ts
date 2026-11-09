@@ -18,11 +18,11 @@ afterEach(() => {
   ran.length = 0;
 });
 
-async function mount(doc: string) {
+async function mount(doc: string, ws?: string) {
   const el = document.createElement("div");
   el.style.cssText = "height:300px;width:500px";
   document.body.append(el);
-  view = new EditorView({ parent: el, state: await createState("note.md", doc) });
+  view = new EditorView({ parent: el, state: await createState("note.md", doc, ws) });
   view.focus();
   return view;
 }
@@ -158,4 +158,15 @@ test("a rule reads as a line and is raw under the cursor", async () => {
   await userEvent.keyboard("jj");
   expect(lines()).toEqual(["x", "", "---", "", "b"]);
   expect(view!.contentDOM.querySelector(".cm-md-hr")).toBeNull();
+});
+
+test("an image shows as <img> through /fs/, raw while the cursor is on it", async () => {
+  await mount("![logo](a/pic.png)\ntext", "w1");
+  await userEvent.keyboard("j");
+  const img = view!.contentDOM.querySelector<HTMLImageElement>(".cm-md-img")!;
+  expect(img.getAttribute("src")).toBe("/fs/w1/a/pic.png");
+  expect(img.alt).toBe("logo");
+  await userEvent.keyboard("k");
+  expect(view!.contentDOM.querySelector(".cm-md-img")).toBeNull();
+  expect(lines()[0]).toBe("![logo](a/pic.png)");
 });
