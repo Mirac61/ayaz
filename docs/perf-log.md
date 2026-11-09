@@ -63,3 +63,15 @@ Notes:
 | K5-like: frame delta while scrolling | p95 19 ms, worst 24–28 ms (401 frames) | rAF deltas, the test fails over 50 ms |
 
 Not the real K3/K5 numbers: no WKWebView, no GPU, headless timer. The real check on macOS and Hyprland comes with M6's "done when". `mdTables` walks the whole tree on every update; it did not show up here.
+
+## 2026-11-09 – K16, Go half (M7)
+
+`TestK16Framing` in `internal/lsp`: Content-Length framing + pipe + `cat` as echo server and back, 1,000 messages per size, three runs (macOS, Go test, not the app).
+
+| | Value | Budget |
+|---|---|---|
+| K16 framing + pipe p95 (0.2 KB / 200 KB) | 0.02 ms / 0.15–0.19 ms | ≤ 5 ms |
+| K16 total p95, stream (S7) + framing (0.2 KB / 200 KB) | ~0.3 ms / ~1.4 ms | ≤ 5 ms |
+
+Notes:
+- The JS adapter (`streamTransport`) adds one `TextEncoder`/`TextDecoder` pass per message, not measured separately. Hyprland still open.

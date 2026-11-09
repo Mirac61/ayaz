@@ -5,7 +5,10 @@ import (
 	"bytes"
 	"io"
 	"os/exec"
+	"slices"
+	"strings"
 	"testing"
+	"time"
 	"testing/iotest"
 )
 
@@ -61,6 +64,37 @@ func TestServerEcho(t *testing.T) {
 	s.Close()
 	if _, err := s.Recv(); err == nil {
 		t.Fatal("Recv after Close should fail")
+	}
+}
+
+// K16, Go half: framing + pipe + an echo server (cat) and back, 1,000 messages each of 0.2 KB and 200 KB.
+// The stream half (WebView ↔ Go) is in docs/perf-log.md (S7). Logs p95; fails only past the 5 ms budget.
+func TestK16Framing(t *testing.T) {
+	if testing.Short() {
+		t.Skip("timing")
+	}
+	s, err := Start(t.TempDir(), "/bin/sh", "cat")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	for _, size := range []int{200, 200_000} {
+		msg := []byte(`{"x":"` + strings.Repeat("a", size) + `"}`)
+		ds := make([]time.Duration, 1000)
+		for i := range ds {
+			t0 := time.Now()
+			go s.Send(msg) // concurrently, like HandleLSP: 200 KB overfills the pipe while cat waits to write back
+			if got, err := s.Recv(); err != nil || len(got) != len(msg) {
+				t.Fatalf("echo: %d bytes, %v", len(got), err)
+			}
+			ds[i] = time.Since(t0)
+		}
+		slices.Sort(ds)
+		p95 := ds[len(ds)*95/100]
+		t.Logf("K16 framing %d B: p50 %v, p95 %v", size, ds[len(ds)/2], p95)
+		if p95 > 5*time.Millisecond {
+			t.Errorf("p95 %v over the 5 ms budget", p95)
+		}
 	}
 }
 
