@@ -5,6 +5,7 @@ import (
 	"log"
 	"maps"
 	"os"
+	"slices"
 	"time"
 
 	"github.com/Mirac61/ayaz/internal/pty"
@@ -101,13 +102,13 @@ func (s *WorkspaceService) track(sess *pty.Session, on bool) {
 // ServiceShutdown hangs up every shell, so quitting leaves no processes behind (Wails calls it on quit).
 func (s *WorkspaceService) ServiceShutdown() error {
 	s.mu.Lock()
-	terms := maps.Keys(s.terms)
-	servers := maps.Keys(s.servers)
+	terms := slices.Collect(maps.Keys(s.terms))
+	servers := slices.Collect(maps.Keys(s.servers))
 	s.mu.Unlock()
-	for sess := range terms {
+	for _, sess := range terms {
 		sess.Close()
 	}
-	for srv := range servers {
+	for _, srv := range servers {
 		srv.Close()
 	}
 	return nil
