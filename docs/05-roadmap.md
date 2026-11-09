@@ -166,7 +166,7 @@ Done when: all four language groups have diagnostics, completion and navigation.
 - [Own] Optional tab bar per pane (setting), `gt/gT`.
 - Tests: Node fixtures Lezer → HTML incl. escaping, browser test for updates while typing.
 - Done when: the preview matches the live preview, no HTML from the document runs, tabs toggle without restart.
-- Done 2026-11-09, differently than planned: the preview (`<Space>mp`) is a second pane on the same buffer in the reading view, not a second renderer from the Lezer tree. It matches the live preview because it is the same code, follows typing through the existing pane sync, and raw HTML stays text (cells and widgets use `textContent`). `<Space>mp` again closes it. Tab bar per pane (palette "Toggle tab bar", kept in `localStorage`), `gt`/`gT`, click, `<Space>bd` drops a tab (the buffer stays loaded), `[+]` on tabs with unsaved changes. Shortcut: no scroll sync between source and preview.
+- Done 2026-11-09, differently than planned: the preview (`<Space>mp`) is a second pane on the same buffer in the reading view, not a second renderer from the Lezer tree. It matches the live preview because it is the same code, follows typing through the existing pane sync, and raw HTML stays text (cells and widgets use `textContent`). `<Space>mp` again closes it. Tab bar per pane (palette "Toggle tab bar", kept in `localStorage`), `gt`/`gT`, click, `<Space>bd` drops a tab (the buffer stays loaded), `[+]` on tabs with unsaved changes. Source and preview keep the same line at the top, both ways; the active pane leads, so the scroll doesn't echo.
 
 ## M13 – Multiple windows and switching folders
 

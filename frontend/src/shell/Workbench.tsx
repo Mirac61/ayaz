@@ -567,7 +567,7 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
               if (previewNext.current.delete(id)) {
                 ed.toggleReading(); // the new pane is active; keep typing in the source
                 previews.current.add(id);
-                if (from !== undefined) ed.focus(from);
+                if (from !== undefined) { ed.focus(from); ed.syncScroll(from); }
               }
               if (id === 1) tree.current?.focus(); // no file open yet, so start in the tree
               return () => { previews.current.delete(id); ed.detach(id, true); };

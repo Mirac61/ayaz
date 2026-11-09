@@ -71,6 +71,7 @@ export class Editors {
     this.panes.set(id, p);
     if (!this.panes.has(this.active)) this.active = id;
     view.contentDOM.addEventListener("focus", () => this.setActive(id));
+    view.scrollDOM.addEventListener("scroll", () => id === this.active && this.syncScroll(id));
     const fromPane = from === undefined ? undefined : this.panes.get(from);
     if (fromPane?.buf) this.show(id, fromPane.buf);
     else if (fromPane?.viewer) this.showViewer(id, fromPane.title!);
@@ -185,6 +186,15 @@ export class Editors {
   linkAtCursor(): string | null {
     const v = this.panes.get(this.active)?.view;
     return v ? linkAt(v.state, v.state.selection.main.head) : null;
+  }
+
+  // Markdown source and preview (the same buffer, one pane in the reading view) keep the same line at the top.
+  // Only the active pane leads, so the scroll it causes in the other one doesn't come back.
+  syncScroll(id: number) {
+    const v = this.panes.get(id)?.view, b = this.panes.get(id)?.buf;
+    if (!v || !b) return;
+    for (const o of this.panes.values())
+      if (o.buf === b && o.view !== v && isReading(o.view!.state) !== isReading(v.state)) o.view!.dispatch({ effects: v.scrollSnapshot() });
   }
 
   // Reading view in the active editor; false if it isn't a Markdown file.

@@ -1,4 +1,7 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { e2eWorkspace } from "../playwright.config";
 
 // M12 done-when: the preview follows the buffer, runs no HTML from the file, and tabs toggle without a restart.
 test("markdown preview in a split", async ({ page }) => {
@@ -21,6 +24,39 @@ test("markdown preview in a split", async ({ page }) => {
   await page.keyboard.type(" mp");
   await expect(editor).toHaveCount(1);
   await expect(page.locator(".cm-reading")).toHaveCount(0);
+});
+
+// Source and preview keep the same line at the top; the active pane leads. Scrolled like a mouse wheel.
+test("markdown preview scrolls with the source and back", async ({ page }) => {
+  writeFileSync(join(e2eWorkspace, "long.md"), Array.from({ length: 300 }, (_, i) => `line ${i + 1}`).join("\n") + "\n");
+  await page.goto("/");
+  await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: "long.md" }).click();
+  const status = page.locator(".statusline");
+  await expect(status).toContainText("long.md");
+  const source = page.locator(".cm-editor:not(.cm-reading)"), preview = page.locator(".cm-editor.cm-reading");
+  const scroll = (ed: Locator, y: number) => ed.locator(".cm-scroller").evaluate((e, y) => { e.scrollTop = y; }, y);
+  const top = (ed: Locator) => ed.evaluate((e) => {
+    const y = e.querySelector(".cm-scroller")!.getBoundingClientRect().top;
+    return [...e.querySelectorAll(".cm-line")].find((l) => l.getBoundingClientRect().bottom > y + 1)?.textContent;
+  });
+  const both = async () => { const [s, p] = [await top(source), await top(preview)]; return s === p ? s : `${s} | ${p}`; };
+
+  await scroll(source, 3000);
+  await page.keyboard.type(" mp"); // the preview opens where the source is
+  await expect(preview).toHaveCount(1);
+  await expect.poll(both).toMatch(/^line 1\d\d$/);
+
+  await page.keyboard.press("Control+w");
+  await page.keyboard.type("l");
+  await expect(status).toContainText("READ"); // the preview leads now
+  await scroll(preview, 0);
+  await expect.poll(both).toBe("line 1");
+
+  await page.keyboard.press("Control+w");
+  await page.keyboard.type("h");
+  await expect(status).toContainText("NORMAL");
+  await scroll(source, 5000);
+  await expect.poll(both).toMatch(/^line 2\d\d$/);
 });
 
 test("tab bar: toggle, gt, close", async ({ page }) => {
