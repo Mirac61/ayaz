@@ -1,6 +1,6 @@
 # ADR-0011: Pane content as providers mounted into the DOM
 
-Status: proposed · 2026-11-08
+Status: accepted · 2026-11-09 (images in M10; editor and terminal still outside the registry)
 
 ## Context
 - Markdown, PDF, image and terminal should be swappable modules behind one interface.

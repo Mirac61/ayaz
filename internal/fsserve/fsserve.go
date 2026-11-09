@@ -41,6 +41,9 @@ func Middleware(reg *workspace.Registry) func(http.Handler) http.Handler {
 				http.NotFound(w, r)
 				return
 			}
+			// Workspace files are data: an SVG or HTML opened by URL must not run scripts in the app's origin.
+			w.Header().Set("Content-Security-Policy", "sandbox; default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'")
+			w.Header().Set("X-Content-Type-Options", "nosniff")
 			http.ServeContent(w, r, st.Name(), st.ModTime(), f)
 		})
 	}

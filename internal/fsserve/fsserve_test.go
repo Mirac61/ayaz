@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/Mirac61/ayaz/internal/workspace"
@@ -37,6 +38,9 @@ func TestServe(t *testing.T) {
 
 	if c := get("/fs/"+w.ID+"/a.txt", "").Code; c != 200 {
 		t.Errorf("file: %d", c)
+	}
+	if csp := get("/fs/"+w.ID+"/a.txt", "").Header().Get("Content-Security-Policy"); !strings.HasPrefix(csp, "sandbox") {
+		t.Errorf("CSP: %q", csp)
 	}
 	if r := get("/fs/"+w.ID+"/a.txt", "bytes=2-4"); r.Code != 206 || r.Body.String() != "234" {
 		t.Errorf("range: %d %q", r.Code, r.Body.String())

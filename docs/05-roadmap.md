@@ -148,6 +148,7 @@ Done when: all four language groups have diagnostics, completion and navigation.
 - [Glue] `viewers/image`: fit/100 %, zoom (`+/-/0`), pan (`h/j/k/l`), animated GIFs, SVG only as `<img>`.
 - Tests: provider lifecycle, E2E open and zoom.
 - Done when: all five formats work, fully keyboard-controlled.
+- Done 2026-11-09: `core/viewers.ts` (small provider registry, ADR-0011) and `viewers/image.ts`: fit, `+`/`=`/`-` zoom around the center, `0` fit, `1` 100 %, `h/j/k/l` pan, zoom and size in the status line, reload on change on disk. A split of an image pane shows the image too; opening a text file turns the pane back into an editor. `/fs/` now sends `Content-Security-Policy: sandbox …` so an SVG or HTML opened by URL can't run scripts. Shortcut: the editor and terminal aren't providers yet, `Editors` handles them directly.
 
 ## M11 – PDF viewer
 

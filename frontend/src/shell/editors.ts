@@ -7,6 +7,8 @@ import { setLspHost, formatBeforeSave } from "../editor/lsp";
 import { createState, editorExtensions } from "../editor/editor";
 import { isReading, linkAt, toggleReading } from "../editor/mdlive";
 import { openTerminal, type TermHandle, type TermOptions } from "../terminal/terminal";
+import { fsUrl, viewerFor, type ViewHandle } from "../core/viewers";
+import "../viewers/image";
 
 export interface Status {
   pane: number;
@@ -16,11 +18,12 @@ export interface Status {
   line: number;
   col: number;
   lines: number;
+  info?: string; // a viewer's status (zoom, size) in place of line:col
 }
 
-// A pane shows an editor (view) or a terminal (term).
+// A pane shows an editor (view), a terminal (term) or a viewer for images and the like (title is its file).
 // shortcut: a terminal lives and dies with its pane, unlike nvim's terminal buffers; add hidden terminals if wanted.
-interface Pane { el: HTMLElement; view?: EditorView; term?: TermHandle; title?: string; buf: Buffer | null; mode: string }
+interface Pane { el: HTMLElement; view?: EditorView; term?: TermHandle; viewer?: ViewHandle; title?: string; buf: Buffer | null; mode: string }
 
 // Marks changes copied from another pane showing the same buffer, so they aren't copied back.
 const synced = Annotation.define<boolean>();
@@ -35,7 +38,7 @@ export class Editors {
   private lastEditor = 0; // where files open while a terminal pane is active
   active = 0;
 
-  constructor(files: Files, root: string, wsId: string, private onStatus: (s: Status) => void) {
+  constructor(files: Files, root: string, private wsId: string, private onStatus: (s: Status) => void) {
     this.buffers = new Buffers(files, (path, doc) => createState(path, doc, wsId, root));
     setLspHost(wsId, (path) => this.display(path));
     this.recentKey = `ayaz.recent:${root}`;
@@ -61,8 +64,9 @@ export class Editors {
     this.panes.set(id, p);
     if (!this.panes.has(this.active)) this.active = id;
     view.contentDOM.addEventListener("focus", () => this.setActive(id));
-    const src = from === undefined ? undefined : this.panes.get(from)?.buf;
-    if (src) this.show(id, src);
+    const fromPane = from === undefined ? undefined : this.panes.get(from);
+    if (fromPane?.buf) this.show(id, fromPane.buf);
+    else if (fromPane?.viewer) this.showViewer(id, fromPane.title!);
     else this.watchMode(id);
   }
 
@@ -70,12 +74,14 @@ export class Editors {
     const p = this.panes.get(id);
     p?.view?.destroy();
     p?.term?.dispose();
+    p?.viewer?.dispose();
     this.panes.delete(id);
   }
 
   focus(id: number) {
     const p = this.panes.get(id);
     if (p?.view) p.view.focus();
+    else if (p?.viewer) p.viewer.focus();
     else p?.term?.focus();
     this.setActive(id);
   }
@@ -119,12 +125,30 @@ export class Editors {
 
   current(): Buffer | null { return this.panes.get(this.active)?.buf ?? null; }
 
-  // From a terminal pane, the file opens in the editor pane used last.
+  // From a terminal pane, the file opens in the editor pane used last. Images and the like open in a viewer.
   async open(path: string, id = this.active): Promise<number> {
-    if (this.isTerm(id)) id = this.panes.get(this.lastEditor)?.view ? this.lastEditor : [...this.panes].find(([, p]) => p.view)?.[0] ?? -1;
-    if (!this.panes.get(id)?.view) throw new Error("No editor pane, split one off with :vsplit");
-    this.show(id, await this.buffers.open(path));
+    const usable = (p?: Pane) => !!(p?.view || p?.viewer);
+    if (this.isTerm(id)) id = usable(this.panes.get(this.lastEditor)) ? this.lastEditor : [...this.panes].find(([, p]) => usable(p))?.[0] ?? -1;
+    if (!usable(this.panes.get(id))) throw new Error("No editor pane, split one off with :vsplit");
+    if (viewerFor(path)) {
+      this.showViewer(id, path);
+      return id;
+    }
+    const b = await this.buffers.open(path);
+    if (this.panes.get(id)!.viewer) this.replace(id); // back to an editor
+    this.show(id, b);
     return id;
+  }
+
+  private showViewer(id: number, path: string) {
+    const el = this.panes.get(id)!.el;
+    this.detach(id);
+    const p: Pane = { el, buf: null, mode: "view", title: path };
+    this.panes.set(id, p);
+    p.viewer = viewerFor(path)!.mount(el, { url: fsUrl(this.wsId, path), onStatus: () => id === this.active && this.emit() });
+    el.addEventListener("focusin", () => this.setActive(id));
+    this.touch(path);
+    this.focus(id);
   }
 
   // Opens path with the cursor at line (1-based) and col (UTF-16 units), centered: quickfix jumps.
@@ -170,6 +194,7 @@ export class Editors {
   // keeping cursor and undo; returns a notice for dirty or deleted ones.
   async diskChanged(paths: string[] | null): Promise<string | null> {
     const hit = (p: string) => !paths || paths.some((c) => p === c || p.startsWith(c + "/")); // a folder covers its files
+    for (const p of this.panes.values()) if (p.viewer && hit(p.title!)) p.viewer.reload?.();
     let note: string | null = null;
     for (const b of this.buffers.list().filter((b) => hit(b.path))) {
       const r = await this.buffers.checkDisk(b).catch(() => ({ kind: "same" as const })); // unreadable now: leave it
@@ -221,6 +246,9 @@ export class Editors {
   emit() {
     const p = this.panes.get(this.active);
     if (!p) return;
+    if (p.viewer) {
+      return this.onStatus({ pane: this.active, path: p.title!, dirty: false, mode: p.mode, line: 1, col: 1, lines: 1, info: p.viewer.status() });
+    }
     if (!p.view) {
       return this.onStatus({ pane: this.active, path: `term://${p.title}`, dirty: false, mode: p.mode, line: 1, col: 1, lines: 1 });
     }
@@ -239,7 +267,7 @@ export class Editors {
   private setActive(id: number) {
     if (!this.panes.has(id)) return;
     this.active = id;
-    if (this.panes.get(id)!.view) this.lastEditor = id;
+    if (this.panes.get(id)!.view || this.panes.get(id)!.viewer) this.lastEditor = id;
     const b = this.panes.get(id)!.buf;
     if (b) this.touch(b.path);
     this.emit();

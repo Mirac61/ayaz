@@ -557,8 +557,10 @@ export function Workbench({ ws }: { ws: Info }) {
           {status.dirty && <span className="dirty"> [+]</span>}
         </span>
         <span className={msg?.error ? "msg error" : "msg"}>{msg?.text}</span>
-        <span className="seg progress">{status.line === 1 ? "Top" : status.line === status.lines ? "Bot" : `${Math.round((status.line / status.lines) * 100)}%`}</span>
-        <span className={`seg location ${status.mode}`}>{status.line}:{status.col}</span>
+        {status.info !== undefined ? <span className={`seg location ${status.mode}`}>{status.info}</span> : <>
+          <span className="seg progress">{status.line === 1 ? "Top" : status.line === status.lines ? "Bot" : `${Math.round((status.line / status.lines) * 100)}%`}</span>
+          <span className={`seg location ${status.mode}`}>{status.line}:{status.col}</span>
+        </>}
       </footer>
       {hints && <Hints keys={hints.keys} next={hints.next} title={(id) => commands.list().find((c) => c.id === id)?.title ?? id} />}
       {picker && <Picker source={picker} onClose={() => { setPicker(null); if (!document.activeElement?.closest(".sidebar")) ed.focus(ed.active); }} />}
