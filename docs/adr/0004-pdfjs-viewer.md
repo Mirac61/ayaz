@@ -1,6 +1,6 @@
 # ADR-0004: pdf.js with the PDFViewer component
 
-Status: proposed · 2026-11-08
+Status: accepted · 2026-11-09 (pdfjs-dist 6.4.299; S3 in headless WebKit only)
 
 ## Context
 - Scroll, zoom and search PDFs. 200 pages must be smooth.

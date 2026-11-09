@@ -157,6 +157,7 @@ Done when: all four language groups have diagnostics, completion and navigation.
 - [Own] Vim-like keymap (`j/k`, `gg/G`, `Ctrl-d/u`, `/`, `n/N`, zoom), page indicator.
 - Tests: E2E open and search, K6–K8.
 - Done when: a 200-page PDF is within budget, search by keyboard.
+- Done 2026-11-09: `viewers/pdf.ts` on `PDFViewer` + `PDFFindController` (pdfjs-dist 6.4.299 pinned, loaded on the first PDF, worker as its own asset), page width by default, `j/k`, `<C-d>/<C-u>`, `gg/G`, `J/K` pages, `+/-/0/1` zoom, `/` `n` `N` search with the match count and page in the status line, links only through the system browser, no PDF scripting, no XFA. `scripts/gen-bigpdf.mjs` makes the 200-page test file. S3 in headless WebKit only: K6 95 ms, K7 254 ms (perf-log). **Still open:** S3 in WKWebView and WebKitGTK, K8 (RAM after scrolling through), Range requests through the Wails scheme in the native app (S2); a PDF changed on disk isn't reloaded.
 
 ## M12 – Separate Markdown preview and optional tabs
 

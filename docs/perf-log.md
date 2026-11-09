@@ -88,3 +88,17 @@ Notes:
 Notes:
 - The one hit sits in a random place, so "first hit" is when that file was reached. With many hits the first batch leaves after ≤ 30 ms.
 - Cold cache and Hyprland not measured. Not compared with `rg` yet.
+
+## 2026-11-09 – K6/K7 PDF (M11, S3 partly)
+
+`frontend/e2e/pdf.spec.ts` against the server build in headless WebKit (Playwright), `testdata/e2e-ws/big.pdf` (200 text pages, 875 KB, from `scripts/gen-bigpdf.mjs`). One run.
+
+| | Value | Budget (macOS) |
+|---|---|---|
+| K6 open → page 1 rendered | 95 ms | ≤ 500 ms |
+| K7 search over 200 pages, "find" → final state | 254 ms | ≤ 3 s |
+| K8 RAM after scrolling through | not measured | ≤ 300 MB |
+
+Notes:
+- Text-only pages render fast; a PDF with images and embedded fonts will be slower. Check with a real paper or book in the app.
+- Not the WKWebView/WebKitGTK numbers S3 asks for.

@@ -9,6 +9,9 @@ import { isReading, linkAt, toggleReading } from "../editor/mdlive";
 import { openTerminal, type TermHandle, type TermOptions } from "../terminal/terminal";
 import { fsUrl, viewerFor, type ViewHandle } from "../core/viewers";
 import "../viewers/image";
+import "../viewers/pdf";
+import { backend } from "../core/backend";
+import { browsable } from "../editor/mdlive";
 
 export interface Status {
   pane: number;
@@ -145,7 +148,11 @@ export class Editors {
     this.detach(id);
     const p: Pane = { el, buf: null, mode: "view", title: path };
     this.panes.set(id, p);
-    p.viewer = viewerFor(path)!.mount(el, { url: fsUrl(this.wsId, path), onStatus: () => id === this.active && this.emit() });
+    p.viewer = viewerFor(path)!.mount(el, {
+      url: fsUrl(this.wsId, path),
+      onStatus: () => id === this.active && this.emit(),
+      openURL: (u) => browsable(u) && void backend.openURL(u),
+    });
     el.addEventListener("focusin", () => this.setActive(id));
     this.touch(path);
     this.focus(id);

@@ -12,6 +12,7 @@ export interface ViewHandle {
 export interface ViewContext {
   url: string; // the file under /fs/
   onStatus(): void; // status() changed
+  openURL?(url: string): void; // links inside the file, in the system browser
 }
 
 export interface ViewProvider {
