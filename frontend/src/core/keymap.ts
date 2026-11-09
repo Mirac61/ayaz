@@ -52,6 +52,9 @@ export function defaultKeymap(mac = isMac): Binding[] {
     ...(mac
       ? [g("<D-p>", "find.files"), g("<D-S-p>", "find.commands"), g("<D-j>", "term.panel"), g("<D-S-n>", "window.new")]
       : [g("<C-S-p>", "find.files"), g("<C-S-j>", "term.panel"), g("<C-S-n>", "window.new")]),
+    // "+" has its own key on German layouts, "=" on US ones.
+    ...[["=", "view.zoomIn"], ["+", "view.zoomIn"], ["-", "view.zoomOut"], ["0", "view.zoomReset"]]
+      .map(([k, cmd]) => g(`<${mac ? "D" : "C"}-${k}>`, cmd)),
     g("<F1>", "find.commands"),
   ];
 }

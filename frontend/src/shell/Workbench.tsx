@@ -352,6 +352,11 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
       });
     };
 
+    const zoomBy = async (d: number) => {
+      const z = await setZoom(d ? zoomLevel() + d : 1);
+      setMsg({ text: `Zoom ${Math.round(z * 100)} %` });
+    };
+
     const keysFor = (id: string) => bindingsRef.current?.find((b) => b.command === id)?.keys;
 
     const off = commands.register(
@@ -511,6 +516,9 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
       },
       { id: "app.quit", title: "Close window (:qa)", run: (a) => quit(bang(a).force) },
       { id: "window.new", title: "New window", run: () => backend.newWindow() },
+      { id: "view.zoomIn", title: "Zoom in", run: () => zoomBy(ZOOM_STEP) },
+      { id: "view.zoomOut", title: "Zoom out", run: () => zoomBy(-ZOOM_STEP) },
+      { id: "view.zoomReset", title: "Reset zoom", run: () => zoomBy(0) },
       {
         id: "folder.switch",
         title: "Switch folder",
@@ -861,6 +869,24 @@ function Pane({ id, active, style, edge, mount }: PaneProps) {
   return <div ref={el} className={cls} style={style} data-pane={id} />;
 }
 
+// Page zoom for every window (same origin), like VS Code's: the whole UI scales, terminal and PDFs included.
+// shortcut: one zoom for all; separate editor and terminal font sizes only if they are missed.
+const ZOOM_KEY = "ayaz.zoom", ZOOM_STEP = 0.1;
+function zoomLevel(): number {
+  try {
+    const z = Number(localStorage.getItem(ZOOM_KEY));
+    return z >= 0.5 && z <= 2 ? z : 1;
+  } catch {
+    return 1; // storage blocked
+  }
+}
+async function setZoom(z: number) {
+  z = Math.round(Math.min(2, Math.max(0.5, z)) * 10) / 10;
+  try { localStorage.setItem(ZOOM_KEY, String(z)); } catch { /* a convenience */ }
+  await backend.zoom(z);
+  return z;
+}
+
 // Folders opened in any window, most recent first (shared by all windows: same origin).
 const FOLDERS_KEY = "ayaz.folders";
 function recentFolders(): { root: string; name: string }[] {
@@ -883,6 +909,7 @@ export function Shell() {
   const [err, setErr] = useState("");
   const show = (w: Info | null) => { if (w) rememberFolder(w); setWs(w); };
   useEffect(() => {
+    if (zoomLevel() !== 1) void setZoom(zoomLevel()).catch(() => {}); // no window zoom in the server build
     if (new URLSearchParams(location.search).has("new")) return setWs(null); // a new window starts empty
     backend.initialWorkspace().then(show, (e) => { setErr(errText(e)); setWs(null); });
   }, []);

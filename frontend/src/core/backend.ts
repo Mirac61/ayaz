@@ -1,5 +1,5 @@
 // The only place that imports generated bindings or the Wails runtime (02-architecture, principle 2).
-import { Application, Browser, Clipboard, Events, Stream } from "@wailsio/runtime";
+import { Application, Browser, Clipboard, Events, Stream, Window } from "@wailsio/runtime";
 import { ConfigService, PingService, WorkspaceService } from "../../bindings/github.com/Mirac61/ayaz/app";
 import type { Info, Match } from "../../bindings/github.com/Mirac61/ayaz/app";
 import type { Entry, TextFile } from "../../bindings/github.com/Mirac61/ayaz/internal/workspace";
@@ -39,6 +39,7 @@ export interface Backend {
   onLspStatus(ws: string, fn: (s: LspStatus) => void): () => void;
   openURL(url: string): Promise<void>; // in the system browser
   copy(text: string): Promise<void>; // to the system clipboard
+  zoom(level: number): Promise<void>; // this window's page zoom, 1 = 100 %; fails in the server build
 }
 
 // A running project search; cancel() stops it (closes the stream). done resolves with an error text, or null.
@@ -80,6 +81,7 @@ export const backend: Backend = {
   rank: async (items, q, limit) => (await WorkspaceService.Rank(items, q, limit)) ?? [],
   openURL: (url) => Browser.OpenURL(url),
   copy: (text) => Clipboard.SetText(text),
+  zoom: (level) => Window.SetZoom(level),
   onFsChanged: (ws, fn) =>
     Events.On("fs:changed", (e: { data: FsChange & { ws: string } }) => {
       if (e.data.ws === ws) fn(e.data);
