@@ -189,6 +189,11 @@ Done when: all four language groups have diagnostics, completion and navigation.
 - [Glue] Tree keys like nvim-tree: `a` new (`/` at the end makes a folder), `r` rename/move, `d` trash, `y`/`Y` copy path, `s` reveal in Finder.
 - Done 2026-11-10: `Create`/`Rename`/`Trash`/`Reveal` in `WorkspaceService`, Go tests for the jail. Trash moves into `~/.Trash` on macOS (no "Put Back") and uses `gio trash` on Linux. Name input and confirmation use the picker. Open buffers follow a rename (tabs, recent files) or close on trash; unsaved buffers block both. All of it also works from the palette on the active file, plus "Show current file in tree". The tree cursor now stays on its file when rows come and go (a save's temp file used to move it). E2E `tree.spec.ts`. **Still open:** the trash itself by hand in the app (e2e would fill the real trash), `gio trash` on Hyprland.
 
+## M16 – Session per folder
+
+- [Own] `shell/session.ts`: splits, the file and tabs per pane, the active pane and the cursor of the last 200 files, per folder in `localStorage`.
+- Done 2026-11-10: saved at most every 500 ms (a throttle, not a debounce: a build writing files would push a debounce back forever), and at once on `:qa`, the close button and switching folders. Opening the folder restores it; terminals come back as empty editors, a preview as a normal editor, files that are gone are skipped. Without files in the session it starts in the tree as before. A broken entry starts fresh (Node tests), E2E `session.spec.ts` reloads the page. **Still open:** `Cmd+Q` quits without asking the frontend, so up to 500 ms of changes can be lost.
+
 ## Later
 
 | | What | Plugs into |

@@ -42,6 +42,7 @@ export class Editors {
   private tabs = new Map<number, string[]>(); // per pane: files shown in it, in the order first shown
   private dirtyTabs = ""; // the dirty buffers' paths when the tabs were last drawn
   tabsOn = false; // set through setTabs
+  cursors: Record<string, number> = {}; // from the session: where the cursor was when a file loads again
   active = 0;
 
   constructor(files: Files, root: string, private wsId: string, private onStatus: (s: Status) => void) {
@@ -214,9 +215,15 @@ export class Editors {
       this.showViewer(id, path);
       return id;
     }
+    const fresh = !this.buffers.get(path);
     const b = await this.buffers.open(path);
     if (this.panes.get(id)!.viewer) this.replace(id); // back to an editor
     this.show(id, b);
+    const at = this.cursors[path], v = this.panes.get(id)!.view!;
+    if (fresh && at !== undefined) {
+      const pos = Math.min(at, v.state.doc.length);
+      v.dispatch({ selection: { anchor: pos }, effects: EditorView.scrollIntoView(pos, { y: "center" }) });
+    }
     return id;
   }
 
@@ -257,6 +264,24 @@ export class Editors {
     else b.state = b.state.update({ changes, userEvent: "input.replace" }).state;
     this.emit();
     return b;
+  }
+
+  // What the session keeps: the file per pane (not terminals), the tabs, and every loaded buffer's cursor.
+  snapshot() {
+    const panes: Record<number, string> = {};
+    for (const [id, p] of this.panes) {
+      const path = p.buf?.path ?? (p.viewer ? p.title : undefined);
+      if (path && id > 0) panes[id] = path;
+    }
+    const cursors: Record<string, number> = {};
+    for (const b of this.buffers.list()) cursors[b.path] = b.state.selection.main.head;
+    return { panes, tabs: Object.fromEntries(this.tabs), active: this.active, cursors };
+  }
+
+  // Session restore: the pane's tabs before its file opens (which adds to them).
+  setTabList(id: number, list: string[]) {
+    this.tabs.set(id, [...list]);
+    this.renderTabs(id);
   }
 
   pathOf(id: number) { return this.panes.get(id)?.buf?.path; }

@@ -13,6 +13,7 @@ import { Editors, type Status } from "./editors";
 import { borders, close, equalize, neighbor, panes, rects, resize, setBorder, split, type Dir, type Layout } from "./layout";
 import { Picker, type Item, type PickerSource } from "./Picker";
 import { Tree, type TreeHandle } from "./Tree";
+import { loadSession, mergeCursors, saveSession, type Session } from "./session";
 import { fileIcon, folderIcon } from "../theme/icons";
 import "./shell.css";
 
@@ -37,10 +38,15 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
   const files = useMemo(() => backend.files(ws.id), [ws.id]);
   const [status, setStatus] = useState<Status>({ pane: 1, path: null, dirty: false, mode: "normal", line: 1, col: 1, lines: 1 });
   const lastSplit = useRef(1); // the split pane to go back to from the panel
-  const ed = useMemo(() => new Editors(files, ws.root, ws.id, (s) => {
-    if (s.pane !== PANEL) lastSplit.current = s.pane;
-    setStatus(s);
-  }), [files, ws.root, ws.id]);
+  const [session] = useState<Session | null>(() => loadSession(ws.root)); // how this folder looked last time
+  const ed = useMemo(() => {
+    const e = new Editors(files, ws.root, ws.id, (s) => {
+      if (s.pane !== PANEL) lastSplit.current = s.pane;
+      setStatus(s);
+    });
+    e.cursors = session?.cursors ?? {};
+    return e;
+  }, [files, ws.root, ws.id]);
   // null: no panel terminal; "hidden": it runs but isn't shown (Cmd+J toggles, like VS Code).
   const [panel, setPanel] = useState<"shown" | "hidden" | null>(null);
   const panelRef = useRef(panel);
@@ -74,7 +80,7 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
     if (hintsShown.current) set({ keys, next });
     else hintTimer.current = setTimeout(() => set({ keys, next }), 200);
   };
-  const [layout, setLayout] = useState<Layout>({ pane: 1 });
+  const [layout, setLayout] = useState<Layout>(session?.layout ?? { pane: 1 });
   const [msg, setMsg] = useState<{ text: string; error?: boolean } | null>(null);
   const [picker, setPicker] = useState<PickerSource | null>(null);
   const [bindings, setBindings] = useState<Binding[] | null>(null);
@@ -88,6 +94,48 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
   }, [ed]);
   const lay = useRef(layout);
   lay.current = layout;
+
+  const restoring = useRef(0); // panes still opening their session file: saving now would forget it
+  const saveNow = () => {
+    if (restoring.current) return;
+    const snap = ed.snapshot();
+    ed.cursors = mergeCursors(ed.cursors, snap.cursors);
+    saveSession(ws.root, { ...snap, layout: lay.current, cursors: ed.cursors });
+  };
+  // Split, file, tab or cursor changed: save at most every 500 ms. Not a debounce: steady status updates
+  // (a build writing files) would push it back forever. Leaving the folder saves at once.
+  const saveTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => {
+    saveTimer.current ??= setTimeout(() => {
+      saveTimer.current = undefined;
+      saveNow();
+    }, 500);
+  }, [layout, status]);
+  useEffect(() => () => {
+    clearTimeout(saveTimer.current);
+    saveTimer.current = undefined;
+    saveNow();
+  }, [ed]);
+
+  // A pane from the session gets its tabs and file back. A file that is gone by now is skipped.
+  const restore = async (id: number) => {
+    if (!session) return;
+    if (session.tabs[id]) ed.setTabList(id, session.tabs[id]);
+    const path = session.panes[id];
+    restoring.current++;
+    try {
+      if (path) {
+        await ed.open(path, id).catch(() => {});
+        const b = ed.buffers.get(path);
+        if (b && !b.mtime && !b.state.doc.length) await ed.moved(path, null);
+      }
+      // Every pane is mounted by now (they mount in one commit). Without files, start in the tree as usual.
+      if (Object.keys(session.panes).length) ed.focus(session.active);
+      else tree.current?.focus();
+    } finally {
+      restoring.current--;
+    }
+  };
 
   const commands = useMemo(() => new Commands(), []);
   const qf = useMemo(() => new Quickfix(), []);
@@ -120,6 +168,7 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
     const quit = async (force: boolean) => {
       const d = ed.buffers.dirty();
       if (d.length && !force) return fail(`No write since last change for "${d[0].path}" (add ! to override)`);
+      saveNow();
       await backend.closeWindow();
     };
 
@@ -609,7 +658,10 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
   useEffect(() => backend.onCloseRequest(() => {
     const d = ed.buffers.dirty();
     if (d.length) fail(`Unsaved changes in "${d[0].path}": :w to save, :qa! to close anyway`);
-    else void backend.closeWindow();
+    else {
+      saveNow();
+      void backend.closeWindow();
+    }
   }), [ed]);
 
   useEffect(() => backend.onLspStatus(ws.id, (s) => {
@@ -689,7 +741,8 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
                 previews.current.add(id);
                 if (from !== undefined) { ed.focus(from); ed.syncScroll(from); }
               }
-              if (id === 1) tree.current?.focus(); // no file open yet, so start in the tree
+              if (session) void restore(id);
+              else if (id === 1) tree.current?.focus(); // no file open yet, so start in the tree
               return () => { previews.current.delete(id); ed.detach(id, true); };
             }}
           />
