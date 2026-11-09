@@ -1,6 +1,6 @@
 import { Vim, type CodeMirror } from "@replit/codemirror-vim";
 import { foldAll, foldCode, toggleFold, unfoldAll, unfoldCode } from "@codemirror/language";
-import { findReferences, jumpToDefinition } from "@codemirror/lsp-client";
+import { jumpToDefinition } from "@codemirror/lsp-client";
 import { parseKeys, type Binding } from "../../core/keymap";
 
 // Runs a command by ID (core/commands). Vim's maps and ex commands are global, so the latest workbench's runner wins.
@@ -16,6 +16,10 @@ const EX: [name: string, prefix: string, command: string][] = [
   ["split", "sp", "pane.splitDown"],
   ["vsplit", "vs", "pane.splitRight"],
   ["terminal", "ter", "term.split"],
+  ["cnext", "cn", "qf.next"],
+  ["cprevious", "cp", "qf.prev"],
+  ["copen", "cope", "qf.open"],
+  ["Replace", "Rep", "qf.replace"],
 ];
 
 let installed = false;
@@ -51,12 +55,11 @@ export function installVim(r: Run, normal: Binding[], p: Prime) {
     Vim.mapCommand(keys, "action", keys, {}, { context: "normal" });
   }
 
-  // LSP; both are no-ops in files without a server.
-  const lsp = { gd: jumpToDefinition, gr: findReferences };
-  for (const [keys, cmd] of Object.entries(lsp)) {
-    Vim.defineAction(keys, (cm: CodeMirror) => void cmd(cm.cm6!));
-    Vim.mapCommand(keys, "action", keys, {}, { context: "normal" });
-  }
+  // LSP: gd is a no-op in files without a server; gr fills the quickfix list.
+  Vim.defineAction("gd", (cm: CodeMirror) => void jumpToDefinition(cm.cm6!));
+  Vim.mapCommand("gd", "action", "gd", {}, { context: "normal" });
+  Vim.defineAction("gr", () => run("lsp.references"));
+  Vim.mapCommand("gr", "action", "gr", {}, { context: "normal" });
 
   // codemirror-vim has no folds, CM6 does.
   const folds = { za: toggleFold, zc: foldCode, zo: unfoldCode, zM: foldAll, zR: unfoldAll };

@@ -10,8 +10,12 @@ export interface Item {
 
 export interface PickerSource {
   title: string;
-  query(q: string): Promise<Item[]>;
-  pick(item: Item): void;
+  // A streaming source (project search) resolves at once and calls update with the growing list.
+  query(q: string, update: (items: Item[]) => void): Promise<Item[]>;
+  pick(item: Item, index: number): void;
+  all?(): void; // <C-q>: everything to the quickfix list
+  close?(): void; // the picker went away: stop work
+  start?: number; // cursor at open, e.g. the current quickfix entry
 }
 
 // Fuzzy picker overlay (files, recent, buffers, commands). Every keystroke queries; stale answers are dropped by sequence number.
@@ -24,19 +28,20 @@ export function Picker({ source, onClose }: { source: PickerSource; onClose(): v
 
   useEffect(() => {
     const n = ++seq.current;
-    source.query(q).then((r) => {
+    source.query(q, (r) => n === seq.current && setItems(r)).then((r) => {
       if (n !== seq.current) return;
       setItems(r);
-      setCur(0);
+      setCur(q ? 0 : Math.min(source.start ?? 0, Math.max(r.length - 1, 0)));
     }, () => n === seq.current && setItems([]));
   }, [q, source]);
+  useEffect(() => () => source.close?.(), [source]);
 
   useEffect(() => list.current?.children[cur]?.scrollIntoView({ block: "nearest" }), [cur]);
 
   const pick = (i: number) => {
     const it = items[i];
     onClose();
-    if (it) source.pick(it);
+    if (it) source.pick(it, i);
   };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -45,6 +50,7 @@ export function Picker({ source, onClose }: { source: PickerSource; onClose(): v
     if (e.key === "ArrowDown" || ctrl && (e.key === "n" || e.key === "j")) move(1);
     else if (e.key === "ArrowUp" || ctrl && (e.key === "p" || e.key === "k")) move(-1);
     else if (e.key === "Enter") pick(cur);
+    else if (ctrl && e.key === "q" && source.all) { onClose(); source.all(); }
     else if (e.key === "Escape" || ctrl && e.key === "c") onClose();
     else return;
     e.preventDefault();
@@ -72,7 +78,7 @@ export function Picker({ source, onClose }: { source: PickerSource; onClose(): v
         <ul className="picker-list" id="picker-list" role="listbox" ref={list}>
           {items.map((it, i) => (
             <li
-              key={it.label}
+              key={`${i}:${it.label}`}
               id={`picker-${i}`}
               role="option"
               aria-selected={i === cur}

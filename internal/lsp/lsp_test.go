@@ -8,8 +8,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"time"
 	"testing/iotest"
+	"time"
 )
 
 func TestFramingRoundTrip(t *testing.T) {

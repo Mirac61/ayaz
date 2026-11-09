@@ -10,6 +10,7 @@ function fakeFiles(init: Record<string, string>) {
   const files: Files = {
     list: async () => [],
     find: async () => [],
+    grep: () => ({ done: Promise.resolve(null), cancel() {} }),
     readText: async (path) => {
       const f = disk.get(path);
       if (!f) throw new Error(`open /x/${path}: no such file or directory`);

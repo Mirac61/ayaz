@@ -1,6 +1,6 @@
 # ADR-0016: Project search in Go, written ourselves
 
-Status: proposed · 2026-11-08
+Status: accepted · 2026-11-09 (K15 met, see perf-log)
 
 ## Context
 - Project-wide search and replace is part of a code editor.

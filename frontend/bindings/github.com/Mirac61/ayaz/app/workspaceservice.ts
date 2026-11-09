@@ -42,6 +42,15 @@ export function HandleLSP(c: application$0.StreamConn | null): $CancellablePromi
 }
 
 /**
+ * HandleSearch runs one search per "search" stream connection over the same files as Find files (ADR-0016).
+ * The first frame is the query; hits follow in batches every 30 ms; the stream closes when the search is done.
+ * The frontend closes it to cancel (a new keystroke), which cancels the connection's context.
+ */
+export function HandleSearch(c: application$0.StreamConn | null): $CancellablePromise<void> {
+    return $Call.ByID(1904336751, c);
+}
+
+/**
  * HandleTerminal serves one shell per "pty" stream connection.
  */
 export function HandleTerminal(c: application$0.StreamConn | null): $CancellablePromise<void> {

@@ -4,6 +4,7 @@ import { ConfigService, PingService, WorkspaceService } from "../../bindings/git
 import type { Info, Match } from "../../bindings/github.com/Mirac61/ayaz/app";
 import type { Entry, TextFile } from "../../bindings/github.com/Mirac61/ayaz/internal/workspace";
 import type { Match as FileMatch } from "../../bindings/github.com/Mirac61/ayaz/internal/index";
+import type { Loc } from "./quickfix";
 
 export type { Entry, FileMatch, Info, Match, TextFile };
 
@@ -33,6 +34,9 @@ export interface Backend {
   openURL(url: string): Promise<void>; // in the system browser
 }
 
+// A running project search; cancel() stops it (closes the stream). done resolves with an error text, or null.
+export interface Grep { done: Promise<string | null>; cancel(): void }
+
 // File access bound to one workspace; paths are workspace-relative with "/".
 export interface Files {
   list(dir: string): Promise<Entry[]>;
@@ -41,6 +45,8 @@ export interface Files {
   writeText(path: string, content: string, expectedMtime: number): Promise<number>;
   // Fuzzy file search, best first; positions index into the path's code points. ignored: include Git-ignored files.
   find(query: string, limit: number, ignored: boolean): Promise<FileMatch[]>;
+  // Project search over the same files as find (ADR-0016); hits arrive in batches.
+  grep(query: string, opts: { regex: boolean; ignored: boolean }, onHits: (hits: Loc[]) => void): Grep;
 }
 
 export const backend: Backend = {
@@ -70,5 +76,21 @@ export const backend: Backend = {
     readText: (path) => WorkspaceService.ReadText(ws, path),
     writeText: (path, content, mtime) => WorkspaceService.WriteText(ws, path, content, mtime),
     find: async (q, limit, ignored) => (await WorkspaceService.Find(ws, q, limit, ignored)) ?? [],
+    grep(query, opts, onHits) {
+      const sock = Stream("search") as WebSocket;
+      sock.binaryType = "arraybuffer";
+      const dec = new TextDecoder();
+      let error: string | null = null;
+      const done = new Promise<string | null>((resolve) => {
+        sock.onopen = () => sock.send(new TextEncoder().encode(JSON.stringify({ ws, query, ...opts })));
+        sock.onmessage = (ev) => {
+          const f = JSON.parse(typeof ev.data === "string" ? ev.data : dec.decode(ev.data as ArrayBuffer));
+          if (f.error) error = f.error;
+          if (f.hits) onHits(f.hits);
+        };
+        sock.onclose = () => resolve(error);
+      });
+      return { done, cancel: () => sock.close() };
+    },
   }),
 };

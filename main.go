@@ -36,6 +36,7 @@ func main() {
 	app.OnReady(a)
 	a.HandleStream("pty", ws.HandleTerminal)
 	a.HandleStream("lsp", ws.HandleLSP)
+	a.HandleStream("search", ws.HandleSearch)
 	a.HandleStream("echo", app.HandleEcho)
 
 	win := a.Window.NewWithOptions(application.WebviewWindowOptions{

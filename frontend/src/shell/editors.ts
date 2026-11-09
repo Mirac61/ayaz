@@ -127,6 +127,28 @@ export class Editors {
     return id;
   }
 
+  // Opens path with the cursor at line (1-based) and col (UTF-16 units), centered: quickfix jumps.
+  async openAt(path: string, line: number, col: number) {
+    const v = this.panes.get(await this.open(path))?.view;
+    if (!v) return;
+    const l = v.state.doc.line(Math.min(Math.max(line, 1), v.state.doc.lines));
+    const pos = Math.min(l.from + col, l.to);
+    v.dispatch({ selection: { anchor: pos }, effects: EditorView.scrollIntoView(pos, { y: "center" }) });
+  }
+
+  // Changes a buffer like typing would (other panes follow, undo works), loading it first if needed.
+  async edit(path: string, changes: { from: number; to: number; insert: string }[]) {
+    const b = await this.buffers.open(path);
+    const pane = [...this.panes.values()].find((p) => p.buf === b);
+    if (pane?.view) pane.view.dispatch({ changes, userEvent: "input.replace" });
+    else b.state = b.state.update({ changes, userEvent: "input.replace" }).state;
+    this.emit();
+    return b;
+  }
+
+  // The view of the active pane, if it is an editor.
+  activeView() { return this.panes.get(this.active)?.view ?? null; }
+
   // Shows path in an editor pane and returns its view (for LSP jumps across files).
   async display(path: string) {
     return this.panes.get(await this.open(path))?.view ?? null;

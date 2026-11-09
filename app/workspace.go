@@ -131,9 +131,18 @@ func (s *WorkspaceService) WriteText(ws, path, content string, expectedMtime int
 // Find fuzzy-matches workspace paths. The index is built on the first call (K10) and kept;
 // ignored=true searches files Git ignores too (Q26). File changes drop it, see changed.
 func (s *WorkspaceService) Find(ws, query string, limit int, ignored bool) ([]index.Match, error) {
-	w, err := s.reg.Get(ws)
+	ix, _, err := s.index(ws, ignored)
 	if err != nil {
 		return nil, err
+	}
+	return ix.Find(query, limit), nil
+}
+
+// index returns the workspace's file index, built on first use, and its root.
+func (s *WorkspaceService) index(ws string, ignored bool) (*index.Index, string, error) {
+	w, err := s.reg.Get(ws)
+	if err != nil {
+		return nil, "", err
 	}
 	s.mu.Lock()
 	l := s.indexes[indexKey{ws, ignored}]
@@ -143,10 +152,7 @@ func (s *WorkspaceService) Find(ws, query string, limit int, ignored bool) ([]in
 	}
 	s.mu.Unlock()
 	l.once.Do(func() { l.ix, l.err = index.Build(w.Root, ignored) })
-	if l.err != nil {
-		return nil, l.err
-	}
-	return l.ix.Find(query, limit), nil
+	return l.ix, w.Root, l.err
 }
 
 // Rank fuzzy-matches a short list from the frontend (recent files, buffers, commands) with the same matcher.

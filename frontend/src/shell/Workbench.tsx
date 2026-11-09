@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { backend, type Info } from "../core/backend";
+import { backend, type Grep, type Info } from "../core/backend";
 import { Commands } from "../core/commands";
 import { defaultKeymap, keyName, mergeKeymap, parseKeys, parseUserKeymap, Sequencer, type Binding } from "../core/keymap";
 import { isDirty } from "../core/buffers";
+import { label, Quickfix, replaceEdits, type Loc } from "../core/quickfix";
+import { Text } from "@codemirror/state";
+import { references } from "../editor/lsp";
 import { installVim } from "../editor/vim/setup";
 import { browsable, resolveLink } from "../editor/mdlive";
 import type { TermOptions } from "../terminal/terminal";
@@ -23,6 +26,7 @@ const bang = (arg = "") => {
 };
 
 const LIMIT = 50;
+const SHOWN = 500; // project search hits listed in the picker; <C-q> takes all of them
 const STEP = 0.05; // <C-w>+/-/</>: share of the parent split (or of the window for the panel)
 const clampPanel = (h: number) => Math.min(0.9, Math.max(0.1, h));
 const PANEL = -1; // pane id of the bottom panel; split panes count up from 1
@@ -79,6 +83,7 @@ export function Workbench({ ws }: { ws: Info }) {
   lay.current = layout;
 
   const commands = useMemo(() => new Commands(), []);
+  const qf = useMemo(() => new Quickfix(), []);
   const fail = (text: string) => setMsg({ text, error: true });
   const run = (id: string, arg?: string) =>
     void Promise.resolve().then(() => commands.run(id, arg)).catch((e) => fail(errText(e)));
@@ -184,6 +189,91 @@ export function Workbench({ ws }: { ws: Info }) {
       pick: (it) => run("file.open", it.label),
     });
 
+    const locItem = (l: Loc): Item => ({ label: label(l), icon: fileIcon(l.path) });
+    const jump = async (l: Loc) => {
+      await ed.openAt(l.path, l.line, l.col);
+      if (qf.items.includes(l)) setMsg({ text: `(${qf.index + 1} of ${qf.items.length}) ${l.text.trim()}` });
+    };
+    const qfMove = (d: number) => {
+      if (!qf.items.length) return fail("No quickfix list");
+      const l = qf.move(d);
+      return l ? jump(l) : fail("No more items");
+    };
+    const qfPicker = (): PickerSource => ({
+      title: `Quickfix: ${qf.title}`,
+      query: async (q) => qf.items.filter((l) => !q || label(l).toLowerCase().includes(q.toLowerCase())).map(locItem),
+      pick: (it) => {
+        const i = qf.items.findIndex((l) => label(l) === it.label);
+        if (i >= 0) void jump(qf.select(i));
+      },
+      start: Math.max(qf.index, 0),
+    });
+    const setQf = (title: string, locs: Loc[]) => {
+      qf.set(title, locs);
+      if (!locs.length) return fail(`${title}: no matches`);
+      setMsg({ text: `${title}: ${locs.length} matches, :cn / :cp to move, :copen to list` });
+      void qfMove(1);
+    };
+
+    let grepRegex = false;
+    const grepPicker = (): PickerSource => {
+      let g: Grep | null = null, hits: Loc[] = [], q = "";
+      return {
+        title: `Search in files${grepRegex ? " (regex)" : ""} · <C-q> to quickfix`,
+        query(query, update) {
+          g?.cancel();
+          hits = [];
+          q = query;
+          if (!query.trim()) return Promise.resolve([]);
+          const cur = (g = files.grep(query, { regex: grepRegex, ignored: showIgnored }, (h) => {
+            hits.push(...h);
+            update(hits.slice(0, SHOWN).map(locItem));
+          }));
+          cur.done.then((err) => err && cur === g && fail(err));
+          return Promise.resolve([]);
+        },
+        pick: (_, i) => void (hits[i] && jump(hits[i])),
+        all: () => setQf(`Search "${q}"`, hits),
+        close: () => g?.cancel(),
+      };
+    };
+
+    // Fills in each location's line text from the open buffer or the file.
+    const withText = async (locs: Loc[]) => {
+      const docs = new Map<string, Text | null>();
+      for (const l of locs) {
+        if (!docs.has(l.path)) {
+          const b = ed.buffers.get(l.path);
+          docs.set(l.path, b ? b.state.doc : await files.readText(l.path).then((f) => Text.of(f.content.split("\n")), () => null));
+        }
+        const d = docs.get(l.path);
+        if (d && l.line <= d.lines) l.text = d.line(l.line).text;
+      }
+      return locs;
+    };
+
+    // Replaces every quickfix match with `to`; buffers that were clean are saved, dirty ones stay open unsaved.
+    const replaceAll = async (to: string) => {
+      const byPath = new Map<string, Loc[]>();
+      for (const l of qf.items) byPath.set(l.path, [...(byPath.get(l.path) ?? []), l]);
+      let n = 0, skipped = 0;
+      const unsaved: string[] = [];
+      for (const [path, locs] of byPath) {
+        const before = await ed.buffers.open(path);
+        if (before.state.readOnly) { skipped += locs.length; continue; }
+        const wasDirty = isDirty(before);
+        const r = replaceEdits(locs, before.state.doc, to);
+        skipped += r.skipped;
+        if (!r.changes.length) continue;
+        const b = await ed.edit(path, r.changes);
+        n += r.changes.length;
+        if (wasDirty) unsaved.push(path);
+        else await ed.buffers.save(b);
+      }
+      ed.emit();
+      setMsg({ text: `Replaced ${n} in ${byPath.size} files` + (skipped ? `, ${skipped} skipped (changed since the search)` : "") + (unsaved.length ? `; not saved (had changes): ${unsaved.join(", ")}` : "") });
+    };
+
     const keysFor = (id: string) => bindingsRef.current?.find((b) => b.command === id)?.keys;
 
     const off = commands.register(
@@ -260,6 +350,43 @@ export function Workbench({ ws }: { ws: Info }) {
         id: "find.toggleIgnored",
         title: "Toggle ignored files in Find files",
         run: () => setMsg({ text: (showIgnored = !showIgnored) ? "Find files: showing ignored files" : "Find files: hiding ignored files" }),
+      },
+      { id: "find.grep", title: "Search in files", run: () => setPicker(grepPicker()) },
+      {
+        id: "find.toggleRegex",
+        title: "Toggle regex in Search in files",
+        run: () => setMsg({ text: (grepRegex = !grepRegex) ? "Search in files: regex (Go RE2)" : "Search in files: literal" }),
+      },
+      { id: "qf.next", title: "Next quickfix entry (:cn)", run: () => qfMove(1) },
+      { id: "qf.prev", title: "Previous quickfix entry (:cp)", run: () => qfMove(-1) },
+      { id: "qf.open", title: "Quickfix list (:copen)", run: () => (qf.items.length ? setPicker(qfPicker()) : fail("No quickfix list")) },
+      {
+        id: "qf.replace",
+        title: "Replace quickfix matches (:Replace text)",
+        run(a) {
+          if (!qf.items.length) return fail("No quickfix list; search first (<Space>fw, then <C-q>)");
+          const to = a ?? "";
+          const paths = new Set(qf.items.map((l) => l.path)).size;
+          setPicker({
+            title: `Replace ${qf.items.length} matches in ${paths} files with "${to}" · Enter applies all, Esc cancels`,
+            query: async () => qf.items.map((l) => ({
+              label: `${l.path}:${l.line}: ${(l.text.slice(0, l.col) + to + l.text.slice(l.col + l.len)).trim()}`,
+              icon: fileIcon(l.path),
+            })),
+            pick: () => run("qf.replaceNow", to),
+          });
+        },
+      },
+      { id: "qf.replaceNow", title: "Replace quickfix matches without preview", run: (a) => replaceAll(a ?? "") },
+      {
+        id: "lsp.references",
+        title: "References (gr)",
+        async run() {
+          const v = ed.activeView();
+          const locs = v && (await references(v, ws.root));
+          if (!locs) return fail("No language server for this file");
+          setQf("References", await withText(locs));
+        },
       },
       { id: "find.recent", title: "Recent files", run: () => setPicker(filePicker("Recent files", () => ed.recent())) },
       {

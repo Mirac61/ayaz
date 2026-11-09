@@ -75,3 +75,16 @@ Not the real K3/K5 numbers: no WKWebView, no GPU, headless timer. The real check
 
 Notes:
 - The JS adapter (`streamTransport`) adds one `TextEncoder`/`TextDecoder` pass per message, not measured separately. Hyprland still open.
+
+## 2026-11-09 – K15 project search (M8)
+
+`BenchmarkK15` in `internal/search`: 50,000 generated `.go` files (2.7 KB each, 500 folders), one hit, warm page cache, macOS (12 cores). Go test, not the app; streaming adds one 30 ms batch window.
+
+| | Value | Budget |
+|---|---|---|
+| K15 literal, case-sensitive: first hit / done | 71 ms / 514 ms | ≤ 100 ms / ≤ 2 s |
+| K15 smart case (lower-case query, no prefilter): first hit / done | 308 ms / 542 ms | — |
+
+Notes:
+- The one hit sits in a random place, so "first hit" is when that file was reached. With many hits the first batch leaves after ≤ 30 ms.
+- Cold cache and Hyprland not measured. Not compared with `rg` yet.

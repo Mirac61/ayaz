@@ -49,6 +49,9 @@ func New(paths []string) *Index {
 
 func (ix *Index) Len() int { return len(ix.paths) }
 
+// Paths returns the files, sorted; callers must not change the slice.
+func (ix *Index) Paths() []string { return ix.paths }
+
 // gitFiles returns nil if root is not inside a Git work tree or git is missing.
 // Tracked files deleted from disk still show up until the next commit; opening one gives an empty buffer.
 func gitFiles(root string) []string {

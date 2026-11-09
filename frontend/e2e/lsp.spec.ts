@@ -27,3 +27,17 @@ test("gd into the Go stdlib opens a read-only buffer", async ({ page }) => {
   await page.waitForTimeout(200);
   await expect(page.locator(".statusline")).not.toContainText("[+]");
 });
+
+// gr fills the quickfix list from gopls.
+test("gr lists references in quickfix", async ({ page }) => {
+  test.skip(!hasGopls, "gopls not in PATH");
+  await page.goto("/");
+  await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: "hello.go" }).click();
+  await expect(page.locator(".cm-content")).toContainText("func hello");
+  await page.locator(".cm-content").click();
+  await page.keyboard.type("gg4jw"); // line 5: func hello
+  await expect(async () => {
+    await page.keyboard.type("gr");
+    await expect(page.locator(".statusline")).toContainText("(1 of 1) func hello() {", { timeout: 2000 });
+  }).toPass({ timeout: 30_000 }); // gopls may still be loading the package
+});

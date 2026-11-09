@@ -9,6 +9,7 @@ import {
 } from "@codemirror/lsp-client";
 import { backend } from "../core/backend";
 import { extOf } from "../lang/registry";
+import type { Loc } from "../core/quickfix";
 
 // Extension → LSP language ID. Servers are chosen in Go (app/lsp.go); only Go until M9.
 const LANG: Record<string, string> = { go: "go" };
@@ -113,6 +114,22 @@ export class Files extends Workspace {
     const path = uriPath(this.root, uri);
     return path === null ? null : (await hosts.get(this.ws)?.(path)) ?? null;
   }
+}
+
+// References to the symbol at the cursor, as quickfix locations without text (the caller fills it in). null: no server.
+export async function references(view: EditorView, root: string): Promise<Loc[] | null> {
+  const plugin = LSPPlugin.get(view);
+  if (!plugin?.client.connected) return null;
+  plugin.client.sync();
+  const res = await plugin.client.request<any, { uri: string; range: { start: { line: number; character: number }; end: { line: number; character: number } } }[] | null>(
+    "textDocument/references",
+    { textDocument: { uri: plugin.uri }, position: plugin.toPosition(view.state.selection.main.head), context: { includeDeclaration: true } },
+  );
+  return (res ?? []).flatMap((r) => {
+    const path = uriPath(root, r.uri);
+    const { start, end } = r.range;
+    return path === null ? [] : [{ path, line: start.line + 1, col: start.character, len: end.line === start.line ? end.character - start.character : 0, text: "" }];
+  });
 }
 
 // Formats the document through the server and waits for it; gives up after 2 s so a hung server can't block saving.
