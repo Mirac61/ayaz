@@ -39,7 +39,7 @@
 .statusline .visual { background: var(--oni-violet); }
 .statusline .replace { background: var(--carp-yellow); }
 .statusline .file { background: var(--sumi-ink-3); }
-.statusline .dirty { color: var(--carp-yellow); }
+.statusline .dirty, .tabbar .dirty { color: var(--carp-yellow); }
 .statusline .msg { flex: 1; min-width: 0; text-align: right; color: var(--fg-dim); overflow: hidden; text-overflow: ellipsis; }
 .statusline .msg.error { color: var(--samurai-red); }
 .statusline .progress { color: var(--fg-dim); padding: 0; }

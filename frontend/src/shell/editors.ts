@@ -40,6 +40,7 @@ export class Editors {
   private recentKey: string;
   private lastEditor = 0; // where files open while a terminal pane is active
   private tabs = new Map<number, string[]>(); // per pane: files shown in it, in the order first shown
+  private dirtyTabs = ""; // the dirty buffers' paths when the tabs were last drawn
   tabsOn = false; // set through setTabs
   active = 0;
 
@@ -139,6 +140,8 @@ export class Editors {
       t.setAttribute("aria-selected", String(path === cur));
       t.title = path;
       t.textContent = path.slice(path.lastIndexOf("/") + 1);
+      const b = this.buffers.get(path);
+      if (b && isDirty(b)) t.append(Object.assign(document.createElement("span"), { className: "dirty", textContent: " [+]" }));
       t.tabIndex = -1;
       t.addEventListener("mousedown", (e) => { e.preventDefault(); void this.open(path, id); });
       return t;
@@ -324,6 +327,12 @@ export class Editors {
   }
 
   emit() {
+    // Every change of a buffer's dirty state ends in emit(), so the [+] in the tabs follows from here.
+    const dirty = this.tabsOn ? this.buffers.dirty().map((b) => b.path).join("\n") : "";
+    if (dirty !== this.dirtyTabs) {
+      this.dirtyTabs = dirty;
+      for (const id of this.panes.keys()) this.renderTabs(id);
+    }
     const p = this.panes.get(this.active);
     if (!p) return;
     if (p.viewer) {
