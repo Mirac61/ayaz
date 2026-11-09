@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { fileUri, streamTransport, uriPath } from "./lsp";
+import { fileUri, serverFor, streamTransport, uriPath } from "./lsp";
 
 const dec = new TextDecoder();
 
@@ -56,4 +56,18 @@ test("uriPath: relative inside the workspace, absolute outside", () => {
   expect(uriPath("/r", "file:///r2/x.go")).toBe("/r2/x.go");
   expect(uriPath("/r", "untitled:x")).toBeNull();
   expect(fileUri("/usr/x y.go")).toBe("file:///usr/x%20y.go");
+});
+
+test("serverFor: one server per language group", () => {
+  expect(serverFor("a/main.go")).toEqual(["go", "gopls"]);
+  expect(serverFor("x.c")).toEqual(["c", "clangd"]);
+  expect(serverFor("x.HPP")).toEqual(["cpp", "clangd"]);
+  expect(serverFor("x.tsx")).toEqual(["typescriptreact", "ts"]);
+  expect(serverFor("x.mjs")).toEqual(["javascript", "ts"]);
+  expect(serverFor("index.html")?.[1]).toBe("html");
+  expect(serverFor("a.css")?.[1]).toBe("css");
+  expect(serverFor("package.json")?.[1]).toBe("json");
+  expect(serverFor("A.java")).toEqual(["java", "jdtls"]);
+  expect(serverFor("README.md")).toBeUndefined();
+  expect(serverFor("file:///usr/include/stdio.h")?.[1]).toBe("clangd");
 });

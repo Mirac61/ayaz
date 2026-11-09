@@ -11,8 +11,20 @@ import { backend } from "../core/backend";
 import { extOf } from "../lang/registry";
 import type { Loc } from "../core/quickfix";
 
-// Extension → LSP language ID. Servers are chosen in Go (app/lsp.go); only Go until M9.
-const LANG: Record<string, string> = { go: "go" };
+// Extension → [LSP language ID, server name]. Go maps the server name to a command (app/lsp.go);
+// one server per (workspace, server), so .c and .cpp share clangd, .ts and .js share one TypeScript server.
+const LANG: Record<string, [string, string]> = {
+  go: ["go", "gopls"],
+  c: ["c", "clangd"], h: ["c", "clangd"], cc: ["cpp", "clangd"], cpp: ["cpp", "clangd"], hpp: ["cpp", "clangd"],
+  js: ["javascript", "ts"], mjs: ["javascript", "ts"], jsx: ["javascriptreact", "ts"],
+  ts: ["typescript", "ts"], tsx: ["typescriptreact", "ts"],
+  html: ["html", "html"], css: ["css", "css"], json: ["json", "json"],
+  java: ["java", "jdtls"],
+};
+export const serverFor = (path: string): [lang: string, server: string] | undefined => LANG[extOf(path)];
+
+// Q25: format on save per language, on for Go only by default.
+const FORMAT_ON_SAVE = new Set(["go"]);
 
 const enc = new TextEncoder();
 const dec = new TextDecoder();
@@ -135,7 +147,7 @@ export async function references(view: EditorView, root: string): Promise<Loc[] 
 // Formats the document through the server and waits for it; gives up after 2 s so a hung server can't block saving.
 export async function formatBeforeSave(view: EditorView): Promise<void> {
   const plugin = LSPPlugin.get(view);
-  if (!plugin?.client.connected || view.state.readOnly) return;
+  if (!plugin?.client.connected || view.state.readOnly || !FORMAT_ON_SAVE.has(serverFor(plugin.uri)?.[0] ?? "")) return;
   const { client, uri } = plugin;
   client.sync();
   const job = client.withMapping(async (mapping) => {
@@ -164,9 +176,9 @@ const missing = new Set<string>(); // "ws:lang" whose server isn't installed: do
 const MAX_RETRIES = 5; // a missing server ends the stream at once; stop asking after this many tries in a row
 const clients = new Map<string, LSPClient>();
 
-// One client per (workspace, language), shared by every file of that language.
-function clientFor(ws: string, root: string, lang: string): LSPClient {
-  const key = `${ws}:${lang}`;
+// One client per (workspace, server), shared by every file it serves.
+function clientFor(ws: string, root: string, server: string): LSPClient {
+  const key = `${ws}:${server}`;
   let client = clients.get(key);
   if (client) return client;
   client = new LSPClient({
@@ -174,12 +186,12 @@ function clientFor(ws: string, root: string, lang: string): LSPClient {
     extensions: languageServerExtensions(),
     workspace: (c) => new Files(c, ws, root),
   });
-  backend.onLspStatus(ws, (s) => s.lang === lang && s.state === "missing" && missing.add(key));
+  backend.onLspStatus(ws, (s) => s.lang === server && s.state === "missing" && missing.add(key));
   clients.set(key, client);
   let failures = 0;
   const c = client;
   const connect = () => {
-    const transport = streamTransport(backend.stream("lsp"), { ws, lang }, () => {
+    const transport = streamTransport(backend.stream("lsp"), { ws, lang: server }, () => {
       c.disconnect();
       if (missing.has(key) || ++failures > MAX_RETRIES) return;
       setTimeout(connect, Math.min(30_000, 500 * 2 ** failures)); // backoff: 1 s, 2 s, 4 s ...
@@ -193,6 +205,6 @@ function clientFor(ws: string, root: string, lang: string): LSPClient {
 
 // The extension for one file, or none when its language has no server.
 export function lspExtension(ws: string, root: string, path: string): Extension {
-  const lang = LANG[extOf(path)];
-  return lang ? clientFor(ws, root, lang).plugin(path.startsWith("/") ? fileUri(path) : fileUri(root, path), lang) : [];
+  const s = serverFor(path);
+  return s ? clientFor(ws, root, s[1]).plugin(path.startsWith("/") ? fileUri(path) : fileUri(root, path), s[0]) : [];
 }

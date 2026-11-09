@@ -137,6 +137,8 @@ One sub-slice each, in this order:
 - [Glue] Web: `typescript-language-server`, `vscode-langservers-extracted` (HTML/CSS/JSON).
 - [Glue] Java with `jdtls` (measure JVM start time and RAM).
 
+  - Done 2026-11-09: one server table (`serverFor` in `editor/lsp.ts` → command in `app/lsp.go`), one server per (workspace, server), so `.c`/`.cpp` share clangd and `.ts`/`.js` share one TypeScript server. clangd hint when no `compile_commands.json`/`compile_flags.txt` is in the root or `build/`, read-only jumps into system headers, E2E with real clangd. jdtls gets a data folder per project under the user cache. Format on save stays Go only (Q25). **Still open (servers not installed here):** manual tests with `typescript-language-server`, `vscode-langservers-extracted` and `jdtls`, JVM start time and RAM; jumps into TypeScript's `lib.d.ts` and jdtls' `jdt://` class files aren't shown.
+
 Tests: one fake-transport test per language for the mapping, manual tests with real servers.
 
 Done when: all four language groups have diagnostics, completion and navigation.

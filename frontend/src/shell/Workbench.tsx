@@ -443,7 +443,10 @@ export function Workbench({ ws }: { ws: Info }) {
     if (note) fail(note);
   }), [ed, ws.id]);
 
-  useEffect(() => backend.onLspStatus(ws.id, (s) => s.state === "missing" && fail(`${s.command} not found in PATH, no ${s.lang} language features`)), [ws.id]);
+  useEffect(() => backend.onLspStatus(ws.id, (s) => {
+    if (s.state === "missing") fail(`${s.command} not found in PATH, no language features from it`);
+    if (s.state === "nocdb") setMsg({ text: "clangd: no compile_commands.json, flags are guessed (cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON, or bear -- make)" });
+  }), [ws.id]);
 
   // Leaving the maximized panel (Ctrl-k, a picked file) brings the editors back.
   useEffect(() => { if (status.pane !== PANEL) setMax(false); }, [status.pane]);
