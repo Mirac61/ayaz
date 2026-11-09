@@ -30,8 +30,15 @@ export function mountPdf(el: HTMLElement, ctx: ViewContext): ViewHandle {
 
   let viewer: import("pdfjs-dist/web/pdf_viewer.mjs").PDFViewer | null = null;
   let bus: import("pdfjs-dist/web/pdf_viewer.mjs").EventBus | null = null;
-  let task: import("pdfjs-dist").PDFDocumentLoadingTask | null = null;
+  let task: import("pdfjs-dist").PDFDocumentLoadingTask | null = null; // the newest load
+  let shown: import("pdfjs-dist").PDFDocumentLoadingTask | null = null; // the document on screen
+  let open: ((url: string) => Promise<void>) | undefined; // set once pdf.js has loaded
+  let keep: { page: number; scale: string } | null = null; // page and zoom to restore after a reload
   let disposed = false, error = "", matches = "", query = "", findStart = 0, lastG = 0;
+  const fail = (e: unknown) => {
+    error = `can't show this PDF: ${e instanceof Error ? e.message : e}`;
+    ctx.onStatus();
+  };
 
   const search = (again: boolean, previous = false) => {
     if (!query || !bus) return;
@@ -49,7 +56,10 @@ export function mountPdf(el: HTMLElement, ctx: ViewContext): ViewHandle {
     // at full Retina resolution each page canvas took ~30 MB and K8 went to +477 MB.
     viewer = new web.PDFViewer({ container: box as HTMLDivElement, viewer: pages, eventBus: bus, linkService: links, findController: finder, maxCanvasPixels: 5242880 });
     links.setViewer(viewer);
-    bus.on("pagesinit", () => { viewer!.currentScaleValue = "page-width"; });
+    bus.on("pagesinit", () => {
+      viewer!.currentScaleValue = keep?.scale ?? "page-width";
+      if (keep) viewer!.currentPageNumber = Math.min(keep.page, viewer!.pagesCount);
+    });
     bus.on("pagerendered", (e: { pageNumber: number }) => {
       if (e.pageNumber === 1 && !performance.getEntriesByName("pdf:first-page").length) performance.measure("pdf:first-page", { start: t0 });
     });
@@ -66,16 +76,19 @@ export function mountPdf(el: HTMLElement, ctx: ViewContext): ViewHandle {
       ctx.onStatus();
     });
     for (const ev of ["pagechanging", "scalechanging"]) bus.on(ev, () => ctx.onStatus());
-    // No scripting manager, so JavaScript inside a PDF never runs.
-    task = pdfjs.getDocument({ url: ctx.url, enableXfa: false });
-    const doc = await task.promise;
-    if (disposed) return void task.destroy();
-    viewer.setDocument(doc);
-    links.setDocument(doc);
-  }).catch((e) => {
-    error = `can't show this PDF: ${e instanceof Error ? e.message : e}`;
-    ctx.onStatus();
-  });
+    // No scripting manager, so JavaScript inside a PDF never runs. A newer load wins over one still running.
+    open = async (url) => {
+      const t = (task = pdfjs.getDocument({ url, enableXfa: false }));
+      const doc = await t.promise;
+      if (disposed || t !== task) return void t.destroy();
+      viewer!.setDocument(doc);
+      links.setDocument(doc);
+      void shown?.destroy();
+      shown = t;
+      error = "";
+    };
+    await open(ctx.url);
+  }).catch(fail);
 
   // Links leave through the system browser, never inside the app.
   box.addEventListener("click", (e) => {
@@ -126,6 +139,7 @@ export function mountPdf(el: HTMLElement, ctx: ViewContext): ViewHandle {
     dispose: () => {
       disposed = true;
       void task?.destroy();
+      void shown?.destroy();
       viewer?.cleanup();
       box.remove();
       find.remove();
@@ -133,7 +147,12 @@ export function mountPdf(el: HTMLElement, ctx: ViewContext): ViewHandle {
     status: () => error || (viewer?.pagesCount
       ? `page ${viewer.currentPageNumber}/${viewer.pagesCount}  ${Math.round(viewer.currentScale * 100)}%${matches ? "  " + matches : ""}`
       : "loading"),
-    reload: () => {}, // shortcut: a PDF changed on disk shows the old version until reopened
+    // A file caught halfway through being written fails to load and keeps the old one; its next change loads it again.
+    reload: () => {
+      if (viewer?.pagesCount) keep = { page: viewer.currentPageNumber, scale: viewer.currentScaleValue };
+      matches = "";
+      open?.(`${ctx.url}?t=${Date.now()}`).catch(fail); // ?t=: past the HTTP cache, like the image viewer
+    },
   };
 }
 

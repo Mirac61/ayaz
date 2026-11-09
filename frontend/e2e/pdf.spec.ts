@@ -1,4 +1,7 @@
 import { expect, test } from "@playwright/test";
+import { readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { e2eWorkspace } from "../playwright.config";
 
 const measure = (page: import("@playwright/test").Page, name: string) =>
   page.evaluate((n) => performance.getEntriesByName(n).at(-1)?.duration ?? null, name);
@@ -31,4 +34,29 @@ test("pdf: open, page, search", async ({ page }) => {
   await page.keyboard.type("nothinglikethis");
   await page.keyboard.press("Enter");
   await expect(status).toContainText('no match for "nothinglikethis"', { timeout: 10_000 });
+});
+
+// A PDF changed on disk reloads in place, on the same page and zoom.
+test("pdf: reload on change keeps page and zoom", async ({ page }) => {
+  const file = join(e2eWorkspace, "reload.pdf");
+  const pdf = readFileSync(join(e2eWorkspace, "big.pdf"), "latin1");
+  writeFileSync(file, pdf, "latin1");
+  await page.goto("/");
+  await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: "reload.pdf" }).click();
+  const where = page.locator(".statusline .location");
+  await expect(where).toContainText("page 1/200");
+  await page.keyboard.press("/");
+  await page.keyboard.type("zanzibar");
+  await page.keyboard.press("Enter");
+  await expect(where).toContainText("page 150/200", { timeout: 10_000 });
+  const zoom = async () => (await where.textContent())?.match(/\d+%/)?.[0];
+  const before = await zoom();
+  await page.keyboard.press("+");
+  await expect.poll(zoom).not.toBe(before);
+  const zoomed = await zoom();
+
+  writeFileSync(file, pdf.replace("zanzibar", "zebrafly"), "latin1"); // same length, so the xref offsets stay valid
+  await expect(page.locator(".pdf-viewer")).toContainText("zebrafly");
+  await expect(where).toContainText("page 150/200");
+  expect(await zoom()).toBe(zoomed);
 });
