@@ -509,6 +509,9 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
       { id: "tab.next", title: "Next tab (gt)", run: () => ed.tabMove(1) },
       { id: "tab.prev", title: "Previous tab (gT)", run: () => ed.tabMove(-1) },
       { id: "tab.close", title: "Close tab", run: () => ed.tabClose() },
+      { id: "tab.reopen", title: "Reopen closed tab", run: async () => { if (!(await ed.reopen())) fail("No closed tab"); } },
+      { id: "nav.back", title: "Back to the previous file", run: async () => { if (!(await ed.nav(-1))) fail("At the start"); } },
+      { id: "nav.forward", title: "Forward to the next file", run: async () => { if (!(await ed.nav(1))) fail("At the end"); } },
       {
         id: "md.reading",
         title: "Toggle reading view",

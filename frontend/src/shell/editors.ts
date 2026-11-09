@@ -11,6 +11,7 @@ import { fsUrl, viewerFor, type ViewHandle } from "../core/viewers";
 import "../viewers/image";
 import "../viewers/pdf";
 import { backend } from "../core/backend";
+import { Jumps, type Spot } from "./jumps";
 import { browsable } from "../editor/mdlive";
 
 export interface Status {
@@ -43,6 +44,9 @@ export class Editors {
   private dirtyTabs = ""; // the dirty buffers' paths when the tabs were last drawn
   tabsOn = false; // set through setTabs
   cursors: Record<string, number> = {}; // from the session: where the cursor was when a file loads again
+  private jumps = new Map<number, Jumps>(); // per pane: back/forward across files
+  private navigating = false; // nav() is opening a file: not a new jump
+  private closed: string[] = []; // closed tabs, last on top (Cmd+Shift+T)
   active = 0;
 
   constructor(files: Files, root: string, private wsId: string, private onStatus: (s: Status) => void) {
@@ -87,7 +91,45 @@ export class Editors {
     p?.viewer?.dispose();
     p?.el.querySelector(":scope > .pane-body")?.remove();
     this.panes.delete(id);
-    if (closing) this.tabs.delete(id);
+    if (closing) {
+      this.pushClosed(...(this.tabs.get(id) ?? []));
+      this.tabs.delete(id);
+      this.jumps.delete(id);
+    }
+  }
+
+  private pushClosed(...paths: string[]) {
+    this.closed = [...this.closed.filter((p) => !paths.includes(p)), ...paths].slice(-50);
+  }
+
+  // Opens the tab closed last; false if there is none.
+  async reopen(): Promise<boolean> {
+    const path = this.closed.pop();
+    if (path) await this.open(path);
+    return !!path;
+  }
+
+  // Where pane id is: its file and cursor.
+  private spot(id: number): Spot | null {
+    const p = this.panes.get(id);
+    const path = p?.buf?.path ?? (p?.viewer ? p.title : undefined);
+    return path ? { path, pos: p?.view?.state.selection.main.head ?? 0 } : null;
+  }
+
+  // Back (-1) or forward (1) to the file shown before; false at the end.
+  async nav(d: -1 | 1): Promise<boolean> {
+    const id = this.active, here = this.spot(id);
+    const to = here && this.jumps.get(id)?.go(d, here);
+    if (!to) return false;
+    this.navigating = true;
+    try {
+      const v = this.panes.get(await this.open(to.path, id))?.view;
+      const pos = Math.min(to.pos, v?.state.doc.length ?? 0);
+      v?.dispatch({ selection: { anchor: pos }, effects: EditorView.scrollIntoView(pos, { y: "center" }) });
+    } finally {
+      this.navigating = false;
+    }
+    return true;
   }
 
   // The optional tab bar (02-architecture): per pane, the files it showed. Click or gt/gT switch, <Space>bd drops one.
@@ -111,6 +153,7 @@ export class Editors {
     if (!cur || !list) return;
     const i = list.indexOf(cur);
     list.splice(i, 1);
+    this.pushClosed(cur);
     const next = list[Math.min(i, list.length - 1)];
     if (next) await this.open(next, id);
     else { this.replace(id); this.renderTabs(id); }
@@ -211,6 +254,11 @@ export class Editors {
     const usable = (p?: Pane) => !!(p?.view || p?.viewer);
     if (this.isTerm(id)) id = usable(this.panes.get(this.lastEditor)) ? this.lastEditor : [...this.panes].find(([, p]) => usable(p))?.[0] ?? -1;
     if (!usable(this.panes.get(id))) throw new Error("No editor pane, split one off with :vsplit");
+    const from = this.spot(id);
+    if (from && from.path !== path && !this.navigating) {
+      if (!this.jumps.has(id)) this.jumps.set(id, new Jumps());
+      this.jumps.get(id)!.push(from);
+    }
     if (viewerFor(path)) {
       this.showViewer(id, path);
       return id;
@@ -342,8 +390,13 @@ export class Editors {
       const shown = p.buf?.path ?? (p.viewer ? p.title : undefined);
       if (shown === undefined || map(shown) === shown) continue;
       const next = map(shown);
-      if (next) await this.open(next, id);
-      else this.replace(id);
+      this.navigating = true; // the same file under a new name, no jump
+      try {
+        if (next) await this.open(next, id);
+        else this.replace(id);
+      } finally {
+        this.navigating = false;
+      }
       this.renderTabs(id);
     }
     for (const b of this.buffers.list()) if (map(b.path) !== b.path) this.buffers.drop(b.path);

@@ -52,6 +52,10 @@ export function defaultKeymap(mac = isMac): Binding[] {
     ...(mac
       ? [g("<D-p>", "find.files"), g("<D-S-p>", "find.commands"), g("<D-j>", "term.panel"), g("<D-S-n>", "window.new")]
       : [g("<C-S-p>", "find.files"), g("<C-S-j>", "term.panel"), g("<C-S-n>", "window.new")]),
+    ...(mac
+      ? [g("<D-S-t>", "tab.reopen"), g("<D-[>", "nav.back"), g("<D-]>", "nav.forward"), g("<C-->", "nav.back"),
+        g("<C-S-_>", "nav.forward")] // Ctrl -, Ctrl Shift - like VS Code on macOS: brackets need Alt on German layouts
+      : [g("<C-S-t>", "tab.reopen"), g("<A-Left>", "nav.back"), g("<A-Right>", "nav.forward")]),
     // "+" has its own key on German layouts, "=" on US ones.
     ...[["=", "view.zoomIn"], ["+", "view.zoomIn"], ["-", "view.zoomOut"], ["0", "view.zoomReset"]]
       .map(([k, cmd]) => g(`<${mac ? "D" : "C"}-${k}>`, cmd)),

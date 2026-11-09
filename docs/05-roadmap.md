@@ -198,6 +198,10 @@ Done when: all four language groups have diagnostics, completion and navigation.
 
 - Done 2026-11-10: `Cmd +`/`Cmd =`, `Cmd -`, `Cmd 0` (Linux `Ctrl`) zoom the whole page through Wails' `Window.SetZoom`, 50–200 % in 10 % steps, kept in `localStorage` for every window and set again at start. The status line shows the level. **Still open:** check in the app that xterm, the PDF canvases and dragging split borders stay right when zoomed; Hyprland.
 
+## M18 – Reopen closed tabs, back and forward across files
+
+- Done 2026-11-10: `Cmd+Shift+T` (Linux `Ctrl+Shift+T`) reopens the tab closed last, also the tabs of a closed pane (up to 50). Back/forward per pane across files with the cursor, like a browser: `Cmd+[`/`Cmd+]` and `Ctrl -`/`Ctrl Shift -` on macOS (brackets need Alt on German layouts), `Alt+←`/`Alt+→` on Linux. Every file switch counts (tree, picker, `gd`, quickfix, tabs), a rename does not. Vim's `<C-o>`/`<C-i>` inside a file stay. Node test for the stacks, E2E `nav.spec.ts`.
+
 ## Later
 
 | | What | Plugs into |
