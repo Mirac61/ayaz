@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { fileUri, streamTransport } from "./lsp";
+import { fileUri, streamTransport, uriPath } from "./lsp";
 
 const dec = new TextDecoder();
 
@@ -48,4 +48,12 @@ describe("streamTransport", () => {
 test("fileUri escapes path segments", () => {
   expect(fileUri("/home/a b", "src/ü.go")).toBe("file:///home/a%20b/src/%C3%BC.go");
   expect(fileUri("/r")).toBe("file:///r");
+});
+
+test("uriPath: relative inside the workspace, absolute outside", () => {
+  expect(uriPath("/r/my ws", "file:///r/my%20ws/a/b.go")).toBe("a/b.go");
+  expect(uriPath("/r/my ws", "file:///usr/local/go/src/fmt/print.go")).toBe("/usr/local/go/src/fmt/print.go");
+  expect(uriPath("/r", "file:///r2/x.go")).toBe("/r2/x.go");
+  expect(uriPath("/r", "untitled:x")).toBeNull();
+  expect(fileUri("/usr/x y.go")).toBe("file:///usr/x%20y.go");
 });

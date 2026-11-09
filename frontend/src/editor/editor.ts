@@ -59,5 +59,5 @@ export const editorExtensions = (): Extension[] => [
 // Builds the state for a file, with its language loaded first so highlighting is there on the first frame.
 export async function createState(path: string | null, doc: string, ws?: string, root?: string): Promise<EditorState> {
   const lang = path ? await loadLanguage(path) : null;
-  return EditorState.create({ doc, extensions: [editorExtensions(), lang ?? [], path && ws && root ? lspExtension(ws, root, path) : [], path && extOf(path) === "md" ? [mdlive, ws ? mdImages.of({ ws, file: path }) : []] : []] });
+  return EditorState.create({ doc, extensions: [editorExtensions(), lang ?? [], path && ws && root ? lspExtension(ws, root, path) : [], path?.startsWith("/") ? EditorState.readOnly.of(true) : [], path && extOf(path) === "md" ? [mdlive, ws ? mdImages.of({ ws, file: path }) : []] : []] });
 }

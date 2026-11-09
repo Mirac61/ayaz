@@ -12,3 +12,18 @@ test("gopls reports a diagnostic", async ({ page }) => {
   await expect(page.locator(".cm-content")).toContainText("undefinedThing");
   await expect(page.locator(".cm-lintRange-error")).toBeVisible({ timeout: 30_000 });
 });
+
+// gd into the standard library opens the file outside the workspace, read-only.
+test("gd into the Go stdlib opens a read-only buffer", async ({ page }) => {
+  test.skip(!hasGopls, "gopls not in PATH");
+  await page.goto("/");
+  await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: "hello.go" }).click();
+  await expect(page.locator(".cm-content")).toContainText("Println");
+  await page.locator(".cm-content").click();
+  await page.keyboard.type("gg5j"); // line 6: fmt.Println("hi")
+  await page.keyboard.type("^4lgd"); // ^ then onto Println
+  await expect(page.locator(".statusline")).toContainText("fmt/print.go", { timeout: 30_000 });
+  await page.keyboard.type("x");
+  await page.waitForTimeout(200);
+  await expect(page.locator(".statusline")).not.toContainText("[+]");
+});

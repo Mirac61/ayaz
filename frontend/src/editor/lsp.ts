@@ -46,6 +46,15 @@ export function streamTransport(sock: Stream, hello: object, onClose: () => void
   };
 }
 
+// A file URI as the shell's path: workspace-relative inside root, absolute outside (the Go stdlib and module
+// cache, which Go reads only below its library roots and the editor shows read-only). null if not a file URI.
+export function uriPath(root: string, uri: string): string | null {
+  if (!uri.startsWith("file:///")) return null;
+  const prefix = fileUri(root) + "/";
+  const rel = uri.startsWith(prefix);
+  return (rel ? "" : "/") + uri.slice(rel ? prefix.length : 8).split("/").map(decodeURIComponent).join("/");
+}
+
 // The shell registers how to show a file (workspace-relative path) so jumps can cross files; null if it can't.
 export type Host = (path: string) => Promise<EditorView | null>;
 const hosts = new Map<string, Host>();
@@ -100,19 +109,16 @@ export class Files extends Workspace {
     this.client.didClose(uri);
   }
 
-  // Only files inside the workspace; the Go standard library and module cache stay out (shortcut: add a read-only view if wanted).
   async displayFile(uri: string) {
-    const prefix = fileUri(this.root) + "/";
-    if (!uri.startsWith(prefix)) return null;
-    const path = uri.slice(prefix.length).split("/").map(decodeURIComponent).join("/");
-    return (await hosts.get(this.ws)?.(path)) ?? null;
+    const path = uriPath(this.root, uri);
+    return path === null ? null : (await hosts.get(this.ws)?.(path)) ?? null;
   }
 }
 
 // Formats the document through the server and waits for it; gives up after 2 s so a hung server can't block saving.
 export async function formatBeforeSave(view: EditorView): Promise<void> {
   const plugin = LSPPlugin.get(view);
-  if (!plugin?.client.connected) return;
+  if (!plugin?.client.connected || view.state.readOnly) return;
   const { client, uri } = plugin;
   client.sync();
   const job = client.withMapping(async (mapping) => {
@@ -171,5 +177,5 @@ function clientFor(ws: string, root: string, lang: string): LSPClient {
 // The extension for one file, or none when its language has no server.
 export function lspExtension(ws: string, root: string, path: string): Extension {
   const lang = LANG[extOf(path)];
-  return lang ? clientFor(ws, root, lang).plugin(fileUri(root, path), lang) : [];
+  return lang ? clientFor(ws, root, lang).plugin(path.startsWith("/") ? fileUri(path) : fileUri(root, path), lang) : [];
 }

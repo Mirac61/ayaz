@@ -107,10 +107,14 @@ func (s *WorkspaceService) List(ws, dir string) ([]workspace.Entry, error) {
 	return w.List(dir)
 }
 
+// ReadText takes a workspace-relative path, or an absolute one inside the library roots (LSP jumps, see readLibrary).
 func (s *WorkspaceService) ReadText(ws, path string) (workspace.TextFile, error) {
 	w, err := s.reg.Get(ws)
 	if err != nil {
 		return workspace.TextFile{}, err
+	}
+	if filepath.IsAbs(path) {
+		return readLibrary(libraryRoots(), path)
 	}
 	return w.ReadText(path)
 }

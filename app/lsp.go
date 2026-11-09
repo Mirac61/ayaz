@@ -3,8 +3,13 @@ package app
 import (
 	"log"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"sync"
 
 	"github.com/Mirac61/ayaz/internal/lsp"
+	"github.com/Mirac61/ayaz/internal/workspace"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -82,4 +87,41 @@ func (s *WorkspaceService) trackServer(srv *lsp.Server, on bool) {
 	} else {
 		delete(s.servers, srv)
 	}
+}
+
+// libraryRoots are the folders a jump may lead into outside the workspace: the Go toolchain and module cache.
+// shortcut: Go only and asked once per process; add per-language roots with M9.
+var libraryRoots = sync.OnceValue(func() []string {
+	shell := os.Getenv("SHELL")
+	if shell == "" {
+		shell = "/bin/sh"
+	}
+	out, err := exec.Command(shell, "-l", "-c", "go env GOROOT GOMODCACHE").Output()
+	if err != nil {
+		return nil
+	}
+	return strings.Fields(string(out))
+})
+
+// readLibrary reads a file the language server pointed to outside the workspace, only below one of roots.
+// The frontend shows it read-only; WriteText still rejects absolute paths.
+func readLibrary(roots []string, path string) (workspace.TextFile, error) {
+	real, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return workspace.TextFile{}, err
+	}
+	for _, r := range roots {
+		if r, err := filepath.EvalSymlinks(r); err == nil && strings.HasPrefix(real, r+string(filepath.Separator)) {
+			b, err := os.ReadFile(real)
+			if err != nil {
+				return workspace.TextFile{}, err
+			}
+			st, err := os.Stat(real)
+			if err != nil {
+				return workspace.TextFile{}, err
+			}
+			return workspace.TextFile{Path: path, Content: string(b), Mtime: st.ModTime().UnixMicro()}, nil
+		}
+	}
+	return workspace.TextFile{}, workspace.ErrOutside
 }
