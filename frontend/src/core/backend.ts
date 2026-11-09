@@ -10,6 +10,9 @@ export type { Entry, FileMatch, Info, Match, TextFile };
 // A batch of changes on disk. Paths are workspace-relative, files or folders; rescan: events were lost, check everything.
 export interface FsChange { paths: string[] | null; rescan: boolean }
 
+// A language server's state, only "missing" so far: its command isn't in PATH.
+export interface LspStatus { ws: string; lang: string; state: string; command: string }
+
 export interface Backend {
   ping(): Promise<string>;
   matches(n: number): Promise<Match[]>;
@@ -26,6 +29,7 @@ export interface Backend {
   rank(items: string[], query: string, limit: number): Promise<FileMatch[]>;
   // Calls fn for changes on disk in workspace ws, also our own saves. Returns the unsubscribe function.
   onFsChanged(ws: string, fn: (c: FsChange) => void): () => void;
+  onLspStatus(ws: string, fn: (s: LspStatus) => void): () => void;
   openURL(url: string): Promise<void>; // in the system browser
 }
 
@@ -55,6 +59,10 @@ export const backend: Backend = {
   openURL: (url) => Browser.OpenURL(url),
   onFsChanged: (ws, fn) =>
     Events.On("fs:changed", (e: { data: FsChange & { ws: string } }) => {
+      if (e.data.ws === ws) fn(e.data);
+    }),
+  onLspStatus: (ws, fn) =>
+    Events.On("lsp:status", (e: { data: LspStatus }) => {
       if (e.data.ws === ws) fn(e.data);
     }),
   files: (ws) => ({

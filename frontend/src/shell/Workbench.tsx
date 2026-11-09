@@ -91,6 +91,7 @@ export function Workbench({ ws }: { ws: Info }) {
       const b = ed.current();
       if (!b) return fail("No file name"), false;
       try {
+        await ed.format(); // no-op without a language server (Q25: on for Go)
         await ed.buffers.save(b, force);
         setMsg({ text: `"${b.path}" written` });
         ed.emit();
@@ -314,6 +315,8 @@ export function Workbench({ ws }: { ws: Info }) {
     const note = await ed.diskChanged(paths);
     if (note) fail(note);
   }), [ed, ws.id]);
+
+  useEffect(() => backend.onLspStatus(ws.id, (s) => s.state === "missing" && fail(`${s.command} not found in PATH, no ${s.lang} language features`)), [ws.id]);
 
   // Leaving the maximized panel (Ctrl-k, a picked file) brings the editors back.
   useEffect(() => { if (status.pane !== PANEL) setMax(false); }, [status.pane]);

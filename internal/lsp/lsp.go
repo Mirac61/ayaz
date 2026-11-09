@@ -62,6 +62,11 @@ type Server struct {
 	close sync.Once
 }
 
+// Available reports whether command is found by the login shell, i.e. in the user's PATH.
+func Available(shell, command string) bool {
+	return exec.Command(shell, "-l", "-c", "command -v "+command).Run() == nil
+}
+
 // Start runs `shell -l -c "exec <command>"` in dir. The login shell finds servers in the user's PATH
 // (~/go/bin, Homebrew) even when a Finder-started app has a bare one.
 func Start(dir, shell, command string) (*Server, error) {

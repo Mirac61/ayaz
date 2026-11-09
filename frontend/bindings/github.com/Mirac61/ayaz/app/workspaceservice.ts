@@ -33,6 +33,15 @@ export function Find(ws: string, query: string, limit: number, ignored: boolean)
 }
 
 /**
+ * HandleLSP serves one language server per "lsp" stream connection. Frames are bare JSON in both directions;
+ * Go adds and strips the Content-Length framing. If the server dies the stream closes and the frontend
+ * reconnects (shortcut: no shared server per workspace+language, the frontend opens one stream per pair).
+ */
+export function HandleLSP(c: application$0.StreamConn | null): $CancellablePromise<void> {
+    return $Call.ByID(2029603354, c);
+}
+
+/**
  * HandleTerminal serves one shell per "pty" stream connection.
  */
 export function HandleTerminal(c: application$0.StreamConn | null): $CancellablePromise<void> {
@@ -70,6 +79,13 @@ export function Rank(items: string[] | null, query: string, limit: number): $Can
 
 export function ReadText(ws: string, path: string): $CancellablePromise<workspace$0.TextFile> {
     return $Call.ByID(1737223586, ws, path);
+}
+
+/**
+ * Registry is shared with the /fs/ middleware so it serves exactly the folders the frontend opened.
+ */
+export function Registry(): $CancellablePromise<workspace$0.Registry | null> {
+    return $Call.ByID(365778722);
 }
 
 /**

@@ -16,6 +16,14 @@ type lspConfig struct {
 	Lang string `json:"lang"`
 }
 
+// LspStatus is the "lsp:status" event; State is only "missing" so far (the server isn't installed).
+type LspStatus struct {
+	WS      string `json:"ws"`
+	Lang    string `json:"lang"`
+	State   string `json:"state"`
+	Command string `json:"command"`
+}
+
 // HandleLSP serves one language server per "lsp" stream connection. Frames are bare JSON in both directions;
 // Go adds and strips the Content-Length framing. If the server dies the stream closes and the frontend
 // reconnects (shortcut: no shared server per workspace+language, the frontend opens one stream per pair).
@@ -33,6 +41,12 @@ func (s *WorkspaceService) HandleLSP(c *application.StreamConn) {
 	shell := os.Getenv("SHELL")
 	if shell == "" {
 		shell = "/bin/sh"
+	}
+	if !lsp.Available(shell, command) {
+		if a := application.Get(); a != nil {
+			a.Event.Emit("lsp:status", LspStatus{WS: cfg.WS, Lang: cfg.Lang, State: "missing", Command: command})
+		}
+		return
 	}
 	srv, err := lsp.Start(w.Root, shell, command)
 	if err != nil {

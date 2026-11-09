@@ -82,3 +82,9 @@ func TestGopls(t *testing.T) {
 		t.Fatalf("got %.200s, %v", got, err)
 	}
 }
+
+func TestAvailable(t *testing.T) {
+	if !Available("/bin/sh", "cat") || Available("/bin/sh", "no-such-server-xyz") {
+		t.Fatal("Available misreports")
+	}
+}

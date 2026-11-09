@@ -6,6 +6,12 @@ export interface Entry {
     "dir": boolean;
 }
 
+/**
+ * Registry maps workspace IDs to workspaces. IDs are checked on every call, a window only knows its own.
+ */
+export interface Registry {
+}
+
 export interface TextFile {
     "path": string;
     "content": string;

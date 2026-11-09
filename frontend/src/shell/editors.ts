@@ -3,6 +3,7 @@ import { EditorView } from "@codemirror/view";
 import { getCM } from "@replit/codemirror-vim";
 import type { Files } from "../core/backend";
 import { Buffers, diff, isDirty, type Buffer } from "../core/buffers";
+import { setLspHost, formatBeforeSave } from "../editor/lsp";
 import { createState, editorExtensions } from "../editor/editor";
 import { isReading, linkAt, toggleReading } from "../editor/mdlive";
 import { openTerminal, type TermHandle, type TermOptions } from "../terminal/terminal";
@@ -36,6 +37,7 @@ export class Editors {
 
   constructor(files: Files, root: string, wsId: string, private onStatus: (s: Status) => void) {
     this.buffers = new Buffers(files, (path, doc) => createState(path, doc, wsId, root));
+    setLspHost(wsId, (path) => this.display(path));
     this.recentKey = `ayaz.recent:${root}`;
   }
 
@@ -118,10 +120,22 @@ export class Editors {
   current(): Buffer | null { return this.panes.get(this.active)?.buf ?? null; }
 
   // From a terminal pane, the file opens in the editor pane used last.
-  async open(path: string, id = this.active) {
+  async open(path: string, id = this.active): Promise<number> {
     if (this.isTerm(id)) id = this.panes.get(this.lastEditor)?.view ? this.lastEditor : [...this.panes].find(([, p]) => p.view)?.[0] ?? -1;
     if (!this.panes.get(id)?.view) throw new Error("No editor pane, split one off with :vsplit");
     this.show(id, await this.buffers.open(path));
+    return id;
+  }
+
+  // Shows path in an editor pane and returns its view (for LSP jumps across files).
+  async display(path: string) {
+    return this.panes.get(await this.open(path))?.view ?? null;
+  }
+
+  // Runs the language server's formatter on the active editor, if it has one.
+  format() {
+    const v = this.panes.get(this.active)?.view;
+    return v ? formatBeforeSave(v) : Promise.resolve();
   }
 
   // Re-reads the active buffer from disk (`:e!`).
