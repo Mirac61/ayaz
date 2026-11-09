@@ -10,7 +10,7 @@ const ZOOM = 1.1;
 // pdf_viewer.mjs reads globalThis.pdfjsLib, which pdfjs-dist sets when it loads, so the core must load first.
 const load = async () => {
   const pdfjs = await import("pdfjs-dist");
-  return Promise.all([pdfjs, import("pdfjs-dist/web/pdf_viewer.mjs"), import("pdfjs-dist/build/pdf.worker.min.mjs?url"), import("pdfjs-dist/web/pdf_viewer.css")]);
+  return Promise.all([pdfjs, import("pdfjs-dist/web/pdf_viewer.mjs"), import("pdfjs-dist/build/pdf.worker.min.mjs?url"), import("./pdfRender"), import("pdfjs-dist/web/pdf_viewer.css")]);
 };
 
 export function mountPdf(el: HTMLElement, ctx: ViewContext): ViewHandle {
@@ -33,6 +33,7 @@ export function mountPdf(el: HTMLElement, ctx: ViewContext): ViewHandle {
   let task: import("pdfjs-dist").PDFDocumentLoadingTask | null = null; // the newest load
   let shown: import("pdfjs-dist").PDFDocumentLoadingTask | null = null; // the document on screen
   let open: ((url: string) => Promise<void>) | undefined; // set once pdf.js has loaded
+  let renderer: import("./pdfRender").Renderer | null = null;
   let keep: { page: number; scale: string } | null = null; // page and zoom to restore after a reload
   let disposed = false, error = "", matches = "", query = "", findStart = 0, lastG = 0;
   const fail = (e: unknown) => {
@@ -46,9 +47,23 @@ export function mountPdf(el: HTMLElement, ctx: ViewContext): ViewHandle {
     bus.dispatch("find", { source: null, type: again ? "again" : "", query, caseSensitive: false, entireWord: false, highlightAll: true, findPrevious: previous, matchDiacritics: false });
   };
 
-  load().then(async ([pdfjs, web, worker]) => {
+  load().then(async ([pdfjs, web, worker, { createRenderer }]) => {
     if (disposed) return;
     pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
+    const r = (renderer = createRenderer());
+    // Page canvases are drawn by the render worker (S8), so scrolling keeps the main thread free: render() only copies its bitmap.
+    // A bitmap of a cancelled job or an older document never arrives here (the Renderer closes it).
+    const draw = (page: import("pdfjs-dist").PDFPageProxy) => (p: Parameters<typeof page.render>[0]) => {
+      const canvas = p.canvas as HTMLCanvasElement, { width, height } = canvas, vp = p.viewport;
+      const job = r.render({ page: page.pageNumber, scale: vp.scale, rotation: vp.rotation, offsetX: vp.offsetX, offsetY: vp.offsetY,
+        transform: p.transform ?? null, annotationMode: p.annotationMode ?? pdfjs.AnnotationMode.ENABLE, width, height });
+      const promise = job.promise.then((b) => {
+        if (b.width === canvas.width && b.height === canvas.height) canvas.getContext("2d", { alpha: false })!.drawImage(b, 0, 0);
+        b.close();
+        performance.mark("pdf:worker-render");
+      });
+      return { promise, cancel: job.cancel, onContinue: null, onError: null, separateAnnots: false } as unknown as import("pdfjs-dist").RenderTask;
+    };
     bus = new web.EventBus();
     const links = new web.PDFLinkService({ eventBus: bus, externalLinkTarget: web.LinkTarget.BLANK });
     const finder = new web.PDFFindController({ eventBus: bus, linkService: links });
@@ -81,6 +96,14 @@ export function mountPdf(el: HTMLElement, ctx: ViewContext): ViewHandle {
       const t = (task = pdfjs.getDocument({ url, enableXfa: false }));
       const doc = await t.promise;
       if (disposed || t !== task) return void t.destroy();
+      // The worker opens the file only now, so renders of the old document that are still queued get cancelled, not drawn with the new one.
+      r.open(url).catch(() => {});
+      const getPage = doc.getPage.bind(doc);
+      doc.getPage = async (n) => {
+        const page = await getPage(n); // pdf.js caches the proxy, so this sets the same render again
+        page.render = draw(page);
+        return page;
+      };
       viewer!.setDocument(doc);
       links.setDocument(doc);
       void shown?.destroy();
@@ -140,6 +163,7 @@ export function mountPdf(el: HTMLElement, ctx: ViewContext): ViewHandle {
       disposed = true;
       void task?.destroy();
       void shown?.destroy();
+      renderer?.dispose();
       viewer?.cleanup();
       box.remove();
       find.remove();

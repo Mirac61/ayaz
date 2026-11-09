@@ -60,3 +60,39 @@ test("pdf: reload on change keeps page and zoom", async ({ page }) => {
   await expect(where).toContainText("page 150/200");
   expect(await zoom()).toBe(zoomed);
 });
+
+// Page canvases are drawn by the render worker (S8), and closing the PDF stops it.
+test("pdf: pages come from the render worker", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.goto("/");
+  await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: "big.pdf" }).click();
+  const status = page.locator(".statusline");
+  await expect(status).toContainText("page 1/200");
+  await page.keyboard.press("G");
+  await expect(status).toContainText("page 200/200");
+  await page.keyboard.type("gg");
+  await expect(status).toContainText("page 1/200");
+  const renders = () => page.evaluate(() => performance.getEntriesByName("pdf:worker-render").length);
+  await expect.poll(renders).toBeGreaterThan(0);
+  const dark = () => page.evaluate(() => {
+    const c = document.querySelector<HTMLCanvasElement>('.page[data-page-number="1"] canvas');
+    if (!c?.width) return 0;
+    const px = c.getContext("2d")!.getImageData(0, 0, c.width, c.height).data;
+    let n = 0;
+    for (let i = 0; i < px.length; i += 4) if (px[i] < 100) n++;
+    return n;
+  });
+  await expect.poll(dark).toBeGreaterThan(1000);
+
+  for (let i = 0; i < 5; i++) await page.keyboard.press("J");
+  await page.keyboard.press("F1");
+  await page.keyboard.type("close tab");
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".pdf-viewer")).toHaveCount(0);
+  const after = await renders();
+  await page.waitForTimeout(500);
+  expect(await renders()).toBe(after);
+  expect(errors).toEqual([]);
+});
