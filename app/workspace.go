@@ -166,9 +166,11 @@ func NewWindow(a *application.App, url string) *application.WebviewWindow {
 		Title:  "Ayaz",
 		Width:  1200,
 		Height: 800,
-		// Kanagawa sumiInk1, so there is no white flash before the first paint.
-		BackgroundColour: application.NewRGB(0x1f, 0x1f, 0x28),
-		URL:              url,
+		// bg-0, so there is no white flash before the first paint.
+		BackgroundColour: application.NewRGB(0x16, 0x16, 0x17),
+		// The traffic lights sit in the frontend's 38 px .titlebar.
+		Mac: application.MacWindow{TitleBar: application.MacTitleBarHiddenInset, InvisibleTitleBarHeight: 38},
+		URL: url,
 	})
 	win.OnWindowEvent(events.Common.WindowRuntimeReady, func(*application.WindowEvent) { UncapFrameRate(win) })
 	return win

@@ -20,14 +20,14 @@ test("open, edit, save, and conflict on external change", async ({ page }) => {
 
   await page.keyboard.type("Onew line");
   await page.keyboard.press("Escape");
-  await expect(page.locator(".statusline")).toContainText("[+]");
+  await expect(page.locator(".statusline .dirty")).toBeVisible();
   await page.keyboard.type(":w");
   await page.keyboard.press("Enter");
   await expect(page.locator(".statusline")).toContainText('"README.md" written');
   expect(readFileSync(readme, "utf8")).toMatch(/^new line\n# E2E workspace/);
 
   await page.keyboard.type("x"); // dirty, so the watcher must not reload over it
-  await expect(page.locator(".statusline")).toContainText("[+]");
+  await expect(page.locator(".statusline .dirty")).toBeVisible();
   writeFileSync(readme, "theirs\n");
   await expect(page.locator(".statusline .msg.error")).toContainText("changed on disk");
   await page.keyboard.type(":w");
@@ -53,5 +53,5 @@ test("external changes reach tree and clean buffers", async ({ page }) => {
   writeFileSync(file, "zero\none\ntwo\nthree\n");
   await expect(page.locator(".cm-content")).toContainText("zero");
   await expect(page.locator(".statusline")).toContainText("4:1");
-  await expect(page.locator(".statusline")).not.toContainText("[+]");
+  await expect(page.locator(".statusline .dirty")).toHaveCount(0);
 });

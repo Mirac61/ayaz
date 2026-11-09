@@ -25,7 +25,7 @@ test("gd into the Go stdlib opens a read-only buffer", async ({ page }) => {
   await expect(page.locator(".statusline")).toContainText("fmt/print.go", { timeout: 30_000 });
   await page.keyboard.type("x");
   await page.waitForTimeout(200);
-  await expect(page.locator(".statusline")).not.toContainText("[+]");
+  await expect(page.locator(".statusline .dirty")).toHaveCount(0);
 });
 
 // gr fills the quickfix list from gopls.

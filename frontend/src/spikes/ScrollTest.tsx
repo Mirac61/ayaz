@@ -28,13 +28,13 @@ export function ScrollTest() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <div style={{ padding: "4px 8px", background: "var(--bg-dim)", color: "var(--fg-dim)" }}>
+      <div style={{ padding: "4px 8px", background: "var(--bg-0)", color: "var(--fg-3)" }}>
         S1 · {rows.length} rows · {fps} fps · worst frame {worst} ms
       </div>
       <div style={{ flex: 1, overflow: "auto" }}>
         {rows.map((i) => (
-          <div key={i} style={{ padding: "0 8px", borderBottom: "1px solid var(--sumi-ink-3)" }}>
-            <span style={{ color: "var(--fg-dim)" }}>{String(i + 1).padStart(5, " ")}</span>{" "}
+          <div key={i} style={{ padding: "0 8px", borderBottom: "1px solid var(--bg-3)" }}>
+            <span style={{ color: "var(--fg-3)" }}>{String(i + 1).padStart(5, " ")}</span>{" "}
             <span style={{ color: "var(--accent)" }}>func</span> row{i}() {"{"} return {i} {"}"}
           </div>
         ))}

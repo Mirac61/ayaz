@@ -48,7 +48,7 @@ export const editorExtensions = (): Extension[] => [
   // Like snacks.indent: a thin line per level, the block around the cursor a bit brighter.
   indentationMarkers({
     markerType: "codeOnly",
-    colors: { dark: "#363646", light: "#363646", activeDark: "#727169", activeLight: "#727169" },
+    colors: { dark: "#2c2c2e", light: "#2c2c2e", activeDark: "#6e6e73", activeLight: "#6e6e73" },
   }),
   indentOnInput(),
   search(),

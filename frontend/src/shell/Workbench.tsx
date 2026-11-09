@@ -12,7 +12,7 @@ import type { TermOptions } from "../terminal/terminal";
 import { Editors, type Status } from "./editors";
 import { borders, close, equalize, neighbor, panes, rects, resize, setBorder, split, type Dir, type Layout } from "./layout";
 import { Picker, type Item, type PickerSource } from "./Picker";
-import { Glyph, Tree, type TreeHandle } from "./Tree";
+import { Tree, type TreeHandle } from "./Tree";
 import { fileIcon, folderIcon } from "../theme/icons";
 import "./shell.css";
 
@@ -547,8 +547,9 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
   const rs = rects(layout);
   return (
     <div className={max && panel === "shown" ? "workbench max" : "workbench"} data-ws={ws.id}>
+      <div className="titlebar">{ws.name} — {status.path ?? "[No Name]"}</div>
       <aside className="sidebar">
-        <div className="sidebar-title"><Glyph icon={folderIcon(true)} />{ws.name}</div>
+        <div className="sidebar-title">{ws.name}</div>
         <Tree ref={tree} files={files} onOpen={(p) => run("file.open", p)} onLeave={() => ed.focus(ed.active)} />
       </aside>
       <div className="panes" ref={panesEl}>
@@ -612,17 +613,13 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
         </div>
       )}
       <footer className="statusline">
-        <span className={`seg mode ${status.mode}`}>{""} {status.mode.toUpperCase()}</span>
-        <span className="seg file">
-          {status.path && <Glyph icon={fileIcon(status.path)} />}
+        <span className={`mode ${status.mode}`}>{status.mode.toUpperCase()}</span>
+        <span className="file">
           {status.path ?? "[No Name]"}
-          {status.dirty && <span className="dirty"> [+]</span>}
+          {status.dirty && <span className="dirty" title="Modified" />}
         </span>
         <span className={msg?.error ? "msg error" : "msg"}>{msg?.text}</span>
-        {status.info !== undefined ? <span className={`seg location ${status.mode}`}>{status.info}</span> : <>
-          <span className="seg progress">{status.line === 1 ? "Top" : status.line === status.lines ? "Bot" : `${Math.round((status.line / status.lines) * 100)}%`}</span>
-          <span className={`seg location ${status.mode}`}>{status.line}:{status.col}</span>
-        </>}
+        <span className="location">{status.info ?? `${status.line}:${status.col}`}</span>
       </footer>
       {hints && <Hints keys={hints.keys} next={hints.next} title={(id) => commands.list().find((c) => c.id === id)?.title ?? id} />}
       {picker && <Picker source={picker} onClose={() => { setPicker(null); if (!document.activeElement?.closest(".sidebar")) ed.focus(ed.active); }} />}
@@ -734,21 +731,39 @@ export function Shell() {
 
   if (ws === undefined) return null;
   if (ws) return <Workbench key={ws.id} ws={ws} onSwitch={switchTo} />;
-  const recent = recentFolders();
+  const recent = recentFolders().slice(0, 9);
+  const onKey = (e: React.KeyboardEvent) => {
+    const f = recent[Number(e.key) - 1]; // 1–9 open a recent folder
+    if (f && !e.metaKey && !e.ctrlKey) pick(f.root);
+  };
   return (
-    <div className="welcome">
-      <div>No folder open</div>
-      <button autoFocus onClick={() => pick(null)}>Open folder…</button>
-      {recent.length > 0 && (
-        <nav className="welcome-recent" aria-label="Recent folders">
-          {recent.map((f) => (
-            <button key={f.root} onClick={() => pick(f.root)} title={f.root}>
-              <Glyph icon={folderIcon(false)} />{f.name} <span className="welcome-path">{f.root}</span>
-            </button>
-          ))}
-        </nav>
-      )}
-      {err && <div style={{ color: "var(--samurai-red)" }}>{err}</div>}
+    <div className="welcome" onKeyDown={onKey}>
+      <div className="titlebar">Ayaz</div>
+      <div className="welcome-card">
+        <div className="welcome-list">
+          <div>
+            <div className="welcome-title">No folder open</div>
+            <div className="welcome-sub">Open a folder or pick one of the recent ones.</div>
+          </div>
+          {recent.length > 0 && (
+            <nav aria-label="Recent folders">
+              <div className="welcome-label">Recent</div>
+              {recent.map((f, i) => (
+                <button key={f.root} onClick={() => pick(f.root)} title={f.root} autoFocus={i === 0}>
+                  <kbd aria-hidden>{i + 1}</kbd>
+                  <span className="welcome-name">{f.name}</span>
+                  <span className="welcome-path">{f.root}</span>
+                </button>
+              ))}
+            </nav>
+          )}
+          <nav aria-label="Start">
+            <div className="welcome-label">Start</div>
+            <button autoFocus={!recent.length} onClick={() => pick(null)}>Open folder…</button>
+          </nav>
+          {err && <div className="welcome-err">{err}</div>}
+        </div>
+      </div>
     </div>
   );
 }

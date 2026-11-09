@@ -142,7 +142,7 @@ export class Editors {
       t.title = path;
       t.textContent = path.slice(path.lastIndexOf("/") + 1);
       const b = this.buffers.get(path);
-      if (b && isDirty(b)) t.append(Object.assign(document.createElement("span"), { className: "dirty", textContent: " [+]" }));
+      if (b && isDirty(b)) t.append(Object.assign(document.createElement("span"), { className: "dirty", title: "Modified" }));
       t.tabIndex = -1;
       t.addEventListener("mousedown", (e) => { e.preventDefault(); void this.open(path, id); });
       return t;
@@ -337,7 +337,7 @@ export class Editors {
   }
 
   emit() {
-    // Every change of a buffer's dirty state ends in emit(), so the [+] in the tabs follows from here.
+    // Every change of a buffer's dirty state ends in emit(), so the dot in the tabs follows from here.
     const dirty = this.tabsOn ? this.buffers.dirty().map((b) => b.path).join("\n") : "";
     if (dirty !== this.dirtyTabs) {
       this.dirtyTabs = dirty;

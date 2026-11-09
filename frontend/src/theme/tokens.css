@@ -1,0 +1,32 @@
+/* Graphite surfaces for the UI; Kanagawa (wave) only lives in code and the terminal (kanagawa-cm.ts, kanagawa-term.ts). */
+:root {
+  --bg-0: #161617; /* chrome: titlebar, tree, statusline */
+  --bg-1: #161617; /* panes: the chrome's color, focus shows in the cursor and the 72 % dim */
+  --bg-2: #161617;
+  --bg-3: #3a3a3d; /* selection with focus, key chips */
+  --hover: #2c2c2e; /* hover, selection without focus */
+  --overlay: #242426;
+  --edge: rgb(255 255 255 / 0.05);
+  --edge-overlay: rgb(255 255 255 / 0.08);
+  --fg-1: #ffffff;
+  --fg-2: #a1a1a6;
+  --fg-3: #8e8e93;
+  --fg-4: #6e6e73;
+  --accent: #0a84ff;
+  --insert: #30d158;
+  --visual: #bf5af2;
+  --error: #ff453a;
+
+  --font-ui: system-ui, -apple-system, "SF Pro Text", "Helvetica Neue", sans-serif;
+  --font-mono: "SF Mono", "FiraCode Nerd Font", "JetBrainsMono Nerd Font", "Symbols Nerd Font", "JetBrains Mono", Menlo, monospace;
+}
+
+html, body, #root {
+  margin: 0;
+  height: 100%;
+  background: var(--bg-0);
+  color: var(--fg-1);
+  font: 13px/18px var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+kbd { font: 11px/18px var(--font-mono); padding: 0 5px; border-radius: 5px; background: var(--bg-3); color: var(--fg-2); }

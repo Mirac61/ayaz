@@ -62,7 +62,7 @@ export default function App() {
         {mode === "s1" ? <ScrollTest /> : <div ref={termEl} style={{ height: "100%" }} />}
       </div>
       {status && (
-        <div style={{ padding: "2px 8px", borderTop: "1px solid var(--border)", color: "var(--fg-dim)" }}>{status}</div>
+        <div style={{ padding: "2px 8px", borderTop: "1px solid var(--bg-3)", color: "var(--fg-3)" }}>{status}</div>
       )}
     </div>
   );

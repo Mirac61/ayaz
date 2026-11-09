@@ -3,7 +3,7 @@ import type { Entry, Files } from "../core/backend";
 import { fileIcon, folderIcon } from "../theme/icons";
 
 interface Row { path: string; name: string; dir: boolean; depth: number }
-const ROW = 24; // px, fixed so we can window the rows by scrollTop
+const ROW = 26; // px, fixed so we can window the rows by scrollTop
 
 export interface TreeHandle {
   focus(): void;
@@ -135,7 +135,7 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
               aria-selected={i === cur}
               aria-expanded={r.dir ? expanded.has(r.path) : undefined}
               className={i === cur ? "tree-row cursor" : "tree-row"}
-              style={{ top: i * ROW, height: ROW, paddingLeft: 6 + r.depth * 16 }}
+              style={{ top: i * ROW, height: ROW, paddingLeft: 8 + r.depth * 14 }}
               onClick={() => { setCursor(i); activate(i, true); }}
             >
               <span className="tree-chevron" aria-hidden>{r.dir ? (expanded.has(r.path) ? "\uf47c" : "\uf460") : ""}</span>

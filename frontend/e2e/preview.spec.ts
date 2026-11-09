@@ -79,8 +79,8 @@ test("tab bar: toggle, gt, close", async ({ page }) => {
 
   await page.locator(".cm-content").click();
   await page.keyboard.type("ggx"); // an unsaved change marks the tab, undoing it clears the mark
-  await expect(page.locator(".statusline")).toContainText("[+]");
-  await expect(page.getByRole("tab", { selected: true })).toHaveText("search.txt [+]");
+  await expect(page.locator(".statusline .dirty")).toBeVisible();
+  await expect(page.getByRole("tab", { selected: true }).locator(".dirty")).toBeVisible();
   await page.keyboard.type("u");
   await expect(page.getByRole("tab", { selected: true })).toHaveText("search.txt");
   await page.keyboard.type("gt");

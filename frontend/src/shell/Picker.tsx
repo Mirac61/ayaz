@@ -59,22 +59,25 @@ export function Picker({ source, onClose }: { source: PickerSource; onClose(): v
   return (
     <div className="picker-backdrop" onMouseDown={onClose}>
       <div className="picker" role="dialog" aria-label={source.title} onMouseDown={(e) => e.stopPropagation()}>
-        <div className="picker-title">{source.title}</div>
-        <input
-          autoFocus
-          className="picker-input"
-          aria-label="Search"
-          role="combobox"
-          aria-expanded
-          aria-controls="picker-list"
-          aria-activedescendant={items.length ? `picker-${cur}` : undefined}
-          spellCheck={false}
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          onKeyDown={onKeyDown}
-          // Modal: focus stays here until Enter, Esc or a click outside (focus trap).
-          onBlur={(e) => { const el = e.currentTarget; requestAnimationFrame(() => el.isConnected && el.focus()); }}
-        />
+        <div className="picker-head">
+          <span className="picker-title">{source.title}</span>
+          <input
+            autoFocus
+            className="picker-input"
+            aria-label="Search"
+            role="combobox"
+            aria-expanded
+            aria-controls="picker-list"
+            aria-activedescendant={items.length ? `picker-${cur}` : undefined}
+            spellCheck={false}
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onKeyDown={onKeyDown}
+            // Modal: focus stays here until Enter, Esc or a click outside (focus trap).
+            onBlur={(e) => { const el = e.currentTarget; requestAnimationFrame(() => el.isConnected && el.focus()); }}
+          />
+          <span className="picker-hint">{items.length}</span>
+        </div>
         <ul className="picker-list" id="picker-list" role="listbox" ref={list}>
           {items.map((it, i) => (
             <li

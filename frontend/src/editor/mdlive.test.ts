@@ -134,6 +134,13 @@ test("tilde fences, empty blocks and fences with text around", () => {
   expect(codeLines("a\n\n```\nb\n```\nc\n|").map((l) => l.split(":")[1])).toEqual(["code-line fence", "code-line", "code-line fence"]);
 });
 
+test("an opening fence gets a copy button with the code, without the fences", () => {
+  const copy = (src: string) => mdDecorations(state(src)).widgets.filter((w) => w.kind === "copy").map((w) => `${w.from}:${w.text}`);
+  expect(copy("```sh\nmake\n./shell\n```\n|")).toEqual(["5:make\n./shell"]);
+  expect(copy("```\n```\n|")).toEqual(["3:"]);
+  expect(copy("    indented\n|")).toEqual([]);
+});
+
 test("indented code is a code line without fences", () => {
   expect(codeLines("    x\n    y\n\n|")).toEqual(["0:code-line", "6:code-line"]);
 });

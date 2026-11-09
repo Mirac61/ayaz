@@ -2,10 +2,10 @@ import type { ITheme } from "@xterm/xterm";
 
 // Kanagawa (wave) terminal colors, from kanagawa.nvim's terminal palette.
 export const kanagawaTerm: ITheme = {
-  background: "#1f1f28",
+  background: "#161617", // bg-1
   foreground: "#dcd7ba",
-  cursor: "#c8c093",
-  selectionBackground: "#2d4f67",
+  cursor: "#dcd7ba",
+  selectionBackground: "#ffffff1a",
   black: "#090618",
   red: "#c34043",
   green: "#76946a",

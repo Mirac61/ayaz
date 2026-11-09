@@ -10,7 +10,7 @@ export interface MdDeco {
   hide: [number, number][];
   marks: { from: number; to: number; cls: string }[];
   lines: { at: number; cls: string }[];
-  widgets: { from: number; to: number; kind: "bullet" | "check" | "image"; checked?: boolean; alt?: string; url?: string }[]; // replaced by a small widget, outside active lines
+  widgets: { from: number; to: number; kind: "bullet" | "check" | "image" | "copy"; checked?: boolean; alt?: string; url?: string; text?: string }[]; // replaced by a small widget, outside active lines
 }
 
 // Reading view: no line counts as active, not even the cursor's, and the document is read-only.
@@ -89,6 +89,10 @@ export function mdDecorations(state: EditorState, from = 0, to = state.doc.lengt
         eachLine(n, (at, first) => {
           const fence = name === "FencedCode" && (first || closed && at === last);
           out.lines.push({ at, cls: fence ? "cm-md-code-line cm-md-fence" : "cm-md-code-line" });
+          if (fence && first) {
+            const code = n.node.getChild("CodeText"), end = doc.lineAt(at).to;
+            out.widgets.push({ from: end, to: end, kind: "copy", text: code ? doc.sliceString(code.from, code.to) : "" });
+          }
         });
         for (const q of n.node.getChildren("QuoteMark")) hideQuote(q.from, q.to); // quoted code: the marks sit inside it
         return false;
@@ -303,6 +307,27 @@ function tableDecos(state: EditorState): DecorationSet {
 
 const check = (on: boolean) => Decoration.replace({ widget: new Check(on) });
 
+// A button at the end of an opening fence; copies the code without the fences.
+class Copy extends WidgetType {
+  constructor(readonly text: string) { super(); }
+  eq(o: Copy) { return o.text === this.text; }
+  toDOM() {
+    const b = document.createElement("button");
+    b.className = "cm-md-copy";
+    // The label is drawn by CSS, so the line's text stays the source's.
+    const label = (t: string) => { b.dataset.label = t; b.setAttribute("aria-label", t); };
+    label("Copy");
+    b.addEventListener("mousedown", (e) => {
+      e.preventDefault(); // no cursor move, no focus change
+      navigator.clipboard.writeText(this.text).then(() => {
+        label("Copied");
+        setTimeout(() => label("Copy"), 1200);
+      }, () => label("Copy failed"));
+    });
+    return b;
+  }
+}
+
 class Live {
   deco: DecorationSet;
   hidden: DecorationSet;
@@ -322,6 +347,10 @@ function build(v: EditorView): [DecorationSet, DecorationSet] {
     for (const m of d.marks) if (m.from < m.to) all.push(Decoration.mark({ class: m.cls }).range(m.from, m.to));
     for (const [a, b] of d.hide) hides.push(hidden.range(a, b));
     for (const w of d.widgets) {
+      if (w.kind === "copy") {
+        all.push(Decoration.widget({ widget: new Copy(w.text!), side: 1 }).range(w.from));
+        continue;
+      }
       let deco = w.kind === "bullet" ? bullet : check(!!w.checked);
       if (w.kind === "image") {
         const src = img && imageSrc(img.ws, img.file, w.url!);
@@ -342,18 +371,25 @@ const theme = EditorView.baseTheme({
   ".cm-md-h2": { fontSize: "1.4em" },
   ".cm-md-h3": { fontSize: "1.2em" },
   ".cm-md-h4, .cm-md-h5, .cm-md-h6": { fontSize: "1.05em" },
-  ".cm-md-code": { backgroundColor: "#2a2a37", borderRadius: "3px", padding: "0 2px" },
-  ".cm-md-link": { color: "#7e9cd8", textDecoration: "underline" },
-  ".cm-md-code-line": { backgroundColor: "#1f1f28" },
-  ".cm-md-quote": { borderLeft: "3px solid #54546d", paddingLeft: "8px", color: "#c8c093" },
+  ".cm-md-code": { backgroundColor: "rgb(255 255 255 / 0.08)", borderRadius: "5px", padding: "1px 5px" },
+  ".cm-md-link": { color: "#0a84ff", textDecoration: "underline" },
+  ".cm-md-code-line": { backgroundColor: "rgb(255 255 255 / 0.04)" },
+  ".cm-md-quote": { borderLeft: "3px solid #3a3a3d", paddingLeft: "8px", color: "#c8c093" },
   ".cm-md-table": { overflowX: "auto", padding: "4px 0" },
   ".cm-md-table table": { borderCollapse: "collapse" },
-  ".cm-md-table th, .cm-md-table td": { border: "1px solid #54546d", padding: "2px 10px" },
-  ".cm-md-table th": { backgroundColor: "#2a2a37", fontWeight: "bold" },
-  ".cm-md-check": { margin: "0 4px 0 0", verticalAlign: "middle", accentColor: "#7e9cd8" },
-  ".cm-md-hr": { background: "linear-gradient(#54546d, #54546d) center / 100% 1px no-repeat" },
+  ".cm-md-table th, .cm-md-table td": { border: "1px solid #3a3a3d", padding: "2px 10px" },
+  ".cm-md-table th": { backgroundColor: "rgb(255 255 255 / 0.04)", fontWeight: "bold" },
+  ".cm-md-check": { margin: "0 4px 0 0", verticalAlign: "middle", accentColor: "#0a84ff" },
+  ".cm-md-hr": { background: "linear-gradient(#3a3a3d, #3a3a3d) center / 100% 1px no-repeat" },
   ".cm-md-img": { maxWidth: "100%", maxHeight: "400px", verticalAlign: "middle" },
-  ".cm-md-fence": { color: "#727169" },
+  ".cm-md-fence": { color: "#727169", position: "relative" },
+  ".cm-md-copy": {
+    position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)",
+    font: "11px/18px var(--font-ui)", color: "var(--fg-3)", background: "var(--bg-3)",
+    border: "none", borderRadius: "5px", padding: "0 7px", cursor: "default",
+  },
+  ".cm-md-copy::after": { content: "attr(data-label)" },
+  ".cm-md-copy:hover": { color: "var(--fg-1)" },
   "&.cm-reading .cm-activeLine": { backgroundColor: "transparent" },
 });
 
