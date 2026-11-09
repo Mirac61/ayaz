@@ -102,9 +102,13 @@ func (s *WorkspaceService) track(sess *pty.Session, on bool) {
 func (s *WorkspaceService) ServiceShutdown() error {
 	s.mu.Lock()
 	terms := maps.Keys(s.terms)
+	servers := maps.Keys(s.servers)
 	s.mu.Unlock()
 	for sess := range terms {
 		sess.Close()
+	}
+	for srv := range servers {
+		srv.Close()
 	}
 	return nil
 }
