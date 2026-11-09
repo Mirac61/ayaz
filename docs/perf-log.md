@@ -102,3 +102,18 @@ Notes:
 Notes:
 - Text-only pages render fast; a PDF with images and embedded fonts will be slower. Check with a real paper or book in the app.
 - Not the WKWebView/WebKitGTK numbers S3 asks for.
+
+## 2026-11-09 – M14, macOS (M-series), production build
+
+Full app with a folder open (`testdata/e2e-ws`), windows sent to a hidden AeroSpace workspace while measuring.
+
+| | Value | Budget (macOS) | How |
+|---|---|---|---|
+| K1 start → `app:ready` | 398 ms ± 7 (15 runs) | ≤ 500 ms | `hyperfine -w 2 -r 15 -N 'env AYAZ_EXIT_ON_READY=1 ./bin/ayaz testdata/e2e-ws'` |
+| K2 idle RAM 10 s, folder open | 111 MB (ayaz 32, WebContent 59, GPU 16, Networking 5) | ≤ 150 MB | `scripts/ram.sh bin/ayaz testdata/e2e-ws`, 3 runs |
+| K2 idle RAM 10 s, welcome screen | 103 MB | ≤ 150 MB | same, no folder |
+| K12 binary size | 13.1 MB (`.app` 14 MB) | ≤ 30 MB | `ls -l bin/ayaz` |
+
+Notes:
+- On a hidden workspace the GPU process stays at 16 MB; with the window visible, 6 earlier runs gave 105–124 MB total plus one outlier of 236 MB. `scripts/ram.sh` also counts any other WebKit process that starts in those 10 s, which explains a 622 MB outlier.
+- Hyprland still open for all K numbers.

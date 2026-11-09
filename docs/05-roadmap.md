@@ -181,6 +181,7 @@ Done when: all four language groups have diagnostics, completion and navigation.
 - [Glue] Linux: binary + `.desktop`, then PKGBUILD (Q14). macOS: unsigned `.app`.
 - Measure K1–K16 on both machines and close the gaps.
 - Done when: install by following the guide takes ≤ 5 minutes, all budgets green or consciously adjusted.
+- Done 2026-11-09 on macOS: install guide in the README, `task darwin:package` gives an ad-hoc signed `bin/ayaz.app`, `build/linux/ayaz.desktop` and `build/linux/arch/PKGBUILD` (`ayaz-git`, gtk4 + webkitgtk-6.0). macOS budgets measured (perf-log): K1 398 ms, K2 111 MB, K12 13 MB, K6/K7/K15/K16 green. **Still open:** the PKGBUILD and all K numbers on Hyprland, the 5-minute install check by hand, a LICENSE (the PKGBUILD says unknown), K8.
 
 ## Later
 
