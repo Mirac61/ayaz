@@ -77,6 +77,9 @@ export function Rank(items: string[] | null, query: string, limit: number): $Can
     return $Call.ByID(3283811227, items, query, limit);
 }
 
+/**
+ * ReadText takes a workspace-relative path, or an absolute one inside the library roots (LSP jumps, see readLibrary).
+ */
 export function ReadText(ws: string, path: string): $CancellablePromise<workspace$0.TextFile> {
     return $Call.ByID(1737223586, ws, path);
 }
