@@ -157,7 +157,7 @@ Done when: all four language groups have diagnostics, completion and navigation.
 - [Own] Vim-like keymap (`j/k`, `gg/G`, `Ctrl-d/u`, `/`, `n/N`, zoom), page indicator.
 - Tests: E2E open and search, K6–K8.
 - Done when: a 200-page PDF is within budget, search by keyboard.
-- Done 2026-11-09: `viewers/pdf.ts` on `PDFViewer` + `PDFFindController` (pdfjs-dist 6.4.299 pinned, loaded on the first PDF, worker as its own asset), page width by default, `j/k`, `<C-d>/<C-u>`, `gg/G`, `J/K` pages, `+/-/0/1` zoom, `/` `n` `N` search with the match count and page in the status line, links only through the system browser, no PDF scripting, no XFA. `scripts/gen-bigpdf.mjs` makes the 200-page test file. S3 in headless WebKit only: K6 95 ms, K7 254 ms (perf-log). **Still open:** S3 in WKWebView and WebKitGTK, K8 (RAM after scrolling through), Range requests through the Wails scheme in the native app (S2); a PDF changed on disk isn't reloaded.
+- Done 2026-11-09: `viewers/pdf.ts` on `PDFViewer` + `PDFFindController` (pdfjs-dist 6.4.299 pinned, loaded on the first PDF, worker as its own asset), page width by default, `j/k`, `<C-d>/<C-u>`, `gg/G`, `J/K` pages, `+/-/0/1` zoom, `/` `n` `N` search with the match count and page in the status line, links only through the system browser, no PDF scripting, no XFA. `scripts/gen-bigpdf.mjs` makes the 200-page test file. S3 in headless WebKit only: K6 95 ms, K7 254 ms (perf-log). K8 in the app (perf-log): +448 MB with pdf.js defaults, +223 MB with `maxCanvasPixels` at pdf.js' phone value (now on); scrolling while pages render runs at p50 10 ms, p95 18 ms per frame. **Still open:** S3 in WKWebView and WebKitGTK, Range requests through the Wails scheme in the native app (S2), 120 fps while pages render (pdf.js draws on the main thread); a PDF changed on disk isn't reloaded.
 
 ## M12 – Separate Markdown preview and optional tabs
 
@@ -181,7 +181,7 @@ Done when: all four language groups have diagnostics, completion and navigation.
 - [Glue] Linux: binary + `.desktop`, then PKGBUILD (Q14). macOS: unsigned `.app`.
 - Measure K1–K16 on both machines and close the gaps.
 - Done when: install by following the guide takes ≤ 5 minutes, all budgets green or consciously adjusted.
-- Done 2026-11-09 on macOS: install guide in the README, `task darwin:package` gives an ad-hoc signed `bin/ayaz.app`, `build/linux/ayaz.desktop` and `build/linux/arch/PKGBUILD` (`ayaz-git`, gtk4 + webkitgtk-6.0). macOS budgets measured (perf-log): K1 398 ms, K2 111 MB, K12 13 MB, K6/K7/K15/K16 green. **Still open:** the PKGBUILD and all K numbers on Hyprland, the 5-minute install check by hand, a LICENSE (the PKGBUILD says unknown), K8.
+- Done 2026-11-09 on macOS: install guide in the README, `task darwin:package` gives an ad-hoc signed `bin/ayaz.app`, `build/linux/ayaz.desktop` and `build/linux/arch/PKGBUILD` (`ayaz-git`, gtk4 + webkitgtk-6.0). macOS budgets measured (perf-log): K1 398 ms, K2 111 MB, K12 13 MB, K6/K7/K15/K16 green. **Still open:** the PKGBUILD and all K numbers on Hyprland, the 5-minute install check by hand, a LICENSE (the PKGBUILD says unknown).
 
 ## Later
 

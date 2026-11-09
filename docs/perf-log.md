@@ -117,3 +117,21 @@ Full app with a folder open (`testdata/e2e-ws`), windows sent to a hidden AeroSp
 Notes:
 - On a hidden workspace the GPU process stays at 16 MB; with the window visible, 6 earlier runs gave 105–124 MB total plus one outlier of 236 MB. `scripts/ram.sh` also counts any other WebKit process that starts in those 10 s, which explains a 622 MB outlier.
 - Hyprland still open for all K numbers.
+
+## 2026-11-09 – K8 PDF RAM and scroll frames (M11)
+
+`AYAZ_SPIKE=k8 scripts/ram.sh bin/ayaz <copy of testdata/e2e-ws>`: the app idles 10 s (before), opens `big.pdf`, scrolls through all 200 pages at 8,000 px/s per animation frame like a fast trackpad (`spikes/pdfRam.ts`), waits 3 s (after). Production build, Retina (dpr 2).
+
+| | Before → after | K8 extra (≤ 300 MB) | Frames while scrolling p50 / p95 / max |
+|---|---|---|---|
+| pdf.js defaults, window visible, pane 1237×875 | 119 → 567 MB | +448 MB | 9 / 63 / 91 ms |
+| `maxCanvasPixels` 5 MP, window visible, pane 1237×407 | 107 → 330 MB | +223 MB | 10 / 18 / 28 ms |
+| pdf.js defaults, hidden window, pane 1237×875 | 121 → 598 MB | +477 MB | – |
+| `maxCanvasPixels` 5 MP, hidden window, pane 1237×875, 4 runs | 102–112 → 308–424 MB | +206 / +209 / +210 / +312 MB | – |
+
+Notes:
+- Cause: pdf.js keeps the last 10 rendered pages (not an option of `PDFViewer`). At page width on Retina each page canvas is 2392×3098 px, ~30 MB, and WebKit holds a second copy for display. With `maxCanvasPixels: 5242880` (pdf.js' own value for phones) the kept pages render at 1005×1300 and only the visible part is drawn sharp on top (detail canvas). Now on.
+- The rest of "after" is WebKit malloc (~+100 MB: pdf.js and its worker) and layer memory; it didn't drop within 20 s.
+- Hidden windows read lower and sometimes stall `requestAnimationFrame`, so frame times come from visible runs only; AeroSpace gave the two visible runs different pane heights. One hidden run read 281 → 1004 MB, not explained, not counted.
+- Tried and dropped: `enableHWA: true` (GPU canvas): +259 MB, slower rendering, 1 GB for a moment.
+- 120 fps isn't reached while pages render: pdf.js draws on the main thread in ~15 ms slices. Getting there needs rendering off the main thread (OffscreenCanvas in the worker). Trackpad scrolling runs on WebKit's scrolling thread and isn't covered by this measure.

@@ -45,7 +45,9 @@ export function mountPdf(el: HTMLElement, ctx: ViewContext): ViewHandle {
     bus = new web.EventBus();
     const links = new web.PDFLinkService({ eventBus: bus, externalLinkTarget: web.LinkTarget.BLANK });
     const finder = new web.PDFFindController({ eventBus: bus, linkService: links });
-    viewer = new web.PDFViewer({ container: box as HTMLDivElement, viewer: pages, eventBus: bus, linkService: links, findController: finder });
+    // maxCanvasPixels: pdf.js' mobile cap. The 10 pages it keeps render at low resolution, only the visible part sharp on top;
+    // at full Retina resolution each page canvas took ~30 MB and K8 went to +477 MB.
+    viewer = new web.PDFViewer({ container: box as HTMLDivElement, viewer: pages, eventBus: bus, linkService: links, findController: finder, maxCanvasPixels: 5242880 });
     links.setViewer(viewer);
     bus.on("pagesinit", () => { viewer!.currentScaleValue = "page-width"; });
     bus.on("pagerendered", (e: { pageNumber: number }) => {
