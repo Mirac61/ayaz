@@ -174,6 +174,7 @@ Done when: all four language groups have diagnostics, completion and navigation.
 - [Own] Workspace tear-down: buffers, watcher, index, LSP, PTYs. Ask when buffers are unsaved.
 - Tests: registry tests (no orphaned processes), E2E two workspaces at once (if the server build allows it).
 - Done when: two projects run side by side, switching folders needs no restart, leak #6505 checked.
+- Done 2026-11-09: `Close(ws)` stops the watcher, drops the indexes, hangs up the workspace's shells and servers and forgets the ID (Go test: nothing of the closed workspace keeps running, the other one does). Bindings take Wails' `ctx`, so a workspace belongs to its window: the close button asks the frontend first (`app:close-request`; unsaved buffers block it like `:qa`), a close that goes through tears the workspace down. `:qa` now closes the window, the app quits after the last one. New window (`Cmd+Shift+N` / `Ctrl+Shift+N`) starts on the welcome screen with recent folders; `<Space>fp` switches folder (recent list or dialog), refused while buffers are unsaved; the frontend also stops that workspace's LSP clients. E2E: two pages side by side, switch, `/fs/` of the old ID gives 404. **Still open:** #6505 on Hyprland (closed windows leaving WebKitWebProcess behind), native window checks by hand (close button with unsaved buffers, `Cmd+Q`).
 
 ## M14 – Packaging and hardening
 

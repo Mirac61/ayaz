@@ -5,7 +5,7 @@ import { defaultKeymap, keyName, mergeKeymap, parseKeys, parseUserKeymap, Sequen
 import { isDirty } from "../core/buffers";
 import { label, Quickfix, replaceEdits, type Loc } from "../core/quickfix";
 import { Text } from "@codemirror/state";
-import { references } from "../editor/lsp";
+import { closeLsp, references } from "../editor/lsp";
 import { installVim } from "../editor/vim/setup";
 import { browsable, resolveLink } from "../editor/mdlive";
 import type { TermOptions } from "../terminal/terminal";
@@ -32,7 +32,8 @@ const clampPanel = (h: number) => Math.min(0.9, Math.max(0.1, h));
 const PANEL = -1; // pane id of the bottom panel; split panes count up from 1
 
 // One workspace: tree on the left, editor panes in splits, status line. Every action is a command (ADR-0010).
-export function Workbench({ ws }: { ws: Info }) {
+// onSwitch opens another folder in this window: a root from the recent list, or null for the folder dialog.
+export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | null): void }) {
   const files = useMemo(() => backend.files(ws.id), [ws.id]);
   const [status, setStatus] = useState<Status>({ pane: 1, path: null, dirty: false, mode: "normal", line: 1, col: 1, lines: 1 });
   const lastSplit = useRef(1); // the split pane to go back to from the panel
@@ -115,10 +116,11 @@ export function Workbench({ ws }: { ws: Info }) {
       }
     };
 
+    // Closes the window (ADR-0014: one workspace per window); the app quits after the last one.
     const quit = async (force: boolean) => {
       const d = ed.buffers.dirty();
       if (d.length && !force) return fail(`No write since last change for "${d[0].path}" (add ! to override)`);
-      await backend.quit();
+      await backend.closeWindow();
     };
 
     const closePane = async (force: boolean, id = ed.active) => {
@@ -344,7 +346,24 @@ export function Workbench({ ws }: { ws: Info }) {
         title: "Toggle reading view",
         run: () => { if (!ed.toggleReading()) fail("Reading view is for Markdown files"); },
       },
-      { id: "app.quit", title: "Quit (:qa)", run: (a) => quit(bang(a).force) },
+      { id: "app.quit", title: "Close window (:qa)", run: (a) => quit(bang(a).force) },
+      { id: "window.new", title: "New window", run: () => backend.newWindow() },
+      {
+        id: "folder.switch",
+        title: "Switch folder",
+        run: () => setPicker({
+          title: "Switch folder",
+          async query(q) {
+            const items = [{ label: "Open folder…", hint: "dialog" }, ...recentFolders().filter((f) => f.root !== ws.root).map((f) => ({ label: f.root, icon: folderIcon(false) }))];
+            return items.filter((it) => !q || it.label.toLowerCase().includes(q.toLowerCase()));
+          },
+          pick(it) {
+            const d = ed.buffers.dirty();
+            if (d.length) return fail(`No write since last change for "${d[0].path}": save first (:w)`);
+            onSwitch(it.hint === "dialog" ? null : it.label);
+          },
+        }),
+      },
       { id: "pane.close", title: "Close pane (:q)", run: (a) => closePane(bang(a).force) },
       { id: "pane.splitDown", title: "Split pane down (:split)", run: () => splitPane("col") },
       { id: "pane.splitRight", title: "Split pane right (:vsplit)", run: () => splitPane("row") },
@@ -472,6 +491,13 @@ export function Workbench({ ws }: { ws: Info }) {
     if (note) fail(note);
   }), [ed, ws.id]);
 
+  // The window's close button: refuse while something is unsaved, like :qa.
+  useEffect(() => backend.onCloseRequest(() => {
+    const d = ed.buffers.dirty();
+    if (d.length) fail(`Unsaved changes in "${d[0].path}": :w to save, :qa! to close anyway`);
+    else void backend.closeWindow();
+  }), [ed]);
+
   useEffect(() => backend.onLspStatus(ws.id, (s) => {
     if (s.state === "missing") fail(`${s.command} not found in PATH, no language features from it`);
     if (s.state === "nocdb") setMsg({ text: "clangd: no compile_commands.json, flags are guessed (cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON, or bear -- make)" });
@@ -519,7 +545,7 @@ export function Workbench({ ws }: { ws: Info }) {
 
   const rs = rects(layout);
   return (
-    <div className={max && panel === "shown" ? "workbench max" : "workbench"}>
+    <div className={max && panel === "shown" ? "workbench max" : "workbench"} data-ws={ws.id}>
       <aside className="sidebar">
         <div className="sidebar-title"><Glyph icon={folderIcon(true)} />{ws.name}</div>
         <Tree ref={tree} files={files} onOpen={(p) => run("file.open", p)} onLeave={() => ed.focus(ed.active)} />
@@ -665,20 +691,62 @@ function Pane({ id, active, style, edge, mount }: PaneProps) {
   return <div ref={el} className={cls} style={style} data-pane={id} />;
 }
 
-// Opens the folder from the command line, otherwise asks for one.
+// Folders opened in any window, most recent first (shared by all windows: same origin).
+const FOLDERS_KEY = "ayaz.folders";
+function recentFolders(): { root: string; name: string }[] {
+  try {
+    const v: unknown = JSON.parse(localStorage.getItem(FOLDERS_KEY) ?? "[]");
+    return Array.isArray(v) ? v.filter((f) => typeof f?.root === "string" && typeof f?.name === "string") : [];
+  } catch {
+    return []; // storage blocked or corrupt
+  }
+}
+function rememberFolder(w: Info) {
+  try {
+    localStorage.setItem(FOLDERS_KEY, JSON.stringify([{ root: w.root, name: w.name }, ...recentFolders().filter((f) => f.root !== w.root)].slice(0, 20)));
+  } catch { /* a convenience */ }
+}
+
+// Opens the folder from the command line (first window only), otherwise shows recent folders and the dialog.
 export function Shell() {
   const [ws, setWs] = useState<Info | null | undefined>(undefined);
   const [err, setErr] = useState("");
-  useEffect(() => void backend.initialWorkspace().then(setWs, (e) => { setErr(errText(e)); setWs(null); }), []);
+  const show = (w: Info | null) => { if (w) rememberFolder(w); setWs(w); };
+  useEffect(() => {
+    if (new URLSearchParams(location.search).has("new")) return setWs(null); // a new window starts empty
+    backend.initialWorkspace().then(show, (e) => { setErr(errText(e)); setWs(null); });
+  }, []);
 
-  const pick = () => backend.openFolderDialog().then((w) => w && setWs(w), (e) => setErr(errText(e)));
+  const open = (root: string | null) => (root ? backend.openFolder(root) : backend.openFolderDialog());
+  const pick = (root: string | null) => open(root).then((w) => w && show(w), (e) => setErr(errText(e)));
+
+  // Another folder in this window: open the new one first (the dialog may be cancelled), then tear the old one down.
+  const switchTo = (root: string | null) => {
+    const old = ws;
+    open(root).then((w) => {
+      if (!w || !old) return;
+      show(w);
+      closeLsp(old.id);
+      void backend.closeWorkspace(old.id);
+    }, (e) => setErr(errText(e)));
+  };
 
   if (ws === undefined) return null;
-  if (ws) return <Workbench ws={ws} />;
+  if (ws) return <Workbench key={ws.id} ws={ws} onSwitch={switchTo} />;
+  const recent = recentFolders();
   return (
     <div className="welcome">
       <div>No folder open</div>
-      <button autoFocus onClick={pick}>Open folder…</button>
+      <button autoFocus onClick={() => pick(null)}>Open folder…</button>
+      {recent.length > 0 && (
+        <nav className="welcome-recent" aria-label="Recent folders">
+          {recent.map((f) => (
+            <button key={f.root} onClick={() => pick(f.root)} title={f.root}>
+              <Glyph icon={folderIcon(false)} />{f.name} <span className="welcome-path">{f.root}</span>
+            </button>
+          ))}
+        </nav>
+      )}
       {err && <div style={{ color: "var(--samurai-red)" }}>{err}</div>}
     </div>
   );

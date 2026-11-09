@@ -172,7 +172,8 @@ export async function formatBeforeSave(view: EditorView): Promise<void> {
   await Promise.race([job.catch(() => {}), new Promise((r) => setTimeout(r, 2000))]);
 }
 
-const missing = new Set<string>(); // "ws:lang" whose server isn't installed: don't retry
+const missing = new Set<string>(); // "ws:server" whose server isn't installed or whose workspace closed: don't retry
+const sockets = new Map<string, WebSocket>();
 const MAX_RETRIES = 5; // a missing server ends the stream at once; stop asking after this many tries in a row
 const clients = new Map<string, LSPClient>();
 
@@ -191,7 +192,9 @@ function clientFor(ws: string, root: string, server: string): LSPClient {
   let failures = 0;
   const c = client;
   const connect = () => {
-    const transport = streamTransport(backend.stream("lsp"), { ws, lang: server }, () => {
+    const sock = backend.stream("lsp");
+    sockets.set(key, sock);
+    const transport = streamTransport(sock, { ws, lang: server }, () => {
       c.disconnect();
       if (missing.has(key) || ++failures > MAX_RETRIES) return;
       setTimeout(connect, Math.min(30_000, 500 * 2 ** failures)); // backoff: 1 s, 2 s, 4 s ...
@@ -201,6 +204,19 @@ function clientFor(ws: string, root: string, server: string): LSPClient {
   };
   connect();
   return client;
+}
+
+// Stops the workspace's clients for good: switching folders or closing it (Go stops the servers too).
+export function closeLsp(ws: string) {
+  for (const [key, client] of clients) {
+    if (!key.startsWith(`${ws}:`)) continue;
+    missing.add(key);
+    client.disconnect();
+    sockets.get(key)?.close();
+    sockets.delete(key);
+    clients.delete(key);
+  }
+  hosts.delete(ws);
 }
 
 // The extension for one file, or none when its language has no server.

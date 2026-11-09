@@ -43,7 +43,7 @@ test("leader hints", async ({ page }) => {
   await expect(page.getByRole("tree", { name: "Files" })).toBeFocused();
   await page.keyboard.press("Space");
   await expect(hints).toContainText("Toggle terminal panel");
-  await expect(hints).toContainText("+5 keymaps"); // f leads to ff, fo, fb, fk, fw
+  await expect(hints).toContainText("+6 keymaps"); // f leads to ff, fo, fb, fk, fw, fp
   await page.keyboard.press("Escape");
   await expect(hints).toBeHidden();
 

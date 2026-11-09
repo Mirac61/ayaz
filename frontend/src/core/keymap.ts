@@ -28,6 +28,7 @@ export function defaultKeymap(mac = isMac): Binding[] {
     n("<Space>fb", "find.buffers"),
     n("<Space>fk", "find.commands"),
     n("<Space>fw", "find.grep"),
+    n("<Space>fp", "folder.switch"),
     n("]q", "qf.next"),
     n("[q", "qf.prev"),
     ...Object.entries(panes).flatMap(([k, cmd]) => [n(`<C-${k}>`, cmd), n(`<C-w>${k}`, cmd), t(`<C-${k}>`, cmd)]),
@@ -49,8 +50,8 @@ export function defaultKeymap(mac = isMac): Binding[] {
     n("<C-w>=", "pane.equal"),
     n("<C-w>z", "term.maximize"),
     ...(mac
-      ? [g("<D-p>", "find.files"), g("<D-S-p>", "find.commands"), g("<D-j>", "term.panel")]
-      : [g("<C-S-p>", "find.files"), g("<C-S-j>", "term.panel")]),
+      ? [g("<D-p>", "find.files"), g("<D-S-p>", "find.commands"), g("<D-j>", "term.panel"), g("<D-S-n>", "window.new")]
+      : [g("<C-S-p>", "find.files"), g("<C-S-j>", "term.panel"), g("<C-S-n>", "window.new")]),
     g("<F1>", "find.commands"),
   ];
 }

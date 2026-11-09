@@ -194,6 +194,13 @@ func (r *Registry) Open(root string) (*Workspace, error) {
 	return w, nil
 }
 
+// Close forgets the workspace; later calls with its ID fail with ErrUnknown.
+func (r *Registry) Close(id string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.ws, id)
+}
+
 func (r *Registry) Get(id string) (*Workspace, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

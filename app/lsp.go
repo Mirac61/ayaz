@@ -79,8 +79,8 @@ func (s *WorkspaceService) HandleLSP(c *application.StreamConn) {
 		log.Println("lsp:", err)
 		return
 	}
-	s.trackServer(srv, true)
-	defer s.trackServer(srv, false)
+	s.trackServer(srv, cfg.WS, true)
+	defer s.trackServer(srv, cfg.WS, false)
 	defer srv.Close()
 
 	go func() {
@@ -116,11 +116,11 @@ func hasCompileDB(root string) bool {
 	return false
 }
 
-func (s *WorkspaceService) trackServer(srv *lsp.Server, on bool) {
+func (s *WorkspaceService) trackServer(srv *lsp.Server, ws string, on bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if on {
-		s.servers[srv] = true
+		s.servers[srv] = ws
 	} else {
 		delete(s.servers, srv)
 	}

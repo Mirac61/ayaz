@@ -8,7 +8,6 @@ import (
 	"github.com/Mirac61/ayaz/app"
 	"github.com/Mirac61/ayaz/internal/fsserve"
 	"github.com/wailsapp/wails/v3/pkg/application"
-	"github.com/wailsapp/wails/v3/pkg/events"
 )
 
 //go:embed all:frontend/dist
@@ -39,17 +38,7 @@ func main() {
 	a.HandleStream("search", ws.HandleSearch)
 	a.HandleStream("echo", app.HandleEcho)
 
-	win := a.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title:  "Ayaz",
-		Width:  1200,
-		Height: 800,
-		// Kanagawa sumiInk1, so there is no white flash before the first paint.
-		BackgroundColour: application.NewRGB(0x1f, 0x1f, 0x28),
-		URL:              "/",
-	})
-	win.OnWindowEvent(events.Common.WindowRuntimeReady, func(*application.WindowEvent) {
-		app.UncapFrameRate(win)
-	})
+	app.NewWindow(a, "/")
 
 	if err := a.Run(); err != nil {
 		log.Fatal(err)

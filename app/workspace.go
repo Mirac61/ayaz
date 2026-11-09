@@ -12,6 +12,7 @@ import (
 	"github.com/Mirac61/ayaz/internal/watch"
 	"github.com/Mirac61/ayaz/internal/workspace"
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/events"
 )
 
 // WorkspaceService is the frontend's door to files. Every call names its workspace ID, Go checks it against the registry.
@@ -21,8 +22,11 @@ type WorkspaceService struct {
 
 	mu      sync.Mutex
 	indexes map[indexKey]*lazyIndex
-	terms   map[*pty.Session]bool // running shells, hung up on quit
-	servers map[*lsp.Server]bool  // running language servers, stopped on quit
+	terms   map[*pty.Session]string       // running shells → workspace ("" for spike views), hung up on Close and quit
+	servers map[*lsp.Server]string        // running language servers → workspace, stopped on Close and quit
+	watches map[string]context.CancelFunc // workspace → its watcher
+	windows map[uint]string               // window ID → its workspace (ADR-0014)
+	closing map[uint]bool                 // windows the frontend allowed to close (nothing unsaved)
 }
 
 type indexKey struct {
@@ -44,41 +48,130 @@ type Info struct {
 
 // NewWorkspaceService takes the CLI arguments: `ayaz <folder>` or `ayaz --workspace <folder>`.
 func NewWorkspaceService(args []string) *WorkspaceService {
-	return &WorkspaceService{reg: workspace.NewRegistry(), args: args, indexes: map[indexKey]*lazyIndex{}, terms: map[*pty.Session]bool{}, servers: map[*lsp.Server]bool{}}
+	return &WorkspaceService{
+		reg: workspace.NewRegistry(), args: args, indexes: map[indexKey]*lazyIndex{},
+		terms: map[*pty.Session]string{}, servers: map[*lsp.Server]string{}, watches: map[string]context.CancelFunc{},
+		windows: map[uint]string{}, closing: map[uint]bool{},
+	}
 }
 
-// Initial opens the folder from the command line, nil if there was none.
-func (s *WorkspaceService) Initial() (*Info, error) {
+// Initial opens the folder from the command line, nil if there was none. New windows don't ask (ADR-0014).
+func (s *WorkspaceService) Initial(ctx context.Context) (*Info, error) {
 	if dir := folderArg(s.args); dir != "" {
-		return s.Open(dir)
+		return s.Open(ctx, dir)
 	}
 	return nil, nil
 }
 
 // OpenDialog asks for a folder with the native dialog, nil if cancelled.
-func (s *WorkspaceService) OpenDialog() (*Info, error) {
+func (s *WorkspaceService) OpenDialog(ctx context.Context) (*Info, error) {
 	dir, err := application.Get().Dialog.OpenFile().
 		CanChooseDirectories(true).CanChooseFiles(false).CanCreateDirectories(true).
 		SetTitle("Open folder").PromptForSingleSelection()
 	if err != nil || dir == "" {
 		return nil, err
 	}
-	return s.Open(dir)
+	return s.Open(ctx, dir)
 }
 
-func (s *WorkspaceService) Open(root string) (*Info, error) {
+// Open registers the folder as a workspace of the calling window and starts watching it.
+func (s *WorkspaceService) Open(ctx context.Context, root string) (*Info, error) {
 	w, err := s.reg.Open(root)
 	if err != nil {
 		return nil, err
 	}
+	wctx, cancel := context.WithCancel(context.Background())
+	s.mu.Lock()
+	s.watches[w.ID] = cancel
+	s.mu.Unlock()
 	// Off the critical path: on Linux, inotify walks every folder first.
-	// shortcut: the watcher runs until the process ends; stop it when Close lands (M13, multiple windows).
 	go func() {
-		if err := watch.Start(context.Background(), w.Root, func(b watch.Batch) { s.changed(w.ID, b) }); err != nil {
+		if err := watch.Start(wctx, w.Root, func(b watch.Batch) { s.changed(w.ID, b) }); err != nil {
 			log.Printf("watch %s: %v", w.Root, err)
 		}
 	}()
+	s.bindWindow(ctx, w.ID)
 	return &Info{ID: w.ID, Name: filepath.Base(w.Root), Root: w.Root}, nil
+}
+
+// Close tears a workspace down: watcher, indexes, shells and language servers, then the ID itself.
+// The frontend calls it when switching folders; closing a window calls it too.
+func (s *WorkspaceService) Close(ws string) {
+	s.mu.Lock()
+	if cancel := s.watches[ws]; cancel != nil {
+		cancel()
+	}
+	delete(s.watches, ws)
+	delete(s.indexes, indexKey{ws, false})
+	delete(s.indexes, indexKey{ws, true})
+	s.mu.Unlock()
+	s.stop(func(w string) bool { return w == ws })
+	s.reg.Close(ws)
+}
+
+// bindWindow ties ws to the calling window. Its first workspace hooks the window: a close asks the frontend first
+// ("app:close-request", unsaved buffers), and a close that goes through tears the workspace down.
+// No window in the server build and in tests.
+func (s *WorkspaceService) bindWindow(ctx context.Context, ws string) {
+	win, _ := ctx.Value(application.WindowKey).(application.Window)
+	if win == nil {
+		return
+	}
+	id := win.ID()
+	s.mu.Lock()
+	_, hooked := s.windows[id]
+	s.windows[id] = ws
+	s.mu.Unlock()
+	if hooked {
+		return
+	}
+	win.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {
+		s.mu.Lock()
+		ok := s.closing[id]
+		s.mu.Unlock()
+		if !ok {
+			e.Cancel()
+			win.EmitEvent("app:close-request")
+		}
+	})
+	win.OnWindowEvent(events.Common.WindowClosing, func(*application.WindowEvent) {
+		s.mu.Lock()
+		ws := s.windows[id]
+		delete(s.windows, id)
+		delete(s.closing, id)
+		s.mu.Unlock()
+		s.Close(ws)
+	})
+}
+
+// CloseWindow closes the calling window; the frontend calls it once nothing is unsaved (or the user forced it).
+// Without a window (server build) it does nothing.
+func (s *WorkspaceService) CloseWindow(ctx context.Context) {
+	win, _ := ctx.Value(application.WindowKey).(application.Window)
+	if win == nil {
+		return
+	}
+	s.mu.Lock()
+	s.closing[win.ID()] = true
+	s.mu.Unlock()
+	win.Close()
+}
+
+// NewWindow opens another window on the welcome screen.
+func (s *WorkspaceService) NewWindow() { NewWindow(application.Get(), "/?new") }
+
+// NewWindow opens a window at url with the app's window options.
+func NewWindow(a *application.App, url string) *application.WebviewWindow {
+	win := a.Window.NewWithOptions(application.WebviewWindowOptions{
+		Title:  "Ayaz",
+		Width:  1200,
+		Height: 800,
+		// Kanagawa sumiInk1, so there is no white flash before the first paint.
+		BackgroundColour: application.NewRGB(0x1f, 0x1f, 0x28),
+		URL:              url,
+	})
+	win.OnWindowEvent(events.Common.WindowRuntimeReady, func(*application.WindowEvent) { UncapFrameRate(win) })
+	return win
 }
 
 // FsChange is the "fs:changed" event payload.

@@ -73,3 +73,7 @@
 .tabbar { display: flex; flex: none; overflow: hidden; background: var(--bg-dim); border-bottom: 1px solid var(--sumi-ink-3); }
 .tabbar .tab { font: inherit; font-size: 12px; padding: 3px 12px; color: var(--fg-dim, inherit); background: none; border: 0; border-right: 1px solid var(--sumi-ink-3); white-space: nowrap; cursor: pointer; }
 .tabbar .tab.active { color: var(--fg); background: var(--bg); }
+.welcome-recent { display: grid; gap: 4px; margin-top: 8px; text-align: left; }
+.welcome .welcome-recent button { background: none; border-color: transparent; display: flex; gap: 8px; align-items: baseline; }
+.welcome .welcome-recent button:hover { background: var(--sumi-ink-3); }
+.welcome-path { color: var(--fg-dim); font-size: 12px; }

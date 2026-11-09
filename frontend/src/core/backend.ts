@@ -24,6 +24,12 @@ export interface Backend {
   quit(): Promise<void>;
   initialWorkspace(): Promise<Info | null>;
   openFolderDialog(): Promise<Info | null>;
+  openFolder(root: string): Promise<Info | null>;
+  closeWorkspace(ws: string): Promise<void>; // watcher, index, shells, servers (ADR-0014)
+  closeWindow(): Promise<void>; // this window; a no-op in the server build
+  newWindow(): Promise<void>;
+  // The user asked to close this window; the frontend decides (unsaved buffers) and calls closeWindow.
+  onCloseRequest(fn: () => void): () => void;
   files(ws: string): Files;
   keymap(): Promise<string>; // the user's keymap.json, "" if none
   // Fuzzy-ranks a short list (recent files, buffers, commands) with the Go matcher.
@@ -60,6 +66,11 @@ export const backend: Backend = {
   quit: () => Application.Quit(),
   initialWorkspace: () => WorkspaceService.Initial(),
   openFolderDialog: () => WorkspaceService.OpenDialog(),
+  openFolder: (root) => WorkspaceService.Open(root),
+  closeWorkspace: (ws) => WorkspaceService.Close(ws),
+  closeWindow: () => WorkspaceService.CloseWindow(),
+  newWindow: () => WorkspaceService.NewWindow(),
+  onCloseRequest: (fn) => Events.On("app:close-request", () => fn()),
   keymap: () => ConfigService.Keymap(),
   rank: async (items, q, limit) => (await WorkspaceService.Rank(items, q, limit)) ?? [],
   openURL: (url) => Browser.OpenURL(url),

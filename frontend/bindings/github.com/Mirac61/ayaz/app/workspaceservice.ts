@@ -25,6 +25,22 @@ import * as application$0 from "../../../wailsapp/wails/v3/pkg/application/model
 import * as $models from "./models.js";
 
 /**
+ * Close tears a workspace down: watcher, indexes, shells and language servers, then the ID itself.
+ * The frontend calls it when switching folders; closing a window calls it too.
+ */
+export function Close(ws: string): $CancellablePromise<void> {
+    return $Call.ByID(101698719, ws);
+}
+
+/**
+ * CloseWindow closes the calling window; the frontend calls it once nothing is unsaved (or the user forced it).
+ * Without a window (server build) it does nothing.
+ */
+export function CloseWindow(): $CancellablePromise<void> {
+    return $Call.ByID(2829396127);
+}
+
+/**
  * Find fuzzy-matches workspace paths. The index is built on the first call (K10) and kept;
  * ignored=true searches files Git ignores too (Q26). File changes drop it, see changed.
  */
@@ -58,7 +74,7 @@ export function HandleTerminal(c: application$0.StreamConn | null): $Cancellable
 }
 
 /**
- * Initial opens the folder from the command line, nil if there was none.
+ * Initial opens the folder from the command line, nil if there was none. New windows don't ask (ADR-0014).
  */
 export function Initial(): $CancellablePromise<$models.Info | null> {
     return $Call.ByID(1644887327);
@@ -68,6 +84,16 @@ export function List(ws: string, dir: string): $CancellablePromise<workspace$0.E
     return $Call.ByID(291202941, ws, dir);
 }
 
+/**
+ * NewWindow opens another window on the welcome screen.
+ */
+export function NewWindow(): $CancellablePromise<void> {
+    return $Call.ByID(3268337893);
+}
+
+/**
+ * Open registers the folder as a workspace of the calling window and starts watching it.
+ */
 export function Open(root: string): $CancellablePromise<$models.Info | null> {
     return $Call.ByID(3934079965, root);
 }

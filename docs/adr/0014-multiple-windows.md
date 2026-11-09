@@ -1,6 +1,6 @@
 # ADR-0014: Multiple windows in one process, one workspace per window
 
-Status: proposed · 2026-11-08
+Status: accepted · 2026-11-09 (window ↔ workspace through the binding ctx, not a URL parameter; #6505 not checked yet)
 
 ## Context
 - Wanted: VS Code behavior. Open another folder in the window, or open a new window.
