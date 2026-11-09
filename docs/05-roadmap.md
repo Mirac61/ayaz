@@ -100,7 +100,7 @@ Done when: notes read as if rendered, and Vim motions move cleanly over hidden m
 
 - First: **Spike S2** (`/fs/` middleware with `http.ServeContent`: do Range headers come through the scheme on macOS and WebKitGTK?). Settles ADR-0005.
 - [Own] `mdlive` part 2 (StateField): tables, inline images, code blocks with highlighting (language packages from M1), quotes, task lists.
-  - Done 2026-11-09: code blocks, quotes and bullets, task list checkboxes, tables (raw while the cursor is in them), horizontal rules. **Still open:** inline images, S2, `fsserve`.
+  - Done 2026-11-09: code blocks, quotes and bullets, task list checkboxes, tables (raw while the cursor is in them), horizontal rules. `fsserve` (Go side, tests incl. Range and fuzz). **Still open:** inline images, S2 on WKWebView/WebKitGTK.
 - [Own] `fsserve` with jail and workspace ID (ADR-0005).
 
 Tests: `fsserve` with `httptest`, widget browser tests, K3–K5 with `big.md`.

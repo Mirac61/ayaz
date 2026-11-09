@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/Mirac61/ayaz/app"
+	"github.com/Mirac61/ayaz/internal/fsserve"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 )
@@ -24,7 +25,8 @@ func main() {
 			application.NewService(&app.ConfigService{}),
 		},
 		Assets: application.AssetOptions{
-			Handler: application.AssetFileServerFS(assets),
+			Handler:    application.AssetFileServerFS(assets),
+			Middleware: fsserve.Middleware(ws.Registry()),
 		},
 		Mac: application.MacOptions{
 			ApplicationShouldTerminateAfterLastWindowClosed: true,

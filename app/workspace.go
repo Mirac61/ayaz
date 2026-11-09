@@ -159,3 +159,6 @@ func folderArg(args []string) string {
 	}
 	return ""
 }
+
+// Registry is shared with the /fs/ middleware so it serves exactly the folders the frontend opened.
+func (s *WorkspaceService) Registry() *workspace.Registry { return s.reg }
