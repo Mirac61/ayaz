@@ -68,3 +68,8 @@
 .hints li { display: flex; gap: 10px; white-space: nowrap; }
 .hints kbd { font: inherit; color: var(--carp-yellow); min-width: 2.5em; }
 .hints .group { color: var(--oni-violet); }
+
+.pane > .pane-body { position: relative; flex: 1; min-height: 0; }
+.tabbar { display: flex; flex: none; overflow: hidden; background: var(--bg-dim); border-bottom: 1px solid var(--sumi-ink-3); }
+.tabbar .tab { font: inherit; font-size: 12px; padding: 3px 12px; color: var(--fg-dim, inherit); background: none; border: 0; border-right: 1px solid var(--sumi-ink-3); white-space: nowrap; cursor: pointer; }
+.tabbar .tab.active { color: var(--fg); background: var(--bg); }

@@ -49,8 +49,8 @@ export function installVim(r: Run, normal: Binding[], p: Prime) {
     Vim.mapCommand(b.keys, "action", action, {}, { context: "normal" });
   });
 
-  // Links under the cursor; editor-only, so the tree keeps its own g keys.
-  for (const [keys, command] of Object.entries({ gx: "link.browser", gf: "link.file" })) {
+  // Links under the cursor and tabs; editor-only, so the tree keeps its own g keys.
+  for (const [keys, command] of Object.entries({ gx: "link.browser", gf: "link.file", gt: "tab.next", gT: "tab.prev" })) {
     Vim.defineAction(keys, () => run(command));
     Vim.mapCommand(keys, "action", keys, {}, { context: "normal" });
   }

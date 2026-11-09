@@ -79,6 +79,12 @@ export function Workbench({ ws }: { ws: Info }) {
   const [bindings, setBindings] = useState<Binding[] | null>(null);
   const tree = useRef<TreeHandle>(null);
   const splitFrom = useRef(new Map<number, number>()); // new pane → the pane it was split from
+  const previewNext = useRef(new Set<number>()); // new panes that turn into a Markdown preview once mounted
+  const previews = useRef(new Set<number>()); // panes showing a preview
+  const tabsKey = "ayaz.tabs";
+  useEffect(() => {
+    try { ed.setTabs(localStorage.getItem(tabsKey) === "on"); } catch { /* default: no tabs */ }
+  }, [ed]);
   const lay = useRef(layout);
   lay.current = layout;
 
@@ -311,6 +317,29 @@ export function Workbench({ ws }: { ws: Info }) {
         },
       },
       {
+        id: "md.preview",
+        title: "Toggle Markdown preview in a split",
+        run() {
+          const b = ed.current();
+          if (!b || !b.path.endsWith(".md")) return fail("The preview is for Markdown files");
+          const open = [...previews.current].find((id) => ed.pathOf(id) === b.path);
+          if (open !== undefined) return closePane(true, open);
+          previewNext.current.add(splitPane("row"));
+        },
+      },
+      {
+        id: "view.tabs",
+        title: "Toggle tab bar",
+        run() {
+          const on = !ed.tabsOn;
+          ed.setTabs(on);
+          try { localStorage.setItem(tabsKey, on ? "on" : "off"); } catch { /* a convenience */ }
+        },
+      },
+      { id: "tab.next", title: "Next tab (gt)", run: () => ed.tabMove(1) },
+      { id: "tab.prev", title: "Previous tab (gT)", run: () => ed.tabMove(-1) },
+      { id: "tab.close", title: "Close tab", run: () => ed.tabClose() },
+      {
         id: "md.reading",
         title: "Toggle reading view",
         run: () => { if (!ed.toggleReading()) fail("Reading view is for Markdown files"); },
@@ -504,11 +533,17 @@ export function Workbench({ ws }: { ws: Info }) {
             style={{ left: `${r.x * 100}%`, top: `${r.y * 100}%`, width: `${r.w * 100}%`, height: `${r.h * 100}%` }}
             edge={{ left: r.x > 0, top: r.y > 0 }}
             mount={(el) => {
-              ed.attach(id, el, splitFrom.current.get(id), termFor.current.get(id));
+              const from = splitFrom.current.get(id);
+              ed.attach(id, el, from, termFor.current.get(id));
               splitFrom.current.delete(id);
               termFor.current.delete(id);
+              if (previewNext.current.delete(id)) {
+                ed.toggleReading(); // the new pane is active; keep typing in the source
+                previews.current.add(id);
+                if (from !== undefined) ed.focus(from);
+              }
               if (id === 1) tree.current?.focus(); // no file open yet, so start in the tree
-              return () => ed.detach(id);
+              return () => { previews.current.delete(id); ed.detach(id, true); };
             }}
           />
         ))}

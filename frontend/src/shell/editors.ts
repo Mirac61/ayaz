@@ -39,6 +39,8 @@ export class Editors {
   private mru: string[] = []; // buffers, most recent first
   private recentKey: string;
   private lastEditor = 0; // where files open while a terminal pane is active
+  private tabs = new Map<number, string[]>(); // per pane: files shown in it, in the order first shown
+  tabsOn = false; // set through setTabs
   active = 0;
 
   constructor(files: Files, root: string, private wsId: string, private onStatus: (s: Status) => void) {
@@ -53,6 +55,7 @@ export class Editors {
     if (term) {
       const p: Pane = { el: parent, buf: null, mode: "terminal", title: term.cmd ?? "shell" };
       this.panes.set(id, p);
+      this.renderTabs(id);
       p.term = openTerminal(parent, { ...term, onMode: (m) => { p.mode = m; if (id === this.active) this.emit(); } });
       parent.addEventListener("focusin", () => this.setActive(id));
       this.focus(id);
@@ -73,12 +76,73 @@ export class Editors {
     else this.watchMode(id);
   }
 
-  detach(id: number) {
+  // closing: the pane goes away for good (not just swapping its content), so its tabs go too.
+  detach(id: number, closing = false) {
     const p = this.panes.get(id);
     p?.view?.destroy();
     p?.term?.dispose();
     p?.viewer?.dispose();
+    p?.el.querySelector(":scope > .pane-body")?.remove();
     this.panes.delete(id);
+    if (closing) this.tabs.delete(id);
+  }
+
+  // The optional tab bar (02-architecture): per pane, the files it showed. Click or gt/gT switch, <Space>bd drops one.
+  setTabs(on: boolean) {
+    this.tabsOn = on;
+    for (const id of this.panes.keys()) this.renderTabs(id);
+  }
+
+  async tabMove(d: number) {
+    const list = this.tabs.get(this.active) ?? [], cur = this.panes.get(this.active)?.buf?.path ?? this.panes.get(this.active)?.title;
+    if (list.length < 2) return;
+    const i = list.indexOf(cur ?? "");
+    await this.open(list[(i + d + list.length) % list.length]);
+  }
+
+  // Drops the current file from the pane's tabs and shows its neighbor. The buffer itself stays loaded, so nothing is lost.
+  async tabClose() {
+    const id = this.active, p = this.panes.get(id);
+    const cur = p?.buf?.path ?? (p?.viewer ? p.title : undefined);
+    const list = this.tabs.get(id);
+    if (!cur || !list) return;
+    const i = list.indexOf(cur);
+    list.splice(i, 1);
+    const next = list[Math.min(i, list.length - 1)];
+    if (next) await this.open(next, id);
+    else { this.replace(id); this.renderTabs(id); }
+  }
+
+  private addTab(id: number, path: string) {
+    const list = this.tabs.get(id) ?? [];
+    if (!list.includes(path)) list.push(path);
+    this.tabs.set(id, list);
+    this.renderTabs(id);
+  }
+
+  private renderTabs(id: number) {
+    const p = this.panes.get(id);
+    if (!p) return;
+    let bar = p.el.querySelector<HTMLElement>(":scope > .tabbar");
+    if (!this.tabsOn || p.term) return void bar?.remove();
+    if (!bar) {
+      bar = document.createElement("div");
+      bar.className = "tabbar";
+      bar.setAttribute("role", "tablist");
+      p.el.prepend(bar);
+    }
+    const cur = p.buf?.path ?? (p.viewer ? p.title : undefined);
+    bar.replaceChildren(...(this.tabs.get(id) ?? []).map((path) => {
+      const t = document.createElement("button");
+      t.className = path === cur ? "tab active" : "tab";
+      t.setAttribute("role", "tab");
+      t.setAttribute("aria-selected", String(path === cur));
+      t.title = path;
+      t.textContent = path.slice(path.lastIndexOf("/") + 1);
+      t.tabIndex = -1;
+      t.addEventListener("mousedown", (e) => { e.preventDefault(); void this.open(path, id); });
+      return t;
+    }));
   }
 
   focus(id: number) {
@@ -148,13 +212,18 @@ export class Editors {
     this.detach(id);
     const p: Pane = { el, buf: null, mode: "view", title: path };
     this.panes.set(id, p);
-    p.viewer = viewerFor(path)!.mount(el, {
+    // Viewers fill a body box, so the tab bar can sit above them.
+    const body = document.createElement("div");
+    body.className = "pane-body";
+    el.append(body);
+    p.viewer = viewerFor(path)!.mount(body, {
       url: fsUrl(this.wsId, path),
       onStatus: () => id === this.active && this.emit(),
       openURL: (u) => browsable(u) && void backend.openURL(u),
     });
     el.addEventListener("focusin", () => this.setActive(id));
     this.touch(path);
+    this.addTab(id, path);
     this.focus(id);
   }
 
@@ -176,6 +245,8 @@ export class Editors {
     this.emit();
     return b;
   }
+
+  pathOf(id: number) { return this.panes.get(id)?.buf?.path; }
 
   // The view of the active pane, if it is an editor.
   activeView() { return this.panes.get(this.active)?.view ?? null; }
@@ -224,6 +295,7 @@ export class Editors {
     // `:e!` creates a new Buffer object; other panes still showing the old one switch too.
     for (const [oid, o] of this.panes) if (oid === id || o.buf?.path === b.path && o.buf !== b) this.setBuf(oid, b);
     this.touch(b.path);
+    this.addTab(id, b.path);
     this.focus(id);
   }
 
@@ -231,6 +303,7 @@ export class Editors {
     const p = this.panes.get(id)!;
     p.buf = b;
     p.view!.setState(b.state);
+    if (isReading(b.state)) toggleReading(p.view!); // a preview pane's reading view stays in that pane
     p.mode = "normal";
     this.watchMode(id); // setState recreates the vim plugin
   }

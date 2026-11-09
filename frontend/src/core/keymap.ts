@@ -33,6 +33,8 @@ export function defaultKeymap(mac = isMac): Binding[] {
     ...Object.entries(panes).flatMap(([k, cmd]) => [n(`<C-${k}>`, cmd), n(`<C-w>${k}`, cmd), t(`<C-${k}>`, cmd)]),
     t("<C-\\><C-n>", "term.normal"),
     n("<Space>mr", "md.reading"),
+    n("<Space>mp", "md.preview"),
+    n("<Space>bd", "tab.close"),
     n("<Space>t", "term.panel"),
     n("<Space>tc", "term.split"),
     n("<Space>gg", "term.lazygit"),
