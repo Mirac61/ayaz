@@ -55,6 +55,7 @@ self.onmessage = async (e: MessageEvent<Msg>) => {
     running.set(id, r);
     await r.promise.finally(() => running.delete(id));
     const bitmap = canvas.transferToImageBitmap();
+    canvas.width = canvas.height = 0; // its fresh backing store, until GC finds the canvas
     postMessage({ id, bitmap }, { transfer: [bitmap] });
   } catch (err) {
     cancelled.delete(id);

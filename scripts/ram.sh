@@ -1,7 +1,7 @@
 #!/bin/sh
 # K2: memory of Ayaz plus its WebView processes, in MB.
 # Usage: scripts/ram.sh [binary [args...]]   (default bin/ayaz; starts it, waits 10 s, measures, quits it)
-# K8: AYAZ_SPIKE=k8 scripts/ram.sh bin/ayaz testdata/e2e-ws measures when the app prints "k8: before" and "k8: after".
+# K8: AYAZ_SPIKE=k8 scripts/ram.sh bin/ayaz testdata/e2e-ws measures when the app prints "k8: before", "k8: after" and "k8: closed".
 set -eu
 bin=${1:-bin/ayaz}
 [ $# -gt 0 ] && shift
@@ -40,7 +40,7 @@ measure() {
 "$bin" "$@" >"$log" 2>&1 &
 pid=$!
 if [ "${AYAZ_SPIKE:-}" = k8 ]; then
-	for step in before after; do
+	for step in before after closed; do
 		until grep -q "k8: $step" "$log"; do
 			grep "k8 error" "$log" && kill "$pid" && exit 1
 			sleep 0.5

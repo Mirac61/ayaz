@@ -135,3 +135,21 @@ Notes:
 - Hidden windows read lower and sometimes stall `requestAnimationFrame`, so frame times come from visible runs only; AeroSpace gave the two visible runs different pane heights. One hidden run read 281 → 1004 MB, not explained, not counted.
 - Tried and dropped: `enableHWA: true` (GPU canvas): +259 MB, slower rendering, 1 GB for a moment.
 - 120 fps isn't reached while pages render: pdf.js draws on the main thread in ~15 ms slices. Getting there needs rendering off the main thread (OffscreenCanvas in the worker). Trackpad scrolling runs on WebKit's scrolling thread and isn't covered by this measure.
+
+## 2026-11-09 – K8 and scroll frames with the render worker (M11)
+
+Same measure as above, now waiting 2 s after opening before scrolling (opening cost one ~80 ms frame, not scrolling), and a third step after closing the PDF. Window visible, pane 1237×875, 3 runs each.
+
+| | Frames p50 / p95 / max | Frames > 17 ms (of ~4,650) | K8 extra (≤ 300 MB) |
+|---|---|---|---|
+| Main thread (above) | 10 / 18 / 28 ms | – | +223 MB |
+| Render worker | 8 / 12 / 20–22 ms | 5–9 | +267 / +274 / +280 MB |
+| Render worker, detail canvas after scroll stops | 8 / 10 / 17–19 ms | 0–2 | +277 / +282 MB (3rd run's "before" was off) |
+
+Notes:
+- WebKit rounds `requestAnimationFrame` times to 1 ms, so a 120 Hz frame (8.3 ms) reads 8 or 9; p95 10 is ~5 % of frames one tick late.
+- With the worker alone, 91–95 % of frames over 13 ms got a new bitmap (47 % of the others). Copying it costs the main thread nothing (60–80 ms in the whole run); the upload of the new canvas (up to 4.4 MP) is what costs the frame.
+- Why so many: the visible pane is 4.3 MP at dpr 2, `maxCanvasPixels` 5.2 MP, so pdf.js' detail canvas is barely larger than the visible area and redrew in about every other frame. In a 1237×407 pane it had room and frames were already 8 / 9–10 / 14–15 ms.
+- Fix like Chrome and Preview: while scrolling, the pages show their low-resolution canvas; the sharp detail canvas follows 100 ms after the scroll stops (pdf.js' own `ignoreDetailViews`, forced while scrolling).
+- "Closed" (PDF pane closed, worker terminated, 5 s later) read 309, 426 and 442 MB; WebKit doesn't give the memory back within 5 s. Not explained.
+- Gate from the plan (p95 ≤ 9, max ≤ 17) is met in effect but not to the letter: p95 10, one or two 18–19 ms frames per 40 s scroll.

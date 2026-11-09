@@ -96,3 +96,37 @@ test("pdf: pages come from the render worker", async ({ page }) => {
   expect(await renders()).toBe(after);
   expect(errors).toEqual([]);
 });
+
+// Like Chrome and Preview: while scrolling, the sharp detail canvas waits (pages show their low-resolution canvas) and
+// follows once the scroll stops; redrawing it every other frame cost 120 fps (perf-log).
+test.describe("retina", () => {
+  test.use({ deviceScaleFactor: 2, viewport: { width: 1600, height: 1000 } });
+  test("pdf: the sharp detail canvas follows when scrolling stops", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: "big.pdf" }).click();
+    await expect(page.locator(".statusline")).toContainText("page 1/200");
+    const renders = () => page.evaluate(() => performance.getEntriesByName("pdf:worker-render").length);
+    // Waits until no render has landed for 500 ms, returns the count.
+    const settle = async () => {
+      for (let last = -1; ; await page.waitForTimeout(500)) {
+        const n = await renders();
+        if (n > 0 && n === last) return n;
+        last = n;
+      }
+    };
+    await settle();
+    await expect(page.locator('.page[data-page-number="1"] canvas')).toHaveCount(2); // page + detail
+    await page.locator(".pdf-viewer").evaluate((box) => (box.scrollTop = 1)); // scrolling down pre-renders the next page
+    const settled = await settle();
+
+    // 15 px per frame for 30 frames stays inside page 1, so only the detail canvas would redraw.
+    const during = await page.evaluate(async () => {
+      const box = document.querySelector<HTMLElement>(".pdf-viewer")!;
+      const count = () => performance.getEntriesByName("pdf:worker-render").length, n0 = count();
+      for (let i = 0; i < 30; i++) await new Promise((f) => requestAnimationFrame(() => f((box.scrollTop += 15))));
+      return count() - n0;
+    });
+    expect(during).toBe(0);
+    await expect.poll(renders).toBeGreaterThan(settled);
+  });
+});

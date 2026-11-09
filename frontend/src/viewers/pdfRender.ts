@@ -1,6 +1,6 @@
 // Client of the render worker: PDFViewer's page.render() calls go here instead of drawing on the main thread.
 // Loaded together with pdf.js, so RenderingCancelledException is the class the viewer checks against.
-import { RenderingCancelledException } from "pdfjs-dist";
+import { AnnotationMode, RenderingCancelledException, type PDFPageProxy, type RenderTask } from "pdfjs-dist";
 
 export interface RenderJob { page: number; scale: number; rotation: number; offsetX: number; offsetY: number; transform: number[] | null; annotationMode: number; width: number; height: number }
 export interface Renderer {
@@ -60,4 +60,23 @@ export function createRenderer(): Renderer {
       worker.terminate();
     },
   };
+}
+
+// A pdf.js RenderTask whose page is drawn by the render worker: the main thread only copies the bitmap into the viewer's canvas.
+// A bitmap of a cancelled job or an older document never arrives here (the Renderer closes it).
+export function renderTask(r: Renderer, page: number, p: Parameters<PDFPageProxy["render"]>[0]): RenderTask {
+  const canvas = p.canvas as HTMLCanvasElement, { width, height } = canvas, vp = p.viewport;
+  const job = r.render({ page, scale: vp.scale, rotation: vp.rotation, offsetX: vp.offsetX, offsetY: vp.offsetY,
+    transform: p.transform ?? null, annotationMode: p.annotationMode ?? AnnotationMode.ENABLE, width, height });
+  const promise = job.promise.then((b) => {
+    if (b.width === canvas.width && b.height === canvas.height) canvas.getContext("2d", { alpha: false })!.drawImage(b, 0, 0);
+    b.close();
+    performance.mark("pdf:worker-render");
+  });
+  const task = {
+    promise, onContinue: null, onError: null as ((e: unknown) => void) | null, separateAnnots: false,
+    // Like pdf.js: the viewer drops the half-done canvas in onError.
+    cancel: () => { job.cancel(); task.onError?.(cancelled("cancelled")); },
+  };
+  return task as unknown as RenderTask;
 }

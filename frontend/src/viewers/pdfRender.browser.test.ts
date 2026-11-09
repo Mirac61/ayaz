@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from "vitest";
 import { RenderingCancelledException } from "pdfjs-dist";
-import { createRenderer, type RenderJob, type Renderer } from "./pdfRender";
+import { createRenderer, renderTask, type RenderJob, type Renderer } from "./pdfRender";
 import { textPdf } from "../spikes/pdfS8";
 
 const job = (j: Partial<RenderJob>): RenderJob =>
@@ -54,4 +54,28 @@ test("open() of a new URL rejects jobs of the old one", async () => {
   await expect(old.promise).rejects.toBeInstanceOf(RenderingCancelledException);
   await opened;
   expect(dark(pixels(await r.render(job({ page: 3 })).promise))).toBeGreaterThan(1000);
+});
+
+const params = (canvas: HTMLCanvasElement) =>
+  ({ canvas, viewport: { scale: 1, rotation: 0, offsetX: 0, offsetY: 0 }, transform: null, annotationMode: 1 }) as unknown as
+    Parameters<typeof renderTask>[2];
+
+test("renderTask draws the bitmap into the viewer's canvas", async () => {
+  r = createRenderer();
+  await r.open(textPdf(1));
+  const canvas = Object.assign(document.createElement("canvas"), { width: 612, height: 792 });
+  await renderTask(r, 1, params(canvas)).promise;
+  expect(dark(canvas.getContext("2d")!.getImageData(0, 0, 612, 792).data)).toBeGreaterThan(1000);
+});
+
+// PDFViewer drops the half-done canvas in onError; without it every cancelled detail render left a full-size canvas behind.
+test("renderTask: cancel calls onError like pdf.js' RenderTask", async () => {
+  r = createRenderer();
+  await r.open(textPdf(1));
+  const t = renderTask(r, 1, params(Object.assign(document.createElement("canvas"), { width: 612, height: 792 })));
+  let got: unknown;
+  t.onError = (e: unknown) => (got = e);
+  t.cancel();
+  await expect(t.promise).rejects.toBeInstanceOf(RenderingCancelledException);
+  expect(got).toBeInstanceOf(RenderingCancelledException);
 });

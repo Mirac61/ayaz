@@ -47,23 +47,11 @@ export function mountPdf(el: HTMLElement, ctx: ViewContext): ViewHandle {
     bus.dispatch("find", { source: null, type: again ? "again" : "", query, caseSensitive: false, entireWord: false, highlightAll: true, findPrevious: previous, matchDiacritics: false });
   };
 
-  load().then(async ([pdfjs, web, worker, { createRenderer }]) => {
+  load().then(async ([pdfjs, web, worker, { createRenderer, renderTask }]) => {
     if (disposed) return;
     pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
     const r = (renderer = createRenderer());
-    // Page canvases are drawn by the render worker (S8), so scrolling keeps the main thread free: render() only copies its bitmap.
-    // A bitmap of a cancelled job or an older document never arrives here (the Renderer closes it).
-    const draw = (page: import("pdfjs-dist").PDFPageProxy) => (p: Parameters<typeof page.render>[0]) => {
-      const canvas = p.canvas as HTMLCanvasElement, { width, height } = canvas, vp = p.viewport;
-      const job = r.render({ page: page.pageNumber, scale: vp.scale, rotation: vp.rotation, offsetX: vp.offsetX, offsetY: vp.offsetY,
-        transform: p.transform ?? null, annotationMode: p.annotationMode ?? pdfjs.AnnotationMode.ENABLE, width, height });
-      const promise = job.promise.then((b) => {
-        if (b.width === canvas.width && b.height === canvas.height) canvas.getContext("2d", { alpha: false })!.drawImage(b, 0, 0);
-        b.close();
-        performance.mark("pdf:worker-render");
-      });
-      return { promise, cancel: job.cancel, onContinue: null, onError: null, separateAnnots: false } as unknown as import("pdfjs-dist").RenderTask;
-    };
+    // Page canvases are drawn by the render worker (S8), so scrolling keeps the main thread free.
     bus = new web.EventBus();
     const links = new web.PDFLinkService({ eventBus: bus, externalLinkTarget: web.LinkTarget.BLANK });
     const finder = new web.PDFFindController({ eventBus: bus, linkService: links });
@@ -71,6 +59,16 @@ export function mountPdf(el: HTMLElement, ctx: ViewContext): ViewHandle {
     // at full Retina resolution each page canvas took ~30 MB and K8 went to +477 MB.
     viewer = new web.PDFViewer({ container: box as HTMLDivElement, viewer: pages, eventBus: bus, linkService: links, findController: finder, maxCanvasPixels: 5242880 });
     links.setViewer(viewer);
+    // Like Chrome and Preview: while scrolling, pages show their low-resolution canvas and the sharp detail canvas follows
+    // 100 ms after the scroll stops. Redrawing it every other frame missed frames at 120 Hz (perf-log).
+    let scrolling = 0;
+    box.addEventListener("scroll", () => {
+      clearTimeout(scrolling);
+      scrolling = window.setTimeout(() => ((scrolling = 0), !disposed && viewer?.update()), 100);
+    });
+    const queue = viewer.renderingQueue!, pick = queue.getHighestPriority.bind(queue);
+    queue.getHighestPriority = (visible, views, down, extra, ignoreDetail) =>
+      pick(visible, views, down, extra, ignoreDetail || scrolling !== 0);
     bus.on("pagesinit", () => {
       viewer!.currentScaleValue = keep?.scale ?? "page-width";
       if (keep) viewer!.currentPageNumber = Math.min(keep.page, viewer!.pagesCount);
@@ -101,7 +99,7 @@ export function mountPdf(el: HTMLElement, ctx: ViewContext): ViewHandle {
       const getPage = doc.getPage.bind(doc);
       doc.getPage = async (n) => {
         const page = await getPage(n); // pdf.js caches the proxy, so this sets the same render again
-        page.render = draw(page);
+        page.render = (p) => renderTask(r, n, p);
         return page;
       };
       viewer!.setDocument(doc);
