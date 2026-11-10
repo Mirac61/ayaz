@@ -49,13 +49,16 @@ const Poll = time.Second
 
 // Watch calls fn when HEAD, the index or the reflog change, until ctx is cancelled. The file watcher skips .git/,
 // and a commit from lazygit changes no working file, so this is how the gutter and branch learn about it.
-// shortcut: the git dir is looked up once, a `git init` after opening the folder needs a reopen.
+// Outside a repository it waits for root/.git to appear (git init), then calls fn once and watches that.
 func Watch(ctx context.Context, root string, fn func()) {
-	out, ok, _ := run(root, "rev-parse", "--absolute-git-dir")
-	if !ok {
-		return
+	gitDir := func() string {
+		out, ok, _ := run(root, "rev-parse", "--absolute-git-dir")
+		if !ok {
+			return ""
+		}
+		return strings.TrimSpace(string(out))
 	}
-	dir := strings.TrimSpace(string(out))
+	dir := gitDir()
 	files := []string{"HEAD", "index", filepath.Join("logs", "HEAD")}
 	stamp := func() string {
 		var b strings.Builder
@@ -75,7 +78,17 @@ func Watch(ctx context.Context, root string, fn func()) {
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			if s := stamp(); s != last {
+			if dir == "" {
+				// A stat instead of running git every second in a folder that isn't a repository.
+				if _, err := os.Stat(filepath.Join(root, ".git")); err != nil {
+					continue
+				}
+				if dir = gitDir(); dir == "" {
+					continue
+				}
+				last = stamp()
+				fn()
+			} else if s := stamp(); s != last {
 				last = s
 				fn()
 			}

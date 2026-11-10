@@ -95,6 +95,25 @@ func TestWatch(t *testing.T) {
 	}
 }
 
+// M37: a folder that becomes a repository after opening (git init) is picked up without a reopen.
+func TestWatchSeesGitInit(t *testing.T) {
+	root := t.TempDir()
+	hit := make(chan struct{}, 1)
+	go Watch(t.Context(), root, func() {
+		select {
+		case hit <- struct{}{}:
+		default:
+		}
+	})
+	time.Sleep(100 * time.Millisecond)
+	gitIn(t, root, "init", "-q")
+	select {
+	case <-hit:
+	case <-time.After(3 * Poll):
+		t.Fatal("git init not seen")
+	}
+}
+
 func TestStatus(t *testing.T) {
 	root := repo(t)
 	write(t, filepath.Join(root, "gone.txt"), "g\n")
