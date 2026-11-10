@@ -399,7 +399,9 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
       });
     };
 
+    // In a terminal: the terminal font only (every terminal); elsewhere the whole page.
     const zoomBy = async (d: number) => {
+      if (ed.isTerm()) return setMsg({ text: `Terminal font ${ed.zoomTerms(Math.sign(d))} px` });
       const z = await setZoom(d ? zoomLevel() + d : 1);
       setMsg({ text: `Zoom ${Math.round(z * 100)} %` });
     };
@@ -1096,7 +1098,7 @@ function Pane({ id, active, style, edge, mount }: PaneProps) {
 }
 
 // Page zoom for every window (same origin), like VS Code's: the whole UI scales, terminal and PDFs included.
-// shortcut: one zoom for all; separate editor and terminal font sizes only if they are missed.
+// A focused terminal zooms its font instead (Editors.zoomTerms).
 const ZOOM_KEY = "ayaz.zoom", ZOOM_STEP = 0.1;
 function zoomLevel(): number {
   try {

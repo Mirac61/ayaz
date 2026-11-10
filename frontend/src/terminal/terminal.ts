@@ -45,6 +45,22 @@ const frame = (kind: number, body: Uint8Array) => {
   return f;
 };
 
+// Zoom with a terminal focused changes this many px on top of the terminal's size, for every terminal.
+const ZOOM_KEY = "ayaz.termZoom";
+export function termZoom(): number {
+  try {
+    const z = Number(localStorage.getItem(ZOOM_KEY));
+    return Number.isInteger(z) && z >= -6 && z <= 24 ? z : 0;
+  } catch {
+    return 0; // storage blocked
+  }
+}
+export function setTermZoom(z: number) {
+  try { localStorage.setItem(ZOOM_KEY, String(Math.min(24, Math.max(-6, z)))); } catch { /* a convenience */ }
+}
+// settings.json's terminalFontSize (else fontSize), plus the terminal zoom.
+export const termFontSize = () => Math.max(6, (settings().terminalFontSize ?? settings().fontSize) + termZoom());
+
 const defaultRenderer = () =>
   new URLSearchParams(location.search).get("renderer") === "dom" || !isMac ? "dom" : "webgl";
 
@@ -52,7 +68,7 @@ export function openTerminal(el: HTMLElement, opts: TermOptions = {}): TermHandl
   const term = new Terminal({
     theme: kanagawaTerm,
     fontFamily: getComputedStyle(document.documentElement).getPropertyValue("--font-mono"),
-    fontSize: settings().fontSize,
+    fontSize: termFontSize(),
     scrollback: 10_000,
     allowProposedApi: true, // unicode11
   });
@@ -163,7 +179,7 @@ export function openTerminal(el: HTMLElement, opts: TermOptions = {}): TermHandl
     focus: () => term.focus(),
     setFont() {
       term.options.fontFamily = getComputedStyle(document.documentElement).getPropertyValue("--font-mono");
-      term.options.fontSize = settings().fontSize;
+      term.options.fontSize = termFontSize();
       if (el.clientWidth && el.clientHeight) fit.fit();
     },
     dispose: () => {

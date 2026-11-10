@@ -8,7 +8,7 @@ import { setLspHost, formatBeforeSave, fileOps, toChanges, type WorkspaceEdit } 
 import { createState, editorExtensions, isWrapped, setWrap, settingsEffects } from "../editor/editor";
 import { cleanupChanges } from "../editor/cleanup";
 import { isReading, linkAt, toggleReading } from "../editor/mdlive";
-import { openTerminal, type TermHandle, type TermOptions } from "../terminal/terminal";
+import { openTerminal, setTermZoom, termFontSize, termZoom, type TermHandle, type TermOptions } from "../terminal/terminal";
 import { fsUrl, viewerFor, type ViewHandle } from "../core/viewers";
 import "../viewers/image";
 import "../viewers/pdf";
@@ -441,7 +441,7 @@ export class Editors {
     for (const b of this.buffers.list()) if (!shown.has(b)) b.state = b.state.update({ effects }).state;
   }
 
-  // settings.json was saved: indent and wrap for every loaded buffer, font for every terminal.
+  // settings.json was saved: indent and wrap for every loaded buffer, font for every terminal (hidden ones too).
   settingsChanged() {
     const shown = new Set<Buffer>();
     for (const p of this.panes.values()) {
@@ -451,6 +451,7 @@ export class Editors {
       shown.add(p.buf);
     }
     for (const b of this.buffers.list()) if (!shown.has(b)) b.state = b.state.update({ effects: settingsEffects(b.path) }).state;
+    for (const h of this.hidden) h.term.setFont();
   }
 
   // Re-reads the active buffer from disk (`:e!`).
@@ -591,6 +592,14 @@ export class Editors {
       col: head - l.from + 1,
       lines: st.doc.lines,
     });
+  }
+
+  // Terminal zoom: d px more for every terminal (shown or hidden), 0 back to the size from settings.json.
+  zoomTerms(d: number): number {
+    setTermZoom(d ? termZoom() + d : 0);
+    for (const p of this.panes.values()) p.term?.setFont();
+    for (const h of this.hidden) h.term.setFont();
+    return termFontSize();
   }
 
   // Hidden terminals by name, for the buffer list.

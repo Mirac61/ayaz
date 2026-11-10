@@ -40,3 +40,9 @@ test("inlayHints: off by default, a boolean", () => {
   expect(parseSettings('{"inlayHints": true}').inlayHints).toBe(true);
   expect(() => parseSettings('{"inlayHints": 1}')).toThrow(/"inlayHints" must be a boolean/);
 });
+
+test("terminalFontSize: optional, same range as fontSize", () => {
+  expect(DEFAULTS.terminalFontSize).toBeUndefined();
+  expect(parseSettings('{"terminalFontSize": 15}').terminalFontSize).toBe(15);
+  expect(() => parseSettings('{"terminalFontSize": 99}')).toThrow(/"terminalFontSize" must be a number from 6 to 48/);
+});

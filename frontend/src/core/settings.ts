@@ -14,6 +14,7 @@ export interface FileSettings {
 export interface Settings extends FileSettings {
   font: string; // put in front of the built-in monospace fonts, which stay as fallbacks (Nerd Font glyphs)
   fontSize: number; // editor and terminal, in px
+  terminalFontSize?: number; // the terminal's own, if it should differ from fontSize
   inlayHints: boolean; // parameter names and types from the language server, inline
   languages: Record<string, Partial<FileSettings>>;
 }
@@ -51,11 +52,13 @@ export function parseSettings(json: string): Settings {
     throw new Error(`settings.json: ${e instanceof Error ? e.message : e}`);
   }
   if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("settings.json: expected an object");
-  const { font, fontSize, inlayHints, languages, ...file } = data as Record<string, unknown>;
+  const { font, fontSize, terminalFontSize, inlayHints, languages, ...file } = data as Record<string, unknown>;
   if (font !== undefined && typeof font !== "string") throw new Error('settings.json: "font" must be a string');
   if (inlayHints !== undefined && typeof inlayHints !== "boolean") throw new Error('settings.json: "inlayHints" must be a boolean');
-  if (fontSize !== undefined && !(typeof fontSize === "number" && fontSize >= 6 && fontSize <= 48)) {
-    throw new Error('settings.json: "fontSize" must be a number from 6 to 48');
+  for (const [k, v] of Object.entries({ fontSize, terminalFontSize })) {
+    if (v !== undefined && !(typeof v === "number" && v >= 6 && v <= 48)) {
+      throw new Error(`settings.json: "${k}" must be a number from 6 to 48`);
+    }
   }
   checkFile(file, "settings.json");
   if (languages !== undefined && (!languages || typeof languages !== "object" || Array.isArray(languages))) {
@@ -69,7 +72,8 @@ export function parseSettings(json: string): Settings {
   }
   return {
     ...DEFAULTS, ...(file as Partial<FileSettings>),
-    ...(font !== undefined && { font }), ...(fontSize !== undefined && { fontSize }),
+    ...(font !== undefined && { font }), ...(fontSize !== undefined && { fontSize: fontSize as number }), // checked above
+    ...(terminalFontSize !== undefined && { terminalFontSize: terminalFontSize as number }),
     ...(inlayHints !== undefined && { inlayHints }), languages: langs,
   };
 }

@@ -89,3 +89,20 @@ test("hidden terminals come back from the buffer list", async ({ page }) => {
   await expect(picker).toBeVisible();
   await expect(picker.getByRole("option", { name: /term:\/\// })).toHaveCount(0);
 });
+
+// M47: zoom with a terminal focused sizes the terminal font only; elsewhere it stays the page zoom.
+test("terminal zoom is its own", async ({ page }) => {
+  await page.goto("/?renderer=dom");
+  await expect(page.getByRole("tree", { name: "Files" })).toBeFocused();
+  await page.keyboard.type(" t");
+  const rows = page.locator(".panel .xterm-rows");
+  await expect(page.locator(".statusline")).toContainText("TERMINAL");
+  const size = () => rows.evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+  const before = await size();
+  const mod = process.platform === "darwin" ? "Meta" : "Control";
+  await page.keyboard.press(`${mod}+=`);
+  await expect.poll(size).toBe(before + 1);
+  expect(await page.evaluate(() => localStorage.getItem("ayaz.zoom"))).toBeNull(); // no page zoom
+  await page.keyboard.press(`${mod}+0`);
+  await expect.poll(size).toBe(before);
+});
