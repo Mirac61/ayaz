@@ -367,9 +367,9 @@ const MAX_RETRIES = 5; // a missing server ends the stream at once; stop asking 
 const clients = new Map<string, LSPClient>();
 
 // Keeps every file's diagnostics for the list and the status line; false lets serverDiagnostics underline them too.
-export const diagnosticHandlers = (ws: string) => ({
+export const diagnosticHandlers = (ws: string, server = "") => ({
   "textDocument/publishDiagnostics": (_c: LSPClient, p: Published) => {
-    diagnosticsFor(ws).publish(p);
+    diagnosticsFor(ws).publish(p, server);
     return false;
   },
 });
@@ -395,7 +395,7 @@ function clientFor(ws: string, root: string, server: string): LSPClient {
     rootUri: fileUri(root),
     extensions: [...languageServerExtensions(), { clientCapabilities: CAPABILITIES }],
     workspace: (c) => new Files(c, ws, root),
-    notificationHandlers: diagnosticHandlers(ws),
+    notificationHandlers: diagnosticHandlers(ws, server),
   });
   backend.onLspStatus(ws, (s) => s.lang === server && s.state === "missing" && missing.add(key));
   clients.set(key, client);

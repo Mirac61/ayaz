@@ -24,3 +24,14 @@ test("errors come first, then file and line; no severity counts as an error", ()
   s.publish({ uri: "file:///a", diagnostics: [d(7, 1), d(1, 4)] });
   expect(s.all().map((x) => `${x.uri.slice(8)}:${x.line}:${x.severity}`)).toEqual(["a:7:1", "b:9:1", "b:3:2", "a:1:4"]);
 });
+
+test("two servers on one file keep their own lists", () => {
+  const s = new DiagStore();
+  s.publish({ uri: "file:///a.ts", diagnostics: [d(1, 1)] }, "typescript");
+  s.publish({ uri: "file:///a.ts", diagnostics: [d(2, 2)] }, "eslint");
+  expect(s.counts()).toEqual({ errors: 1, warnings: 1 });
+  expect(s.forUri("file:///a.ts").map((x) => x.line)).toEqual([1, 2]);
+  s.publish({ uri: "file:///a.ts", diagnostics: [] }, "eslint");
+  expect(s.counts()).toEqual({ errors: 1, warnings: 0 });
+  expect(s.all()).toHaveLength(1);
+});

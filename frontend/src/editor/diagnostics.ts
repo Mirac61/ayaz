@@ -13,24 +13,26 @@ export interface Diag {
 }
 
 export class DiagStore {
-  private byUri = new Map<string, Diag[]>();
+  private byUri = new Map<string, Map<string, Diag[]>>(); // uri → server → its list
   private fns = new Set<() => void>();
 
-  // A server's list replaces the earlier one for that URI; an empty list clears it.
-  // shortcut: keyed by URI alone, so two servers on one file overwrite each other; key by server if that comes up.
-  publish(p: Published) {
+  // A server's list replaces its earlier one for that URI; an empty list clears it. Other servers' lists stay.
+  publish(p: Published, server = "") {
     const ds = p.diagnostics.map((d) => ({
       line: d.range.start.line, character: d.range.start.character, severity: d.severity ?? 1, message: d.message, raw: d,
     }));
-    if (ds.length) this.byUri.set(p.uri, ds);
-    else if (!this.byUri.delete(p.uri)) return;
+    const lists = this.byUri.get(p.uri) ?? new Map<string, Diag[]>();
+    if (ds.length) lists.set(server, ds);
+    else if (!lists.delete(server)) return;
+    if (lists.size) this.byUri.set(p.uri, lists);
+    else this.byUri.delete(p.uri);
     this.fns.forEach((f) => f());
   }
 
   counts() {
     let errors = 0, warnings = 0;
-    for (const ds of this.byUri.values()) {
-      for (const d of ds) {
+    for (const uri of this.byUri.keys()) {
+      for (const d of this.forUri(uri)) {
         if (d.severity === 1) errors++;
         else if (d.severity === 2) warnings++;
       }
@@ -40,7 +42,7 @@ export class DiagStore {
 
   // All of them, errors before warnings before the rest, then by file and line.
   all(): (Diag & { uri: string })[] {
-    const out = [...this.byUri].flatMap(([uri, ds]) => ds.map((d) => ({ ...d, uri })));
+    const out = [...this.byUri.keys()].flatMap((uri) => this.forUri(uri).map((d) => ({ ...d, uri })));
     return out.sort((a, b) => {
       if (a.severity !== b.severity) return a.severity - b.severity;
       if (a.uri !== b.uri) return a.uri < b.uri ? -1 : 1;
@@ -48,7 +50,7 @@ export class DiagStore {
     });
   }
 
-  forUri(uri: string): Diag[] { return this.byUri.get(uri) ?? []; }
+  forUri(uri: string): Diag[] { return [...this.byUri.get(uri)?.values() ?? []].flat(); }
 
   onChange(fn: () => void) {
     this.fns.add(fn);
