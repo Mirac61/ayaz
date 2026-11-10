@@ -282,6 +282,31 @@ func (s *WorkspaceService) GitHead(ws, path string) (HeadFile, error) {
 	return HeadFile{Text: text, Tracked: tracked}, err
 }
 
+// GitIndex is a file's text in the index (staged); Tracked is false when it isn't in the index.
+func (s *WorkspaceService) GitIndex(ws, path string) (HeadFile, error) {
+	w, err := s.reg.Get(ws)
+	if err != nil {
+		return HeadFile{}, err
+	}
+	if _, err := w.Resolve(path); err != nil {
+		return HeadFile{}, err
+	}
+	text, tracked, err := git.Index(w.Root, path)
+	return HeadFile{Text: text, Tracked: tracked}, err
+}
+
+// GitApplyHunk stages one hunk of a file in the index, or with reverse takes it out again (see git.ApplyHunk).
+func (s *WorkspaceService) GitApplyHunk(ws, path, hunk string, reverse bool) error {
+	w, err := s.reg.Get(ws)
+	if err != nil {
+		return err
+	}
+	if _, err := w.Resolve(path); err != nil {
+		return err
+	}
+	return git.ApplyHunk(w.Root, path, hunk, reverse)
+}
+
 // GitBlame is who last changed line (1-based) of a file; text is the buffer's if it has unsaved changes, else "".
 // nil: nothing to show (no repository, file not tracked).
 func (s *WorkspaceService) GitBlame(ws, path, text string, line int) (*git.Blame, error) {

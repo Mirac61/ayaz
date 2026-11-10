@@ -77,6 +77,9 @@ export interface Files {
   reveal(path: string): Promise<void>; // in Finder / the file manager
   gitBranch(): Promise<string>; // "" outside a repository, a short SHA when detached
   gitHead(path: string): Promise<HeadFile>; // the file at HEAD; tracked=false for new files
+  gitIndex(path: string): Promise<HeadFile>; // the file as staged; tracked=false when it isn't in the index
+  // Stages one hunk ("@@ -a,b +c,d @@" with its lines, no context) of the file, or with reverse takes it out of the index.
+  gitApplyHunk(path: string, hunk: string, reverse: boolean): Promise<void>;
   // Who last changed line (1-based): text is the buffer's when it has unsaved changes, else "". null: nothing to show.
   gitBlame(path: string, line: number, text: string): Promise<Blame | null>;
   gitStatus(): Promise<Record<string, string>>; // changed, untracked and ignored paths: M A ? ! U (empty outside a repo)
@@ -143,6 +146,8 @@ export const backend: Backend = {
     reveal: (path) => WorkspaceService.Reveal(ws, path),
     gitBranch: () => WorkspaceService.GitBranch(ws),
     gitHead: (path) => WorkspaceService.GitHead(ws, path),
+    gitIndex: (path) => WorkspaceService.GitIndex(ws, path),
+    gitApplyHunk: (path, hunk, reverse) => WorkspaceService.GitApplyHunk(ws, path, hunk, reverse),
     gitBlame: (path, line, text) => WorkspaceService.GitBlame(ws, path, text, line),
     gitStatus: async () => ((await WorkspaceService.GitStatus(ws)) ?? {}) as Record<string, string>,
     swapWrite: (path, text) => WorkspaceService.SwapWrite(ws, path, text),

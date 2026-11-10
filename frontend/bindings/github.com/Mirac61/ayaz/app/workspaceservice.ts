@@ -56,6 +56,13 @@ export function Find(ws: string, query: string, limit: number, ignored: boolean)
 }
 
 /**
+ * GitApplyHunk stages one hunk of a file in the index, or with reverse takes it out again (see git.ApplyHunk).
+ */
+export function GitApplyHunk(ws: string, path: string, hunk: string, reverse: boolean): $CancellablePromise<void> {
+    return $Call.ByID(2320339205, ws, path, hunk, reverse);
+}
+
+/**
  * GitBlame is who last changed line (1-based) of a file; text is the buffer's if it has unsaved changes, else "".
  * nil: nothing to show (no repository, file not tracked).
  */
@@ -72,6 +79,13 @@ export function GitBranch(ws: string): $CancellablePromise<string> {
 
 export function GitHead(ws: string, path: string): $CancellablePromise<$models.HeadFile> {
     return $Call.ByID(1952299173, ws, path);
+}
+
+/**
+ * GitIndex is a file's text in the index (staged); Tracked is false when it isn't in the index.
+ */
+export function GitIndex(ws: string, path: string): $CancellablePromise<$models.HeadFile> {
+    return $Call.ByID(1084272005, ws, path);
 }
 
 /**

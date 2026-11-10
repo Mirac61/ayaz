@@ -19,6 +19,8 @@ function fakeFiles(init: Record<string, string>) {
     gitBranch: async () => "",
     gitHead: async () => ({ text: "", tracked: false }),
     gitBlame: async () => null,
+    gitIndex: async () => ({ text: "", tracked: false }),
+    gitApplyHunk: async () => {},
     gitStatus: async () => ({}),
     swapWrite: async (path, text) => void swaps.set(path, text),
     swapRemove: async (path) => void swaps.delete(path),

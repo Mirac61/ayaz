@@ -88,3 +88,35 @@ test("inline blame", async ({ page }) => {
   await page.keyboard.type(" gb");
   await expect(page.locator(".cm-blame")).toHaveText("Not committed yet");
 });
+
+// M61: <Space>hs stages the hunk under the cursor (only that one), the sign turns dim, <Space>hu takes it out again.
+test("stage and unstage a hunk", async ({ page }) => {
+  const file = "gitstage.txt";
+  writeFileSync(join(e2eWorkspace, file), "one\ntwo\nthree\nfour\nfive\n");
+  commit(file);
+  const cached = () => execFileSync("git", ["-C", e2eWorkspace, "diff", "--cached", "-U0", "--", file]).toString();
+  await page.goto("/");
+  await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: file }).click();
+  await expect(page.locator(".cm-content")).toContainText("five");
+  await page.locator(".cm-content").click();
+  await page.keyboard.type("ggAX"); // line 1
+  await page.keyboard.press("Escape");
+  await page.keyboard.type("5GAY"); // line 5 ("G" is the empty line after the last newline)
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".cm-git-mod")).toHaveCount(2);
+
+  await page.keyboard.type("gg hs");
+  await expect(page.locator(".statusline")).toContainText("Hunk staged");
+  await expect(page.locator(".cm-git-staged")).toHaveCount(1, { timeout: 5000 });
+  expect(cached()).toContain("+oneX");
+  expect(cached()).not.toContain("fiveY"); // the other hunk and the unsaved text stay out of it
+
+  await page.keyboard.type(" hu");
+  await expect(page.locator(".statusline")).toContainText("Hunk unstaged");
+  await expect(page.locator(".cm-git-staged")).toHaveCount(0, { timeout: 5000 });
+  expect(cached()).toBe("");
+  await page.keyboard.type("5G hs"); // the second one, on its own
+  await expect(page.locator(".cm-git-staged")).toHaveCount(1, { timeout: 5000 });
+  expect(cached()).toContain("+fiveY");
+  expect(cached()).not.toContain("oneX");
+});

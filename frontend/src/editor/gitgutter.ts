@@ -23,29 +23,54 @@ export function signs(chunks: readonly Chunk[], doc: Text): { line: number; sign
 }
 
 class Mark extends GutterMarker {
-  constructor(readonly sign: Sign) { super(); this.elementClass = `cm-git-${sign}`; }
-  eq(o: Mark) { return o.sign === this.sign; }
+  constructor(readonly sign: Sign, readonly staged: boolean) {
+    super();
+    this.elementClass = `cm-git-${sign}` + (staged ? " cm-git-staged" : "");
+  }
+  eq(o: Mark) { return o.sign === this.sign && o.staged === this.staged; }
 }
-const MARKS = { add: new Mark("add"), mod: new Mark("mod"), del: new Mark("del"), deltop: new Mark("deltop") };
+const mark = (staged: boolean) => ({
+  add: new Mark("add", staged), mod: new Mark("mod", staged), del: new Mark("del", staged), deltop: new Mark("deltop", staged),
+});
+const MARKS = mark(false), STAGED = mark(true);
 
-interface Git { head: Text; chunks: readonly Chunk[]; marks: RangeSet<Mark> }
+// head: the file at HEAD; index: what is staged; chunks: buffer against HEAD (all the changes), unstaged: buffer against
+// the index (what <Space>hs can stage). Without anything staged (index equals head) the two are the same.
+interface Git { head: Text; index: Text; chunks: readonly Chunk[]; unstaged: readonly Chunk[]; marks: RangeSet<Mark> }
 
-const git = (head: Text, chunks: readonly Chunk[], doc: Text): Git => {
+const git = (head: Text, index: Text, chunks: readonly Chunk[], unstaged: readonly Chunk[], doc: Text): Git => {
+  // A line of a change against HEAD that the buffer doesn't change against the index is staged: drawn dimmer.
+  const open = head.eq(index) ? null : new Set(signs(unstaged, doc).map((x) => x.line));
   // Two chunks can mark one line (a deletion right below a change); the first wins.
   const seen = new Set<number>();
   const marks = RangeSet.of(signs(chunks, doc).filter((x) => !seen.has(x.line) && seen.add(x.line))
-    .map((x) => MARKS[x.sign].range(doc.line(x.line).from)));
-  return { head, chunks, marks };
+    .map((x) => (open && !open.has(x.line) ? STAGED : MARKS)[x.sign].range(doc.line(x.line).from)));
+  return { head, index, chunks, unstaged, marks };
+};
+
+// Builds the state for a HEAD (and index) text against the buffer.
+const fresh = (head: Text, index: Text, doc: Text) => {
+  const chunks = Chunk.build(head, doc);
+  return git(head, index, chunks, index.eq(head) ? chunks : Chunk.build(index, doc), doc);
 };
 
 // null: no HEAD text (new file, no repository): no signs.
 export const setHead = StateEffect.define<Text | null>();
+// What is staged; until it is known the index counts as HEAD.
+export const setIndex = StateEffect.define<Text | null>();
 
 const gitField = StateField.define<Git | null>({
   create: () => null,
   update(g, tr) {
-    for (const e of tr.effects) if (e.is(setHead)) g = e.value && git(e.value, Chunk.build(e.value, tr.state.doc), tr.state.doc);
-    if (g && tr.docChanged) g = git(g.head, Chunk.updateB(g.chunks, g.head, tr.state.doc, tr.changes), tr.state.doc);
+    for (const e of tr.effects) {
+      if (e.is(setHead)) g = e.value && fresh(e.value, g?.index ?? e.value, tr.state.doc);
+      else if (e.is(setIndex) && g) g = fresh(g.head, e.value ?? g.head, tr.state.doc);
+    }
+    if (g && tr.docChanged) {
+      const chunks = Chunk.updateB(g.chunks, g.head, tr.state.doc, tr.changes);
+      const unstaged = g.index.eq(g.head) ? chunks : Chunk.updateB(g.unstaged, g.index, tr.state.doc, tr.changes);
+      g = git(g.head, g.index, chunks, unstaged, tr.state.doc);
+    }
     return g;
   },
 });
@@ -83,9 +108,10 @@ export function diffWith(view: EditorView, original: Text) {
 
 // With a new HEAD, an open diff against HEAD compares against it (or closes when the file left HEAD).
 // A diff against a history version stays.
-export function headEffects(s: EditorState, head: Text | null): StateEffect<unknown>[] {
-  if (!isDiffing(s) || getOriginalDoc(s) !== s.field(gitField, false)?.head) return [setHead.of(head)];
-  return [setHead.of(head), diffing.reconfigure(head ? diffView(head) : [])];
+export function headEffects(s: EditorState, head: Text | null, index: Text | null = null): StateEffect<unknown>[] {
+  const effects = [setHead.of(head), setIndex.of(index)];
+  if (!isDiffing(s) || getOriginalDoc(s) !== s.field(gitField, false)?.head) return effects;
+  return [...effects, diffing.reconfigure(head ? diffView(head) : [])];
 }
 
 export const gitGutter = [
@@ -97,15 +123,16 @@ export const gitGutter = [
 
 const chunksOf = (s: EditorState) => s.field(gitField, false)?.chunks ?? [];
 
-// The chunk on the cursor's line; a deletion counts on the line it marks and the one below.
-function chunkAt(s: EditorState): Chunk | null {
-  const line = s.doc.lineAt(s.selection.main.head).number;
-  return chunksOf(s).find((c) => {
-    const from = s.doc.lineAt(Math.min(c.fromB, s.doc.length)).number;
+// The chunk on a line of the B side; a deletion counts on the line it marks and the one below.
+function chunkOnLine(chunks: readonly Chunk[], doc: Text, line: number): Chunk | null {
+  return chunks.find((c) => {
+    const from = doc.lineAt(Math.min(c.fromB, doc.length)).number;
     if (c.fromB === c.toB) return line === from || line === from - 1;
-    return line >= from && line <= s.doc.lineAt(Math.min(c.endB, s.doc.length)).number;
+    return line >= from && line <= doc.lineAt(Math.min(c.endB, doc.length)).number;
   }) ?? null;
 }
+
+const chunkAt = (s: EditorState) => chunkOnLine(chunksOf(s), s.doc, s.doc.lineAt(s.selection.main.head).number);
 
 // ]c / [c: the next or previous hunk's first line, wrapping around like gitsigns. false: no hunks.
 export function moveHunk(view: EditorView, d: 1 | -1): boolean {
@@ -141,4 +168,48 @@ export function resetHunk(view: EditorView): boolean {
   const from = Math.min(c.fromB, s.doc.length);
   view.dispatch({ changes: { from, to: Math.min(c.toB, s.doc.length), insert }, userEvent: "git.reset" });
   return true;
+}
+
+// "-a,b" or "+c,d" of a hunk header: a count of 1 is left out, 0 stays.
+const span = (start: number, n: number) => (n === 1 ? `${start}` : `${start},${n}`);
+
+// One chunk as a hunk without context ("@@ -a,b +c,d @@" and its lines) that turns text a into text b there.
+// An insertion's start is the line before it, as git writes it for -U0.
+export function hunkText(a: Text, b: Text, c: Chunk): string {
+  const side = (doc: Text, from: number, to: number, mark: string) => {
+    const text = doc.sliceString(Math.min(from, doc.length), Math.min(to, doc.length));
+    const lines = text === "" ? [] : text.replace(/\n$/, "").split("\n");
+    const start = from === to ? doc.lineAt(Math.min(from, doc.length)).number - 1 : doc.lineAt(from).number;
+    const noEol = "\\ No newline at end of file\n"; // the last line of a file without a final newline
+    const body = lines.map((l, i) => `${mark}${l}\n` + (i === lines.length - 1 && !text.endsWith("\n") ? noEol : ""));
+    return { start, n: lines.length, body: body.join("") };
+  };
+  const old = side(a, c.fromA, c.toA, "-"), now = side(b, c.fromB, c.toB, "+");
+  return `@@ -${span(old.start, old.n)} +${span(now.start, now.n)} @@\n${old.body}${now.body}`;
+}
+
+// Where the buffer's position pos is in the index text, or null if the buffer changed it (an unstaged line).
+function toIndex(g: Git, pos: number): number | null {
+  let shift = 0;
+  for (const c of g.unstaged) {
+    if (pos >= c.toB) shift += (c.toA - c.fromA) - (c.toB - c.fromB);
+    else if (pos >= c.fromB) return null;
+  }
+  return pos + shift;
+}
+
+// The hunk under the cursor for the index: staging (the buffer's change against the index, to be applied) or, with
+// unstage, a change that is staged (HEAD against the index, to be applied in reverse). null: no such hunk here.
+export function hunkPatch(view: EditorView, unstage: boolean): string | null {
+  const s = view.state, g = s.field(gitField, false);
+  if (!g) return null;
+  const line = s.doc.lineAt(s.selection.main.head).number;
+  if (!unstage) {
+    const c = chunkOnLine(g.unstaged, s.doc, line);
+    return c ? hunkText(g.index, s.doc, c) : null;
+  }
+  const at = toIndex(g, s.doc.lineAt(s.selection.main.head).from);
+  if (at === null || g.head.eq(g.index)) return null;
+  const c = chunkOnLine(Chunk.build(g.head, g.index), g.index, g.index.lineAt(Math.min(at, g.index.length)).number);
+  return c ? hunkText(g.head, g.index, c) : null;
 }

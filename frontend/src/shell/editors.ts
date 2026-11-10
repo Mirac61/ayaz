@@ -477,13 +477,16 @@ export class Editors {
     void this.loadHead(b.path);
   }
 
-  // Fetches the file's text at HEAD for the git gutter, without holding up the open. Library files have none.
+  // Fetches the file's text at HEAD and in the index for the git gutter, without holding up the open. Library files have none.
   private async loadHead(path: string) {
     if (path.startsWith("/")) return;
-    const h = await this.files.gitHead(path).catch(() => null);
+    const [h, staged] = await Promise.all([
+      this.files.gitHead(path).catch(() => null), this.files.gitIndex(path).catch(() => null),
+    ]);
     const b = this.buffers.get(path);
     if (!b) return;
-    const effects = headEffects(b.state, h?.tracked ? Text.of(h.text.split("\n")) : null);
+    const text = (f: typeof h) => (f?.tracked ? Text.of(f.text.split("\n")) : null);
+    const effects = headEffects(b.state, text(h), text(staged));
     const shown = [...this.panes.values()].filter((p) => p.buf === b);
     for (const p of shown) p.view!.dispatch({ effects }); // dispatch() keeps b.state in step
     if (!shown.length) b.state = b.state.update({ effects }).state;

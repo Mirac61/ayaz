@@ -28,6 +28,7 @@ const theme = EditorView.theme(
     ".cm-git .cm-gutterElement": { width: "3px", marginRight: "5px", position: "relative" },
     ".cm-git-add": { backgroundColor: "var(--git-add)" },
     ".cm-git-mod": { backgroundColor: "var(--git-mod)" },
+    ".cm-git-staged": { opacity: 0.4 }, // changes already in the index
     ".cm-git-del::after, .cm-git-deltop::after": {
       content: '""', position: "absolute", left: 0, zIndex: 1, border: "4px solid transparent", borderLeftColor: "var(--git-del)",
     },

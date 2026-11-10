@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -195,3 +196,60 @@ func TestLineBlame(t *testing.T) {
 		t.Fatalf("no repository: ok=%v err=%v", ok, err)
 	}
 }
+
+func TestApplyHunkStagesAndUnstages(t *testing.T) {
+	root := repo(t)
+	write(t, filepath.Join(root, "a.txt"), "a\n")
+	write(t, filepath.Join(root, "sub", "b.txt"), "b1\nb2\nb3\n")
+	gitIn(t, root, "add", ".")
+	gitIn(t, root, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "three lines")
+
+	staged := func(dir string) string {
+		out, err := exec.Command("git", "-C", dir, "diff", "--cached", "-U0").Output()
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(out)
+	}
+	// Stage "b2 → B2" from the subfolder (the patch's path must start at the repository's top).
+	sub := filepath.Join(root, "sub")
+	hunk := "@@ -2 +2 @@\n-b2\n+B2\n"
+	if err := ApplyHunk(sub, "b.txt", hunk, false); err != nil {
+		t.Fatal(err)
+	}
+	if got := staged(root); !contains(got, "-b2\n+B2\n") || contains(got, "\n-b1") || contains(got, "\n+b1") {
+		t.Fatalf("staged:\n%s", got)
+	}
+	if idx, ok, _ := Index(sub, "b.txt"); !ok || idx != "b1\nB2\nb3\n" {
+		t.Fatalf("Index = %q, %v", idx, ok)
+	}
+	// An insertion and a deletion, zero context: "-N,0" is after line N.
+	if err := ApplyHunk(sub, "b.txt", "@@ -3,0 +4 @@\n+b4\n", false); err != nil {
+		t.Fatal(err)
+	}
+	if err := ApplyHunk(sub, "b.txt", "@@ -1 +0,0 @@\n-b1\n", false); err != nil {
+		t.Fatal(err)
+	}
+	if idx, _, _ := Index(sub, "b.txt"); idx != "B2\nb3\nb4\n" {
+		t.Fatalf("Index after insert and delete = %q", idx)
+	}
+	// Unstage the first change: the patch is written the way the index looks now (reverse).
+	if err := ApplyHunk(sub, "b.txt", "@@ -1 +1 @@\n-b2\n+B2\n", true); err != nil {
+		t.Fatalf("unstage: %v", err)
+	}
+	if idx, _, _ := Index(sub, "b.txt"); idx != "b2\nb3\nb4\n" {
+		t.Fatalf("Index after unstage = %q", idx)
+	}
+	if b, _ := os.ReadFile(filepath.Join(sub, "b.txt")); string(b) != "b1\nb2\nb3\n" {
+		t.Fatalf("the working file changed: %q", b) // the index only
+	}
+	// A hunk that doesn't fit says why and changes nothing.
+	if err := ApplyHunk(sub, "b.txt", "@@ -1 +1 @@\n-nope\n+x\n", false); err == nil {
+		t.Fatal("a hunk that doesn't match was accepted")
+	}
+	if _, ok, _ := Index(sub, "missing.txt"); ok {
+		t.Fatal("Index of a file that isn't there")
+	}
+}
+
+func contains(s, sub string) bool { return strings.Contains(s, sub) }

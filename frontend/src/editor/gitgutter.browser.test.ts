@@ -4,7 +4,7 @@ import { EditorView } from "@codemirror/view";
 import { undo } from "@codemirror/commands";
 import { editorExtensions } from "./editor";
 import { inlineBlame, showBlame } from "./blame";
-import { diffWith, headEffects, isDiffing, moveHunk, previewHunk, resetHunk, setHead, toggleDiff } from "./gitgutter";
+import { diffWith, headEffects, hunkPatch, isDiffing, moveHunk, previewHunk, resetHunk, setHead, toggleDiff } from "./gitgutter";
 
 let view: EditorView | null = null;
 afterEach(() => { view?.destroy(); view = null; });
@@ -90,6 +90,38 @@ test("the blame text sits at the end of the cursor line and goes when the cursor
   showBlame(v, "again");
   v.dispatch({ changes: { from: 0, insert: "x" } });
   expect(el.querySelector(".cm-blame")).toBeNull();
+  v.destroy();
+  el.remove();
+});
+
+// M61: what is staged is drawn dimmer, <Space>hs patches the index with the unstaged hunk, <Space>hu with a staged one.
+test("staged changes are dimmed, and the hunk to stage or unstage is the one on the cursor line", async () => {
+  const el = document.createElement("div");
+  document.body.append(el);
+  const head = Text.of("a\nb\nc\nd\n".split("\n")), index = Text.of("a\nB\nc\nd\n".split("\n"));
+  // b → B is staged; d → D is only in the buffer.
+  const v = new EditorView({ parent: el, state: EditorState.create({ doc: "a\nB\nc\nD\n", extensions: [editorExtensions()] }) });
+  v.dispatch({ effects: headEffects(v.state, head, index) });
+  const marks = () => [...el.querySelectorAll(".cm-git .cm-gutterElement")]
+    .map((m) => m.className.replace("cm-gutterElement ", "").trim())
+    .filter((m) => m.includes("cm-git-"))
+    .sort();
+  await expect.poll(marks).toEqual(["cm-git-mod", "cm-git-mod cm-git-staged"]);
+
+  v.dispatch({ selection: { anchor: v.state.doc.line(2).from } });
+  expect(hunkPatch(v, false)).toBeNull(); // line 2 matches the index: nothing to stage
+  expect(hunkPatch(v, true)).toBe("@@ -2 +2 @@\n-b\n+B\n"); // reverse-applied by git: the index's B goes back to b
+  v.dispatch({ selection: { anchor: v.state.doc.line(4).from } });
+  expect(hunkPatch(v, false)).toBe("@@ -4 +4 @@\n-d\n+D\n");
+  expect(hunkPatch(v, true)).toBeNull(); // line 4 isn't staged
+  v.dispatch({ selection: { anchor: v.state.doc.line(3).from } });
+  expect(hunkPatch(v, false)).toBeNull();
+  expect(hunkPatch(v, true)).toBeNull();
+
+  // A line added above shifts the buffer against the index: the staged hunk is still found.
+  v.dispatch({ changes: { from: 0, insert: "new\n" } });
+  v.dispatch({ selection: { anchor: v.state.doc.line(3).from } }); // on "B"
+  expect(hunkPatch(v, true)).toBe("@@ -2 +2 @@\n-b\n+B\n");
   v.destroy();
   el.remove();
 });
