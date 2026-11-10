@@ -9,6 +9,7 @@ export interface Session {
   tabs: Record<number, string[]>;
   active: number;
   cursors: Record<string, number>; // path → offset, oldest first
+  breakpoints: Record<string, number[]>; // path → lines (1-based) of the debugger's breakpoints
   previews: number[]; // panes showing a Markdown preview of their file
   terms: Record<number, string>; // terminal panes → their command, "" for a shell
 }
@@ -50,9 +51,27 @@ export function parseSession(text: string | null): Session | null {
     tabs: Object.fromEntries(Object.entries(v.tabs).filter(([id]) => ids.has(id)).map(([id, l]) => [id, strings(l)])),
     active: typeof v.active === "number" && ids.has(String(v.active)) ? v.active : panes(v.layout)[0],
     cursors: Object.fromEntries(Object.entries(v.cursors).filter(offset)),
+    // missing before M48
+    breakpoints: isObj(v.breakpoints) ? Object.fromEntries(Object.entries(v.breakpoints).flatMap(lineList)) : {},
     previews: Array.isArray(v.previews) ? v.previews.filter((id) => ids.has(String(id))) : [], // missing before M38
     terms: isObj(v.terms) ? Object.fromEntries(Object.entries(v.terms).filter(paneFile)) : {},
   };
+}
+
+// A path's breakpoint lines: whole numbers from 1, sorted; a path without any is left out.
+const lineList = ([path, v]: [string, unknown]): [string, number[]][] => {
+  const lines = Array.isArray(v) ? v.filter((n): n is number => Number.isInteger(n) && n >= 1) : [];
+  return lines.length ? [[path, [...new Set(lines)].sort((a, b) => a - b)]] : [];
+};
+
+// Loaded buffers say what they have now (an empty list clears the file); files not loaded keep what they had.
+export function mergeBreakpoints(old: Record<string, number[]>, now: Record<string, number[]>) {
+  const m = { ...old };
+  for (const [path, lines] of Object.entries(now)) {
+    if (lines.length) m[path] = lines;
+    else delete m[path];
+  }
+  return m;
 }
 
 // Newer positions win and move to the end; only the last CURSORS files are kept.

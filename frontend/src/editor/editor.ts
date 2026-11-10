@@ -11,6 +11,7 @@ import { vim } from "@replit/codemirror-vim";
 import { indentationMarkers } from "@replit/codemirror-indentation-markers";
 import { kanagawaCM } from "../theme/kanagawa-cm";
 import { inlineBlame } from "./blame";
+import { breakpointGutter } from "./breakpoints";
 import { conflictMarks } from "./conflicts";
 import { snippetCompletion } from "./snippets";
 import { stickyScroll } from "./sticky";
@@ -45,6 +46,7 @@ export const editorExtensions = (): Extension[] => [
   vim(),
   EditorState.allowMultipleSelections.of(true), // vim's block mode is built on multiple selections
   hybridLineNumbers,
+  breakpointGutter,
   gitGutter,
   highlightActiveLineGutter(),
   highlightActiveLine(),

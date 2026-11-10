@@ -17,11 +17,12 @@ import { loadSnippets, snippetsError } from "../core/snippets";
 import { Picker, type Item, type PickerSource } from "./Picker";
 import { Tree, type TreeHandle } from "./Tree";
 import { gitMarks, single } from "./gitstatus";
-import { loadSession, mergeCursors, saveSession, type Session } from "./session";
+import { loadSession, mergeBreakpoints, mergeCursors, saveSession, type Session } from "./session";
 import { folderIcon } from "../theme/icons";
 import { bang, errText, inTree, LIMIT, type Ctx } from "./commands/context";
 import { fileCommands } from "./commands/file";
 import { findCommands } from "./commands/find";
+import { debugCommands } from "./commands/debug";
 import { gitCommands } from "./commands/git";
 import { lspCommands } from "./commands/lsp";
 import { quickfixTools } from "./commands/quickfix";
@@ -49,6 +50,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       setStatus(s);
     });
     e.cursors = session?.cursors ?? {};
+    e.bps = session?.breakpoints ?? {};
     return e;
   }, [files, ws.root, ws.id]);
   // null: no panel terminal; "hidden": it runs but isn't shown (Cmd+J toggles, like VS Code).
@@ -116,7 +118,9 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
     if (restoring.current) return;
     const snap = ed.snapshot();
     ed.cursors = mergeCursors(ed.cursors, snap.cursors);
-    saveSession(ws.root, { ...snap, layout: lay.current, cursors: ed.cursors, previews: [...previews.current] });
+    ed.bps = mergeBreakpoints(ed.bps, snap.breakpoints);
+    const kept = { cursors: ed.cursors, breakpoints: ed.bps };
+    saveSession(ws.root, { ...snap, ...kept, layout: lay.current, previews: [...previews.current] });
   };
   // Split, file, tab or cursor changed: save at most every 500 ms. Not a debounce: steady status updates
   // (a build writing files) would push it back forever. Leaving the folder saves at once.
@@ -284,6 +288,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       ...findCommands(c, q),
       ...lspCommands(c, q),
       ...gitCommands(c),
+      ...debugCommands(c),
       ...viewCommands(c),
       {
         id: "md.preview",

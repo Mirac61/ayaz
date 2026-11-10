@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { mergeCursors, parseSession } from "./session";
+import { mergeBreakpoints, mergeCursors, parseSession } from "./session";
 
 const layout = { dir: "row", children: [{ pane: 1 }, { pane: 2 }], sizes: [0.3, 0.7] };
 
@@ -12,7 +12,8 @@ test("parseSession keeps a valid session and drops entries of panes that aren't 
     cursors: { "a.go": 12, "b.go": -1, "c.go": 1.5 },
   }));
   expect(s).toEqual({
-    layout, panes: { 1: "a.go" }, tabs: { 1: ["a.go", "b.go"] }, active: 2, cursors: { "a.go": 12 }, previews: [], terms: {},
+    layout, panes: { 1: "a.go" }, tabs: { 1: ["a.go", "b.go"] }, active: 2, cursors: { "a.go": 12 }, breakpoints: {},
+    previews: [], terms: {},
   });
 });
 
@@ -23,6 +24,18 @@ test("parseSession keeps previews and terminals of panes in the layout", () => {
   }));
   expect(s?.previews).toEqual([1]);
   expect(s?.terms).toEqual({ 2: "" });
+});
+
+test("parseSession keeps breakpoint lines as sorted whole numbers and drops files without any", () => {
+  const s = parseSession(JSON.stringify({
+    layout, panes: {}, tabs: {}, cursors: {}, breakpoints: { "a.go": [9, 3, 3, 0, 1.5, "x"], "b.go": [], "c.go": "no" },
+  }));
+  expect(s?.breakpoints).toEqual({ "a.go": [3, 9] });
+});
+
+test("mergeBreakpoints: loaded files replace theirs (an empty list clears it), the others stay", () => {
+  const old = { "a.go": [1], "b.go": [2], "c.go": [3] };
+  expect(mergeBreakpoints(old, { "a.go": [5, 6], "b.go": [] })).toEqual({ "a.go": [5, 6], "c.go": [3] });
 });
 
 test("parseSession rejects broken input and falls back to the first pane", () => {

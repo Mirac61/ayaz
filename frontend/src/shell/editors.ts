@@ -16,6 +16,7 @@ import { backend } from "../core/backend";
 import { Jumps, type Spot } from "./jumps";
 import { browsable } from "../editor/mdlive";
 import { historyRoute } from "../editor/vim/setup";
+import { breakpointLines, setLines as setBreakpointLines, toggleBreakpoint } from "../editor/breakpoints";
 import { diffWith, headEffects, toggleDiff } from "../editor/gitgutter";
 import { Waits } from "./waits";
 
@@ -52,6 +53,7 @@ export class Editors {
   private dirtyTabs = ""; // the dirty buffers' paths when the tabs were last drawn
   tabsOn = false; // set through setTabs
   cursors: Record<string, number> = {}; // from the session: where the cursor was when a file loads again
+  bps: Record<string, number[]> = {}; // from the session: the breakpoints a file gets when it loads again
   private jumps = new Map<number, Jumps>(); // per pane: back/forward across files
   private navigating = false; // nav() is opening a file: not a new jump
   private closed: string[] = []; // closed tabs, last on top (Cmd+Shift+T)
@@ -304,7 +306,11 @@ export class Editors {
     }
     const fresh = !this.buffers.get(path);
     const b = await this.buffers.open(path);
-    if (fresh) void this.loadHead(path);
+    if (fresh) {
+      void this.loadHead(path);
+      const lines = this.bps[path];
+      if (lines?.length) b.state = b.state.update({ effects: setBreakpointLines.of(lines) }).state;
+    }
     if (this.panes.get(id)!.viewer) this.replace(id); // back to an editor
     this.show(id, b);
     const at = this.cursors[path], v = this.panes.get(id)!.view!;
@@ -404,9 +410,12 @@ export class Editors {
       if (path && id > 0) panes[id] = path;
       if (p.term && id > 0) terms[id] = p.cmd ?? "";
     }
-    const cursors: Record<string, number> = {};
-    for (const b of this.buffers.list()) cursors[b.path] = b.state.selection.main.head;
-    return { panes, terms, tabs: Object.fromEntries(this.tabs), active: this.active, cursors };
+    const cursors: Record<string, number> = {}, breakpoints: Record<string, number[]> = {};
+    for (const b of this.buffers.list()) {
+      cursors[b.path] = b.state.selection.main.head;
+      breakpoints[b.path] = breakpointLines(b.state);
+    }
+    return { panes, terms, tabs: Object.fromEntries(this.tabs), active: this.active, cursors, breakpoints };
   }
 
   // Session restore: the pane's tabs before its file opens (which adds to them).
@@ -416,6 +425,25 @@ export class Editors {
   }
 
   pathOf(id: number) { return this.panes.get(id)?.buf?.path; }
+
+  // Every loaded buffer's breakpoints (files without any are left out): what the debugger is given.
+  breakpoints(): Record<string, number[]> {
+    const out: Record<string, number[]> = {};
+    for (const b of this.buffers.list()) {
+      const lines = breakpointLines(b.state);
+      if (lines.length) out[b.path] = lines;
+    }
+    return out;
+  }
+
+  // <Space>db: a breakpoint on the active editor's cursor line, or none any more. null: no editor pane.
+  toggleBreakpoint(): boolean | null {
+    const v = this.activeView();
+    if (!v) return null;
+    const on = toggleBreakpoint(v);
+    this.emit(); // the session notices
+    return on;
+  }
 
   // The view of the active pane, if it is an editor.
   activeView() { return this.panes.get(this.active)?.view ?? null; }

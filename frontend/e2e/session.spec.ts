@@ -67,3 +67,27 @@ test("session: preview and terminal panes come back as what they were", async ({
   await expect(page.locator("[data-term] .xterm-rows")).toContainText(/\S/); // the shell is alive: its prompt
   await expect(page.locator(".cm-reading")).toHaveCount(1);
 });
+
+// M48 D3: <Space>db puts a breakpoint dot on the line, and the session brings it back after a reload.
+test("breakpoints: toggled with <Space>db, kept in the session", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: "hello.go" }).click();
+  await expect(page.locator(".cm-content")).toContainText("func hello");
+  await page.locator(".cm-content").click();
+  await page.keyboard.type("gg5j db"); // the line with fmt.Println
+  const dots = () => page.locator(".cm-bp .cm-gutterElement:not([style*='visibility']) .cm-bp-dot");
+  await expect(dots()).toHaveCount(1);
+  const saved = () => page.evaluate(() => {
+    const k = Object.keys(localStorage).find((x) => x.startsWith("ayaz.session:"));
+    return JSON.stringify(k ? JSON.parse(localStorage.getItem(k)!).breakpoints : null);
+  });
+  await expect.poll(saved).toBe('{"hello.go":[6]}'); // saved at most 500 ms after the change
+
+  await page.reload();
+  await expect(page.locator(".cm-content")).toContainText("func hello");
+  await expect(dots()).toHaveCount(1);
+  await page.keyboard.press("Escape");
+  await page.keyboard.type("gg5j db"); // off again
+  await expect(dots()).toHaveCount(0);
+  await expect.poll(saved).toBe("{}");
+});
