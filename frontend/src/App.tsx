@@ -8,13 +8,15 @@ import { Shell } from "./shell/Shell";
 import { ScrollTest } from "./spikes/ScrollTest";
 import { runS4, type Stats } from "./spikes/bindingLatency";
 import { runS6, runS7 } from "./spikes/terminalBench";
+import { runFps } from "./spikes/fps";
 import { runK8 } from "./spikes/pdfRam";
 import { runS8 } from "./spikes/pdfS8";
 
 const fmt = (s: Stats) => `p50 ${s.p50.toFixed(3)} · p95 ${s.p95.toFixed(3)} · max ${s.max.toFixed(3)} ms`;
 
 // AYAZ_SPIKE picks the view: "" editor (?view=term: terminal only), "s1" scroll test, "bench" runs S4/S6/S7 and reports to stdout,
-// "k8" the editor scrolling through big.pdf by itself (scripts/ram.sh measures).
+// "k8" the editor scrolling through big.pdf by itself (scripts/ram.sh measures),
+// "fps" scrolls the open file and the tree and reports frame times.
 const termOnly = new URLSearchParams(location.search).get("view") === "term";
 
 export default function App() {
@@ -62,11 +64,12 @@ export default function App() {
       })().catch((e) => backend.report(`bench error: ${e}`));
     }
     if (mode === "s8") runS8().catch((e) => backend.report(`s8 error: ${e}`));
+    if (mode === "fps") runFps().catch((e) => backend.report(`fps error: ${e}`));
     if (mode === "k8") runK8().catch((e) => backend.report(`k8 error: ${e}`));
   }, [mode]);
 
   if (mode === null) return null;
-  if ((mode === "" || mode === "k8") && !termOnly) return <Shell />;
+  if ((mode === "" || mode === "k8" || mode === "fps") && !termOnly) return <Shell />;
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <div style={{ flex: 1, minHeight: 0, padding: mode === "s1" ? 0 : 4 }}>
