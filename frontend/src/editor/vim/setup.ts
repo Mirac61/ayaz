@@ -1,4 +1,5 @@
-import { Vim, type CodeMirror } from "@replit/codemirror-vim";
+import { CodeMirror, Vim } from "@replit/codemirror-vim";
+import type { EditorView } from "@codemirror/view";
 import { EditorSelection, type SelectionRange } from "@codemirror/state";
 import { foldAll, foldCode, toggleFold, unfoldAll, unfoldCode } from "@codemirror/language";
 import { jumpToDefinition, jumpToImplementation, jumpToTypeDefinition } from "@codemirror/lsp-client";
@@ -23,6 +24,10 @@ const EX: [name: string, prefix: string, command: string][] = [
   ["copen", "cope", "qf.open"],
   ["Replace", "Rep", "qf.replace"],
 ];
+
+// u and <C-r> ask here first: the workbench runs them in the pane that made the buffer's latest change (M41).
+// true: done there. Not set (tests, a single pane): Vim's own undo in this view.
+export const historyRoute = new WeakMap<EditorView, (redo: boolean) => boolean>();
 
 let installed = false;
 let mapped: string[] = []; // keys of the bindings mapped last, unmapped before a new keymap goes in
@@ -72,6 +77,10 @@ export function installVim(r: Run, normal: Binding[], p: Prime) {
   }
 
   installSurround();
+
+  const plain = { undo: CodeMirror.commands.undo, redo: CodeMirror.commands.redo };
+  CodeMirror.commands.undo = (cm: CodeMirror) => historyRoute.get(cm.cm6!)?.(false) || plain.undo(cm);
+  CodeMirror.commands.redo = (cm: CodeMirror) => historyRoute.get(cm.cm6!)?.(true) || plain.redo(cm);
 
   // gj/gk through CM6: codemirror-vim reads a cursor at the start of a wrapped row as the end of the row above,
   // so gk from there didn't move. In normal mode the cursor is on the char, which is drawn at the row start (assoc 1).

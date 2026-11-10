@@ -1,5 +1,6 @@
 import { EditorState, Transaction, Annotation, Text } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import { redo, undo, undoDepth } from "@codemirror/commands";
 import { getCM } from "@replit/codemirror-vim";
 import type { Files } from "../core/backend";
 import { Buffers, diff, isDirty, type Buffer } from "../core/buffers";
@@ -14,6 +15,7 @@ import "../viewers/pdf";
 import { backend } from "../core/backend";
 import { Jumps, type Spot } from "./jumps";
 import { browsable } from "../editor/mdlive";
+import { historyRoute } from "../editor/vim/setup";
 import { headEffects, toggleDiff } from "../editor/gitgutter";
 
 export interface Status {
@@ -52,6 +54,9 @@ export class Editors {
   private jumps = new Map<number, Jumps>(); // per pane: back/forward across files
   private navigating = false; // nav() is opening a file: not a new jump
   private closed: string[] = []; // closed tabs, last on top (Cmd+Shift+T)
+  // Per buffer: the pane behind each undo (and redo) step, newest last. Each pane keeps its own CM6 history,
+  // so u runs in the pane that made the latest step, and the change syncs to the others (like nvim's one undo tree).
+  private steps = new WeakMap<Buffer, { undo: number[]; redo: number[] }>();
   active = 0;
 
   constructor(private files: Files, private root: string, private wsId: string, private onStatus: (s: Status) => void) {
@@ -77,6 +82,7 @@ export class Editors {
       state: EditorState.create({ extensions: editorExtensions() }),
       dispatchTransactions: (trs, v) => this.dispatch(id, trs, v),
     });
+    historyRoute.set(view, (r) => this.historyIn(id, r));
     const p: Pane = { el: parent, view, buf: null, mode: "normal" };
     this.panes.set(id, p);
     if (!this.panes.has(this.active)) this.active = id;
@@ -91,6 +97,7 @@ export class Editors {
   // closing: the pane goes away for good (not just swapping its content), so its tabs go too.
   detach(id: number, closing = false) {
     const p = this.panes.get(id);
+    if (p?.buf) this.forgetSteps(id, p.buf);
     p?.view?.destroy();
     p?.term?.dispose();
     p?.viewer?.dispose();
@@ -498,6 +505,7 @@ export class Editors {
 
   private setBuf(id: number, b: Buffer) {
     const p = this.panes.get(id)!;
+    if (p.buf && p.buf !== b) this.forgetSteps(id, p.buf); // its view takes the other buffer's history
     p.buf = b;
     p.view!.setState(b.state);
     if (isReading(b.state)) toggleReading(p.view!); // a preview pane's reading view stays in that pane
@@ -574,12 +582,47 @@ export class Editors {
     });
   }
 
+  // u or <C-r> in pane id: false lets Vim undo in this pane, as it would anyway.
+  private historyIn(id: number, redoing: boolean): boolean {
+    const b = this.panes.get(id)?.buf;
+    const list = b && (redoing ? this.steps.get(b)?.redo : this.steps.get(b)?.undo);
+    const owner = list?.[list.length - 1];
+    const o = owner === undefined || owner === id ? undefined : this.panes.get(owner);
+    if (!o?.view || o.buf !== b) return false;
+    (redoing ? redo : undo)(o.view);
+    this.panes.get(id)!.view!.dispatch({ selection: { anchor: o.view.state.selection.main.head } });
+    return true;
+  }
+
+  private forgetSteps(id: number, b: Buffer) {
+    const s = this.steps.get(b);
+    if (s) for (const l of [s.undo, s.redo]) l.splice(0, l.length, ...l.filter((x) => x !== id));
+  }
+
+  // An edit adds a step for pane id (CM6 may merge it into the last one: then the depth stays), undo and redo move one.
+  private trackSteps(id: number, b: Buffer, trs: readonly Transaction[], depth: number, state: EditorState) {
+    let s = this.steps.get(b);
+    if (!s) this.steps.set(b, (s = { undo: [], redo: [] }));
+    const move = (from: number[], to: number[]) => {
+      const i = from.lastIndexOf(id);
+      if (i >= 0) from.splice(i, 1);
+      to.push(id);
+    };
+    if (trs.some((t) => t.isUserEvent("undo"))) move(s.undo, s.redo);
+    else if (trs.some((t) => t.isUserEvent("redo"))) move(s.redo, s.undo);
+    else if (undoDepth(state) > depth) {
+      s.undo.push(id);
+      s.redo.length = 0;
+    }
+  }
+
   private dispatch(id: number, trs: readonly Transaction[], v: EditorView) {
+    const depth = undoDepth(v.state);
     v.update(trs);
     const p = this.panes.get(id);
+    if (p?.buf && trs.some((t) => t.docChanged && !t.annotation(synced))) this.trackSteps(id, p.buf, trs, depth, v.state);
     if (p?.buf) {
-      // Other panes on the same buffer get the same changes, outside their undo history.
-      // shortcut: undo is per pane, so `u` in one pane doesn't undo edits made in the other.
+      // Other panes on the same buffer get the same changes, outside their undo history (see steps).
       for (const tr of trs) {
         if (!tr.docChanged || tr.annotation(synced)) continue;
         for (const [oid, o] of this.panes)

@@ -71,3 +71,30 @@ test(":w cleans up, u undoes it", async ({ page }) => {
   await expect(page.locator(".statusline")).toContainText("1:");
   expect(await page.locator(".cm-line").first().textContent()).toBe("a  ");
 });
+
+// M41: two panes on one file share undo, like nvim's one undo tree per buffer.
+test("u undoes the latest edit of the file, whichever pane made it", async ({ page }) => {
+  writeFileSync(join(e2eWorkspace, "undo.txt"), "one\n");
+  await page.goto("/");
+  await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: "undo.txt" }).click();
+  const panes = page.locator("[data-pane] .cm-content");
+  await expect(panes.first()).toContainText("one");
+  await page.keyboard.type("Aleft");
+  await page.keyboard.press("Escape");
+  await page.keyboard.type(":vsplit");
+  await page.keyboard.press("Enter");
+  await expect(panes).toHaveCount(2);
+  await page.keyboard.type("Aright");
+  await page.keyboard.press("Escape");
+  await expect(panes.nth(0)).toContainText("oneleftright");
+  await page.keyboard.press("Control+h"); // back to the first pane, whose own last edit is "left"
+  await page.keyboard.type("u");
+  await expect(panes.nth(0)).toContainText("oneleft");
+  await expect(panes.nth(0)).not.toContainText("right");
+  await expect(panes.nth(1)).not.toContainText("right");
+  await page.keyboard.type("u");
+  await expect(panes.nth(1)).not.toContainText("left");
+  await page.keyboard.press("Control+r");
+  await page.keyboard.press("Control+r");
+  await expect(panes.nth(0)).toContainText("oneleftright");
+});
