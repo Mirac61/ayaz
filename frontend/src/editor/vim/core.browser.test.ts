@@ -113,6 +113,9 @@ const groups: Record<string, Case[]> = {
     ["ysiw)", "f|oo bar", "(foo) bar"], ["ysiw(", "f|oo", "( foo )"], ['ysiw"', "f|oo", '"foo"'], ["yss]", "  |a b", "  [a b]"],
     ["ds(", "f(a|b)", "fab"], ["ds(", "f( a|b )", "fab"], ['ds"', 'x "a|b" y', "x ab y"], ["ds)", "((a)|)", "(a)"],
     ['cs"\'', 'x "a|b"', "x 'ab'"], ["cs({", "(a|b)", "{ ab }"], ["vlS)", "|ab c", "(ab) c"],
+    // M40: . repeats a surround with the same characters.
+    ["ysiw)W.", "f|oo bar", "(foo) (bar)"], ["ds(j.", "(a|)\n(b)", "a\nb"], ["cs\"'j.", '"a|"\n"b"', "'a'\n'b'"],
+    ["yss]j.", "|a\nb", "[a]\n[b]"],
   ],
   ex: [[":s/a/b/<CR>", "|a a", "b a"], [":%s/a/b/g<CR>", "a\na a", "b\nb b"], [":2<CR>", "|a\nb\nc", "a\n|b\nc"]],
 };

@@ -71,21 +71,32 @@ function nextKey(view: EditorView, then: (key: string) => void) {
   view.contentDOM.addEventListener("keydown", on, true);
 }
 
-// shortcut: no dot-repeat for ds/cs/ys, since the chars are read outside Vim; upgrade if it gets missed.
+// The chars read outside Vim, kept on the input state (ds, cs) or operator args (ys) that Vim records for ".":
+// a repeat hands the same object back, so it surrounds with the same chars without reading keys.
+const repeatKeys = new WeakMap<object, string[]>();
+
 export function installSurround() {
   // d, c and y are complete operators, so codemirror-vim runs them before an "s" could follow. Like nvim-surround,
   // "s" is an operator-pending map instead: it cancels the operator and does the surround the operator stood for.
   Vim.defineMotion("surroundPending", (cm, _head, _args, vim, input) => {
     const view = cm.cm6!;
-    if (input.operator === "delete") nextKey(view, (old) => change(view, old, null));
-    else if (input.operator === "change") nextKey(view, (old) => nextKey(view, (c) => change(view, old, c)));
+    const keys = repeatKeys.get(input);
+    if (keys) change(view, keys[0], keys[1] ?? null);
+    else if (input.operator === "delete") nextKey(view, (old) => {
+      repeatKeys.set(input, [old]);
+      change(view, old, null);
+    });
+    else if (input.operator === "change") nextKey(view, (old) => nextKey(view, (c) => {
+      repeatKeys.set(input, [old, c]);
+      change(view, old, c);
+    }));
     else if (input.operator === "yank") Object.assign(vim.inputState, { operator: "surround", operatorArgs: {}, operatorShortcut: "ys" });
     return null;
   });
   Vim.mapCommand("s", "motion", "surroundPending", {}, { context: "operatorPending" });
   Vim.mapCommand("ys", "operator", "surround", {}, { context: "operatorPending" }); // yss: the line
 
-  Vim.defineOperator("surround", (cm: CodeMirror, _args, ranges) => {
+  Vim.defineOperator("surround", (cm: CodeMirror, args, ranges) => {
     const view = cm.cm6!;
     const r = ranges[0];
     let [from, to] = [cm.indexFromPos(r.anchor), cm.indexFromPos(r.head)].sort((a, b) => a - b);
@@ -93,7 +104,12 @@ export function installSurround() {
     const s = view.state.sliceDoc(from, to);
     from += s.length - s.trimStart().length;
     to -= s.length - s.trimEnd().length;
-    nextKey(view, (k) => wrap(view, from, to, k));
+    const keys = repeatKeys.get(args);
+    if (keys) return void wrap(view, from, to, keys[0]);
+    nextKey(view, (k) => {
+      repeatKeys.set(args, [k]);
+      wrap(view, from, to, k);
+    });
   });
 
   Vim.defineAction("surroundVisual", (cm, args) => {

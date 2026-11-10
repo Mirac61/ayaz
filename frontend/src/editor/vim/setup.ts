@@ -1,4 +1,5 @@
 import { Vim, type CodeMirror } from "@replit/codemirror-vim";
+import { EditorSelection, type SelectionRange } from "@codemirror/state";
 import { foldAll, foldCode, toggleFold, unfoldAll, unfoldCode } from "@codemirror/language";
 import { jumpToDefinition, jumpToImplementation, jumpToTypeDefinition } from "@codemirror/lsp-client";
 import { parseKeys, type Binding } from "../../core/keymap";
@@ -71,6 +72,20 @@ export function installVim(r: Run, normal: Binding[], p: Prime) {
   }
 
   installSurround();
+
+  // gj/gk through CM6: codemirror-vim reads a cursor at the start of a wrapped row as the end of the row above,
+  // so gk from there didn't move. In normal mode the cursor is on the char, which is drawn at the row start (assoc 1).
+  let lastScreen: SelectionRange | null = null; // keeps the goal column over gj/gk in a row
+  Vim.defineMotion("screenLine", (cm, head, args) => {
+    const view = cm.cm6!;
+    const pos = cm.indexFromPos(head);
+    let r = lastScreen?.head === pos ? lastScreen : EditorSelection.cursor(pos, 1);
+    for (let i = 0; i < (args.repeat ?? 1); i++) r = view.moveVertically(r, !!args.forward);
+    lastScreen = r;
+    return cm.posFromIndex(r.head);
+  });
+  Vim.mapCommand("gj", "motion", "screenLine", { forward: true }, {});
+  Vim.mapCommand("gk", "motion", "screenLine", { forward: false }, {});
 }
 
 function mapBindings(normal: Binding[]) {

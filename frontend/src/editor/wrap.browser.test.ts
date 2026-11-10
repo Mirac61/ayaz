@@ -3,6 +3,10 @@ import { userEvent } from "vitest/browser";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { editorExtensions, isWrapped, setWrap } from "./editor";
+import { installVim } from "./vim/setup";
+import { defaultKeymap } from "../core/keymap";
+
+installVim(() => {}, defaultKeymap().filter((b) => b.context === "normal"), () => {}); // our gj/gk
 
 let view: EditorView | null = null;
 afterEach(() => {
@@ -32,11 +36,17 @@ test("j/k over logical lines, gj/gk over wrapped ones", async () => {
   expect(line()).toBe(1); // the second screen row of line 1
   expect(head()).toBeGreaterThan(0);
   const row2 = head();
-  // From the row's very start gk stays put: that position is also the end of the row above (codemirror-vim).
+  await userEvent.keyboard("gk"); // M40: from the row's very start too, not only from inside it
+  expect(head()).toBe(0);
+  await userEvent.keyboard("gj");
+  expect(head()).toBe(row2);
   await userEvent.keyboard("ll");
   expect(head()).toBe(row2 + 2);
   await userEvent.keyboard("gk");
   expect(head()).toBe(2);
+  await userEvent.keyboard("2gj"); // a count, and the column stays
+  expect(head()).toBeGreaterThan(row2 + 2);
+  expect(line()).toBe(1);
 });
 
 test("setWrap turns wrapping on and off and remembers it", () => {
