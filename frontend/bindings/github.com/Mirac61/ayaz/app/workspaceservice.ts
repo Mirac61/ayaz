@@ -152,6 +152,15 @@ export function Reveal(ws: string, path: string): $CancellablePromise<void> {
     return $Call.ByID(1586829996, ws, path);
 }
 
+/**
+ * ShouldQuit runs on Cmd+Q. It quits only once no window is left; otherwise each window with a workspace gets the
+ * same "app:close-request" as its close button (unsaved buffers stop it), the others close right away.
+ * The app then quits after the last window (ApplicationShouldTerminateAfterLastWindowClosed).
+ */
+export function ShouldQuit(): $CancellablePromise<boolean> {
+    return $Call.ByID(2366122077);
+}
+
 export function Trash(ws: string, path: string): $CancellablePromise<void> {
     return $Call.ByID(1296708849, ws, path);
 }
