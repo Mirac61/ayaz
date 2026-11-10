@@ -1,39 +1,6 @@
 import { expect, test } from "vitest";
-import { DapClient, launch, type Transport } from "./dap";
-
-// A scripted adapter: answers requests like Delve does (launch is answered only after configurationDone, and
-// "initialized" comes after launch arrives), records what it got, and lets the test push events.
-function fake(opts: { failLaunch?: boolean } = {}) {
-  const got: string[] = [];
-  let toClient: (json: string) => void = () => {};
-  let closed: () => void = () => {};
-  let launchSeq = 0;
-  const reply = (o: object) => queueMicrotask(() => toClient(JSON.stringify(o)));
-  const response = (m: any, rest: object) => reply({ seq: 0, type: "response", request_seq: m.seq, command: m.command, ...rest });
-  const respond = (m: any, body?: object) => response(m, { success: true, body });
-  const transport: Transport = {
-    send(raw) {
-      const m = JSON.parse(raw);
-      if (m.type !== "request") return void got.push(`${m.type}:${m.command}:${m.success}`);
-      got.push(m.command);
-      if (m.command === "initialize") respond(m, { supportsConfigurationDoneRequest: true });
-      else if (m.command === "launch") {
-        launchSeq = m.seq;
-        if (opts.failLaunch) response(m, { success: false, message: "could not launch process" });
-        else reply({ seq: 0, type: "event", event: "initialized" });
-      } else if (m.command === "setBreakpoints") {
-        respond(m, { breakpoints: m.arguments.breakpoints.map((b: { line: number }) => ({ verified: true, line: b.line })) });
-      } else if (m.command === "configurationDone") {
-        respond(m);
-        reply({ seq: 0, type: "response", request_seq: launchSeq, command: "launch", success: true });
-      } else respond(m, {});
-    },
-    onMessage: (fn) => { toClient = fn; },
-    onClose: (fn) => { closed = fn; },
-    close: () => closed(),
-  };
-  return { transport, got, push: (o: object) => reply({ seq: 0, ...o }), die: () => closed() };
-}
+import { DapClient, launch } from "./dap";
+import { fakeAdapter as fake } from "./fakeAdapter";
 
 test("launch: initialize, launch, then breakpoints per file, then configurationDone, then the launch answer", async () => {
   const f = fake();

@@ -3,7 +3,7 @@ import { EditorView } from "@codemirror/view";
 import { redo, undo, undoDepth } from "@codemirror/commands";
 import { getCM } from "@replit/codemirror-vim";
 import type { Files } from "../core/backend";
-import { Buffers, diff, isDirty, type Buffer } from "../core/buffers";
+import { Buffers, diff, isDirty, isVirtual, type Buffer } from "../core/buffers";
 import { setLspHost, formatBeforeSave, fileOps, toChanges, type WorkspaceEdit } from "../editor/lsp";
 import { createState, editorExtensions, isWrapped, setWrap, settingsEffects } from "../editor/editor";
 import { cleanupChanges } from "../editor/cleanup";
@@ -17,6 +17,7 @@ import { Jumps, type Spot } from "./jumps";
 import { browsable } from "../editor/mdlive";
 import { historyRoute } from "../editor/vim/setup";
 import { breakpointLines, setLines as setBreakpointLines, toggleBreakpoint } from "../editor/breakpoints";
+import { setDebugLine } from "../editor/debugline";
 import { diffWith, headEffects, toggleDiff } from "../editor/gitgutter";
 import { Waits } from "./waits";
 
@@ -43,6 +44,9 @@ const synced = Annotation.define<boolean>();
 const RECENT_MAX = 100;
 
 // The panes of one workspace (editors and terminals) and the buffers they show. Layout (where panes sit) is the workbench's job.
+// The debugger's output: a buffer without a file (core/buffers `virtual`), opened like any path.
+export const OUTPUT = "debug://output";
+
 export class Editors {
   readonly buffers: Buffers;
   private panes = new Map<number, Pane>();
@@ -407,11 +411,11 @@ export class Editors {
     const terms: Record<number, string> = {};
     for (const [id, p] of this.panes) {
       const path = p.buf?.path ?? (p.viewer ? p.title : undefined);
-      if (path && id > 0) panes[id] = path;
+      if (path && id > 0 && !isVirtual(path)) panes[id] = path; // the debugger's output isn't a file to open again
       if (p.term && id > 0) terms[id] = p.cmd ?? "";
     }
     const cursors: Record<string, number> = {}, breakpoints: Record<string, number[]> = {};
-    for (const b of this.buffers.list()) {
+    for (const b of this.buffers.list().filter((b) => !isVirtual(b.path))) {
       cursors[b.path] = b.state.selection.main.head;
       breakpoints[b.path] = breakpointLines(b.state);
     }
@@ -443,6 +447,32 @@ export class Editors {
     const on = toggleBreakpoint(v);
     this.emit(); // the session notices
     return on;
+  }
+
+  // Marks the line the debugger stopped on in path (and nowhere else); null clears it everywhere.
+  setDebugLine(path: string | null, line = 0) {
+    for (const b of this.buffers.list()) {
+      const effects = [setDebugLine.of(b.path === path ? line : null)];
+      const shown = [...this.panes.values()].filter((p) => p.buf === b);
+      for (const p of shown) p.view!.dispatch({ effects });
+      if (!shown.length) b.state = b.state.update({ effects }).state;
+    }
+  }
+
+  // Shows the debugger's output (empty until the program prints) in the active pane.
+  async showOutput() {
+    await this.buffers.virtual(OUTPUT);
+    await this.open(OUTPUT);
+  }
+
+  // Adds program output to the debugger's output buffer (debug://output), which is created with the first text.
+  async appendOutput(text: string) {
+    const b = await this.buffers.virtual(OUTPUT);
+    const changes = { from: b.state.doc.length, insert: text };
+    const shown = [...this.panes.values()].filter((p) => p.buf === b);
+    for (const p of shown) p.view!.dispatch({ changes });
+    if (!shown.length) b.state = b.state.update({ changes }).state;
+    b.saved = b.state.doc; // never dirty: no file, no swap, no "unsaved" when closing
   }
 
   // The view of the active pane, if it is an editor.
@@ -507,7 +537,7 @@ export class Editors {
 
   // Fetches the file's text at HEAD and in the index for the git gutter, without holding up the open. Library files have none.
   private async loadHead(path: string) {
-    if (path.startsWith("/")) return;
+    if (path.startsWith("/") || isVirtual(path)) return;
     const [h, staged] = await Promise.all([
       this.files.gitHead(path).catch(() => null), this.files.gitIndex(path).catch(() => null),
     ]);

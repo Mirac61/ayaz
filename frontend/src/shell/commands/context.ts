@@ -2,6 +2,7 @@
 import type { EditorView } from "@codemirror/view";
 import type { Files, Info } from "../../core/backend";
 import type { Quickfix } from "../../core/quickfix";
+import type { Debugger } from "../debugger";
 import type { Editors } from "../editors";
 import type { PickerSource } from "../Picker";
 import type { TreeHandle } from "../Tree";
@@ -10,6 +11,7 @@ export interface Ctx {
   ws: Info;
   files: Files;
   ed: Editors;
+  dbg: Debugger;
   qf: Quickfix;
   tree: { current: TreeHandle | null };
   run(id: string, arg?: string): void;

@@ -89,3 +89,24 @@ func TestStartFailsWithoutAnAddress(t *testing.T) {
 		t.Fatal("a command that fails to run was accepted")
 	}
 }
+
+// The real Delve, without debugging anything (that needs the system's developer tools access): it announces its
+// address the way Start expects, and answers initialize.
+func TestRealDelveAnswersInitialize(t *testing.T) {
+	if !lsp.Available("/bin/sh", "dlv") {
+		t.Skip("dlv not in PATH")
+	}
+	a, err := Start(t.TempDir(), "/bin/sh", "dlv dap --listen=127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer a.Close()
+	hello := `{"seq":1,"type":"request","command":"initialize","arguments":{"adapterID":"go","linesStartAt1":true}}`
+	if err := a.Send([]byte(hello)); err != nil {
+		t.Fatal(err)
+	}
+	got, err := a.Recv()
+	if err != nil || !strings.Contains(string(got), `"command":"initialize"`) || !strings.Contains(string(got), `"success":true`) {
+		t.Fatalf("got %s, %v", got, err)
+	}
+}

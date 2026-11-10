@@ -8,6 +8,9 @@ export interface Buffer {
   saved: Text; // doc as on disk, for the dirty flag
 }
 
+// Buffers with no file: the debugger's output.
+export const isVirtual = (path: string) => path.startsWith("debug://");
+
 export const isDirty = (b: Buffer) => !b.state.doc.eq(b.saved);
 
 const notFound = (e: unknown) => /no such file/i.test(String(e));
@@ -42,6 +45,16 @@ export class Buffers {
   // Returns the loaded buffer, or reads the file. A missing file gives an empty new buffer (like `:e new.txt`).
   async open(path: string): Promise<Buffer> {
     return this.m.get(path) ?? this.load(path);
+  }
+
+  // A buffer with no file behind it (the debugger's output): read-only, never dirty, never read from disk or swapped.
+  async virtual(path: string): Promise<Buffer> {
+    const have = this.m.get(path);
+    if (have) return have;
+    const state = await this.makeState(path, "");
+    const b: Buffer = { path, state, mtime: 0, saved: state.doc };
+    this.m.set(path, b);
+    return b;
   }
 
   // Re-reads from disk and drops unsaved changes (`:e!`).
@@ -81,7 +94,7 @@ export class Buffers {
   // clean again (:w, undo, :e!) or no longer loaded (renamed, trashed) loses its swap. Library files have none.
   async syncSwaps(): Promise<void> {
     for (const b of this.list()) {
-      if (b.path.startsWith("/")) continue;
+      if (b.path.startsWith("/") || isVirtual(b.path)) continue;
       const kept = this.swapped.get(b.path);
       if (isDirty(b) && !(kept && kept.eq(b.state.doc))) {
         const doc = b.state.doc;

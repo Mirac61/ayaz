@@ -1,0 +1,97 @@
+import { DapClient, launch, setBreakpoints, type OutputEvent, type StackFrame, type StoppedEvent } from "./dap";
+
+// One debugging session: starting, the program stopping and running again, stepping, ending. The editor side
+// (which file, which line, what the status line says) hangs on the hooks, so this stays testable without one.
+
+export type DebugState = "starting" | "running" | "paused" | "ended";
+
+export interface DebugHooks {
+  state(s: DebugState): void;
+  // The program stopped: its top frame, in a file of the folder (workspace-relative path) or elsewhere (absolute).
+  stopped(at: { path: string; line: number } | null, reason: string): void;
+  output(text: string, category: string): void;
+  ended(): void;
+}
+
+export type Step = "continue" | "next" | "stepIn" | "stepOut";
+
+export class DebugSession {
+  state: DebugState = "starting";
+  threadId = 0;
+  frames: StackFrame[] = []; // of the thread that stopped, innermost first
+
+  constructor(readonly client: DapClient, readonly root: string, private hooks: DebugHooks) {
+    client.on("stopped", (b: StoppedEvent) => void this.onStopped(b));
+    client.on("continued", () => this.set("running"));
+    client.on("output", (b: OutputEvent) => {
+      // Delve also sends "telemetry" and the like; the program's own text and the adapter's console lines are shown.
+      const shown = !b.category || ["stdout", "stderr", "console"].includes(b.category);
+      if (b.output && shown) this.hooks.output(b.output, b.category ?? "stdout");
+    });
+    client.on("terminated", () => this.end());
+    client.on("exited", () => this.end());
+    client.on("closed", () => this.end());
+  }
+
+  // Launches the package in root with these breakpoints (workspace-relative path → lines). Rejects if launching fails.
+  async start(breakpoints: Record<string, number[]>) {
+    this.hooks.state("starting");
+    try {
+      await launch(this.client, { root: this.root, breakpoints });
+    } catch (e) {
+      this.end();
+      throw e;
+    }
+    if (this.state === "starting") this.set("running");
+  }
+
+  async resume(step: Step) {
+    if (this.state !== "paused") return;
+    this.set("running");
+    await this.client.request(step, { threadId: this.threadId });
+  }
+
+  // New breakpoint lines for one file while the program runs or is stopped.
+  breakpoints(path: string, lines: number[]) {
+    return this.state === "ended" ? Promise.resolve() : setBreakpoints(this.client, this.root, path, lines).then(() => {});
+  }
+
+  // Ends the program and the session.
+  async stop() {
+    if (this.state === "ended") return;
+    await this.client.request("disconnect", { terminateDebuggee: true }).catch(() => {});
+    this.client.close();
+    this.end();
+  }
+
+  private set(s: DebugState) {
+    if (this.state === "ended" || this.state === s) return;
+    this.state = s;
+    this.hooks.state(s);
+  }
+
+  private end() {
+    if (this.state === "ended") return;
+    this.state = "ended";
+    this.hooks.state("ended");
+    this.hooks.ended();
+  }
+
+  private async onStopped(b: StoppedEvent) {
+    this.threadId = b.threadId ?? this.threadId;
+    this.set("paused");
+    let frames: StackFrame[] = [];
+    try {
+      const args = { threadId: this.threadId, levels: 30 };
+      frames = (await this.client.request<{ stackFrames: StackFrame[] }>("stackTrace", args)).stackFrames;
+    } catch { /* the program may have moved on already: show the stop without a place */ }
+    this.frames = frames;
+    const top = frames.find((f) => f.source?.path);
+    this.hooks.stopped(top ? { path: this.relative(top.source!.path!), line: top.line } : null, b.reason);
+  }
+
+  // A path inside the folder the way the editor names it; anything else (the standard library) stays absolute.
+  relative(path: string) {
+    return path.startsWith(this.root + "/") ? path.slice(this.root.length + 1) : path;
+  }
+}

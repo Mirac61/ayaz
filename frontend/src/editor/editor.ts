@@ -13,6 +13,7 @@ import { kanagawaCM } from "../theme/kanagawa-cm";
 import { inlineBlame } from "./blame";
 import { breakpointGutter } from "./breakpoints";
 import { conflictMarks } from "./conflicts";
+import { debugLine } from "./debugline";
 import { snippetCompletion } from "./snippets";
 import { stickyScroll } from "./sticky";
 import { extOf, loadLanguage } from "../lang/registry";
@@ -68,6 +69,7 @@ export const editorExtensions = (): Extension[] => [
   stickyScroll,
   inlineBlame,
   conflictMarks,
+  debugLine,
 ];
 
 // Line wrap, like nvim's `wrap`: from settings.json (off for code, on for Markdown), until <Space>uw sets it for every file.
@@ -113,5 +115,5 @@ export function hasLongLine(doc: string): boolean {
 
 export async function createState(path: string | null, doc: string, ws?: string, root?: string): Promise<EditorState> {
   const lang = path && !hasLongLine(doc) ? await loadLanguage(path) : null;
-  return EditorState.create({ doc, extensions: [editorExtensions(), indenting.of(indentFor(path)), wrapping.of(wrapFor(path) ? EditorView.lineWrapping : []), lang ?? [], path && ws && root ? lspExtension(ws, root, path) : [], path?.startsWith("/") ? EditorState.readOnly.of(true) : [], path ? snippetCompletion(extOf(path)) : [], path && extOf(path) === "md" ? [mdlive, ws ? mdImages.of({ ws, file: path }) : []] : []] });
+  return EditorState.create({ doc, extensions: [editorExtensions(), indenting.of(indentFor(path)), wrapping.of(wrapFor(path) ? EditorView.lineWrapping : []), lang ?? [], path && ws && root ? lspExtension(ws, root, path) : [], path?.startsWith("/") || path?.startsWith("debug://") ? EditorState.readOnly.of(true) : [], path ? snippetCompletion(extOf(path)) : [], path && extOf(path) === "md" ? [mdlive, ws ? mdImages.of({ ws, file: path }) : []] : []] });
 }

@@ -23,6 +23,8 @@ import { bang, errText, inTree, LIMIT, type Ctx } from "./commands/context";
 import { fileCommands } from "./commands/file";
 import { findCommands } from "./commands/find";
 import { debugCommands } from "./commands/debug";
+import { dapStream } from "../debug/transport";
+import { Debugger, type DebugStatus } from "./debugger";
 import { gitCommands } from "./commands/git";
 import { lspCommands } from "./commands/lsp";
 import { quickfixTools } from "./commands/quickfix";
@@ -171,6 +173,12 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
   const qf = useMemo(() => new Quickfix(), []);
   const fail = (text: string) => setMsg({ text, error: true });
   const say = (text: string) => setMsg({ text });
+  // The debugger (M48): one session per window, its stops shown in the editors, its state in the status line.
+  const [debug, setDebug] = useState<DebugStatus>("idle");
+  const sayRef = useRef(say);
+  sayRef.current = say;
+  const dbg = useMemo(() => new Debugger(ws.root, ed, () => dapStream(ws.id), setDebug, (t) => sayRef.current(t)), [ed]);
+  useEffect(() => () => dbg.dispose(), [dbg]);
   useEffect(() => setLspMessages(ws.id, (text, level) =>
     setMsg({ text, error: level === "error", warning: level === "warning" })), [ws.id]);
   const run = (id: string, arg?: string) =>
@@ -261,7 +269,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
         pick: (it) => void act(it.label).then(() => back && tree.current?.focus(), (e) => fail(errText(e))),
       });
     };
-    const c: Ctx = { ws, files, ed, qf, tree, run, say, fail, setPicker, prompt, closePane };
+    const c: Ctx = { ws, files, ed, dbg, qf, tree, run, say, fail, setPicker, prompt, closePane };
     const q = quickfixTools(c);
 
     // M52: a task runs in a split that stays open when it ends; file:line lines it printed go to the quickfix list.
@@ -596,6 +604,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
             {diag.warnings > 0 && <span className="w">{plural(diag.warnings, "warning")}</span>}
           </button>
         )}
+        {debug !== "idle" && <span className="debug" title="Debugger: <Space>dq stops it">DEBUG {debug}</span>}
         {branch && <span className="branch" title="Git branch">{branch}</span>}
         <span className="location">{status.info ?? `${status.line}:${status.col}`}</span>
       </span>

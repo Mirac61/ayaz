@@ -51,6 +51,13 @@ export function defaultKeymap(mac = isMac): Binding[] {
     n("<Space>hr", "git.resetHunk"),
     n("<Space>hs", "git.stageHunk"),
     n("<Space>db", "debug.toggleBreakpoint"),
+    n("<Space>dd", "debug.start"),
+    n("<Space>dc", "debug.continue"),
+    n("<Space>dn", "debug.next"),
+    n("<Space>ds", "debug.stepIn"),
+    n("<Space>do", "debug.stepOut"),
+    n("<Space>dq", "debug.stop"),
+    n("<Space>dl", "debug.output"),
     n("<Space>mo", "git.conflictOurs"),
     n("<Space>mt", "git.conflictTheirs"),
     n("<Space>mb", "git.conflictBoth"),
@@ -78,6 +85,10 @@ export function defaultKeymap(mac = isMac): Binding[] {
     n("<C-w><", "pane.narrower"),
     n("<C-w>=", "pane.equal"),
     n("<C-w>z", "term.maximize"),
+    g("<F5>", "debug.continue"), // starts the debugger when none runs, like VS Code
+    g("<F10>", "debug.next"),
+    g("<F11>", "debug.stepIn"),
+    g("<S-F11>", "debug.stepOut"),
     ...(mac
       ? [g("<D-p>", "find.files"), g("<D-S-p>", "find.commands"), g("<D-j>", "term.panel"), g("<D-S-n>", "window.new"),
         g("<D-,>", "settings.open"), g("<D-b>", "view.sidebar")]
