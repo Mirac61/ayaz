@@ -73,7 +73,8 @@ export function GitStatus(ws: string): $CancellablePromise<{ [_ in string]?: str
 /**
  * HandleLSP serves one language server per "lsp" stream connection. Frames are bare JSON in both directions;
  * Go adds and strips the Content-Length framing. If the server dies the stream closes and the frontend
- * reconnects (shortcut: no shared server per workspace+language, the frontend opens one stream per pair).
+ * reconnects. The frontend opens one stream per workspace and language and shares it between panes, so a server
+ * runs once per folder (shortcut: two windows on the same folder are two workspaces, with a server each).
  */
 export function HandleLSP(c: application$0.StreamConn | null): $CancellablePromise<void> {
     return $Call.ByID(2029603354, c);
