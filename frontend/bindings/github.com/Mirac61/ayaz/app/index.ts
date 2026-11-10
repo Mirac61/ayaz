@@ -13,5 +13,6 @@ export {
 export type {
     HeadFile,
     Info,
-    Match
+    Match,
+    Swap
 } from "./models.js";

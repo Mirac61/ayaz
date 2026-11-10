@@ -254,6 +254,10 @@ Done when: all four language groups have diagnostics, completion and navigation.
 
 - Done 2026-11-10: `/` in the tree opens a filter box above it. The text goes through the same fuzzy file search as `<Space>ff` (whole project, not only loaded folders, up to 200 files), and the matches show as a tree with their folders open. Enter or ↓ goes to the rows (cursor on the first file), Enter there opens; Esc in the box or in the tree ends the filter, `/` again edits it. Node test for the rows, E2E. **Still open:** results come async, so an Enter typed faster than the search lands on nothing; folders themselves aren't matched.
 
+## M49 – Hot exit
+
+- Done 2026-11-10: every 2 s, each dirty buffer whose text changed since the last write goes to a swap in the user cache (`~/Library/Caches/ayaz/swap/<folder hash>/`, `AYAZ_CACHE_DIR` overrides), never into the project; written through a temp file. A buffer that is clean again (`:w`, undo, `:e!`) or no longer loaded (renamed, trashed) loses its swap, `:q!`/`:qa!` drop all of them. When the folder opens, each swap whose text differs from disk gets a picker: Restore (as unsaved changes, not written) or Discard; Esc keeps it for next time, swaps equal to disk go silently. Go test for write/read/remove and broken files, Node test for the sync, E2E: type in two files, reload, restore one, discard the other, `:w`, reload asks nothing (runs alone, after `config.spec`). **Still open:** two windows on the same folder see each other's swaps; up to 2 s of typing can be lost.
+
 ## Later
 
 | | What | Plugs into |

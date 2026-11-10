@@ -9,9 +9,11 @@ import { join } from "node:path";
 const repo = join(tmpdir(), "ayaz-e2e");
 export const e2eWorkspace = join(repo, "ayaz-e2e-ws");
 export const e2eConfig = join(tmpdir(), "ayaz-e2e-config"); // settings.json and keymap.json, empty at start
+const e2eCache = join(tmpdir(), "ayaz-e2e-cache"); // swaps (hot exit), not the user's
 if (!process.env.TEST_WORKER_INDEX) {
   rmSync(repo, { recursive: true, force: true });
   rmSync(e2eConfig, { recursive: true, force: true });
+  rmSync(e2eCache, { recursive: true, force: true });
   cpSync("../testdata/e2e-ws", e2eWorkspace, { recursive: true });
   const git = (...args: string[]) => execFileSync("git", ["-C", repo, ...args]);
   git("init", "-q", "-b", "main");
@@ -27,14 +29,16 @@ export default defineConfig({
   retries: 1,
   use: { browserName: "webkit", baseURL: "http://127.0.0.1:34115" },
   // A saved config reaches every page of the shared server, so config.spec runs alone, after the rest.
+  // swap.spec too: its unsaved files are offered back in every page that opens the folder meanwhile.
   projects: [
-    { name: "main", testIgnore: /config\.spec/ },
+    { name: "main", testIgnore: /(config|swap)\.spec/ },
     { name: "config", testMatch: /config\.spec/, dependencies: ["main"] },
+    { name: "swap", testMatch: /swap\.spec/, dependencies: ["config"] },
   ],
   webServer: {
     command: `../bin/ayaz-server --workspace ${e2eWorkspace}`,
     url: "http://127.0.0.1:34115",
-    env: { WAILS_SERVER_HOST: "127.0.0.1", WAILS_SERVER_PORT: "34115", AYAZ_CONFIG_DIR: e2eConfig },
+    env: { WAILS_SERVER_HOST: "127.0.0.1", WAILS_SERVER_PORT: "34115", AYAZ_CONFIG_DIR: e2eConfig, AYAZ_CACHE_DIR: e2eCache },
     reuseExistingServer: false,
   },
 });

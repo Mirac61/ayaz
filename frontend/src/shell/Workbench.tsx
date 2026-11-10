@@ -3,7 +3,7 @@ import { flushSync } from "react-dom";
 import { backend, type Grep, type Info } from "../core/backend";
 import { Commands } from "../core/commands";
 import { defaultKeymap, isMac, keyName, mergeKeymap, parseKeys, parseUserKeymap, Sequencer, type Binding } from "../core/keymap";
-import { isDirty } from "../core/buffers";
+import { diff, isDirty } from "../core/buffers";
 import { label, Quickfix, replaceEdits, replacement, type Loc } from "../core/quickfix";
 import { Text } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
@@ -205,6 +205,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
     const quit = async (force: boolean) => {
       const d = ed.buffers.dirty();
       if (d.length && !force) return fail(`No write since last change for "${d[0].path}" (add ! to override)`);
+      if (force) await ed.buffers.discardSwaps().catch(() => {}); // thrown away on purpose: nothing to restore
       saveNow();
       await backend.closeWindow();
     };
@@ -913,6 +914,45 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
     setDiag(store.counts());
     return store.onChange(() => setDiag(store.counts()));
   }, [ws.id]);
+
+  // Hot exit (M49): every 2 s, unsaved text goes to a swap outside the project. A failing write says so once.
+  useEffect(() => {
+    let failed = "";
+    const t = setInterval(() => void ed.buffers.syncSwaps().then(() => { failed = ""; }, (e) => {
+      if (errText(e) !== failed) fail(`Unsaved changes not backed up: ${(failed = errText(e))}`);
+    }), 2000);
+    return () => clearInterval(t);
+  }, [ed]);
+
+  // Swaps a previous run left: one question per file whose text differs from disk. Esc keeps it for next time.
+  useEffect(() => {
+    let live = true;
+    void files.swaps().then(async (list) => {
+      const offer: typeof list = [];
+      for (const s of list) {
+        const disk = await files.readText(s.path).then((f) => f.content, () => "");
+        if (disk === s.text) await files.swapRemove(s.path);
+        else offer.push(s);
+      }
+      const next = () => {
+        const s = offer.shift();
+        if (!s || !live) return;
+        setPicker({
+          title: `"${s.path}" has unsaved changes from last time`,
+          query: async () => [{ label: "Restore", hint: "as unsaved changes" }, { label: "Discard" }],
+          pick: (_it, i) => void (i === 0
+            ? ed.open(s.path).then(async () => {
+              const b = await ed.edit(s.path, [diff(ed.buffers.get(s.path)!.state.doc.toString(), s.text)]);
+              ed.buffers.adoptSwap(b);
+            })
+            : files.swapRemove(s.path)).catch((e) => fail(errText(e))),
+          close: () => setTimeout(next), // after the picker that just closed is gone
+        });
+      };
+      next();
+    }, (e) => fail(`Unsaved changes from last time: ${errText(e)}`));
+    return () => { live = false; };
+  }, [ed]);
 
   // The window's close button: refuse while something is unsaved, like :qa.
   useEffect(() => backend.onCloseRequest(() => {

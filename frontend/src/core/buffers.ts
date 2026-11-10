@@ -26,6 +26,7 @@ export function diff(a: string, b: string) {
 // Open files of one workspace. Buffers stay loaded when you switch away (nvim's `hidden`).
 export class Buffers {
   private m = new Map<string, Buffer>();
+  private swapped = new Map<string, Text>(); // path → the doc its swap holds (hot exit)
 
   constructor(
     private files: Files,
@@ -74,6 +75,37 @@ export class Buffers {
     }
     if (isDirty(b)) return { kind: "conflict" };
     return { kind: "reload", content: f.content, mtime: f.mtime };
+  }
+
+  // Hot exit (M49): a dirty buffer's text goes to its swap when it changed since the last write; a buffer that is
+  // clean again (:w, undo, :e!) or no longer loaded (renamed, trashed) loses its swap. Library files have none.
+  async syncSwaps(): Promise<void> {
+    for (const b of this.list()) {
+      if (b.path.startsWith("/")) continue;
+      const kept = this.swapped.get(b.path);
+      if (isDirty(b) && !(kept && kept.eq(b.state.doc))) {
+        const doc = b.state.doc;
+        await this.files.swapWrite(b.path, doc.toString());
+        this.swapped.set(b.path, doc);
+      } else if (!isDirty(b) && kept) {
+        await this.files.swapRemove(b.path);
+        this.swapped.delete(b.path);
+      }
+    }
+    for (const path of this.swapped.keys()) {
+      if (this.m.has(path)) continue;
+      await this.files.swapRemove(path);
+      this.swapped.delete(path);
+    }
+  }
+
+  // b's text came from its swap (a restore): the swap file is ours to update or remove from now on.
+  adoptSwap(b: Buffer) { this.swapped.set(b.path, b.state.doc); }
+
+  // Drops the swaps of every dirty buffer: the user threw the changes away (:qa!).
+  async discardSwaps(): Promise<void> {
+    for (const path of this.swapped.keys()) await this.files.swapRemove(path);
+    this.swapped.clear();
   }
 
   // Writes the buffer. Without force, a file changed on disk since reading rejects ("file changed on disk").

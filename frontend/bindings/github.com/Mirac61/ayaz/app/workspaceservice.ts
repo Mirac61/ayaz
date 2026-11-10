@@ -169,6 +169,27 @@ export function ShouldQuit(): $CancellablePromise<boolean> {
     return $Call.ByID(2366122077);
 }
 
+/**
+ * SwapRemove drops path's swap after :w, a discard, or undo back to the saved text. No swap is fine.
+ */
+export function SwapRemove(ws: string, path: string): $CancellablePromise<void> {
+    return $Call.ByID(2485927398, ws, path);
+}
+
+/**
+ * SwapWrite keeps path's unsaved text; path is workspace-relative.
+ */
+export function SwapWrite(ws: string, path: string, text: string): $CancellablePromise<void> {
+    return $Call.ByID(789840429, ws, path, text);
+}
+
+/**
+ * Swaps lists the unsaved texts a previous run of this folder left behind.
+ */
+export function Swaps(ws: string): $CancellablePromise<$models.Swap[] | null> {
+    return $Call.ByID(4169521283, ws);
+}
+
 export function Trash(ws: string, path: string): $CancellablePromise<void> {
     return $Call.ByID(1296708849, ws, path);
 }

@@ -27,3 +27,12 @@ export interface Match {
     "score": number;
     "positions": number[] | null;
 }
+
+/**
+ * Swap is the unsaved text of one buffer (hot exit, M49): written every few seconds while the buffer is dirty,
+ * offered back when the folder opens again, removed once the buffer is clean.
+ */
+export interface Swap {
+    "path": string;
+    "text": string;
+}

@@ -7,6 +7,7 @@ import type { Files } from "./backend";
 function fakeFiles(init: Record<string, string>) {
   const disk = new Map(Object.entries(init).map(([p, c]) => [p, { content: c, mtime: 1 }]));
   let clock = 1;
+  const swaps = new Map<string, string>();
   const files: Files = {
     list: async () => [],
     find: async () => [],
@@ -18,6 +19,9 @@ function fakeFiles(init: Record<string, string>) {
     gitBranch: async () => "",
     gitHead: async () => ({ text: "", tracked: false }),
     gitStatus: async () => ({}),
+    swapWrite: async (path, text) => void swaps.set(path, text),
+    swapRemove: async (path) => void swaps.delete(path),
+    swaps: async () => [...swaps].map(([path, text]) => ({ path, text })),
     readText: async (path) => {
       const f = disk.get(path);
       if (!f) throw new Error(`open /x/${path}: no such file or directory`);
@@ -30,7 +34,7 @@ function fakeFiles(init: Record<string, string>) {
     },
   };
   const touch = (path: string, content: string) => disk.set(path, { content, mtime: ++clock });
-  return { files, disk, touch };
+  return { files, disk, touch, swaps };
 }
 
 const make = (init: Record<string, string>) => {
@@ -108,6 +112,57 @@ describe("Buffers", () => {
     expect(await bufs.checkDisk(b)).toEqual({ kind: "deleted" });
     expect(await bufs.checkDisk(await bufs.open("new.go"))).toEqual({ kind: "same" });
   });
+});
+
+test("syncSwaps: dirty buffers keep their text in a swap, clean ones lose it", async () => {
+  const { bufs, swaps } = make({ "a.go": "x", "b.go": "y" });
+  const a = await bufs.open("a.go"), b = await bufs.open("b.go");
+  await bufs.syncSwaps();
+  expect(swaps.size).toBe(0); // nothing unsaved
+
+  a.state = edit(a.state, "1");
+  await bufs.syncSwaps();
+  expect(swaps).toEqual(new Map([["a.go", "1x"]]));
+
+  swaps.set("a.go", "stale"); // not written again while the text stays the same
+  await bufs.syncSwaps();
+  expect(swaps.get("a.go")).toBe("stale");
+  a.state = edit(a.state, "2");
+  await bufs.syncSwaps();
+  expect(swaps.get("a.go")).toBe("21x");
+
+  b.state = edit(b.state, "3");
+  await bufs.syncSwaps();
+  await bufs.save(a);
+  await bufs.syncSwaps();
+  expect(swaps).toEqual(new Map([["b.go", "3y"]])); // :w drops the swap
+
+  bufs.drop("b.go"); // renamed or trashed: its swap goes too
+  await bufs.syncSwaps();
+  expect(swaps.size).toBe(0);
+});
+
+test("syncSwaps: a restored swap goes once the buffer is saved", async () => {
+  const { bufs, swaps } = make({ "a.go": "x" });
+  swaps.set("a.go", "from last time");
+  const a = await bufs.open("a.go");
+  a.state = edit(a.state, "restored ");
+  bufs.adoptSwap(a);
+  await bufs.save(a);
+  await bufs.syncSwaps();
+  expect(swaps.size).toBe(0);
+});
+
+test("syncSwaps: a swap that fails to write is tried again", async () => {
+  const { bufs, swaps, files } = make({ "a.go": "x" });
+  const a = await bufs.open("a.go");
+  a.state = edit(a.state, "1");
+  const write = files.swapWrite;
+  files.swapWrite = async () => { throw new Error("disk full"); };
+  await expect(bufs.syncSwaps()).rejects.toThrow("disk full");
+  files.swapWrite = write;
+  await bufs.syncSwaps();
+  expect(swaps.get("a.go")).toBe("1x");
 });
 
 test("diff replaces only the changed middle", () => {
