@@ -218,6 +218,10 @@ Done when: all four language groups have diagnostics, completion and navigation.
 
 - Done 2026-11-10: `:w` trims spaces and tabs at line ends and leaves exactly one final newline, as one undoable change after the formatter, for every language except read-only buffers. Markdown keeps two or more trailing spaces (hard break). Empty and blank files stay as they are. `<Space>uw` toggles line wrap in every pane, kept in `localStorage`; the default is off, on for Markdown. `j`/`k` move by logical lines, `gj`/`gk` by screen lines. Node fixtures for the cleanup, browser test for wrap and `gj`/`gk`, E2E `:w` then `u`. **Still open:** `gk` from the very start of a wrapped row stays put (codemirror-vim takes it as the end of the row above); wrap with the Markdown live view in the app.
 
+## M23 – Cmd+Q asks first
+
+- Done 2026-11-10: Wails' `ShouldQuit` hook sends every window with a folder the same `app:close-request` as its close button (unsaved buffers stop it, the session is saved), closes the others, and quits only once no window is left. Fixes the M16 note that `Cmd+Q` could lose the last 500 ms of session. **Still open:** native check by hand (no window in the server build).
+
 ## Later
 
 | | What | Plugs into |

@@ -27,6 +27,7 @@ func main() {
 			Handler:    application.AssetFileServerFS(assets),
 			Middleware: fsserve.Middleware(ws.Registry()),
 		},
+		ShouldQuit: ws.ShouldQuit, // Cmd+Q asks every window first, like its close button
 		Mac: application.MacOptions{
 			ApplicationShouldTerminateAfterLastWindowClosed: true,
 		},

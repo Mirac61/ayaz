@@ -148,6 +148,30 @@ func (s *WorkspaceService) bindWindow(ctx context.Context, ws string) {
 	})
 }
 
+// ShouldQuit runs on Cmd+Q. It quits only once no window is left; otherwise each window with a workspace gets the
+// same "app:close-request" as its close button (unsaved buffers stop it), the others close right away.
+// The app then quits after the last window (ApplicationShouldTerminateAfterLastWindowClosed).
+func (s *WorkspaceService) ShouldQuit() bool {
+	a := application.Get()
+	open := 0
+	for _, win := range a.Window.GetAll() {
+		s.mu.Lock()
+		_, hooked := s.windows[win.ID()]
+		closing := s.closing[win.ID()]
+		s.mu.Unlock()
+		if closing {
+			continue
+		}
+		open++
+		if hooked {
+			win.EmitEvent("app:close-request")
+		} else {
+			win.Close()
+		}
+	}
+	return open == 0
+}
+
 // CloseWindow closes the calling window; the frontend calls it once nothing is unsaved (or the user forced it).
 // Without a window (server build) it does nothing.
 func (s *WorkspaceService) CloseWindow(ctx context.Context) {
