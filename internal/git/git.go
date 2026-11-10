@@ -92,7 +92,9 @@ func Status(root string) (map[string]string, error) {
 		return map[string]string{}, err
 	}
 	prefix := strings.TrimSpace(string(out))
-	out, ok, err = run(root, "status", "--porcelain=v1", "-z", "--ignored=matching", "--untracked-files=normal", "--", ".")
+	// No optional locks: status would otherwise refresh the index under index.lock, and a git add or commit
+	// in the terminal at the same moment fails ("Another git process seems to be running").
+	out, ok, err = run(root, "--no-optional-locks", "status", "--porcelain=v1", "-z", "--ignored=matching", "--untracked-files=normal", "--", ".")
 	if !ok {
 		return map[string]string{}, err
 	}
