@@ -24,6 +24,9 @@ export function Picker({ source, onClose }: { source: PickerSource; onClose(): v
   const [q, setQ] = useState(source.initial ?? "");
   const [items, setItems] = useState<Item[]>([]);
   const [cur, setCur] = useState(0);
+  // The latest full answer, set before React renders it: an Enter right after it must not count as early.
+  const answer = useRef<{ q: string | null; items: Item[]; cur: number }>({ q: null, items: [], cur: 0 });
+  const early = useRef(false); // Enter came before the answer to q: pick once it's there
   const seq = useRef(0);
   const list = useRef<HTMLUListElement>(null);
 
@@ -31,16 +34,25 @@ export function Picker({ source, onClose }: { source: PickerSource; onClose(): v
     const n = ++seq.current;
     source.query(q, (r) => n === seq.current && setItems(r)).then((r) => {
       if (n !== seq.current) return;
+      const c = q ? 0 : Math.min(source.start ?? 0, Math.max(r.length - 1, 0));
+      answer.current = { q, items: r, cur: c };
       setItems(r);
-      setCur(q ? 0 : Math.min(source.start ?? 0, Math.max(r.length - 1, 0)));
-    }, () => n === seq.current && setItems([]));
+      setCur(c);
+      if (early.current) pick(c, r);
+    }, () => {
+      if (n !== seq.current) return;
+      answer.current = { q, items: [], cur: 0 };
+      setItems([]);
+      early.current = false;
+    });
   }, [q, source]);
   useEffect(() => () => source.close?.(), [source]);
 
   useEffect(() => list.current?.children[cur]?.scrollIntoView({ block: "nearest" }), [cur]);
 
-  const pick = (i: number) => {
-    const it = items[i];
+  const pick = (i: number, from = items) => {
+    const it = from[i];
+    early.current = false;
     onClose();
     if (it) source.pick(it, i);
   };
@@ -50,7 +62,11 @@ export function Picker({ source, onClose }: { source: PickerSource; onClose(): v
     const ctrl = e.ctrlKey && !e.metaKey && !e.altKey;
     if (e.key === "ArrowDown" || ctrl && (e.key === "n" || e.key === "j")) move(1);
     else if (e.key === "ArrowUp" || ctrl && (e.key === "p" || e.key === "k")) move(-1);
-    else if (e.key === "Enter") pick(cur);
+    else if (e.key === "Enter") {
+      const a = answer.current;
+      if (a.q !== q) early.current = true;
+      else pick(a.items === items ? cur : a.cur, a.items); // not rendered yet: its first item
+    }
     else if (ctrl && e.key === "q" && source.all) { onClose(); source.all(); }
     else if (e.key === "Escape" || ctrl && e.key === "c") onClose();
     else return;
