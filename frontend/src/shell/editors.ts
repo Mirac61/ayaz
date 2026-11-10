@@ -14,7 +14,7 @@ import "../viewers/pdf";
 import { backend } from "../core/backend";
 import { Jumps, type Spot } from "./jumps";
 import { browsable } from "../editor/mdlive";
-import { setHead } from "../editor/gitgutter";
+import { headEffects, toggleDiff } from "../editor/gitgutter";
 
 export interface Status {
   pane: number;
@@ -405,10 +405,16 @@ export class Editors {
     const h = await this.files.gitHead(path).catch(() => null);
     const b = this.buffers.get(path);
     if (!b) return;
-    const effects = setHead.of(h?.tracked ? Text.of(h.text.split("\n")) : null);
+    const effects = headEffects(b.state, h?.tracked ? Text.of(h.text.split("\n")) : null);
     const shown = [...this.panes.values()].filter((p) => p.buf === b);
     for (const p of shown) p.view!.dispatch({ effects }); // dispatch() keeps b.state in step
     if (!shown.length) b.state = b.state.update({ effects }).state;
+  }
+
+  // <Space>gd in the active editor; false when there is nothing to compare with.
+  toggleDiff() {
+    const v = this.activeView();
+    return !!v && toggleDiff(v);
   }
 
   // HEAD moved (a commit, checkout): every loaded buffer compares against the new HEAD.

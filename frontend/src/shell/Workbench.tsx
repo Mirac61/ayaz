@@ -769,6 +769,11 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
       { id: "git.prevHunk", title: "Previous git hunk ([c)", run: () => onView((v) => moveHunk(v, -1), "No git changes in this file") },
       { id: "git.previewHunk", title: "Preview git hunk", run: () => onView(previewHunk, "No git change on this line") },
       { id: "git.resetHunk", title: "Reset git hunk", run: () => onView(resetHunk, "No git change on this line") },
+      {
+        id: "git.diff",
+        title: "Toggle diff against HEAD",
+        run: () => { if (!ed.toggleDiff()) fail("This file has no version at HEAD to compare with"); },
+      },
       { id: "find.recent", title: "Recent files", run: () => setPicker(filePicker("Recent files", () => ed.recent())) },
       {
         id: "find.buffers",

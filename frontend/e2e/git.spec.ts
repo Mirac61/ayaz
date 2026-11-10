@@ -51,3 +51,20 @@ test("git status colors the tree", async ({ page }) => {
   writeFileSync(join(e2eWorkspace, file), "two\n");
   await expect(name).toHaveClass(/git-mod/);
 });
+
+// M30: <Space>gd shows the HEAD text of changed lines inline and toggles off.
+test("diff against HEAD", async ({ page }) => {
+  const file = "gitdiff.txt";
+  writeFileSync(join(e2eWorkspace, file), "red\ngreen\nblue\n"); // not search.spec's words: it counts matches
+  commit(file);
+  await page.goto("/");
+  await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: file }).click();
+  await expect(page.locator(".cm-content")).toContainText("blue");
+  await page.keyboard.type("jciwGREEN");
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".cm-git-mod")).toHaveCount(1);
+  await page.keyboard.type(" gd");
+  await expect(page.locator(".cm-deletedChunk")).toContainText("green");
+  await page.keyboard.type(" gd");
+  await expect(page.locator(".cm-deletedChunk")).toHaveCount(0);
+});

@@ -3,7 +3,7 @@ import { EditorState, Text } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { undo } from "@codemirror/commands";
 import { editorExtensions } from "./editor";
-import { moveHunk, previewHunk, resetHunk, setHead } from "./gitgutter";
+import { headEffects, isDiffing, moveHunk, previewHunk, resetHunk, setHead, toggleDiff } from "./gitgutter";
 
 let view: EditorView | null = null;
 afterEach(() => { view?.destroy(); view = null; });
@@ -49,4 +49,18 @@ test("no HEAD, no hunks", () => {
   expect(signs(v, "cm-git-mod")).toBe(0);
   expect(moveHunk(v, 1)).toBe(false);
   expect(resetHunk(v)).toBe(false);
+});
+
+test("<Space>gd shows HEAD's lines inline, follows a new HEAD, and turns off again", () => {
+  const v = mk();
+  v.dispatch({ changes: { from: v.state.doc.line(2).from, to: v.state.doc.line(2).to, insert: "TWO" } });
+  expect(toggleDiff(v)).toBe(true);
+  expect(isDiffing(v.state)).toBe(true);
+  expect(v.dom.querySelector(".cm-deletedChunk")?.textContent).toContain("two");
+  v.dispatch({ effects: headEffects(v.state, Text.of(["one", "TWO", "three", "four", ""])) }); // a commit
+  expect(v.dom.querySelector(".cm-deletedChunk")).toBeNull();
+  expect(toggleDiff(v)).toBe(true);
+  expect(isDiffing(v.state)).toBe(false);
+  v.dispatch({ effects: setHead.of(null) });
+  expect(toggleDiff(v)).toBe(false); // nothing to compare with
 });

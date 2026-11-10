@@ -246,12 +246,16 @@ Done when: all four language groups have diagnostics, completion and navigation.
 
 - Done 2026-11-10: `git.Status` runs `git status --porcelain=v1 -z --ignored=matching` for the folder (paths made relative to it when it is a subfolder of the repo). The tree colors names: changed blue, new and untracked green, conflicts red, ignored rows at 45 % opacity; a folder takes the strongest state below it, files inside an untracked or ignored folder take that folder's. Asked again after every change on disk and on `git:changed` (Go's poll), so a commit from lazygit clears the colors. Go test with a temp repo (staged, deleted, ignored folder and file, subfolder as workspace), Node test for the roll-up, E2E new → commit → changed. **Still open:** a big repo (status on every save); no letters (M/U) next to the names, colors only.
 
+## M30 – Diff against HEAD (L2, last part)
+
+- Done 2026-11-10: `<Space>gd` toggles `@codemirror/merge`'s unified view in the editor, against the HEAD text the gutter already has: the HEAD version of each changed block shows above it, red, read-only; the buffer stays editable and Vim works as usual. A new HEAD (commit, checkout) swaps the compared text in an open diff, a file that left HEAD closes it. Without a HEAD version the status line says so. Browser test (on, new HEAD, off), E2E edit → `<Space>gd` → off. **Still open:** no side-by-side view like `:Gvdiffsplit`; a diff against the index or another commit.
+
 ## Later
 
 | | What | Plugs into |
 |---|---|---|
 | L1 Tasks/build | run commands by key (`go test`, `make`, `pio run`), output in the terminal, errors in quickfix | `pty` + `quickfix` |
-| L2 Git | ~~changes in the gutter~~ (M19), ~~status in the tree~~ (M29), diff view | `git` process, CM6 gutter |
+| L2 Git | ~~changes in the gutter~~ (M19), ~~status in the tree~~ (M29), ~~diff view~~ (M30) | `git` process, CM6 gutter |
 | L3 Debugger | DAP, breakpoints, variables (Delve first) | same pattern as LSP |
 | L4 Shell integration | `EDITOR=ayaz open` from the terminal (e.g. `sf` in mysh opens a buffer), OSC 7 for the current directory (mysh extension) | `pty` + single instance/CLI |
 

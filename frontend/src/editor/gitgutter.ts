@@ -1,7 +1,7 @@
 // Git changes in the gutter, like gitsigns: the buffer against its text at HEAD. Only the chunk diff comes from
 // @codemirror/merge; the gutter, hunk jumps, preview and reset are ours.
-import { Chunk } from "@codemirror/merge";
-import { RangeSet, StateEffect, StateField, Text, type EditorState } from "@codemirror/state";
+import { Chunk, unifiedMergeView } from "@codemirror/merge";
+import { Compartment, RangeSet, StateEffect, StateField, Text, type EditorState } from "@codemirror/state";
 import { EditorView, GutterMarker, gutter, showTooltip, type Tooltip } from "@codemirror/view";
 
 export type Sign = "add" | "mod" | "del" | "deltop";
@@ -60,9 +60,32 @@ const previewField = StateField.define<Tooltip | null>({
 });
 const showPreview = StateEffect.define<Tooltip | null>();
 
+// <Space>gd: the HEAD text inline, removed lines above the changed ones (merge's unified view), like a diff.
+const diffing = new Compartment();
+const diffView = (head: Text) => unifiedMergeView({ original: head, gutter: false, mergeControls: false });
+export function isDiffing(s: EditorState) {
+  const ext = diffing.get(s);
+  return Array.isArray(ext) && ext.length > 0;
+}
+
+// Turns the diff on or off. false: no HEAD text to compare with.
+export function toggleDiff(view: EditorView): boolean {
+  const head = view.state.field(gitField, false)?.head;
+  if (!isDiffing(view.state) && !head) return false;
+  view.dispatch({ effects: diffing.reconfigure(isDiffing(view.state) || !head ? [] : diffView(head)) });
+  return true;
+}
+
+// With a new HEAD, an open diff compares against it (or closes when the file left HEAD).
+export function headEffects(s: EditorState, head: Text | null): StateEffect<unknown>[] {
+  if (!isDiffing(s)) return [setHead.of(head)];
+  return [setHead.of(head), diffing.reconfigure(head ? diffView(head) : [])];
+}
+
 export const gitGutter = [
   gitField,
   previewField,
+  diffing.of([]),
   gutter({ class: "cm-git", markers: (v) => v.state.field(gitField, false)?.marks ?? RangeSet.empty }),
 ];
 
