@@ -158,6 +158,7 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
       if (!b) return fail("No file name"), false;
       try {
         await ed.format(); // no-op without a language server (Q25: on for Go)
+        ed.cleanup();
         await ed.buffers.save(b, force);
         setMsg({ text: `"${b.path}" written` });
         ed.emit();
@@ -549,6 +550,15 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
           const on = !ed.tabsOn;
           ed.setTabs(on);
           try { localStorage.setItem(tabsKey, on ? "on" : "off"); } catch { /* a convenience */ }
+        },
+      },
+      {
+        id: "view.wrap",
+        title: "Toggle line wrap",
+        run() {
+          const on = !ed.wrapped();
+          ed.setWrap(on);
+          setMsg({ text: on ? "Line wrap on" : "Line wrap off" });
         },
       },
       { id: "tab.next", title: "Next tab (gt)", run: () => ed.tabMove(1) },

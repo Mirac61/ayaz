@@ -36,7 +36,7 @@ test("tree: new file, rename with the open buffer, trash prompt cancels", async 
   await page.keyboard.press("Enter");
   await expect(page.locator(".statusline")).toContainText("src/done.txt");
   await expect(page.locator(".cm-content")).toContainText("hello");
-  expect(readFileSync(join(ws, "src", "done.txt"), "utf8")).toBe("hello");
+  expect(readFileSync(join(ws, "src", "done.txt"), "utf8")).toBe("hello\n"); // :w adds the final newline (M22)
   expect(existsSync(join(ws, "src", "notes", "todo.txt"))).toBe(false);
   await expect(tree).toBeFocused();
 

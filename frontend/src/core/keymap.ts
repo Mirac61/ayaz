@@ -45,6 +45,7 @@ export function defaultKeymap(mac = isMac): Binding[] {
     n("<Space>mr", "md.reading"),
     n("<Space>mp", "md.preview"),
     n("<Space>bd", "tab.close"),
+    n("<Space>uw", "view.wrap"),
     n("<Space>t", "term.panel"),
     n("<Space>tc", "term.split"),
     n("<Space>gg", "term.lazygit"),

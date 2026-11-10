@@ -1,6 +1,6 @@
-import { EditorState, type Extension } from "@codemirror/state";
+import { Compartment, EditorState, type Extension } from "@codemirror/state";
 import {
-  GutterMarker, drawSelection, gutter, highlightActiveLine, highlightActiveLineGutter,
+  EditorView, GutterMarker, drawSelection, gutter, highlightActiveLine, highlightActiveLineGutter,
   highlightSpecialChars, keymap,
 } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
@@ -58,8 +58,24 @@ export const editorExtensions = (): Extension[] => [
   kanagawaCM,
 ];
 
+// Line wrap, like nvim's `wrap`: off for code, on for Markdown, until <Space>uw sets it for every file.
+const wrapping = new Compartment();
+const WRAP_KEY = "ayaz.wrap";
+export function wrapFor(path: string | null): boolean {
+  try {
+    const v = localStorage.getItem(WRAP_KEY);
+    if (v === "on" || v === "off") return v === "on";
+  } catch { /* storage blocked: the default */ }
+  return !!path && extOf(path) === "md";
+}
+export const isWrapped = (s: EditorState) => wrapping.get(s) === EditorView.lineWrapping;
+export function setWrap(on: boolean) {
+  try { localStorage.setItem(WRAP_KEY, on ? "on" : "off"); } catch { /* a convenience */ }
+  return wrapping.reconfigure(on ? EditorView.lineWrapping : []);
+}
+
 // Builds the state for a file, with its language loaded first so highlighting is there on the first frame.
 export async function createState(path: string | null, doc: string, ws?: string, root?: string): Promise<EditorState> {
   const lang = path ? await loadLanguage(path) : null;
-  return EditorState.create({ doc, extensions: [editorExtensions(), lang ?? [], path && ws && root ? lspExtension(ws, root, path) : [], path?.startsWith("/") ? EditorState.readOnly.of(true) : [], path && extOf(path) === "md" ? [mdlive, ws ? mdImages.of({ ws, file: path }) : []] : []] });
+  return EditorState.create({ doc, extensions: [editorExtensions(), wrapping.of(wrapFor(path) ? EditorView.lineWrapping : []), lang ?? [], path && ws && root ? lspExtension(ws, root, path) : [], path?.startsWith("/") ? EditorState.readOnly.of(true) : [], path && extOf(path) === "md" ? [mdlive, ws ? mdImages.of({ ws, file: path }) : []] : []] });
 }

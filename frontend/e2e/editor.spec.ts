@@ -55,3 +55,19 @@ test("external changes reach tree and clean buffers", async ({ page }) => {
   await expect(page.locator(".statusline")).toContainText("4:1");
   await expect(page.locator(".statusline .dirty")).toHaveCount(0);
 });
+
+// M22: :w trims line ends and extra blank lines at the end; u brings them back (unsaved).
+test(":w cleans up, u undoes it", async ({ page }) => {
+  const file = join(e2eWorkspace, "cleanup.txt");
+  writeFileSync(file, "a  \nb\t\n\n\n");
+  await page.goto("/");
+  await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: "cleanup.txt" }).click();
+  await expect(page.locator(".cm-content")).toContainText("b");
+  await page.keyboard.type(":w\n");
+  await expect(page.locator(".statusline")).toContainText('"cleanup.txt" written');
+  expect(readFileSync(file, "utf8")).toBe("a\nb\n");
+  await page.keyboard.type("u");
+  await expect(page.locator(".statusline .dirty")).toBeVisible();
+  await expect(page.locator(".statusline")).toContainText("1:");
+  expect(await page.locator(".cm-line").first().textContent()).toBe("a  ");
+});

@@ -214,6 +214,10 @@ Done when: all four language groups have diagnostics, completion and navigation.
 
 - Done 2026-11-10: a `publishDiagnostics` handler in `clientFor` keeps every file's diagnostics per folder (also files that aren't open: gopls reports whole packages) and returns false, so lsp-client still underlines. `<Space>fd` (or a click on `E n W n` in the status line) fills the quickfix list, errors first. `]d`/`[d` jump within the file and land on the start in normal mode, like nvim. Node test for the store, browser test that the handler keeps the underline, E2E with `broken.go`. **Still open:** the counts with clangd/ts in the app.
 
+## M22 – Cleanup on save, line wrap
+
+- Done 2026-11-10: `:w` trims spaces and tabs at line ends and leaves exactly one final newline, as one undoable change after the formatter, for every language except read-only buffers. Markdown keeps two or more trailing spaces (hard break). Empty and blank files stay as they are. `<Space>uw` toggles line wrap in every pane, kept in `localStorage`; the default is off, on for Markdown. `j`/`k` move by logical lines, `gj`/`gk` by screen lines. Node fixtures for the cleanup, browser test for wrap and `gj`/`gk`, E2E `:w` then `u`. **Still open:** `gk` from the very start of a wrapped row stays put (codemirror-vim takes it as the end of the row above); wrap with the Markdown live view in the app.
+
 ## Later
 
 | | What | Plugs into |

@@ -4,7 +4,8 @@ import { getCM } from "@replit/codemirror-vim";
 import type { Files } from "../core/backend";
 import { Buffers, diff, isDirty, type Buffer } from "../core/buffers";
 import { setLspHost, formatBeforeSave } from "../editor/lsp";
-import { createState, editorExtensions } from "../editor/editor";
+import { createState, editorExtensions, isWrapped, setWrap } from "../editor/editor";
+import { cleanupChanges } from "../editor/cleanup";
 import { isReading, linkAt, toggleReading } from "../editor/mdlive";
 import { openTerminal, type TermHandle, type TermOptions } from "../terminal/terminal";
 import { fsUrl, viewerFor, type ViewHandle } from "../core/viewers";
@@ -348,6 +349,31 @@ export class Editors {
   format() {
     const v = this.panes.get(this.active)?.view;
     return v ? formatBeforeSave(v) : Promise.resolve();
+  }
+
+  // Trims line ends and the file's end before :w, as one undoable change. Not for read-only (library) files.
+  cleanup() {
+    const v = this.panes.get(this.active)?.view, b = this.current();
+    if (!v || !b || v.state.readOnly) return;
+    const changes = cleanupChanges(v.state.doc, b.path.endsWith(".md"));
+    if (changes.length) v.dispatch({ changes, userEvent: "cleanup" });
+  }
+
+  wrapped() {
+    const v = this.panes.get(this.active)?.view;
+    return !!v && isWrapped(v.state);
+  }
+
+  // Line wrap on or off in every pane and loaded buffer (and for files opened later).
+  setWrap(on: boolean) {
+    const effects = setWrap(on);
+    const shown = new Set<Buffer>();
+    for (const p of this.panes.values()) {
+      if (!p.view) continue;
+      p.view.dispatch({ effects });
+      if (p.buf) shown.add(p.buf);
+    }
+    for (const b of this.buffers.list()) if (!shown.has(b)) b.state = b.state.update({ effects }).state;
   }
 
   // Re-reads the active buffer from disk (`:e!`).
