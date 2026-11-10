@@ -258,6 +258,10 @@ Done when: all four language groups have diagnostics, completion and navigation.
 
 - Done 2026-11-10: every 2 s, each dirty buffer whose text changed since the last write goes to a swap in the user cache (`~/Library/Caches/ayaz/swap/<folder hash>/`, `AYAZ_CACHE_DIR` overrides), never into the project; written through a temp file. A buffer that is clean again (`:w`, undo, `:e!`) or no longer loaded (renamed, trashed) loses its swap, `:q!`/`:qa!` drop all of them. When the folder opens, each swap whose text differs from disk gets a picker: Restore (as unsaved changes, not written) or Discard; Esc keeps it for next time, swaps equal to disk go silently. Go test for write/read/remove and broken files, Node test for the sync, E2E: type in two files, reload, restore one, discard the other, `:w`, reload asks nothing (runs alone, after `config.spec`). **Still open:** two windows on the same folder see each other's swaps; up to 2 s of typing can be lost.
 
+## M50 – Local history
+
+- Done 2026-11-10: every save keeps the text it replaced, in the user cache next to the swaps (`history/<folder hash>/<file hash>/<ms>.txt`), up to 30 per file, none for files over 1 MB or saves that change nothing; Go does it inside `WriteText`, so nothing extra crosses the bridge. `<Space>fh` lists them (time, age, size), Enter shows the buffer against that text in `<Space>gd`'s unified view; that diff stays when HEAD moves, `<Space>gd` closes it. Go test (pruning, newest first, unchanged and big files), browser test (diff stays on a new HEAD), E2E two saves → pick the older one. **Still open:** history follows the path, not renames; no "restore this version" key (copy from the diff, or `u`).
+
 ## Later
 
 | | What | Plugs into |

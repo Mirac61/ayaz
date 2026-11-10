@@ -3,7 +3,7 @@ import { EditorState, Text } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { undo } from "@codemirror/commands";
 import { editorExtensions } from "./editor";
-import { headEffects, isDiffing, moveHunk, previewHunk, resetHunk, setHead, toggleDiff } from "./gitgutter";
+import { diffWith, headEffects, isDiffing, moveHunk, previewHunk, resetHunk, setHead, toggleDiff } from "./gitgutter";
 
 let view: EditorView | null = null;
 afterEach(() => { view?.destroy(); view = null; });
@@ -63,4 +63,14 @@ test("<Space>gd shows HEAD's lines inline, follows a new HEAD, and turns off aga
   expect(isDiffing(v.state)).toBe(false);
   v.dispatch({ effects: setHead.of(null) });
   expect(toggleDiff(v)).toBe(false); // nothing to compare with
+});
+
+test("<Space>fh: a diff against an older version stays when HEAD moves, <Space>gd closes it", () => {
+  const v = mk();
+  diffWith(v, Text.of(["one", "old two", "three", "four", ""]));
+  expect(v.dom.querySelector(".cm-deletedChunk")?.textContent).toContain("old two");
+  v.dispatch({ effects: headEffects(v.state, Text.of(["new head", ""])) }); // a commit
+  expect(v.dom.querySelector(".cm-deletedChunk")?.textContent).toContain("old two");
+  expect(toggleDiff(v)).toBe(true);
+  expect(isDiffing(v.state)).toBe(false);
 });

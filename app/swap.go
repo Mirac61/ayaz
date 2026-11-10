@@ -18,8 +18,8 @@ type Swap struct {
 	Text string `json:"text"`
 }
 
-// swapDir is the folder's own place in the user cache, never inside the project.
-func swapDir(root string) (string, error) {
+// cacheDir is the folder's own place for kind (swap, history) in the user cache, never inside the project.
+func cacheDir(kind, root string) (string, error) {
 	dir := os.Getenv("AYAZ_CACHE_DIR")
 	if dir == "" {
 		c, err := os.UserCacheDir()
@@ -28,8 +28,10 @@ func swapDir(root string) (string, error) {
 		}
 		dir = filepath.Join(c, "ayaz")
 	}
-	return filepath.Join(dir, "swap", hashName(root)), nil
+	return filepath.Join(dir, kind, hashName(root)), nil
 }
+
+func swapDir(root string) (string, error) { return cacheDir("swap", root) }
 
 func hashName(s string) string {
 	h := sha256.Sum256([]byte(s))
@@ -54,8 +56,12 @@ func writeSwap(root, path, text string) error {
 	if err != nil {
 		return err
 	}
-	// Through a temp file: a crash mid-write must not leave half a swap in place of a whole one.
-	tmp, err := os.CreateTemp(filepath.Dir(file), ".swap-*")
+	return writeAtomic(file, b)
+}
+
+// writeAtomic goes through a temp file: a crash mid-write must not leave half a file in place of a whole one.
+func writeAtomic(file string, b []byte) error {
+	tmp, err := os.CreateTemp(filepath.Dir(file), ".tmp-*")
 	if err != nil {
 		return err
 	}

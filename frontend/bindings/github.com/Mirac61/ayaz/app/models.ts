@@ -36,3 +36,11 @@ export interface Swap {
     "path": string;
     "text": string;
 }
+
+/**
+ * Version is one kept text of a file; Time is when it was replaced, in Unix milliseconds.
+ */
+export interface Version {
+    "time": number;
+    "size": number;
+}

@@ -16,7 +16,7 @@ import { backend } from "../core/backend";
 import { Jumps, type Spot } from "./jumps";
 import { browsable } from "../editor/mdlive";
 import { historyRoute } from "../editor/vim/setup";
-import { headEffects, toggleDiff } from "../editor/gitgutter";
+import { diffWith, headEffects, toggleDiff } from "../editor/gitgutter";
 
 export interface Status {
   pane: number;
@@ -479,6 +479,13 @@ export class Editors {
   toggleDiff() {
     const v = this.activeView();
     return !!v && toggleDiff(v);
+  }
+
+  // <Space>fh: the active editor against an older text of its file; false without an editor.
+  diffWith(original: Text) {
+    const v = this.activeView();
+    if (v) diffWith(v, original);
+    return !!v;
   }
 
   // HEAD moved (a commit, checkout): every loaded buffer compares against the new HEAD.

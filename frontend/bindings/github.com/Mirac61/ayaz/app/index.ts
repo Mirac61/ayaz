@@ -14,5 +14,6 @@ export type {
     HeadFile,
     Info,
     Match,
-    Swap
+    Swap,
+    Version
 } from "./models.js";

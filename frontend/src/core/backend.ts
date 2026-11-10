@@ -1,12 +1,12 @@
 // The only place that imports generated bindings or the Wails runtime (02-architecture, principle 2).
 import { Application, Browser, Clipboard, Events, Stream, Window } from "@wailsio/runtime";
 import { ConfigService, PingService, WorkspaceService } from "../../bindings/github.com/Mirac61/ayaz/app";
-import type { HeadFile, Info, Match, Swap } from "../../bindings/github.com/Mirac61/ayaz/app";
+import type { HeadFile, Info, Match, Swap, Version } from "../../bindings/github.com/Mirac61/ayaz/app";
 import type { Entry, TextFile } from "../../bindings/github.com/Mirac61/ayaz/internal/workspace";
 import type { Match as FileMatch } from "../../bindings/github.com/Mirac61/ayaz/internal/index";
 import type { Loc } from "./quickfix";
 
-export type { Entry, FileMatch, HeadFile, Info, Match, Swap, TextFile };
+export type { Entry, FileMatch, HeadFile, Info, Match, Swap, TextFile, Version };
 
 // A batch of changes on disk. Paths are workspace-relative, files or folders; rescan: events were lost, check everything.
 export interface FsChange { paths: string[] | null; rescan: boolean }
@@ -72,6 +72,8 @@ export interface Files {
   swapWrite(path: string, text: string): Promise<void>;
   swapRemove(path: string): Promise<void>;
   swaps(): Promise<Swap[]>; // what a previous run of this folder left unsaved
+  history(path: string): Promise<Version[]>; // texts earlier saves replaced, newest first
+  historyText(path: string, time: number): Promise<string>;
 }
 
 export const backend: Backend = {
@@ -126,6 +128,8 @@ export const backend: Backend = {
     swapWrite: (path, text) => WorkspaceService.SwapWrite(ws, path, text),
     swapRemove: (path) => WorkspaceService.SwapRemove(ws, path),
     swaps: async () => (await WorkspaceService.Swaps(ws)) ?? [],
+    history: async (path) => (await WorkspaceService.History(ws, path)) ?? [],
+    historyText: (path, time) => WorkspaceService.HistoryText(ws, path, time),
     grep(query, opts, onHits) {
       const sock = Stream("search") as WebSocket;
       sock.binaryType = "arraybuffer";

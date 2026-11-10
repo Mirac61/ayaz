@@ -22,6 +22,8 @@ function fakeFiles(init: Record<string, string>) {
     swapWrite: async (path, text) => void swaps.set(path, text),
     swapRemove: async (path) => void swaps.delete(path),
     swaps: async () => [...swaps].map(([path, text]) => ({ path, text })),
+    history: async () => [],
+    historyText: async () => "",
     readText: async (path) => {
       const f = disk.get(path);
       if (!f) throw new Error(`open /x/${path}: no such file or directory`);

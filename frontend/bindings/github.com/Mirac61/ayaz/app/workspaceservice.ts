@@ -97,6 +97,20 @@ export function HandleTerminal(c: application$0.StreamConn | null): $Cancellable
 }
 
 /**
+ * History lists the kept versions of path, newest first.
+ */
+export function History(ws: string, path: string): $CancellablePromise<$models.Version[] | null> {
+    return $Call.ByID(3599973907, ws, path);
+}
+
+/**
+ * HistoryText is the text of path's version from History.
+ */
+export function HistoryText(ws: string, path: string, time: number): $CancellablePromise<string> {
+    return $Call.ByID(2353279348, ws, path, time);
+}
+
+/**
  * Initial opens the folder from the command line, nil if there was none. New windows don't ask (ADR-0014).
  */
 export function Initial(): $CancellablePromise<$models.Info | null> {

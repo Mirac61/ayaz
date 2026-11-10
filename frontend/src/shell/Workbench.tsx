@@ -39,6 +39,15 @@ const bang = (arg = "") => {
 const LIMIT = 50;
 const SHOWN = 500; // project search hits listed in the picker; <C-q> takes all of them
 const STEP = 0.05; // <C-w>+/-/</>: share of the parent split (or of the window for the panel)
+// "5 min ago" for the history picker.
+function ago(t: number): string {
+  const s = Math.round((Date.now() - t) / 1000);
+  if (s < 60) return `${s} s ago`;
+  if (s < 3600) return `${Math.round(s / 60)} min ago`;
+  if (s < 86400) return `${Math.round(s / 3600)} h ago`;
+  return `${Math.round(s / 86400)} d ago`;
+}
+
 const clampPanel = (h: number) => Math.min(0.9, Math.max(0.1, h));
 const PANEL = -1; // pane id of the bottom panel; split panes count up from 1
 
@@ -819,6 +828,26 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
         id: "git.diff",
         title: "Toggle diff against HEAD",
         run: () => { if (!ed.toggleDiff()) fail("This file has no version at HEAD to compare with"); },
+      },
+      {
+        id: "file.history",
+        title: "Local history: diff against an earlier save",
+        async run() {
+          const b = ed.current();
+          if (!b) return fail("No file");
+          const versions = await files.history(b.path);
+          if (!versions.length) return fail(`No earlier saves of "${b.path}" yet`);
+          const when = (t: number) => new Date(t).toLocaleString();
+          setPicker({
+            title: `History of ${b.path}`,
+            query: async () => versions.map((v) => ({ label: when(v.time), hint: `${ago(v.time)} · ${v.size} B` })),
+            pick: (_it, i) => void files.historyText(b.path, versions[i].time).then((text) => {
+              if (ed.current() !== b) return;
+              ed.diffWith(Text.of(text.split("\n")));
+              setMsg({ text: `Diff against the save before ${when(versions[i].time)}, <Space>gd closes it` });
+            }, (e) => fail(errText(e))),
+          });
+        },
       },
       { id: "find.recent", title: "Recent files", run: () => setPicker(filePicker("Recent files", () => ed.recent())) },
       {

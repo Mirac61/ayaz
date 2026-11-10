@@ -294,7 +294,12 @@ func (s *WorkspaceService) WriteText(ws, path, content string, expectedMtime int
 	if err != nil {
 		return 0, err
 	}
-	return w.WriteText(path, content, expectedMtime)
+	old, rerr := w.ReadText(path) // for the local history; a new file has none
+	mtime, err := w.WriteText(path, content, expectedMtime)
+	if err == nil && rerr == nil {
+		keepOld(w.Root, path, old.Content, content)
+	}
+	return mtime, err
 }
 
 // Find fuzzy-matches workspace paths. The index is built on the first call (K10) and kept;

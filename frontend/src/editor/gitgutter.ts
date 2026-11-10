@@ -1,6 +1,6 @@
 // Git changes in the gutter, like gitsigns: the buffer against its text at HEAD. Only the chunk diff comes from
 // @codemirror/merge; the gutter, hunk jumps, preview and reset are ours.
-import { Chunk, unifiedMergeView } from "@codemirror/merge";
+import { Chunk, getOriginalDoc, unifiedMergeView } from "@codemirror/merge";
 import { Compartment, RangeSet, StateEffect, StateField, Text, type EditorState } from "@codemirror/state";
 import { EditorView, GutterMarker, gutter, showTooltip, type Tooltip } from "@codemirror/view";
 
@@ -76,9 +76,15 @@ export function toggleDiff(view: EditorView): boolean {
   return true;
 }
 
-// With a new HEAD, an open diff compares against it (or closes when the file left HEAD).
+// <Space>fh: the same view against an older version of the file (local history).
+export function diffWith(view: EditorView, original: Text) {
+  view.dispatch({ effects: diffing.reconfigure(diffView(original)) });
+}
+
+// With a new HEAD, an open diff against HEAD compares against it (or closes when the file left HEAD).
+// A diff against a history version stays.
 export function headEffects(s: EditorState, head: Text | null): StateEffect<unknown>[] {
-  if (!isDiffing(s)) return [setHead.of(head)];
+  if (!isDiffing(s) || getOriginalDoc(s) !== s.field(gitField, false)?.head) return [setHead.of(head)];
   return [setHead.of(head), diffing.reconfigure(head ? diffView(head) : [])];
 }
 
