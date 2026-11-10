@@ -21,6 +21,7 @@ export interface TermOptions {
   ws?: string; // workspace ID: start in its root; none = home
   cmd?: string; // run this instead of an interactive shell, e.g. "lazygit"
   onExit?(): void;
+  onOutput?(text: string): void; // at exit, everything it printed (scrollback included), for tasks' problem lines
   onMode?(m: TermMode): void;
   windowMs?: number; // batching knobs, Spike S6
   maxBytes?: number;
@@ -64,6 +65,17 @@ export const termFontSize = () => Math.max(6, (settings().terminalFontSize ?? se
 const defaultRenderer = () =>
   new URLSearchParams(location.search).get("renderer") === "dom" || !isMac ? "dom" : "webgl";
 
+// The buffer as text; a line the terminal wrapped joins the one before it.
+function bufferText(t: Terminal): string {
+  const b = t.buffer.active;
+  let out = "";
+  for (let i = 0; i < b.length; i++) {
+    const l = b.getLine(i)!;
+    out += (i && !l.isWrapped ? "\n" : "") + l.translateToString(true);
+  }
+  return out;
+}
+
 export function openTerminal(el: HTMLElement, opts: TermOptions = {}): TermHandle {
   const term = new Terminal({
     theme: kanagawaTerm,
@@ -94,8 +106,12 @@ export function openTerminal(el: HTMLElement, opts: TermOptions = {}): TermHandl
   let disposed = false;
   ws.onclose = () => {
     if (disposed) return;
-    term.write("\r\n[process exited]\r\n");
-    opts.onExit?.();
+    // After the write callback, the last output is in the buffer too.
+    term.write("\r\n[process exited]\r\n", () => {
+      if (disposed) return;
+      if (opts.onOutput) opts.onOutput(bufferText(term));
+      opts.onExit?.();
+    });
   };
 
   // Panes resize on splits and when the panel shows; a hidden element has no size to fit to.

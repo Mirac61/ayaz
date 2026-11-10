@@ -38,6 +38,7 @@ test("settings.json and keymap.json apply when saved", async ({ page }) => {
 });
 
 const hasGopls = (() => { try { execSync("command -v gopls", { shell: "/bin/sh" }); return true; } catch { return false; } })();
+const hasGo = (() => { try { execSync("command -v go", { shell: "/bin/sh" }); return true; } catch { return false; } })();
 
 // M43: "inlayHints": true shows gopls' parameter names, saving it off again hides them.
 test("inlay hints follow settings.json", async ({ page }) => {
@@ -69,4 +70,28 @@ test("status line at the bottom, with its own colors", async ({ page }) => {
   await expect(page.locator("header.statusline")).toHaveCount(0);
   rmSync(join(e2eConfig, "settings.json"));
   await expect(page.locator("header.statusline .mode")).toHaveCSS("color", "rgb(126, 156, 216)"); // back to the default
+});
+
+// M52: a task from settings.json runs in a split; its file:line:col lines land in the quickfix list.
+test("task: go vet on broken.go fills the quickfix list, <Space>rl runs it again", async ({ page }) => {
+  test.skip(!hasGo, "go not in PATH");
+  writeFileSync(join(e2eConfig, "settings.json"), JSON.stringify({ tasks: { vet: "go vet ./broken.go" } }));
+  await page.goto("/?renderer=dom");
+  const status = page.locator(".statusline");
+  await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: "README.md" }).click();
+  await expect(page.locator(".cm-content")).toContainText(/\S/); // the file's late focus would eat the Enter below
+  await page.keyboard.press("Space");
+  await page.keyboard.type("rr");
+  await expect(page.getByRole("dialog", { name: "Run task" })).toContainText("go vet ./broken.go");
+  await page.keyboard.press("Enter");
+  // The quickfix list jumps to the first entry; its message may give way to gopls' own on opening broken.go.
+  await expect(status).toContainText("broken.go", { timeout: 15_000 });
+  await expect(status).toContainText("4:2");
+  await expect(page.locator("[data-term]")).toContainText("[process exited]"); // the pane stays with the output
+
+  await page.keyboard.press("Space");
+  await page.keyboard.type("rl");
+  await expect(page.locator("[data-term]")).toHaveCount(2);
+  await expect(page.locator("[data-term]").nth(1)).toContainText("undefinedThing", { timeout: 15_000 });
+  rmSync(join(e2eConfig, "settings.json"));
 });

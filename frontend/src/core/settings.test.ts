@@ -61,6 +61,12 @@ test("the status line goes top or bottom, its colors are hex per key", () => {
   expect(() => parseSettings('{"statusColors": {"normal": "blue"}}')).toThrow("statusColors.normal must be a hex color");
 });
 
+test("tasks: names to shell commands", () => {
+  expect(parseSettings('{"tasks": {"vet": "go vet ./..."}}').tasks).toEqual({ vet: "go vet ./..." });
+  expect(() => parseSettings('{"tasks": ["go vet"]}')).toThrow('"tasks" must be an object of name → command');
+  expect(() => parseSettings('{"tasks": {"vet": 1}}')).toThrow('tasks.vet must be a command (a string)');
+});
+
 test("comments and trailing commas are allowed; strings keep their slashes and commas", () => {
   const s = parseSettings(`// top\n{ /* a */ "font": "a // b, }", // c\n "languages": { "ts": { "tabWidth": 2, }, }, }`);
   expect(s.font).toBe("a // b, }");

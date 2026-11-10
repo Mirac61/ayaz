@@ -4,6 +4,7 @@ import { backend, type Grep, type Info } from "../core/backend";
 import { Commands } from "../core/commands";
 import { defaultKeymap, isMac, keyName, mergeKeymap, parseKeys, parseUserKeymap, Sequencer, type Binding } from "../core/keymap";
 import { diff, isDirty } from "../core/buffers";
+import { parseProblems } from "../core/tasks";
 import { label, Quickfix, replaceEdits, replacement, type Loc } from "../core/quickfix";
 import { Text } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
@@ -173,6 +174,8 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
         }
       }
       // Every pane is mounted by now (they mount in one commit). Without files, start in the tree as usual.
+      // A picker opened meanwhile (<Space>rr, a swap to restore) keeps the keys.
+      if (document.activeElement?.closest(".picker")) return;
       if (Object.keys(session.panes).length) ed.focus(session.active);
       else tree.current?.focus();
     } finally {
@@ -246,10 +249,27 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
     // A shell that exits closes its pane (Editors finds the pane, it may have moved); the last pane turns back into an editor.
     ed.onTermExit = (id) => (panes(lay.current).length > 1 ? void closePane(true, id) : ed.replace(id));
     // An empty editor pane (no file) is taken over, otherwise the terminal splits off to the right.
-    const termSplit = (cmd?: string) => {
+    const termSplit = (cmd?: string, more?: Partial<TermOptions>) => {
       const target = ed.active === PANEL ? lastSplit.current : ed.active;
-      if (ed.isEmpty(target)) return ed.replace(target, { ws: ws.id, cmd });
-      splitPane("row", { ws: ws.id, cmd });
+      if (ed.isEmpty(target)) return ed.replace(target, { ws: ws.id, cmd, ...more });
+      splitPane("row", { ws: ws.id, cmd, ...more });
+    };
+
+    // M52: a task runs in a split that stays open when it ends; file:line lines it printed go to the quickfix list.
+    let lastTask: string | null = null;
+    const runTask = (name: string) => {
+      const cmd = settings().tasks[name];
+      if (cmd === undefined) return fail(`No task "${name}" in settings.json`);
+      lastTask = name;
+      setMsg({ text: `Task "${name}": ${cmd}` });
+      termSplit(cmd, {
+        onExit: () => {}, // keep the pane and its output
+        onOutput(text) {
+          const locs = parseProblems(text, ws.root);
+          if (locs.length) setQf(`Task "${name}"`, locs, false, false);
+          else setMsg({ text: `Task "${name}" ended, no file:line in its output` });
+        },
+      });
     };
 
     const togglePanel = () => {
@@ -670,6 +690,21 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       { id: "term.panel", title: "Toggle terminal panel", run: togglePanel },
       { id: "term.split", title: "Terminal in a split (:terminal)", run: () => termSplit() },
       { id: "term.lazygit", title: "lazygit", run: () => termSplit("lazygit") },
+      {
+        id: "task.run",
+        title: "Run a task (settings.json)",
+        run() {
+          const tasks = settings().tasks, names = Object.keys(tasks);
+          if (!names.length) return fail('No tasks yet: add "tasks" to settings.json (Cmd+,)');
+          setPicker({
+            title: "Run task",
+            query: async (q) => names.filter((n) => n.toLowerCase().includes(q.toLowerCase()))
+              .map((n) => ({ label: n, hint: tasks[n] })),
+            pick: (it) => runTask(it.label),
+          });
+        },
+      },
+      { id: "task.last", title: "Run the last task again", run: () => (lastTask ? runTask(lastTask) : fail("No task run yet: <Space>rr")) },
       { id: "term.normal", title: "Terminal normal mode", run: () => ed.termNormal() },
       {
         id: "find.files",

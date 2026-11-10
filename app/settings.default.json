@@ -28,6 +28,13 @@
     // "insert": "#98bb6c",
   },
 
+  // Commands to run in the folder by name: <Space>rr picks one, <Space>rl runs the last again.
+  // They run in a terminal split; file:line:col lines in the output land in the quickfix list.
+  "tasks": {
+    // "vet": "go vet ./...",
+    // "test": "go test ./...",
+  },
+
   // Width of a tab, and the indent unless "tabs" is on. 1 to 16.
   "tabWidth": 4,
 

@@ -19,6 +19,7 @@ export interface Settings extends FileSettings {
   sidebar: "left" | "right"; // the file tree's side of the window
   statusline: "top" | "bottom"; // mode, messages and meta in the title bar, or in their own line under the code
   statusColors: Partial<Record<StatusColor, string>>; // hex colors over tokens.css --status-*
+  tasks: Record<string, string>; // name → shell command, run with <Space>rr in the folder
   languages: Record<string, Partial<FileSettings>>;
 }
 
@@ -32,6 +33,7 @@ export const DEFAULTS: Settings = {
   sidebar: "left",
   statusline: "top",
   statusColors: {},
+  tasks: {},
   tabWidth: 4,
   tabs: false,
   wrap: false,
@@ -88,7 +90,7 @@ export function parseSettings(json: string): Settings {
     throw new Error(`settings.json: ${e instanceof Error ? e.message : e}`);
   }
   if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("settings.json: expected an object");
-  const { font, fontSize, terminalFontSize, inlayHints, sidebar, statusline, statusColors, languages, ...file } =
+  const { font, fontSize, terminalFontSize, inlayHints, sidebar, statusline, statusColors, tasks, languages, ...file } =
     data as Record<string, unknown>;
   if (font !== undefined && typeof font !== "string") throw new Error('settings.json: "font" must be a string');
   if (inlayHints !== undefined && typeof inlayHints !== "boolean") throw new Error('settings.json: "inlayHints" must be a boolean');
@@ -109,6 +111,14 @@ export function parseSettings(json: string): Settings {
       if (typeof v !== "string" || !/^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(v)) {
         throw new Error(`settings.json: statusColors.${k} must be a hex color like "#7e9cd8"`);
       }
+    }
+  }
+  if (tasks !== undefined) {
+    if (!tasks || typeof tasks !== "object" || Array.isArray(tasks)) {
+      throw new Error('settings.json: "tasks" must be an object of name → command');
+    }
+    for (const [k, v] of Object.entries(tasks)) {
+      if (typeof v !== "string") throw new Error(`settings.json: tasks.${k} must be a command (a string)`);
     }
   }
   for (const [k, v] of Object.entries({ fontSize, terminalFontSize })) {
@@ -133,6 +143,7 @@ export function parseSettings(json: string): Settings {
     ...(inlayHints !== undefined && { inlayHints }), ...(sidebar !== undefined && { sidebar }),
     ...(statusline !== undefined && { statusline }),
     ...(statusColors !== undefined && { statusColors: statusColors as Settings["statusColors"] }), // checked above
+    ...(tasks !== undefined && { tasks: tasks as Settings["tasks"] }), // checked above
     languages: langs,
   };
 }
