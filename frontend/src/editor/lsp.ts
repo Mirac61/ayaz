@@ -12,6 +12,7 @@ import { extOf } from "../lang/registry";
 import type { Loc } from "../core/quickfix";
 import { diagnosticsFor, dropDiagnostics, type Published } from "./diagnostics";
 import { inlayHints } from "./inlay";
+import { SEMANTIC_CAPABILITY, semanticTokens } from "./semantic";
 import { isMac } from "../core/keymap";
 import { fileSettings } from "../core/settings";
 
@@ -40,6 +41,7 @@ type Stream = Pick<WebSocket, "readyState" | "send" | "close" | "onopen" | "onme
 // What servers are told about themselves: the inlay hints they leave off by default (shown only with
 // "inlayHints" in settings.json). gopls asks through workspace/configuration, TypeScript gets didChangeConfiguration.
 const GOPLS = {
+  semanticTokens: true, // off by default in some versions
   hints: {
     assignVariableTypes: true, compositeLiteralFields: true, constantValues: true,
     functionTypeParameters: true, parameterNames: true, rangeVariableTypes: true,
@@ -435,13 +437,14 @@ export const diagnosticHandlers = (ws: string, server = "") => ({
 });
 
 // Code actions as literals (title + edit), and server commands may send edits back (workspace/applyEdit).
-const CAPABILITIES = {
+export const CAPABILITIES = {
   workspace: {
     applyEdit: true, configuration: true,
     workspaceEdit: { documentChanges: true, resourceOperations: ["create", "rename", "delete"] },
   },
   textDocument: {
     inlayHint: {},
+    semanticTokens: SEMANTIC_CAPABILITY,
     codeAction: {
       dataSupport: true,
       resolveSupport: { properties: ["edit"] },
@@ -505,5 +508,5 @@ export function lspExtension(ws: string, root: string, path: string): Extension 
   const s = serverFor(path);
   if (!s) return [];
   const uri = path.startsWith("/") ? fileUri(path) : fileUri(root, path);
-  return [clientFor(ws, root, s[1]).plugin(uri, s[0]), hoverField, hoverEsc, inlayHints];
+  return [clientFor(ws, root, s[1]).plugin(uri, s[0]), hoverField, hoverEsc, inlayHints, semanticTokens];
 }

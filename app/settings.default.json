@@ -15,6 +15,10 @@
   // Parameter names and types from the language server, shown inline.
   "inlayHints": false,
 
+  // The language server's own knowledge of what each name is (function, type, parameter, ...) colours the code
+  // over the syntax highlighting. Needs a server that offers it (gopls, clangd, TypeScript, jdtls).
+  "semanticTokens": true,
+
   // The file tree's side of the window: "left" or "right". Cmd+B hides and shows it.
   "sidebar": "left",
 

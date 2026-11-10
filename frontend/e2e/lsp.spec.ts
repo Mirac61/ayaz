@@ -154,3 +154,13 @@ test("a code action can create a file", async ({ page }) => {
   expect(readFileSync(join(e2eWorkspace, "src", "spare.go"), "utf8")).not.toContain("func spare");
   await expect(page.locator(".statusline .msg.error")).toHaveCount(0);
 });
+
+// M54: gopls' semantic tokens colour names by what they are: `fmt` a package, `Println` a function.
+test("gopls semantic tokens colour the code", async ({ page }) => {
+  test.skip(!hasGopls, "gopls not in PATH");
+  await page.goto("/");
+  await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: "hello.go" }).click();
+  await expect(page.locator(".cm-content")).toContainText("Println");
+  await expect(page.locator(".cm-sem-namespace").filter({ hasText: /^fmt$/ }).last()).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator(".cm-sem-function").filter({ hasText: /^Println$/ })).toBeVisible();
+});

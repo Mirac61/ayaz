@@ -3,8 +3,12 @@ import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { LSPClient, languageServerExtensions, type Transport } from "@codemirror/lsp-client";
 import { editorExtensions } from "./editor";
-import { Files, diagnosticHandlers, documentSymbols, formatBeforeSave, resolveAction, workspaceSymbols } from "./lsp";
+import {
+  CAPABILITIES, Files, diagnosticHandlers, documentSymbols, formatBeforeSave, resolveAction, workspaceSymbols,
+} from "./lsp";
 import { diagnosticsFor } from "./diagnostics";
+import { semanticTokens } from "./semantic";
+import { go } from "@codemirror/lang-go";
 
 // A fake language server: answers initialize, flags "bad" on didOpen, offers one completion.
 function fakeServer(): Transport {
@@ -159,4 +163,117 @@ test("resolveAction fills in the edit when the server resolves", async () => {
   expect(await resolveAction(view, { title: "Move", data: 1 })).toEqual({ title: "Move", data: 1, edit });
   const done = { title: "Has it", edit };
   expect(await resolveAction(view, done)).toBe(done);
+});
+
+// A server with semantic tokens: `fmt` is a namespace, `Println` a function; the delta answer turns Println into a type.
+function tokenServer(sent: any[]): Transport {
+  const handlers = new Set<(m: string) => void>();
+  const reply = (o: object) => queueMicrotask(() => handlers.forEach((h) => h(JSON.stringify({ jsonrpc: "2.0", ...o }))));
+  return {
+    send(raw) {
+      const m = JSON.parse(raw);
+      sent.push(m);
+      if (m.method === "initialize") {
+        reply({
+          id: m.id,
+          result: {
+            capabilities: {
+              textDocumentSync: 1,
+              semanticTokensProvider: {
+                legend: { tokenTypes: ["namespace", "type", "function"], tokenModifiers: [] }, full: { delta: true },
+              },
+            },
+          },
+        });
+      } else if (m.method === "textDocument/semanticTokens/full") {
+        reply({ id: m.id, result: { resultId: "1", data: [0, 0, 3, 0, 0, 0, 4, 7, 2, 0] } });
+      } else if (m.method === "textDocument/semanticTokens/full/delta") {
+        reply({ id: m.id, result: { resultId: "2", edits: [{ start: 8, deleteCount: 1, data: [1] }] } });
+      }
+    },
+    subscribe: (h) => void handlers.add(h),
+    unsubscribe: (h) => void handlers.delete(h),
+  };
+}
+
+test("semantic tokens colour the code over the syntax highlighting, and later changes ask for a delta", async () => {
+  const sent: any[] = [];
+  const client = new LSPClient({
+    rootUri: "file:///r", extensions: [...languageServerExtensions(), { clientCapabilities: CAPABILITIES }],
+  }).connect(tokenServer(sent));
+  await client.initializing;
+  const el = document.createElement("div");
+  document.body.append(el);
+  view = new EditorView({
+    parent: el,
+    state: EditorState.create({
+      doc: "fmt.Println", extensions: [editorExtensions(), go(), client.plugin("file:///r/a.go", "go"), semanticTokens],
+    }),
+  });
+  const colour = (cls: string) => {
+    const span = el.querySelector(`.${cls}`);
+    return span && getComputedStyle(span).color;
+  };
+  await expect.poll(() => colour("cm-sem-function")).toBe("rgb(126, 156, 216)"); // fn #7e9cd8
+  expect(colour("cm-sem-namespace")).toBe("rgb(122, 168, 159)"); // type #7aa89f
+
+  view.dispatch({ changes: { from: 0, insert: " " } });
+  await expect.poll(() => sent.some((m) => m.method === "textDocument/semanticTokens/full/delta")).toBe(true);
+  expect(sent.find((m) => m.method === "textDocument/semanticTokens/full/delta").params.previousResultId).toBe("1");
+  await expect.poll(() => el.querySelector(".cm-sem-function")).toBeNull(); // Println is a type now
+});
+
+// K16 with tokens: the biggest document that gets them (400 KB, two tokens a line) must still type fast.
+test("typing in a document full of semantic tokens stays fast", async () => {
+  const lines = 19_000;
+  const handlers = new Set<(m: string) => void>();
+  const reply = (o: object) => queueMicrotask(() => handlers.forEach((h) => h(JSON.stringify({ jsonrpc: "2.0", ...o }))));
+  const data: number[] = [];
+  for (let i = 0; i < lines; i++) data.push(i ? 1 : 0, 0, 3, 0, 0, 0, 4, 7, 2, 0); // fmt and Println of "fmt.Println(a)"
+  const transport: Transport = {
+    send(raw) {
+      const m = JSON.parse(raw);
+      if (m.method === "initialize") {
+        reply({
+          id: m.id,
+          result: {
+            capabilities: {
+              textDocumentSync: 1,
+              semanticTokensProvider: {
+                legend: { tokenTypes: ["namespace", "type", "function"], tokenModifiers: [] }, full: true,
+              },
+            },
+          },
+        });
+      } else if (m.method === "textDocument/semanticTokens/full") reply({ id: m.id, result: { data } });
+    },
+    subscribe: (h) => void handlers.add(h),
+    unsubscribe: (h) => void handlers.delete(h),
+  };
+  const client = new LSPClient({ rootUri: "file:///r" }).connect(transport);
+  await client.initializing;
+  const el = document.createElement("div");
+  el.style.cssText = "height:600px;width:800px";
+  document.body.append(el);
+  view = new EditorView({
+    parent: el,
+    state: EditorState.create({
+      doc: "fmt.Println(a)\n".repeat(lines),
+      extensions: [editorExtensions(), go(), client.plugin("file:///r/a.go", "go"), semanticTokens],
+    }),
+  });
+  await expect.poll(() => el.querySelector(".cm-sem-function"), { timeout: 5000 }).not.toBeNull();
+  const frame = () => new Promise<number>((r) => requestAnimationFrame(r));
+  const times: number[] = [];
+  for (let i = 0; i < 20; i++) {
+    const head = view.state.selection.main.head;
+    const t = performance.now();
+    view.dispatch({ changes: { from: head, insert: "x" }, selection: { anchor: head + 1 } });
+    void view.contentDOM.offsetHeight;
+    times.push(performance.now() - t);
+    await frame();
+  }
+  times.sort((a, b) => a - b);
+  console.warn(`SEMANTIC ${lines} lines, ${lines * 2} tokens: typing p95 ${times[18].toFixed(1)} max ${times[19].toFixed(1)} ms`);
+  expect(times[18]).toBeLessThan(8);
 });

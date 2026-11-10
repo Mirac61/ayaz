@@ -99,4 +99,5 @@ const highlight = HighlightStyle.define([
   { tag: t.invalid, color: c.red },
 ]);
 
+export { c as palette }; // the semantic token colours (editor/semantic.ts) come from the same table
 export const kanagawaCM = [theme, syntaxHighlighting(highlight)];

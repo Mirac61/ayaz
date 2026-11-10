@@ -180,3 +180,7 @@ Limits from this:
 - A file with a line over 20,000 characters opens without highlighting (`LONG_LINE` in `editor.ts`): the cost is the line, not the file. With it, the 1 MB line types at 2 ms.
 - No size limit: up to 20 MB, typing stays at 2–4 ms. From 50 MB, scrolling drops frames with or without highlighting (CodeMirror's own height map and DOM), not fixed.
 - A repository of this size needs no limit: `git status` on every save and change stays under 70 ms and runs off the UI.
+
+## Semantic tokens (M54)
+
+Browser test `lsp.browser.test.ts`: 19,000 lines (360 KB, Go syntax) with 38,000 semantic tokens, headless WebKit. Typing one key: p95 4 ms, max 5 ms (the decorations are mapped through the change; the next request waits 250 ms after the last key). Decoding 100,000 tokens in Bun: 3 ms (22 ms cold). Above 400 KB a document gets no tokens (`MAX_DOC` in `semantic.ts`).
