@@ -234,6 +234,10 @@ Done when: all four language groups have diagnostics, completion and navigation.
 
 - Done 2026-11-10: `settings.json` next to `keymap.json` (`ConfigService.Settings`), read before the first editor: `font`, `fontSize` (editor and terminal), `tabWidth`, `tabs`, `wrap`, `formatOnSave`, and `languages` keyed by file extension with the same file keys on top. The defaults keep the old behavior (Go: tabs and format on save, Markdown: wrap) except the indent, now 4 spaces instead of CM6's 2. Unknown keys and wrong types are named in the status line, the defaults stay. Font size through `--editor-font-size`, line height size + 11 px (24 px at 13). Documented in 02-architecture. Node tests for parsing and merging. **Still open:** changes need a restart, like the keymap; the font in the app by hand.
 
+## M27 – Bundled symbols font
+
+- Done 2026-11-10: the Nerd Fonts "Symbols Only" font (v3.4.0, Mono, MIT, `theme/fonts/`) as woff2 (1.2 MB), last in `--font-mono`, so tree, tabs and shell prompts show icons without an installed Nerd Font; an installed one still wins. The face only covers the private use areas and the few extra symbols, so it never replaces a letter. It is added through `FontFace` and loaded before the first frame (a CSS `@font-face` wasn't known to WebKit yet at start), so xterm's WebGL atlas doesn't keep boxes. E2E checks it is loaded. **Still open:** a look in the app without any Nerd Font installed (Linux VM).
+
 ## Later
 
 | | What | Plugs into |

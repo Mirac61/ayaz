@@ -45,3 +45,10 @@ test("tree: new file, rename with the open buffer, trash prompt cancels", async 
   await page.keyboard.press("Escape");
   expect(existsSync(join(ws, "src", "done.txt"))).toBe(true);
 });
+
+// M27: the tree's Nerd Font glyphs come from the bundled symbols font when none is installed.
+test("bundled symbols font is loaded", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("tree", { name: "Files" })).toBeVisible();
+  expect(await page.evaluate(() => document.fonts.check('13px "Ayaz Symbols"', ""))).toBe(true);
+});

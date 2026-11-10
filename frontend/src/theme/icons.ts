@@ -1,5 +1,5 @@
 // Nerd Font glyphs and colors as nvim-web-devicons has them, so the tree looks like the nvim one.
-// Needs a Nerd Font installed (see --font-mono); without one the glyphs show as boxes.
+// The glyphs come from an installed Nerd Font, else from the bundled symbols font (theme/tokens.css).
 type Icon = [glyph: string, color: string];
 
 const byExt: Record<string, Icon> = {
