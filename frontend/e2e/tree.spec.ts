@@ -52,3 +52,27 @@ test("bundled symbols font is loaded", async ({ page }) => {
   await expect(page.getByRole("tree", { name: "Files" })).toBeVisible();
   expect(await page.evaluate(() => document.fonts.check('13px "Ayaz Symbols"', ""))).toBe(true);
 });
+
+// M31: "/" filters the tree over the whole project, Enter goes to the rows, Esc ends the filter.
+test("tree filter", async ({ page }) => {
+  await page.goto("/");
+  const tree = page.getByRole("tree", { name: "Files" });
+  await expect(tree).toBeFocused();
+  await page.keyboard.press("/");
+  const box = page.getByRole("textbox", { name: "Filter files" });
+  await expect(box).toBeFocused();
+  await page.keyboard.type("greetgo"); // fuzzy: "greet" alone matches git.spec's gittree.txt too
+  await expect(tree.getByRole("treeitem")).toHaveText([/src/, /greet\.go/]); // src/ wasn't open: found anyway
+  await page.keyboard.press("Enter");
+  await expect(tree).toBeFocused();
+  await expect(tree.getByRole("treeitem", { name: "greet.go" })).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("Escape");
+  await expect(box).toBeHidden();
+  await expect(tree.getByRole("treeitem", { name: "README.md" })).toBeVisible();
+  await page.keyboard.press("/");
+  await page.keyboard.type("greetgo");
+  await expect(tree.getByRole("treeitem", { name: "greet.go" })).toBeVisible(); // results come async
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("Enter"); // opens the file
+  await expect(page.locator(".statusline")).toContainText("src/greet.go");
+});

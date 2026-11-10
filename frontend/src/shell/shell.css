@@ -35,6 +35,7 @@
 .tree:focus .tree-row.cursor { background: var(--bg-3); }
 .tree-chevron { width: 10px; flex: none; color: var(--fg-3); font: 10px var(--font-mono); }
 .tree-name { overflow: hidden; text-overflow: ellipsis; }
+.tree-filter { flex: none; margin: 0 6px 6px; padding: 4px 10px; font: 12.5px var(--font-mono); color: var(--fg-1); background: var(--overlay); border: 1px solid var(--edge-overlay); border-radius: 6px; outline: none; }
 .tree-name.git-mod { color: var(--git-mod); }
 .tree-name.git-add { color: var(--git-add); }
 .tree-name.git-conflict { color: var(--git-del); }

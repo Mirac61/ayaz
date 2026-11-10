@@ -15,6 +15,32 @@ export interface TreeHandle {
 
 const parent = (p: string) => p.slice(0, Math.max(p.lastIndexOf("/"), 0));
 
+// The filter's matches as tree rows: each file under its folders, all open, folders first and by name like the list.
+export function filterRows(paths: string[]): Row[] {
+  const kids = new Map<string, Map<string, boolean>>(); // folder → name → is a folder
+  for (const p of paths) {
+    const parts = p.split("/");
+    parts.forEach((name, i) => {
+      const dir = parts.slice(0, i).join("/");
+      if (!kids.has(dir)) kids.set(dir, new Map());
+      kids.get(dir)!.set(name, kids.get(dir)!.get(name) || i < parts.length - 1);
+    });
+  }
+  const out: Row[] = [];
+  const walk = (dir: string, depth: number) => {
+    const es = [...(kids.get(dir) ?? [])].sort(([a, ad], [b, bd]) => (ad !== bd ? (ad ? -1 : 1) : a < b ? -1 : 1));
+    for (const [name, isDir] of es) {
+      const path = dir ? `${dir}/${name}` : name;
+      out.push({ path, name, dir: isDir, depth });
+      if (isDir) walk(path, depth + 1);
+    }
+  };
+  walk("", 0);
+  return out;
+}
+
+const FILTER_LIMIT = 200;
+
 interface Props {
   files: Files;
   onOpen(path: string): void;
@@ -38,6 +64,10 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
   const [height, setHeight] = useState(0);
   const el = useRef<HTMLDivElement>(null);
   const revealing = useRef<string | null>(null); // reveal's target, until its row exists
+  // "/": the project's files matching the text (the same fuzzy search as <Space>ff), shown as a tree. null: off.
+  const [filter, setFilter] = useState<string | null>(null);
+  const [found, setFound] = useState<string[]>([]);
+  const input = useRef<HTMLInputElement>(null);
 
   const loaded = useRef(children);
   loaded.current = children;
@@ -67,12 +97,20 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
   useEffect(() => void load(""), [files]);
 
   useEffect(() => {
+    if (!filter) return setFound([]);
+    let stale = false;
+    files.find(filter, FILTER_LIMIT, false).then((ms) => { if (!stale) setFound(ms.map((m) => m.path)); }, () => {});
+    return () => { stale = true; };
+  }, [filter, files]);
+
+  useEffect(() => {
     const ro = new ResizeObserver(([e]) => setHeight(e.contentRect.height));
     ro.observe(el.current!);
     return () => ro.disconnect();
   }, []);
 
   const rows = useMemo(() => {
+    if (filter) return filterRows(found);
     const out: Row[] = [];
     const walk = (dir: string, depth: number) => {
       for (const e of children.get(dir) ?? []) {
@@ -83,7 +121,7 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
     };
     walk("", 0);
     return out;
-  }, [children, expanded]);
+  }, [children, expanded, filter, found]);
 
   const cur = Math.min(cursor, Math.max(rows.length - 1, 0));
   current.current = rows[cur];
@@ -116,7 +154,7 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
 
   const activate = (i: number, toggle: boolean) => {
     const r = rows[i];
-    if (!r) return;
+    if (!r || (filter && r.dir)) return; // filtered folders stay open
     if (!r.dir) onOpen(r.path);
     else setOpen(r.path, toggle ? !expanded.has(r.path) : true);
   };
@@ -131,11 +169,13 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
       case "G": go(rows.length - 1); break;
       case "Enter": case "o": activate(cur, true); break;
       case "l": case "ArrowRight": activate(cur, false); break;
+      case "/": setFilter(filter ?? ""); setTimeout(() => input.current?.select()); break;
       case "h": case "ArrowLeft":
-        if (r?.dir && expanded.has(r.path)) setOpen(r.path, false);
+        if (filter) go(rows.findIndex((x) => x.path === parent(r?.path ?? "")));
+        else if (r?.dir && expanded.has(r.path)) setOpen(r.path, false);
         else if (r) go(rows.findIndex((x) => x.path === r.path.slice(0, r.path.lastIndexOf("/"))));
         break;
-      case "Escape": onLeave(); break;
+      case "Escape": if (filter === null) onLeave(); else setFilter(null); break;
       default:
         if (!KEYS[e.key] || e.metaKey || e.ctrlKey || e.altKey) return;
         onCommand(KEYS[e.key]);
@@ -146,38 +186,62 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
   const first = Math.floor(scrollTop / ROW);
   const visible = rows.slice(first, first + Math.ceil(height / ROW) + 1);
 
+  // In the box: Enter and the arrows go to the rows, Esc ends the filter.
+  const onFilterKey = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape") setFilter(null);
+    else if (e.key !== "Enter" && e.key !== "ArrowDown") return;
+    e.preventDefault();
+    setCursor(Math.max(rows.findIndex((r) => !r.dir), 0));
+    el.current?.focus();
+  };
+
   return (
-    <div
-      ref={el}
-      className="tree"
-      tabIndex={0}
-      role="tree"
-      aria-label="Files"
-      onKeyDown={onKeyDown}
-      onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
-    >
-      <div style={{ height: rows.length * ROW, position: "relative" }}>
-        {visible.map((r, k) => {
-          const i = first + k;
-          const name = (r.dir ? "tree-name dir" : "tree-name") + (GIT_CLASS[git(r.path) ?? ""] ?? "");
-          return (
-            <div
-              key={r.path}
-              role="treeitem"
-              aria-selected={i === cur}
-              aria-expanded={r.dir ? expanded.has(r.path) : undefined}
-              className={i === cur ? "tree-row cursor" : "tree-row"}
-              style={{ top: i * ROW, height: ROW, paddingLeft: 8 + r.depth * 14 }}
-              onClick={() => { setCursor(i); activate(i, true); }}
-            >
-              <span className="tree-chevron" aria-hidden>{r.dir ? (expanded.has(r.path) ? "\uf47c" : "\uf460") : ""}</span>
-              <Glyph icon={r.dir ? folderIcon(expanded.has(r.path)) : fileIcon(r.name)} />
-              <span className={name}>{r.name}</span>
-            </div>
-          );
-        })}
+    <>
+      {filter !== null && (
+        <input
+          ref={input}
+          className="tree-filter"
+          aria-label="Filter files"
+          placeholder="Filter"
+          value={filter}
+          autoFocus
+          onChange={(e) => setFilter(e.target.value)}
+          onKeyDown={onFilterKey}
+        />
+      )}
+      <div
+        ref={el}
+        className="tree"
+        tabIndex={0}
+        role="tree"
+        aria-label="Files"
+        onKeyDown={onKeyDown}
+        onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
+      >
+        <div style={{ height: rows.length * ROW, position: "relative" }}>
+          {visible.map((r, k) => {
+            const i = first + k;
+            const name = (r.dir ? "tree-name dir" : "tree-name") + (GIT_CLASS[git(r.path) ?? ""] ?? "");
+            const open = r.dir && (filter !== null || expanded.has(r.path));
+            return (
+              <div
+                key={r.path}
+                role="treeitem"
+                aria-selected={i === cur}
+                aria-expanded={r.dir ? open : undefined}
+                className={i === cur ? "tree-row cursor" : "tree-row"}
+                style={{ top: i * ROW, height: ROW, paddingLeft: 8 + r.depth * 14 }}
+                onClick={() => { setCursor(i); activate(i, true); }}
+              >
+                <span className="tree-chevron" aria-hidden>{r.dir ? (open ? "\uf47c" : "\uf460") : ""}</span>
+                <Glyph icon={r.dir ? folderIcon(open) : fileIcon(r.name)} />
+                <span className={name}>{r.name}</span>
+              </div>
+            );
+          })}
+        </div>
       </div>
-    </div>
+    </>
   );
 });
 

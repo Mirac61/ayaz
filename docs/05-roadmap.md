@@ -250,6 +250,10 @@ Done when: all four language groups have diagnostics, completion and navigation.
 
 - Done 2026-11-10: `<Space>gd` toggles `@codemirror/merge`'s unified view in the editor, against the HEAD text the gutter already has: the HEAD version of each changed block shows above it, red, read-only; the buffer stays editable and Vim works as usual. A new HEAD (commit, checkout) swaps the compared text in an open diff, a file that left HEAD closes it. Without a HEAD version the status line says so. Browser test (on, new HEAD, off), E2E edit → `<Space>gd` → off. **Still open:** no side-by-side view like `:Gvdiffsplit`; a diff against the index or another commit.
 
+## M31 – Filter the tree
+
+- Done 2026-11-10: `/` in the tree opens a filter box above it. The text goes through the same fuzzy file search as `<Space>ff` (whole project, not only loaded folders, up to 200 files), and the matches show as a tree with their folders open. Enter or ↓ goes to the rows (cursor on the first file), Enter there opens; Esc in the box or in the tree ends the filter, `/` again edits it. Node test for the rows, E2E. **Still open:** results come async, so an Enter typed faster than the search lands on nothing; folders themselves aren't matched.
+
 ## Later
 
 | | What | Plugs into |
