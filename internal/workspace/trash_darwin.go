@@ -15,7 +15,7 @@ static char *trashItem(const char *path) {
 		NSError *err = nil;
 		if (![[NSFileManager defaultManager] trashItemAtURL:url resultingItemURL:&to error:&err])
 			return strdup([[@"!" stringByAppendingString:err.localizedDescription] UTF8String]);
-		return strdup(to.path.UTF8String);
+		return strdup(to.path ? to.path.UTF8String : ""); // "": trashed, but no place reported
 	}
 }
 */

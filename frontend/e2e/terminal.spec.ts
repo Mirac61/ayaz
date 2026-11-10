@@ -34,6 +34,7 @@ test("terminal panel and split: shell in the workspace, modes, close", async ({ 
   await expect(page.locator(".panes .pane")).toHaveCount(1);
   await page.keyboard.type("exit\n");
   await expect(page.locator(".panes .pane .cm-editor")).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator(".panes .pane-term")).toHaveCount(0); // nothing left to take the editor's room
 });
 
 // which-key: after <Space> a box lists what may follow, also inside the editor (where Vim runs the bindings).

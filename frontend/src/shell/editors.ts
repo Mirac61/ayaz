@@ -113,6 +113,7 @@ export class Editors {
     else p?.term?.dispose();
     p?.viewer?.dispose();
     p?.el.querySelector(":scope > .pane-body")?.remove();
+    p?.el.querySelector(":scope > .pane-term")?.remove(); // an ended terminal's box (a hidden one has moved out)
     this.panes.delete(id);
     if (closing) {
       this.pushClosed(...(this.tabs.get(id) ?? []));
@@ -663,7 +664,9 @@ export class Editors {
   private termExited(t: TermHandle, onExit?: () => void) {
     const h = this.hidden.findIndex((x) => x.term === t);
     if (h >= 0) {
-      this.hidden.splice(h, 1)[0].term.dispose();
+      const [gone] = this.hidden.splice(h, 1);
+      gone.term.dispose();
+      gone.box.remove();
       return;
     }
     if (onExit) return onExit();
