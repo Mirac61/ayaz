@@ -30,7 +30,7 @@ test("terminal panel and split: shell in the workspace, modes, close", async ({ 
   // :terminal in the empty editor pane takes it over (no split); `exit` brings the empty editor back
   await page.keyboard.press("Control+k");
   await page.keyboard.type(":terminal\n");
-  await expect(page.locator(".panes .pane[data-term]")).toHaveCount(1);
+  await expect(page.locator(".panes .pane [data-term]")).toHaveCount(1);
   await expect(page.locator(".panes .pane")).toHaveCount(1);
   await page.keyboard.type("exit\n");
   await expect(page.locator(".panes .pane .cm-editor")).toBeVisible({ timeout: 10_000 });
@@ -54,4 +54,38 @@ test("leader hints", async ({ page }) => {
   await page.keyboard.press("f");
   await expect(hints).toBeHidden();
   await expect(page.locator(".picker")).toBeVisible();
+});
+
+// M46: closing a terminal's pane hides it, the shell keeps running; <Space>fb lists it and brings it back.
+test("hidden terminals come back from the buffer list", async ({ page }) => {
+  await page.goto("/?renderer=dom");
+  await expect(page.getByRole("tree", { name: "Files" })).toBeFocused();
+  await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: "README.md" }).click();
+  await page.locator(".cm-content").click();
+  await page.keyboard.type(":terminal\n");
+  const term = page.locator(".panes [data-term] .xterm-rows");
+  await expect(term).toHaveCount(1);
+  await page.keyboard.type("echo kept-$((40+2))\n");
+  await expect(term).toContainText("kept-42", { timeout: 10_000 });
+
+  await page.keyboard.press("Control+Backslash");
+  await page.keyboard.press("Control+n");
+  await page.keyboard.press("Control+w");
+  await page.keyboard.type("c");
+  await expect(page.locator(".panes [data-term]")).toHaveCount(0);
+  await expect(page.locator(".panes .pane")).toHaveCount(1);
+
+  await page.keyboard.type(" fb");
+  const picker = page.getByRole("dialog", { name: "Buffers" });
+  await expect(picker.getByRole("option", { name: /term:\/\/shell/ })).toBeVisible();
+  await page.keyboard.type("term");
+  await page.keyboard.press("Enter");
+  await expect(term).toContainText("kept-42"); // the same shell, its output still there
+  await expect(page.locator(".statusline")).toContainText("NORMAL"); // back in the mode it was hidden in
+  await page.keyboard.type("i");
+  await page.keyboard.type("exit\n"); // a shell that ends leaves the list
+  await expect(page.locator(".panes [data-term]")).toHaveCount(0, { timeout: 10_000 });
+  await page.keyboard.type(" fb");
+  await expect(picker).toBeVisible();
+  await expect(picker.getByRole("option", { name: /term:\/\// })).toHaveCount(0);
 });

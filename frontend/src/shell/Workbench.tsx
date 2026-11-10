@@ -77,7 +77,6 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
   const panesEl = useRef<HTMLDivElement>(null);
   const panelEl = useRef<HTMLDivElement>(null);
   const termFor = useRef(new Map<number, TermOptions>()); // new pane → the terminal it runs
-  const exitTerm = useRef((_id: number) => {}); // set with the commands below; panes mount before they exist
   const seq = useRef<Sequencer | null>(null);
   const [hints, setHints] = useState<{ keys: string[]; next: Binding[] } | null>(null);
   const hintTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -127,6 +126,7 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
     clearTimeout(saveTimer.current);
     saveTimer.current = undefined;
     saveNow();
+    ed.dropHidden();
   }, [ed]);
 
   // A pane from the session gets its tabs and file back, once. A file that is gone by now is skipped.
@@ -199,6 +199,7 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
       }
       const next = close(lay.current, id);
       if (!next) return quit(force);
+      if (force) ed.killTerm(id); // :q! ends a shell; :q only hides it
       const ids = panes(lay.current), i = ids.indexOf(id);
       const target = ids[i + 1] ?? ids[i - 1]; // like Vim: the next window, else the previous
       if (id === ed.active) ed.focus(target); // panes are siblings, so target stays mounted
@@ -215,14 +216,13 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
       return nid;
     };
 
-    // A shell that exits closes its pane; the last pane turns back into an empty editor.
-    const termExit = (id: number) => (panes(lay.current).length > 1 ? void closePane(true, id) : ed.replace(id));
-    exitTerm.current = termExit;
+    // A shell that exits closes its pane (Editors finds the pane, it may have moved); the last pane turns back into an editor.
+    ed.onTermExit = (id) => (panes(lay.current).length > 1 ? void closePane(true, id) : ed.replace(id));
     // An empty editor pane (no file) is taken over, otherwise the terminal splits off to the right.
     const termSplit = (cmd?: string) => {
       const target = ed.active === PANEL ? lastSplit.current : ed.active;
-      if (ed.isEmpty(target)) return ed.replace(target, { ws: ws.id, cmd, onExit: () => termExit(target) });
-      const id = splitPane("row", { ws: ws.id, cmd, onExit: () => termExit(id) });
+      if (ed.isEmpty(target)) return ed.replace(target, { ws: ws.id, cmd });
+      splitPane("row", { ws: ws.id, cmd });
     };
 
     const togglePanel = () => {
@@ -787,7 +787,7 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
       {
         id: "find.buffers",
         title: "Buffers",
-        run: () => setPicker(filePicker("Buffers", () => ed.bufferList().map((b) => b.path),
+        run: () => setPicker(filePicker("Buffers", () => [...ed.bufferList().map((b) => b.path), ...ed.hiddenTerms()],
           (p) => (ed.buffers.get(p) && isDirty(ed.buffers.get(p)!) ? "[+]" : undefined))),
       },
       {
@@ -960,7 +960,7 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
               const from = splitFrom.current.get(id);
               const cmd = unrestored.current.has(id) ? session?.terms[id] : undefined; // a terminal from the session
               ed.attach(id, el, from, termFor.current.get(id)
-                ?? (cmd === undefined ? undefined : { ws: ws.id, cmd: cmd || undefined, onExit: () => exitTerm.current(id) }));
+                ?? (cmd === undefined ? undefined : { ws: ws.id, cmd: cmd || undefined }));
               splitFrom.current.delete(id);
               termFor.current.delete(id);
               if (previewNext.current.delete(id)) {

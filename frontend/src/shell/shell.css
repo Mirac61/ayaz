@@ -17,9 +17,9 @@
 .pane { position: absolute; display: flex; flex-direction: column; overflow: hidden; background: var(--bg-1); contain: strict; }
 .panel > .pane { border-radius: 6px; }
 .pane:focus-within { background: var(--bg-2); }
-.pane[data-term] { padding: 2px 0 0 16px; }
-.pane[data-term]:not(:focus-within) .xterm-screen { opacity: 0.72; }
-.pane > .xterm { flex: 1; min-height: 0; }
+.pane-term { flex: 1; min-height: 0; padding: 2px 0 0 16px; }
+.pane:not(:focus-within) .pane-term .xterm-screen { opacity: 0.72; }
+.pane-term > .xterm { height: 100%; }
 .term-search { position: absolute; right: 12px; bottom: 8px; width: 240px; font: 13px var(--font-mono); color: var(--fg-1); background: var(--overlay); border: 1px solid var(--edge-overlay); border-radius: 6px; padding: 4px 10px; outline: none; z-index: 5; }
 .pane > .cm-editor { flex: 1; min-height: 0; }
 .pane.edge-left { border-left: 1px solid var(--hover); }

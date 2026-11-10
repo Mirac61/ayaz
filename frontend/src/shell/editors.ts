@@ -30,7 +30,7 @@ export interface Status {
 }
 
 // A pane shows an editor (view), a terminal (term) or a viewer for images and the like (title is its file).
-// shortcut: a terminal lives and dies with its pane, unlike nvim's terminal buffers; add hidden terminals if wanted.
+// Closing a terminal's pane hides the terminal, like nvim's terminal buffers: the shell runs on, <Space>fb brings it back.
 interface Pane {
   el: HTMLElement; view?: EditorView; term?: TermHandle; viewer?: ViewHandle; title?: string; buf: Buffer | null; mode: string;
   cmd?: string; // a terminal's command, "" for a shell
@@ -54,6 +54,10 @@ export class Editors {
   private jumps = new Map<number, Jumps>(); // per pane: back/forward across files
   private navigating = false; // nav() is opening a file: not a new jump
   private closed: string[] = []; // closed tabs, last on top (Cmd+Shift+T)
+  private hidden: { term: TermHandle; box: HTMLElement; title: string; cmd: string }[] = []; // terminals without a pane
+  private holder: HTMLElement | null = null; // keeps hidden terminals in the document, undrawn
+  private terms = 0; // numbers the terminals: "shell 1", "lazygit 2"
+  onTermExit: (id: number) => void = () => {}; // the shell in split pane id ended (the panel passes its own onExit)
   // Per buffer: the pane behind each undo (and redo) step, newest last. Each pane keeps its own CM6 history,
   // so u runs in the pane that made the latest step, and the change syncs to the others (like nvim's one undo tree).
   private steps = new WeakMap<Buffer, { undo: number[]; redo: number[] }>();
@@ -69,12 +73,18 @@ export class Editors {
   // With term, the pane runs a terminal instead.
   attach(id: number, parent: HTMLElement, from?: number, term?: TermOptions) {
     if (term) {
-      const p: Pane = { el: parent, buf: null, mode: "terminal", title: term.cmd ?? "shell", cmd: term.cmd ?? "" };
-      this.panes.set(id, p);
-      this.renderTabs(id);
-      p.term = openTerminal(parent, { ...term, onMode: (m) => { p.mode = m; if (id === this.active) this.emit(); } });
-      parent.addEventListener("focusin", () => this.setActive(id));
-      this.focus(id);
+      // Its own box, so a hidden terminal can move to another pane.
+      const box = document.createElement("div");
+      box.className = "pane-term";
+      parent.append(box);
+      // let: openTerminal reports its first mode before the handle exists
+      let handle: TermHandle | undefined = undefined;
+      handle = openTerminal(box, {
+        ...term,
+        onMode: (m) => this.termMode(handle, m),
+        onExit: () => this.termExited(handle!, term.onExit),
+      });
+      this.showTerm(id, parent, { term: handle, box, title: `${term.cmd ?? "shell"} ${++this.terms}`, cmd: term.cmd ?? "" });
       return;
     }
     const view = new EditorView({
@@ -99,7 +109,8 @@ export class Editors {
     const p = this.panes.get(id);
     if (p?.buf) this.forgetSteps(id, p.buf);
     p?.view?.destroy();
-    p?.term?.dispose();
+    if (p?.term && closing && id > 0) this.hide(p);
+    else p?.term?.dispose();
     p?.viewer?.dispose();
     p?.el.querySelector(":scope > .pane-body")?.remove();
     this.panes.delete(id);
@@ -263,6 +274,7 @@ export class Editors {
 
   // From a terminal pane, the file opens in the editor pane used last. Images and the like open in a viewer.
   async open(path: string, id = this.active): Promise<number> {
+    if (path.startsWith("term://")) return this.unhide(path.slice("term://".length), id);
     const usable = (p?: Pane) => !!(p?.view || p?.viewer);
     if (this.isTerm(id)) id = usable(this.panes.get(this.lastEditor)) ? this.lastEditor : [...this.panes].find(([, p]) => usable(p))?.[0] ?? -1;
     if (!usable(this.panes.get(id))) throw new Error("No editor pane, split one off with :vsplit");
@@ -579,6 +591,75 @@ export class Editors {
       col: head - l.from + 1,
       lines: st.doc.lines,
     });
+  }
+
+  // Hidden terminals by name, for the buffer list.
+  hiddenTerms() { return this.hidden.map((h) => `term://${h.title}`); }
+
+  // :q! on a terminal: the shell ends instead of hiding.
+  killTerm(id: number) {
+    const p = this.panes.get(id);
+    p?.term?.dispose();
+    if (p) p.term = undefined;
+  }
+
+  // The folder closes: hidden shells go with it.
+  dropHidden() {
+    for (const h of this.hidden.splice(0)) h.term.dispose();
+    this.holder?.remove();
+  }
+
+  private showTerm(id: number, el: HTMLElement, h: { term: TermHandle; box: HTMLElement; title: string; cmd: string }) {
+    el.append(h.box);
+    const mode = h.box.dataset.mode ?? "terminal";
+    this.panes.set(id, { el, term: h.term, buf: null, mode, title: h.title, cmd: h.cmd });
+    this.renderTabs(id);
+    el.addEventListener("focusin", () => this.panes.get(id)?.term === h.term && this.setActive(id));
+    this.focus(id);
+  }
+
+  private hide(p: Pane) {
+    if (!this.holder) {
+      this.holder = document.createElement("div");
+      this.holder.style.display = "none";
+      document.body.append(this.holder);
+    }
+    const box = p.el.querySelector<HTMLElement>(":scope > .pane-term")!;
+    this.holder.append(box);
+    this.hidden.push({ term: p.term!, box, title: p.title!, cmd: p.cmd ?? "" });
+  }
+
+  // Shows hidden terminal `title` in pane id, in place of what it showed (a terminal there is hidden in turn).
+  private unhide(title: string, id: number): number {
+    const i = this.hidden.findIndex((h) => h.title === title);
+    const p = this.panes.get(id);
+    if (i < 0) throw new Error(`No terminal "${title}"`);
+    if (!p) throw new Error("No pane to show it in");
+    const [h] = this.hidden.splice(i, 1);
+    this.detach(id, !!p.term);
+    this.showTerm(id, p.el, h);
+    return id;
+  }
+
+  private termMode(t: TermHandle | undefined, m: string) {
+    if (!t) return; // the first mode, from inside openTerminal: showTerm reads it from the box
+    const id = [...this.panes].find(([, p]) => p.term === t)?.[0];
+    const p = id === undefined ? undefined : this.panes.get(id);
+    if (!p) return;
+    p.mode = m;
+    if (id === this.active) this.emit();
+  }
+
+  // A shell ended: a hidden one leaves the list; a shown one closes its pane (or the panel, through its own onExit).
+  private termExited(t: TermHandle, onExit?: () => void) {
+    const h = this.hidden.findIndex((x) => x.term === t);
+    if (h >= 0) {
+      this.hidden.splice(h, 1)[0].term.dispose();
+      return;
+    }
+    if (onExit) return onExit();
+    const id = [...this.panes].find(([, p]) => p.term === t)?.[0];
+    if (id !== undefined) this.onTermExit(id);
   }
 
   private setActive(id: number) {
