@@ -262,6 +262,10 @@ Done when: all four language groups have diagnostics, completion and navigation.
 
 - Done 2026-11-10: every save keeps the text it replaced, in the user cache next to the swaps (`history/<folder hash>/<file hash>/<ms>.txt`), up to 30 per file, none for files over 1 MB or saves that change nothing; Go does it inside `WriteText`, so nothing extra crosses the bridge. `<Space>fh` lists them (time, age, size), Enter shows the buffer against that text in `<Space>gd`'s unified view; that diff stays when HEAD moves, `<Space>gd` closes it. Go test (pruning, newest first, unchanged and big files), browser test (diff stays on a new HEAD), E2E two saves → pick the older one. **Still open:** history follows the path, not renames; no "restore this version" key (copy from the diff, or `u`).
 
+## M51 – Big files and repositories measured
+
+- Done 2026-11-10: numbers in `docs/perf-log.md` (browser test `large.browser.test.ts`, `scripts/bigrepo.sh` + `TestBigRepo` on Go's source tree, 12k files). Long lines are what costs: from ~32 KB one line costs 15–25 ms per key with highlighting, so a file with a line over 20,000 characters opens as plain text (2 ms). A 10 MB Go file types at 3 ms, the repo needs no limit (index 45–62 ms, find 0.4 ms, search 150 ms, `git status` 65 ms). The browser test gates both cases under 8 ms per key. **Still open:** no notice in the status line that highlighting is off; 50 MB files scroll with dropped frames; Wails' bridge cost for a 10 MB `ReadText` not measured in the app; no repo with 100k+ files tried.
+
 ## Later
 
 | | What | Plugs into |

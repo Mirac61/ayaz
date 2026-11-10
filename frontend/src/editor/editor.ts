@@ -89,7 +89,20 @@ export const settingsEffects = (path: string | null) => [
 ];
 
 // Builds the state for a file, with its language loaded first so highlighting is there on the first frame.
+// M51: from a line of ~32 KB on, highlighting costs 15–25 ms per key (16 KB: 6 ms). Such files (minified code,
+// one-line JSON) open as plain text; the file size alone (10 MB: 3 ms per key) is no reason.
+export const LONG_LINE = 20_000;
+export function hasLongLine(doc: string): boolean {
+  for (let at = 0; at < doc.length;) {
+    const nl = doc.indexOf("\n", at);
+    if ((nl < 0 ? doc.length : nl) - at > LONG_LINE) return true;
+    if (nl < 0) break;
+    at = nl + 1;
+  }
+  return false;
+}
+
 export async function createState(path: string | null, doc: string, ws?: string, root?: string): Promise<EditorState> {
-  const lang = path ? await loadLanguage(path) : null;
+  const lang = path && !hasLongLine(doc) ? await loadLanguage(path) : null;
   return EditorState.create({ doc, extensions: [editorExtensions(), indenting.of(indentFor(path)), wrapping.of(wrapFor(path) ? EditorView.lineWrapping : []), lang ?? [], path && ws && root ? lspExtension(ws, root, path) : [], path?.startsWith("/") ? EditorState.readOnly.of(true) : [], path && extOf(path) === "md" ? [mdlive, ws ? mdImages.of({ ws, file: path }) : []] : []] });
 }

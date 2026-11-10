@@ -153,3 +153,30 @@ Notes:
 - Fix like Chrome and Preview: while scrolling, the pages show their low-resolution canvas; the sharp detail canvas follows 100 ms after the scroll stops (pdf.js' own `ignoreDetailViews`, forced while scrolling).
 - "Closed" (PDF pane closed, worker terminated, 5 s later) read 309, 426 and 442 MB; WebKit doesn't give the memory back within 5 s. Not explained.
 - Gate from the plan (p95 ≤ 9, max ≤ 17) is met in effect but not to the letter: p95 10, one or two 18–19 ms frames per 40 s scroll.
+
+## 2026-11-10 – Big files and a big repository (M51)
+
+Files: `frontend/src/editor/large.browser.test.ts`, headless WebKit (rAF at 60 Hz, so frames read 17–18 ms; "per key" is the transaction, DOM update and a forced layout, measured synchronously). Pane 800×600.
+
+| File | Open | Git HEAD set | Per key (start of line 1) | Scroll frames p95 / max |
+|---|---|---|---|---|
+| 10 MB Go (165k lines) | 84–102 ms | 26–30 ms | 3–4 ms | 18 / 21–33 ms |
+| 10 MB, plain | 48 ms | 19 ms | 1–2 ms | 18 / 18 ms |
+| 20 MB Go | 61 ms | 35 ms | 2 ms | 20 / 46 ms |
+| 50 MB Go | 83 ms | 94 ms | 2 ms | 86 / 591 ms |
+| 50 MB, plain | 88 ms | 103 ms | 2 ms | 94 / 166 ms |
+| 1 MB line, JS | 51–56 ms | 10 ms | **25 ms** | 18 / 19 ms |
+| 1 MB line, plain | 19–28 ms | 16 ms | 2 ms | 18 / 19 ms |
+
+Per key with JS highlighting by line length: 2 KB 5 ms, 4 KB 4, 8 KB 5, 16 KB 6, 32 KB 15, 64 KB 16, 128 KB–1 MB 24–25 ms; a 1 MB JSON line 27 ms (64 KB: 7 ms). At the end of the long line it is 2–4 ms in every case.
+
+Repository: `scripts/bigrepo.sh` (Go 1.27 `src`, 11,964 files, committed in a fresh repo), `AYAZ_BIG_REPO=… go test ./app -run BigRepo -v`, median of 5 (find: 20).
+
+| Index build | Fuzzy find | Project search (literal, 4 hits) | `git status` | `git status` after a change |
+|---|---|---|---|---|
+| 45–62 ms | 0.4 ms | 150–158 ms | 63–66 ms | 60–65 ms |
+
+Limits from this:
+- A file with a line over 20,000 characters opens without highlighting (`LONG_LINE` in `editor.ts`): the cost is the line, not the file. With it, the 1 MB line types at 2 ms.
+- No size limit: up to 20 MB, typing stays at 2–4 ms. From 50 MB, scrolling drops frames with or without highlighting (CodeMirror's own height map and DOM), not fixed.
+- A repository of this size needs no limit: `git status` on every save and change stays under 70 ms and runs off the UI.
