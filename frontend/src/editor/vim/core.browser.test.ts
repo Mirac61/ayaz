@@ -43,8 +43,8 @@ function mount(text: string, extra: unknown[] = []) {
 
 // Vim notation → userEvent syntax: <Esc>, <CR>, <C-x>; literal { and [ are doubled.
 const toUserEvent = (keys: string) =>
-  keys.replace(/<(Esc|CR|C-(.))>|([{[])/g, (_, k, ctrl, lit) =>
-    lit ? lit + lit : ctrl ? `{Control>}${ctrl}{/Control}` : k === "Esc" ? "{Escape}" : "{Enter}");
+  keys.replace(/<(Esc|CR|BS|C-(.))>|([{[])/g, (_, k, ctrl, lit) =>
+    lit ? lit + lit : ctrl ? `{Control>}${ctrl}{/Control}` : k === "Esc" ? "{Escape}" : k === "BS" ? "{Backspace}" : "{Enter}");
 
 async function run(start: string, keys: string, extra: unknown[] = []) {
   const v = mount(start, extra);
@@ -106,6 +106,13 @@ const groups: Record<string, Case[]> = {
   registers: [['"ayyj"ap', "|a\nb", "a\nb\n|a"], ['yyjdd"0p', "|a\nb", "a\n|a"]],
   macros: [["qaxq@a@@", "|abcd", "|d"]],
   marks: [["maj'a", "a\n|b\nc", "a\n|b\nc"], ["G<C-o>", "|a\nb\nc", "|a\nb\nc"], ["G<C-o><C-i>", "|a\nb\nc", "a\nb\n|c"]],
+  // M24: brackets close themselves, gc comments (CM6's toggleLineComment), surround like nvim-surround.
+  basics: [
+    ["i(x<Esc>", "|", "(x)"], ['i"<Esc>', "|", '""'], ["i(<BS><Esc>", "|a", "a"],
+    ["ysiw)", "f|oo bar", "(foo) bar"], ["ysiw(", "f|oo", "( foo )"], ['ysiw"', "f|oo", '"foo"'], ["yss]", "  |a b", "  [a b]"],
+    ["ds(", "f(a|b)", "fab"], ["ds(", "f( a|b )", "fab"], ['ds"', 'x "a|b" y', "x ab y"], ["ds)", "((a)|)", "(a)"],
+    ['cs"\'', 'x "a|b"', "x 'ab'"], ["cs({", "(a|b)", "{ ab }"], ["vlS)", "|ab c", "(ab) c"],
+  ],
   ex: [[":s/a/b/<CR>", "|a a", "b a"], [":%s/a/b/g<CR>", "a\na a", "b\nb b"], [":2<CR>", "|a\nb\nc", "a\n|b\nc"]],
 };
 
@@ -137,6 +144,17 @@ describe("folds", () => {
     (gaps.has(keys) ? test.fails : test)(keys, async () => {
       const v = await run(src, keys, [javascript()]);
       expect(folded(v)).toBe(n);
+    });
+  }
+});
+
+describe("comments", () => {
+  for (const [keys, start, want] of [
+    ["gcc", "|a = 1", "// a = 1"], ["gcj", "|a\nb", "// a\n// b"], ["Vjgc", "|a\nb", "// a\n// b"], ["gccgcc", "|a", "a"],
+  ]) {
+    test(keys, async () => {
+      const v = await run(start, keys, [javascript()]);
+      await vi.waitFor(() => expect(shown(v, false)).toBe(want), { timeout: 500 });
     });
   }
 });

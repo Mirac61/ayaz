@@ -6,6 +6,7 @@ import {
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { bracketMatching, codeFolding, indentOnInput } from "@codemirror/language";
 import { search } from "@codemirror/search";
+import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import { vim } from "@replit/codemirror-vim";
 import { indentationMarkers } from "@replit/codemirror-indentation-markers";
 import { kanagawaCM } from "../theme/kanagawa-cm";
@@ -53,8 +54,9 @@ export const editorExtensions = (): Extension[] => [
     colors: { dark: "#2c2c2e", light: "#2c2c2e", activeDark: "#6e6e73", activeLight: "#6e6e73" },
   }),
   indentOnInput(),
+  closeBrackets(),
   search(),
-  keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
+  keymap.of([...closeBracketsKeymap, ...defaultKeymap, ...historyKeymap, indentWithTab]),
   kanagawaCM,
 ];
 

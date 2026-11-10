@@ -222,6 +222,10 @@ Done when: all four language groups have diagnostics, completion and navigation.
 
 - Done 2026-11-10: Wails' `ShouldQuit` hook sends every window with a folder the same `app:close-request` as its close button (unsaved buffers stop it, the session is saved), closes the others, and quits only once no window is left. Fixes the M16 note that `Cmd+Q` could lose the last 500 ms of session. **Still open:** native check by hand (no window in the server build).
 
+## M24 – Comments, closing brackets, surround
+
+- Done 2026-11-10: `gcc`, `gc{motion}` and `gc` in visual mode comment lines (codemirror-vim's operator over CM6's `toggleLineComment`, so the language's comment tokens). Brackets and quotes close themselves, backspace removes the pair (`closeBrackets`). Surround like nvim-surround: `ys{motion}{char}`, `yss{char}`, `ds{char}`, `cs{old}{new}`, `S{char}` in visual mode; an opening bracket puts spaces inside, a closing one doesn't, `b`/`B` are `(`/`{`. Since `d`, `c` and `y` are complete operators in codemirror-vim, `s` is an operator-pending map that cancels the operator and reads the chars itself. Browser tests in the Vim core list. **Still open:** `.` doesn't repeat a surround; no tags (`ysiwt`).
+
 ## Later
 
 | | What | Plugs into |

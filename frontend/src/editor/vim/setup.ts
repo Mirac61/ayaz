@@ -2,6 +2,7 @@ import { Vim, type CodeMirror } from "@replit/codemirror-vim";
 import { foldAll, foldCode, toggleFold, unfoldAll, unfoldCode } from "@codemirror/language";
 import { jumpToDefinition } from "@codemirror/lsp-client";
 import { parseKeys, type Binding } from "../../core/keymap";
+import { installSurround } from "./surround";
 
 // Runs a command by ID (core/commands). Vim's maps and ex commands are global, so the latest workbench's runner wins.
 export type Run = (id: string, arg?: string) => void;
@@ -67,4 +68,6 @@ export function installVim(r: Run, normal: Binding[], p: Prime) {
     Vim.defineAction(keys, (cm: CodeMirror) => void cmd(cm.cm6!));
     Vim.mapCommand(keys, "action", keys, {}, { context: "normal" });
   }
+
+  installSurround();
 }
