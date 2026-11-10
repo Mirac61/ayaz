@@ -68,9 +68,12 @@ export function openTerminal(el: HTMLElement, opts: TermOptions = {}): TermHandl
   el.dataset.term = "";
 
   const ws = backend.stream("pty");
-  const input = (data: string) => ws.readyState === WebSocket.OPEN && ws.send(frame(0, enc.encode(data)));
+  // Go reads the config as the first frame (onopen below); keys or a resize before it would end the shell.
+  let started = false;
+  const live = () => started && ws.readyState === WebSocket.OPEN;
+  const input = (data: string) => live() && ws.send(frame(0, enc.encode(data)));
   term.onData(input);
-  term.onResize(({ cols, rows }) => ws.readyState === WebSocket.OPEN && ws.send(frame(1, enc.encode(JSON.stringify({ cols, rows })))));
+  term.onResize(({ cols, rows }) => live() && ws.send(frame(1, enc.encode(JSON.stringify({ cols, rows })))));
   ws.onmessage = (ev) => term.write(new Uint8Array(ev.data as ArrayBuffer));
   let disposed = false;
   ws.onclose = () => {
@@ -145,6 +148,7 @@ export function openTerminal(el: HTMLElement, opts: TermOptions = {}): TermHandl
         cols: term.cols, rows: term.rows, ws: opts.ws ?? "", cmd: opts.cmd ?? "",
         windowMs: opts.windowMs ?? 0, maxBytes: opts.maxBytes ?? 0,
       }));
+      started = true;
       resolve();
     };
     ws.onerror = () => reject(new Error("pty stream failed"));

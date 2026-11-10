@@ -48,11 +48,16 @@ test("session: preview and terminal panes come back as what they were", async ({
   await page.keyboard.press("Enter");
   await expect(page.locator("[data-pane]")).toHaveCount(3);
   await expect(page.locator("[data-term]")).toHaveCount(1);
-  await page.waitForTimeout(800); // the session saves 500 ms after the last change
+  const saved = () => page.evaluate(() => {
+    const k = Object.keys(localStorage).find((x) => x.startsWith("ayaz.session:"));
+    const s = k ? JSON.parse(localStorage.getItem(k)!) : null;
+    return `${s?.previews?.length ?? 0} ${Object.keys(s?.terms ?? {}).length}`;
+  });
+  await expect.poll(saved).toBe("1 1"); // saved at most 500 ms after the last change
 
   await page.reload();
   await expect(page.locator("[data-pane]")).toHaveCount(3);
   await expect(page.locator("[data-term]")).toHaveCount(1);
-  await expect(page.locator("[data-term] .xterm-rows")).toContainText(/\S/); // the shell's prompt
+  await expect(page.locator("[data-term] .xterm-rows")).toContainText(/\S/); // the shell is alive: its prompt
   await expect(page.locator(".cm-reading")).toHaveCount(1);
 });
