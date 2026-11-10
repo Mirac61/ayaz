@@ -6,7 +6,9 @@ import { isDirty } from "../core/buffers";
 import { label, Quickfix, replaceEdits, replacement, type Loc } from "../core/quickfix";
 import { Text } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
-import { closeLsp, documentSymbols, hasLsp, references, workspaceSymbols, type Sym } from "../editor/lsp";
+import { closeLsp, documentSymbols, hasLsp, references, uriPath, workspaceSymbols, type Sym } from "../editor/lsp";
+import { diagnosticsFor } from "../editor/diagnostics";
+import { nextDiagnostic, previousDiagnostic } from "@codemirror/lint";
 import { moveHunk, previewHunk, resetHunk } from "../editor/gitgutter";
 import { installVim } from "../editor/vim/setup";
 import { browsable, resolveLink } from "../editor/mdlive";
@@ -85,6 +87,7 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
   const [layout, setLayout] = useState<Layout>(session?.layout ?? { pane: 1 });
   const [msg, setMsg] = useState<{ text: string; error?: boolean } | null>(null);
   const [branch, setBranch] = useState("");
+  const [diag, setDiag] = useState({ errors: 0, warnings: 0 });
   const [picker, setPicker] = useState<PickerSource | null>(null);
   const [bindings, setBindings] = useState<Binding[] | null>(null);
   const tree = useRef<TreeHandle>(null);
@@ -268,8 +271,8 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
       },
       start: Math.max(qf.index, 0),
     });
-    const setQf = (title: string, locs: Loc[], regex = false) => {
-      qf.set(title, locs, regex);
+    const setQf = (title: string, locs: Loc[], regex = false, sort = true) => {
+      qf.set(title, locs, regex, sort);
       if (!locs.length) return fail(`${title}: no matches`);
       setMsg({ text: `${title}: ${locs.length} matches, :cn / :cp to move, :copen to list` });
       void qfMove(1);
@@ -390,6 +393,13 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
     const onView = (f: (v: EditorView) => boolean, err: string) => {
       const v = ed.activeView();
       if (!v || !f(v)) fail(err);
+    };
+
+    // @codemirror/lint selects the whole range, which puts Vim in visual mode; nvim's ]d lands on its start.
+    const toDiagnostic = (cmd: (v: EditorView) => boolean) => (v: EditorView) => {
+      if (!cmd(v)) return false;
+      v.dispatch({ selection: { anchor: v.state.selection.main.from } });
+      return true;
     };
 
     const keysFor = (id: string) => bindingsRef.current?.find((b) => b.command === id)?.keys;
@@ -664,6 +674,27 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
           setPicker(symbolPicker("Symbols in project", async (q) => (q.trim() ? (await workspaceSymbols(v, ws.root, q)) ?? [] : []), false));
         },
       },
+      {
+        id: "lsp.diagnostics",
+        title: "Diagnostics in the folder",
+        run() {
+          const severity = ["", "error", "warning", "info", "hint"];
+          const locs = diagnosticsFor(ws.id).all().flatMap((d): Loc[] => {
+            const path = uriPath(ws.root, d.uri);
+            if (path === null || path.startsWith("/")) return [];
+            const text = `${severity[d.severity] ?? ""}: ${d.message.split("\n")[0]}`;
+            return [{ path, line: d.line + 1, col: d.character, len: 0, text }];
+          });
+          if (!locs.length) return setMsg({ text: "No diagnostics" });
+          setQf("Diagnostics", locs, false, false);
+        },
+      },
+      { id: "lsp.nextDiagnostic", title: "Next diagnostic (]d)", run: () => onView(toDiagnostic(nextDiagnostic), "No diagnostics in this file") },
+      {
+        id: "lsp.prevDiagnostic",
+        title: "Previous diagnostic ([d)",
+        run: () => onView(toDiagnostic(previousDiagnostic), "No diagnostics in this file"),
+      },
       { id: "git.nextHunk", title: "Next git hunk (]c)", run: () => onView((v) => moveHunk(v, 1), "No git changes in this file") },
       { id: "git.prevHunk", title: "Previous git hunk ([c)", run: () => onView((v) => moveHunk(v, -1), "No git changes in this file") },
       { id: "git.previewHunk", title: "Preview git hunk", run: () => onView(previewHunk, "No git change on this line") },
@@ -732,6 +763,13 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
       ed.gitChanged();
     });
   }, [ed, ws.id]);
+
+  // E/W counts for the status line, from every server of this folder.
+  useEffect(() => {
+    const store = diagnosticsFor(ws.id);
+    setDiag(store.counts());
+    return store.onChange(() => setDiag(store.counts()));
+  }, [ws.id]);
 
   // The window's close button: refuse while something is unsaved, like :qa.
   useEffect(() => backend.onCloseRequest(() => {
@@ -871,6 +909,12 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
           {status.dirty && <span className="dirty" title="Modified" />}
         </span>
         <span className={msg?.error ? "msg error" : "msg"}>{msg?.text}</span>
+        {(diag.errors > 0 || diag.warnings > 0) && (
+          <button className="diag" title="Diagnostics (<Space>fd)" tabIndex={-1}
+            onMouseDown={(e) => { e.preventDefault(); run("lsp.diagnostics"); }}>
+            <span className="e">E {diag.errors}</span> <span className="w">W {diag.warnings}</span>
+          </button>
+        )}
         <span className="location">{status.info ?? `${status.line}:${status.col}`}</span>
       </footer>
       {hints && <Hints keys={hints.keys} next={hints.next} title={(id) => commands.list().find((c) => c.id === id)?.title ?? id} />}

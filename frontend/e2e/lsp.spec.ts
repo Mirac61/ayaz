@@ -63,3 +63,21 @@ test("symbol pickers find hello and jump to it", async ({ page }) => {
   await project.getByRole("option").filter({ hasText: "broken.go" }).click();
   await expect(status).toContainText("broken.go");
 });
+
+// M21: E/W counts in the status line, the list as quickfix (errors first), ]d to the next one in the file.
+test("diagnostics: counts, list and ]d", async ({ page }) => {
+  test.skip(!hasGopls, "gopls not in PATH");
+  await page.goto("/");
+  await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: "broken.go" }).click();
+  const status = page.locator(".statusline");
+  // undefinedThing, and hello.c in the package for broken.go and hello.go (not open: the store still has it)
+  await expect(status.locator(".diag .e")).toContainText("E 3", { timeout: 30_000 });
+  await page.keyboard.type("gg]d");
+  await expect(status).toContainText("4:2");
+  await status.locator(".diag").click();
+  await expect(status).toContainText("(1 of 3) error: C source files"); // errors first, then file and line
+  await page.keyboard.type(":copen\n");
+  await expect(page.getByRole("dialog", { name: /Quickfix: Diagnostics/ }).getByRole("option")).toHaveText([
+    /broken\.go:1:1: error: C source files/, /broken\.go:4:2: error: undefined: undefinedThing/, /hello\.go:1:1: error: C source/,
+  ]);
+});

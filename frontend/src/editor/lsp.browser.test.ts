@@ -3,7 +3,8 @@ import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { LSPClient, languageServerExtensions, type Transport } from "@codemirror/lsp-client";
 import { editorExtensions } from "./editor";
-import { Files, documentSymbols, formatBeforeSave, workspaceSymbols } from "./lsp";
+import { Files, diagnosticHandlers, documentSymbols, formatBeforeSave, workspaceSymbols } from "./lsp";
+import { diagnosticsFor } from "./diagnostics";
 
 // A fake language server: answers initialize, flags "bad" on didOpen, offers one completion.
 function fakeServer(): Transport {
@@ -38,6 +39,20 @@ test("a server diagnostic shows as a lint marker", async () => {
     state: EditorState.create({ doc: "bad word", extensions: [editorExtensions(), client.plugin("file:///r/a.go", "go")] }),
   });
   await expect.poll(() => el.querySelector(".cm-lintRange-error")).not.toBeNull();
+});
+
+test("the diagnostics store sees what the server publishes, and the underline stays", async () => {
+  const client = new LSPClient({ rootUri: "file:///r", extensions: languageServerExtensions(), notificationHandlers: diagnosticHandlers("dw") })
+    .connect(fakeServer());
+  await client.initializing;
+  const el = document.createElement("div");
+  document.body.append(el);
+  view = new EditorView({
+    parent: el,
+    state: EditorState.create({ doc: "bad word", extensions: [editorExtensions(), client.plugin("file:///r/a.go", "go")] }),
+  });
+  await expect.poll(() => el.querySelector(".cm-lintRange-error")).not.toBeNull();
+  expect(diagnosticsFor("dw").counts()).toEqual({ errors: 1, warnings: 0 });
 });
 
 // Records what the client tells the server, answers formatting with one edit.

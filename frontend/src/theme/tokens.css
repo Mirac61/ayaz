@@ -16,6 +16,7 @@
   --insert: #30d158;
   --visual: #bf5af2;
   --error: #ff453a;
+  --warning: #ff9f0a;
   --git-add: #76946a; /* Kanagawa autumnGreen, crystalBlue, autumnRed as gitsigns uses them */
   --git-mod: #7e9cd8;
   --git-del: #c34043;

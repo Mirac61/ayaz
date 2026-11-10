@@ -210,6 +210,10 @@ Done when: all four language groups have diagnostics, completion and navigation.
 
 - Done 2026-11-10: `<Space>fs` lists the file's symbols (`textDocument/documentSymbol`, hierarchical or flat, children named after their parent), ranked by name with the Go matcher. `<Space>fS` asks the server on every keystroke (`workspace/symbol`); the picker drops stale answers, results outside the folder (stdlib) open read-only like `gd`. Codicon glyphs per `SymbolKind`. Without a server: "No language server for this file". Browser test with a fake server, E2E with gopls. **Still open:** latency of `<Space>fS` in a big Go project; containers for gopls need the client to announce hierarchical symbols.
 
+## M21 – Diagnostics as a list and in the status line
+
+- Done 2026-11-10: a `publishDiagnostics` handler in `clientFor` keeps every file's diagnostics per folder (also files that aren't open: gopls reports whole packages) and returns false, so lsp-client still underlines. `<Space>fd` (or a click on `E n W n` in the status line) fills the quickfix list, errors first. `]d`/`[d` jump within the file and land on the start in normal mode, like nvim. Node test for the store, browser test that the handler keeps the underline, E2E with `broken.go`. **Still open:** the counts with clangd/ts in the app.
+
 ## Later
 
 | | What | Plugs into |

@@ -12,10 +12,11 @@ export class Quickfix {
   index = -1; // the entry :cn/:cp moved to last, -1 before the first
   regex = false; // the list came from a regex search, so :Replace expands $1, $2
 
-  set(title: string, items: Loc[], regex = false) {
+  // sort=false keeps the caller's order (diagnostics: errors first).
+  set(title: string, items: Loc[], regex = false, sort = true) {
     this.title = title;
     this.regex = regex;
-    this.items = [...items].sort(order);
+    this.items = sort ? [...items].sort(order) : [...items];
     this.index = -1;
   }
 

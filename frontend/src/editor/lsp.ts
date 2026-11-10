@@ -10,6 +10,7 @@ import {
 import { backend } from "../core/backend";
 import { extOf } from "../lang/registry";
 import type { Loc } from "../core/quickfix";
+import { diagnosticsFor, dropDiagnostics, type Published } from "./diagnostics";
 
 // Extension → [LSP language ID, server name]. Go maps the server name to a command (app/lsp.go);
 // one server per (workspace, server), so .c and .cpp share clangd, .ts and .js share one TypeScript server.
@@ -221,6 +222,14 @@ const sockets = new Map<string, WebSocket>();
 const MAX_RETRIES = 5; // a missing server ends the stream at once; stop asking after this many tries in a row
 const clients = new Map<string, LSPClient>();
 
+// Keeps every file's diagnostics for the list and the status line; false lets serverDiagnostics underline them too.
+export const diagnosticHandlers = (ws: string) => ({
+  "textDocument/publishDiagnostics": (_c: LSPClient, p: Published) => {
+    diagnosticsFor(ws).publish(p);
+    return false;
+  },
+});
+
 // One client per (workspace, server), shared by every file it serves.
 function clientFor(ws: string, root: string, server: string): LSPClient {
   const key = `${ws}:${server}`;
@@ -230,6 +239,7 @@ function clientFor(ws: string, root: string, server: string): LSPClient {
     rootUri: fileUri(root),
     extensions: languageServerExtensions(),
     workspace: (c) => new Files(c, ws, root),
+    notificationHandlers: diagnosticHandlers(ws),
   });
   backend.onLspStatus(ws, (s) => s.lang === server && s.state === "missing" && missing.add(key));
   clients.set(key, client);
@@ -261,6 +271,7 @@ export function closeLsp(ws: string) {
     clients.delete(key);
   }
   hosts.delete(ws);
+  dropDiagnostics(ws);
 }
 
 // The extension for one file, or none when its language has no server.
