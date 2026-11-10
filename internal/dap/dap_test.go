@@ -110,3 +110,21 @@ func TestRealDelveAnswersInitialize(t *testing.T) {
 		t.Fatalf("got %s, %v", got, err)
 	}
 }
+
+// What the adapter writes after its address line (Delve: the debugged program's stdout) reaches onOut.
+func TestStartWithOutputPassesWhatFollowsTheAddress(t *testing.T) {
+	got := make(chan string, 8)
+	a, err := StartWithOutput(t.TempDir(), "/bin/sh", fakeAdapter(t), func(s string) { got <- s })
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer a.Close()
+	select {
+	case s := <-got:
+		if !strings.Contains(s, "more output") {
+			t.Fatalf("got %q", s)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("no output")
+	}
+}

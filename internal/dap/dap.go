@@ -7,7 +7,6 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"os/exec"
@@ -37,6 +36,12 @@ type Adapter struct {
 // Start runs `shell -l -c "exec <command>"` in dir (the login shell finds dlv in ~/go/bin even for a Finder-started
 // app), waits for the address on its first output line and connects to it.
 func Start(dir, shell, command string) (*Adapter, error) {
+	return StartWithOutput(dir, shell, command, nil)
+}
+
+// StartWithOutput is Start, and passes what the adapter writes after its address line to onOut. For Delve that is the
+// debugged program's own stdout: it isn't sent as a DAP output event. onOut runs on the reader's goroutine.
+func StartWithOutput(dir, shell, command string, onOut func(string)) (*Adapter, error) {
 	cmd := exec.Command(shell, "-l", "-c", "exec "+command)
 	cmd.Dir = dir
 	cmd.Stderr = os.Stderr
@@ -59,8 +64,17 @@ func Start(dir, shell, command string) (*Adapter, error) {
 			line, err := r.ReadString('\n')
 			if m := listening.FindStringSubmatch(line); m != nil {
 				addr <- m[1]
-				io.Copy(io.Discard, r) // the rest isn't ours; leaving it unread would block the adapter
-				return
+				// Leaving the rest unread would block the adapter.
+				buf := make([]byte, 4096)
+				for {
+					n, err := r.Read(buf)
+					if n > 0 && onOut != nil {
+						onOut(string(buf[:n]))
+					}
+					if err != nil {
+						return
+					}
+				}
 			}
 			if err != nil {
 				close(addr)

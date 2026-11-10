@@ -1,8 +1,10 @@
 package app
 
 import (
+	"encoding/json"
 	"log"
 	"os"
+	"sync"
 
 	"github.com/Mirac61/ayaz/internal/dap"
 	"github.com/Mirac61/ayaz/internal/lsp"
@@ -37,7 +39,13 @@ func (s *WorkspaceService) HandleDAP(c *application.StreamConn) {
 		emitLsp(LspStatus{WS: cfg.WS, Lang: "dlv", State: "missing", Command: "dlv"})
 		return
 	}
-	a, err := dap.Start(w.Root, shell, dapCommand)
+	var mu sync.Mutex // the adapter's messages and the program's output both go to c
+	a, err := dap.StartWithOutput(w.Root, shell, dapCommand, func(text string) {
+		ev, _ := json.Marshal(map[string]any{"type": "event", "event": "output", "body": map[string]string{"category": "stdout", "output": text}})
+		mu.Lock()
+		defer mu.Unlock()
+		c.Send(ev)
+	})
 	if err != nil {
 		log.Println("dap:", err)
 		return
@@ -49,7 +57,12 @@ func (s *WorkspaceService) HandleDAP(c *application.StreamConn) {
 	go func() {
 		for {
 			msg, err := a.Recv()
-			if err != nil || c.Send(msg) != nil {
+			if err == nil {
+				mu.Lock()
+				err = c.Send(msg)
+				mu.Unlock()
+			}
+			if err != nil {
 				c.Close() // the adapter ended: tell the frontend
 				return
 			}
