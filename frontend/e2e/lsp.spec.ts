@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { execSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { e2eWorkspace } from "../playwright.config";
 
@@ -130,4 +130,27 @@ test("signature help while typing a call", async ({ page }) => {
   await expect(page.locator(".cm-lsp-signature-tooltip")).toContainText("format string", { timeout: 30_000 });
   await page.keyboard.press("Escape");
   await page.keyboard.type("u");
+});
+
+// M44: an action whose edit creates a file (gopls' "Extract declarations to new file").
+test("a code action can create a file", async ({ page }) => {
+  test.skip(!hasGopls, "gopls not in PATH");
+  writeFileSync(join(e2eWorkspace, "src", "spare.go"), "package main\n\nfunc spare() int {\n\treturn 1\n}\n");
+  await page.goto("/");
+  await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: "src" }).click();
+  await page.keyboard.press("l");
+  await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: "spare.go" }).click();
+  await expect(page.locator(".cm-content")).toContainText("func spare");
+  await page.keyboard.type("gg2jw"); // on "spare"
+  const picker = page.getByRole("dialog", { name: /Code actions/ });
+  await expect(async () => {
+    await page.keyboard.type(" ca");
+    await expect(picker.getByRole("option", { name: /to new file/ })).toBeVisible({ timeout: 2000 });
+  }).toPass({ timeout: 30_000 }); // gopls may still be loading the package
+  await page.keyboard.type("new file");
+  await page.keyboard.press("Enter");
+  const made = join(e2eWorkspace, "src", "spare.1.go"); // gopls' name for it
+  await expect.poll(() => existsSync(made) && readFileSync(made, "utf8"), { timeout: 10_000 }).toContain("func spare");
+  expect(readFileSync(join(e2eWorkspace, "src", "spare.go"), "utf8")).not.toContain("func spare");
+  await expect(page.locator(".statusline .msg.error")).toHaveCount(0);
 });

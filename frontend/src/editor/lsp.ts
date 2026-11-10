@@ -208,19 +208,38 @@ export const hasLsp = (view: EditorView) => !!LSPPlugin.get(view)?.client.connec
 
 type Position = { line: number; character: number };
 type TextEdit = { range: { start: Position; end: Position }; newText: string };
+type ResourceOp = { kind: "create" | "delete"; uri: string } | { kind: "rename"; oldUri: string; newUri: string };
 export interface WorkspaceEdit {
   changes?: Record<string, TextEdit[]>;
-  documentChanges?: ({ textDocument: { uri: string }; edits: TextEdit[] } | { kind: string })[];
+  documentChanges?: ({ textDocument: { uri: string }; edits: TextEdit[] } | ResourceOp)[];
 }
 
-// The edit per file, paths as uriPath gives them. File operations (create, rename, delete) are left out.
-export function fileEdits(root: string, edit: WorkspaceEdit): [path: string, edits: TextEdit[]][] {
-  const byUri = edit.documentChanges
-    ? edit.documentChanges.flatMap((c): [string, TextEdit[]][] => ("textDocument" in c ? [[c.textDocument.uri, c.edits]] : []))
-    : Object.entries(edit.changes ?? {});
-  return byUri.flatMap(([uri, edits]): [string, TextEdit[]][] => {
+export type FileOp =
+  | { kind: "edit"; path: string; edits: TextEdit[] }
+  | { kind: "create"; path: string }
+  | { kind: "delete"; path: string }
+  | { kind: "rename"; from: string; to: string };
+
+// The edit as steps in order, paths as uriPath gives them. Files are only created, renamed or deleted
+// inside the folder (a relative path): a server can't touch anything else.
+export function fileOps(root: string, edit: WorkspaceEdit): FileOp[] {
+  const textEdit = (uri: string, edits: TextEdit[]): FileOp[] => {
     const path = uriPath(root, uri);
-    return path === null || !edits.length ? [] : [[path, edits]];
+    return path === null || !edits.length ? [] : [{ kind: "edit", path, edits }];
+  };
+  const inside = (uri: string) => {
+    const p = uriPath(root, uri);
+    return p === null || p.startsWith("/") ? null : p;
+  };
+  if (!edit.documentChanges) return Object.entries(edit.changes ?? {}).flatMap(([uri, edits]) => textEdit(uri, edits));
+  return edit.documentChanges.flatMap((c): FileOp[] => {
+    if ("textDocument" in c) return textEdit(c.textDocument.uri, c.edits);
+    if (c.kind === "rename") {
+      const from = inside(c.oldUri), to = inside(c.newUri);
+      return from === null || to === null ? [] : [{ kind: "rename", from, to }];
+    }
+    const path = inside(c.uri);
+    return path === null ? [] : [{ kind: c.kind, path }];
   });
 }
 
@@ -244,7 +263,7 @@ export async function renameAt(view: EditorView, newName: string): Promise<Works
 }
 
 type Command = { title: string; command: string; arguments?: unknown[] };
-export type CodeAction = { title: string; kind?: string; edit?: WorkspaceEdit; command?: Command };
+export type CodeAction = { title: string; kind?: string; edit?: WorkspaceEdit; command?: Command; data?: unknown };
 
 // Code actions for the selection (the cursor in normal mode), with the diagnostics on its lines so quick fixes come too.
 // A bare Command comes back as an action that only runs it. null: no server.
@@ -260,6 +279,15 @@ export async function codeActions(view: EditorView, ws: string): Promise<CodeAct
     textDocument: { uri: plugin.uri }, range, context: { diagnostics },
   });
   return (res ?? []).map((a) => (typeof a.command === "string" ? { title: a.title, command: a as Command } : a as CodeAction));
+}
+
+// Servers that work out an action's edit only when it is picked (TypeScript's refactors) send it without one:
+// codeAction/resolve fills it in. Actions that have their edit, or servers that can't resolve, stay as they are.
+export async function resolveAction(view: EditorView, a: CodeAction): Promise<CodeAction> {
+  const client = LSPPlugin.get(view)?.client;
+  const provider = client?.serverCapabilities?.codeActionProvider;
+  if (a.edit || !client || typeof provider !== "object" || !provider.resolveProvider) return a;
+  return (await client.request<CodeAction, CodeAction | null>("codeAction/resolve", a)) ?? a;
 }
 
 // Runs an action's command on the server; its edits come back through workspace/applyEdit.
@@ -397,10 +425,15 @@ export const diagnosticHandlers = (ws: string, server = "") => ({
 
 // Code actions as literals (title + edit), and server commands may send edits back (workspace/applyEdit).
 const CAPABILITIES = {
-  workspace: { applyEdit: true, workspaceEdit: { documentChanges: true }, configuration: true },
+  workspace: {
+    applyEdit: true, configuration: true,
+    workspaceEdit: { documentChanges: true, resourceOperations: ["create", "rename", "delete"] },
+  },
   textDocument: {
     inlayHint: {},
     codeAction: {
+      dataSupport: true,
+      resolveSupport: { properties: ["edit"] },
       codeActionLiteralSupport: {
         codeActionKind: { valueSet: ["", "quickfix", "refactor", "refactor.extract", "refactor.inline", "refactor.rewrite", "source", "source.organizeImports"] },
       },

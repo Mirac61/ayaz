@@ -4,7 +4,7 @@ import { redo, undo, undoDepth } from "@codemirror/commands";
 import { getCM } from "@replit/codemirror-vim";
 import type { Files } from "../core/backend";
 import { Buffers, diff, isDirty, type Buffer } from "../core/buffers";
-import { setLspHost, formatBeforeSave, fileEdits, toChanges, type WorkspaceEdit } from "../editor/lsp";
+import { setLspHost, formatBeforeSave, fileOps, toChanges, type WorkspaceEdit } from "../editor/lsp";
 import { createState, editorExtensions, isWrapped, setWrap, settingsEffects } from "../editor/editor";
 import { cleanupChanges } from "../editor/cleanup";
 import { isReading, linkAt, toggleReading } from "../editor/mdlive";
@@ -328,10 +328,36 @@ export class Editors {
   }
 
   // A language server's edit (rename, code action) applied like typing. Like :Replace, buffers that were clean
-  // are saved and dirty ones stay unsaved; files outside the folder are read-only and skipped. Returns the changed paths.
+  // are saved and dirty ones stay unsaved; files outside the folder are read-only and skipped. Files are created,
+  // renamed and deleted (to the trash) in the edit's order; a rename or delete stops at a file with unsaved changes.
+  // Returns the changed paths.
   async applyEdit(edit: WorkspaceEdit): Promise<string[]> {
     const done: string[] = [];
-    for (const [path, edits] of fileEdits(this.root, edit)) {
+    const unsaved = (path: string) => {
+      const d = this.buffers.dirty().find((b) => b.path === path || b.path.startsWith(path + "/"));
+      if (d) throw new Error(`"${d.path}" has unsaved changes: save first (:w)`);
+    };
+    for (const op of fileOps(this.root, edit)) {
+      if (op.kind === "create") {
+        await this.files.create(op.path, false).catch(() => {}); // there already: the edits that follow fill it
+        done.push(op.path);
+        continue;
+      }
+      if (op.kind === "rename") {
+        unsaved(op.from);
+        await this.files.rename(op.from, op.to);
+        await this.moved(op.from, op.to);
+        done.push(op.to);
+        continue;
+      }
+      if (op.kind === "delete") {
+        unsaved(op.path);
+        await this.files.trash(op.path);
+        await this.moved(op.path, null);
+        done.push(op.path);
+        continue;
+      }
+      const { path, edits } = op;
       const before = await this.buffers.open(path);
       if (before.state.readOnly) continue;
       const wasDirty = isDirty(before);

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { Text } from "@codemirror/state";
-import { fileEdits, fileUri, serverFor, streamTransport, toChanges, uriPath } from "./lsp";
+import { fileOps, fileUri, serverFor, streamTransport, toChanges, uriPath } from "./lsp";
 
 const dec = new TextDecoder();
 
@@ -102,13 +102,25 @@ test("serverFor: one server per language group", () => {
 
 const r = (l1: number, c1: number, l2: number, c2: number) => ({ start: { line: l1, character: c1 }, end: { line: l2, character: c2 } });
 
-test("fileEdits: changes or documentChanges, per path, file operations left out", () => {
+test("fileOps: changes or documentChanges, in order, with file operations inside the folder", () => {
   const e = { range: r(0, 0, 0, 1), newText: "x" };
-  expect(fileEdits("/r", { changes: { "file:///r/a.go": [e], "file:///r/b.go": [] } })).toEqual([["a.go", [e]]]);
-  expect(fileEdits("/r", {
+  expect(fileOps("/r", { changes: { "file:///r/a.go": [e], "file:///r/b.go": [] } })).toEqual([{ kind: "edit", path: "a.go", edits: [e] }]);
+  expect(fileOps("/r", {
     changes: { "file:///r/ignored.go": [e] }, // documentChanges win
-    documentChanges: [{ textDocument: { uri: "file:///r/a.go" }, edits: [e] }, { kind: "create" }],
-  })).toEqual([["a.go", [e]]]);
+    documentChanges: [
+      { kind: "create", uri: "file:///r/new.ts" },
+      { textDocument: { uri: "file:///r/new.ts" }, edits: [e] },
+      { kind: "rename", oldUri: "file:///r/a.ts", newUri: "file:///r/b.ts" },
+      { kind: "delete", uri: "file:///r/old.ts" },
+      { kind: "delete", uri: "file:///etc/passwd" }, // outside the folder: never
+      { kind: "rename", oldUri: "file:///r/x.ts", newUri: "file:///tmp/x.ts" },
+    ],
+  })).toEqual([
+    { kind: "create", path: "new.ts" },
+    { kind: "edit", path: "new.ts", edits: [e] },
+    { kind: "rename", from: "a.ts", to: "b.ts" },
+    { kind: "delete", path: "old.ts" },
+  ]);
 });
 
 test("toChanges: sorted offsets, clamped to the line and the doc", () => {

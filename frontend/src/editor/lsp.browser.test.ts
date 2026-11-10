@@ -3,7 +3,7 @@ import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { LSPClient, languageServerExtensions, type Transport } from "@codemirror/lsp-client";
 import { editorExtensions } from "./editor";
-import { Files, diagnosticHandlers, documentSymbols, formatBeforeSave, workspaceSymbols } from "./lsp";
+import { Files, diagnosticHandlers, documentSymbols, formatBeforeSave, resolveAction, workspaceSymbols } from "./lsp";
 import { diagnosticsFor } from "./diagnostics";
 
 // A fake language server: answers initialize, flags "bad" on didOpen, offers one completion.
@@ -136,4 +136,27 @@ test("document symbols flatten with their container, workspace symbols map URIs 
     { name: "hello", kind: 12, container: "", path: "sub/a.go", line: 4, col: 5 },
     { name: "Println", kind: 12, container: "fmt", path: "/go/fmt/print.go", line: 10, col: 5 },
   ]);
+});
+
+// M44: an action that comes without its edit gets it through codeAction/resolve before it runs.
+test("resolveAction fills in the edit when the server resolves", async () => {
+  const handlers = new Set<(m: string) => void>();
+  const reply = (o: object) => queueMicrotask(() => handlers.forEach((h) => h(JSON.stringify({ jsonrpc: "2.0", ...o }))));
+  const edit = { changes: { "file:///r/a.ts": [] } };
+  const t: Transport = {
+    send(raw) {
+      const m = JSON.parse(raw);
+      const caps = { textDocumentSync: 1, codeActionProvider: { resolveProvider: true } };
+      if (m.method === "initialize") reply({ id: m.id, result: { capabilities: caps } });
+      else if (m.method === "codeAction/resolve") reply({ id: m.id, result: { ...m.params, edit } });
+    },
+    subscribe: (h) => void handlers.add(h),
+    unsubscribe: (h) => void handlers.delete(h),
+  };
+  const client = new LSPClient({ rootUri: "file:///r", workspace: (c) => new Files(c, "w", "/r") }).connect(t);
+  await client.initializing;
+  view = new EditorView({ state: EditorState.create({ doc: "x", extensions: [editorExtensions(), client.plugin("file:///r/a.ts", "typescript")] }) });
+  expect(await resolveAction(view, { title: "Move", data: 1 })).toEqual({ title: "Move", data: 1, edit });
+  const done = { title: "Has it", edit };
+  expect(await resolveAction(view, done)).toBe(done);
 });

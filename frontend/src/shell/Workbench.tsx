@@ -7,8 +7,8 @@ import { label, Quickfix, replaceEdits, replacement, type Loc } from "../core/qu
 import { Text } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 import {
-  closeLsp, codeActions, documentSymbols, hasLsp, installHint, noServer, references, renameAt, runCommand, showHover, uriPath,
-  workspaceSymbols, type CodeAction, type Sym,
+  closeLsp, codeActions, documentSymbols, hasLsp, installHint, noServer, references, renameAt, resolveAction, runCommand,
+  showHover, uriPath, workspaceSymbols, type CodeAction, type Sym,
 } from "../editor/lsp";
 import { diagnosticsFor } from "../editor/diagnostics";
 import { nextDiagnostic, previousDiagnostic } from "@codemirror/lint";
@@ -723,8 +723,8 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
               return items.filter((it) => !q || it.label.toLowerCase().includes(q.toLowerCase()));
             },
             async pick(it) {
-              const a = byItem.get(it)!;
               try {
+                const a = await resolveAction(v, byItem.get(it)!);
                 if (a.edit) await ed.applyEdit(a.edit);
                 if (a.command) await runCommand(v, a.command);
               } catch (e) {
