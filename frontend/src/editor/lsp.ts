@@ -1,8 +1,8 @@
 // Language servers over the Wails "lsp" stream (ADR-0009): a transport adapter for @codemirror/lsp-client.
 // Go frames the JSON with Content-Length, so the stream carries one bare message per frame.
-import type { ChangeSet, Extension, Text } from "@codemirror/state";
+import { StateEffect, StateField, type ChangeSet, type Extension, type Text } from "@codemirror/state";
 import { getIndentUnit, indentUnit } from "@codemirror/language";
-import type { EditorView } from "@codemirror/view";
+import { EditorView, showTooltip, type Tooltip } from "@codemirror/view";
 import {
   LSPClient, LSPPlugin, Workspace, languageServerExtensions,
   type Transport, type WorkspaceFile,
@@ -11,6 +11,7 @@ import { backend } from "../core/backend";
 import { extOf } from "../lang/registry";
 import type { Loc } from "../core/quickfix";
 import { diagnosticsFor, dropDiagnostics, type Published } from "./diagnostics";
+import { isMac } from "../core/keymap";
 
 // Extension → [LSP language ID, server name]. Go maps the server name to a command (app/lsp.go);
 // one server per (workspace, server), so .c and .cpp share clangd, .ts and .js share one TypeScript server.
@@ -36,7 +37,11 @@ export const fileUri = (root: string, path = "") =>
 type Stream = Pick<WebSocket, "readyState" | "send" | "close" | "onopen" | "onmessage" | "onclose" | "onerror" | "binaryType">;
 
 // Messages sent before the stream is open wait in a queue; the first frame is {ws, lang}.
-export function streamTransport(sock: Stream, hello: object, onClose: () => void): Transport {
+// lsp-client answers every server request with "not implemented", so workspace/applyEdit (sent by commands of
+// code actions) is answered here; apply resolves to whether the edit was made.
+export function streamTransport(
+  sock: Stream, hello: object, onClose: () => void, apply: (e: WorkspaceEdit) => Promise<boolean> = async () => false,
+): Transport {
   const handlers = new Set<(m: string) => void>();
   const queue: string[] = [];
   sock.binaryType = "arraybuffer";
@@ -46,6 +51,11 @@ export function streamTransport(sock: Stream, hello: object, onClose: () => void
   };
   sock.onmessage = (ev) => {
     const text = typeof ev.data === "string" ? ev.data : dec.decode(ev.data as ArrayBuffer);
+    const req = text.includes('"workspace/applyEdit"') ? JSON.parse(text) : null;
+    if (req?.method === "workspace/applyEdit" && req.id !== undefined) {
+      const reply = (applied: boolean) => sock.send(enc.encode(JSON.stringify({ jsonrpc: "2.0", id: req.id, result: { applied } })));
+      return void apply(req.params.edit).then(reply, () => reply(false));
+    }
     handlers.forEach((h) => h(text));
   };
   sock.onclose = onClose;
@@ -69,8 +79,12 @@ export function uriPath(root: string, uri: string): string | null {
   return (rel ? "" : "/") + uri.slice(rel ? prefix.length : 8).split("/").map(decodeURIComponent).join("/");
 }
 
-// The shell registers how to show a file (workspace-relative path) so jumps can cross files; null if it can't.
-export type Host = (path: string) => Promise<EditorView | null>;
+// The shell registers how to show a file (workspace-relative path) so jumps can cross files (null if it can't),
+// and how to apply a server's edit to the files.
+export interface Host {
+  display(path: string): Promise<EditorView | null>;
+  apply(edit: WorkspaceEdit): Promise<boolean>;
+}
 const hosts = new Map<string, Host>();
 export const setLspHost = (ws: string, h: Host) => void hosts.set(ws, h);
 
@@ -125,7 +139,7 @@ export class Files extends Workspace {
 
   async displayFile(uri: string) {
     const path = uriPath(this.root, uri);
-    return path === null ? null : (await hosts.get(this.ws)?.(path)) ?? null;
+    return path === null ? null : (await hosts.get(this.ws)?.display(path)) ?? null;
   }
 }
 
@@ -171,6 +185,116 @@ export function flatSymbols(res: (DocSym | SymInfo)[] | null, root: string, path
 }
 
 export const hasLsp = (view: EditorView) => !!LSPPlugin.get(view)?.client.connected;
+
+type Position = { line: number; character: number };
+type TextEdit = { range: { start: Position; end: Position }; newText: string };
+export interface WorkspaceEdit {
+  changes?: Record<string, TextEdit[]>;
+  documentChanges?: ({ textDocument: { uri: string }; edits: TextEdit[] } | { kind: string })[];
+}
+
+// The edit per file, paths as uriPath gives them. File operations (create, rename, delete) are left out.
+export function fileEdits(root: string, edit: WorkspaceEdit): [path: string, edits: TextEdit[]][] {
+  const byUri = edit.documentChanges
+    ? edit.documentChanges.flatMap((c): [string, TextEdit[]][] => ("textDocument" in c ? [[c.textDocument.uri, c.edits]] : []))
+    : Object.entries(edit.changes ?? {});
+  return byUri.flatMap(([uri, edits]): [string, TextEdit[]][] => {
+    const path = uriPath(root, uri);
+    return path === null || !edits.length ? [] : [[path, edits]];
+  });
+}
+
+// LSP edits as changes to doc, in order. Both count characters in UTF-16 units.
+export function toChanges(doc: Text, edits: TextEdit[]) {
+  const at = (p: Position) => {
+    if (p.line >= doc.lines) return doc.length;
+    const l = doc.line(p.line + 1);
+    return Math.min(l.from + p.character, l.to);
+  };
+  return edits.map((e) => ({ from: at(e.range.start), to: at(e.range.end), insert: e.newText })).sort((a, b) => a.from - b.from);
+}
+
+// The rename of the symbol at the cursor; null: no server.
+export async function renameAt(view: EditorView, newName: string): Promise<WorkspaceEdit | null> {
+  const plugin = LSPPlugin.get(view);
+  if (!plugin?.client.connected) return null;
+  plugin.client.sync();
+  const pos = plugin.toPosition(view.state.selection.main.head);
+  return (await plugin.client.request<any, WorkspaceEdit | null>("textDocument/rename", { textDocument: { uri: plugin.uri }, position: pos, newName })) ?? {};
+}
+
+type Command = { title: string; command: string; arguments?: unknown[] };
+export type CodeAction = { title: string; kind?: string; edit?: WorkspaceEdit; command?: Command };
+
+// Code actions for the selection (the cursor in normal mode), with the diagnostics on its lines so quick fixes come too.
+// A bare Command comes back as an action that only runs it. null: no server.
+export async function codeActions(view: EditorView, ws: string): Promise<CodeAction[] | null> {
+  const plugin = LSPPlugin.get(view);
+  if (!plugin?.client.connected) return null;
+  plugin.client.sync();
+  const { from, to } = view.state.selection.main;
+  const range = { start: plugin.toPosition(from), end: plugin.toPosition(to) };
+  const diagnostics = diagnosticsFor(ws).forUri(plugin.uri)
+    .filter((d) => d.line >= range.start.line && d.line <= range.end.line).map((d) => d.raw);
+  const res = await plugin.client.request<any, (CodeAction | Command)[] | null>("textDocument/codeAction", {
+    textDocument: { uri: plugin.uri }, range, context: { diagnostics },
+  });
+  return (res ?? []).map((a) => (typeof a.command === "string" ? { title: a.title, command: a as Command } : a as CodeAction));
+}
+
+// Runs an action's command on the server; its edits come back through workspace/applyEdit.
+export async function runCommand(view: EditorView, c: Command) {
+  await LSPPlugin.get(view)?.client.request("workspace/executeCommand", { command: c.command, arguments: c.arguments });
+}
+
+// K: the server's hover text at the cursor, as a tooltip until the cursor moves, the text changes or Esc.
+const setHover = StateEffect.define<Tooltip | null>();
+const hoverField = StateField.define<Tooltip | null>({
+  create: () => null,
+  update(t, tr) {
+    for (const e of tr.effects) if (e.is(setHover)) return e.value;
+    return tr.docChanged || tr.selection ? null : t;
+  },
+  provide: (f) => showTooltip.from(f),
+});
+const hoverEsc = EditorView.domEventHandlers({
+  keydown(e, view) {
+    if (e.key === "Escape" && view.state.field(hoverField, false)) view.dispatch({ effects: setHover.of(null) });
+    return false;
+  },
+});
+
+type Marked = string | { language: string; value: string } | { kind: string; value: string };
+
+// Resolves to false when the server has nothing to show, null without a server.
+export async function showHover(view: EditorView): Promise<boolean | null> {
+  const plugin = LSPPlugin.get(view);
+  if (!plugin?.client.connected) return null;
+  plugin.client.sync();
+  const pos = view.state.selection.main.head;
+  const res = await plugin.client.request<any, { contents: Marked | Marked[] } | null>("textDocument/hover", {
+    textDocument: { uri: plugin.uri }, position: plugin.toPosition(pos),
+  });
+  const html = (c: Marked | Marked[]): string => {
+    if (Array.isArray(c)) return c.map(html).join("");
+    if (typeof c === "string") return plugin.docToHTML(c, "markdown");
+    return "kind" in c ? plugin.docToHTML(c as { kind: "markdown" | "plaintext"; value: string }) : plugin.docToHTML("```" + c.language + "\n" + c.value + "\n```", "markdown");
+  };
+  const body = res && html(res.contents);
+  if (!body?.trim()) return false;
+  const tip: Tooltip = {
+    pos,
+    above: true,
+    create() {
+      const dom = document.createElement("div");
+      dom.className = "cm-lsp-hover-tooltip cm-lsp-documentation";
+      dom.innerHTML = body;
+      return { dom };
+    },
+  };
+  if (view.state.selection.main.head === pos) view.dispatch({ effects: setHover.of(tip) });
+  return true;
+}
 
 // The symbols of the view's file; null: no server.
 export async function documentSymbols(view: EditorView, root: string): Promise<Sym[] | null> {
@@ -218,6 +342,26 @@ export async function formatBeforeSave(view: EditorView): Promise<void> {
 }
 
 const missing = new Set<string>(); // "ws:server" whose server isn't installed or whose workspace closed: don't retry
+
+// How to get each server, for the message when it is missing.
+const INSTALL: Record<string, string> = {
+  gopls: "go install golang.org/x/tools/gopls@latest",
+  clangd: isMac ? "xcode-select --install, or brew install llvm" : "install clangd with your package manager",
+  ts: "npm i -g typescript-language-server typescript",
+  html: "npm i -g vscode-langservers-extracted",
+  css: "npm i -g vscode-langservers-extracted",
+  json: "npm i -g vscode-langservers-extracted",
+  jdtls: isMac ? "brew install jdtls" : "install jdtls with your package manager",
+};
+export const installHint = (server: string) => INSTALL[server] ?? "";
+
+// Why a file has no language features, for the status line.
+export function noServer(ws: string, path: string | undefined): string {
+  const server = path && serverFor(path)?.[1];
+  if (!server) return "No language server for this file type";
+  if (missing.has(`${ws}:${server}`)) return `${server} is not installed: ${INSTALL[server]}`;
+  return `${server} is still starting`;
+}
 const sockets = new Map<string, WebSocket>();
 const MAX_RETRIES = 5; // a missing server ends the stream at once; stop asking after this many tries in a row
 const clients = new Map<string, LSPClient>();
@@ -230,6 +374,18 @@ export const diagnosticHandlers = (ws: string) => ({
   },
 });
 
+// Code actions as literals (title + edit), and server commands may send edits back (workspace/applyEdit).
+const CAPABILITIES = {
+  workspace: { applyEdit: true, workspaceEdit: { documentChanges: true } },
+  textDocument: {
+    codeAction: {
+      codeActionLiteralSupport: {
+        codeActionKind: { valueSet: ["", "quickfix", "refactor", "refactor.extract", "refactor.inline", "refactor.rewrite", "source", "source.organizeImports"] },
+      },
+    },
+  },
+};
+
 // One client per (workspace, server), shared by every file it serves.
 function clientFor(ws: string, root: string, server: string): LSPClient {
   const key = `${ws}:${server}`;
@@ -237,7 +393,7 @@ function clientFor(ws: string, root: string, server: string): LSPClient {
   if (client) return client;
   client = new LSPClient({
     rootUri: fileUri(root),
-    extensions: languageServerExtensions(),
+    extensions: [...languageServerExtensions(), { clientCapabilities: CAPABILITIES }],
     workspace: (c) => new Files(c, ws, root),
     notificationHandlers: diagnosticHandlers(ws),
   });
@@ -252,7 +408,7 @@ function clientFor(ws: string, root: string, server: string): LSPClient {
       c.disconnect();
       if (missing.has(key) || ++failures > MAX_RETRIES) return;
       setTimeout(connect, Math.min(30_000, 500 * 2 ** failures)); // backoff: 1 s, 2 s, 4 s ...
-    });
+    }, async (e) => (await hosts.get(ws)?.apply(e)) ?? false);
     c.connect(transport);
     c.initializing.then(() => (failures = 0), () => {});
   };
@@ -277,5 +433,6 @@ export function closeLsp(ws: string) {
 // The extension for one file, or none when its language has no server.
 export function lspExtension(ws: string, root: string, path: string): Extension {
   const s = serverFor(path);
-  return s ? clientFor(ws, root, s[1]).plugin(path.startsWith("/") ? fileUri(path) : fileUri(root, path), s[0]) : [];
+  if (!s) return [];
+  return [clientFor(ws, root, s[1]).plugin(path.startsWith("/") ? fileUri(path) : fileUri(root, path), s[0]), hoverField, hoverEsc];
 }

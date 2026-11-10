@@ -3,7 +3,7 @@ import { EditorView } from "@codemirror/view";
 import { getCM } from "@replit/codemirror-vim";
 import type { Files } from "../core/backend";
 import { Buffers, diff, isDirty, type Buffer } from "../core/buffers";
-import { setLspHost, formatBeforeSave } from "../editor/lsp";
+import { setLspHost, formatBeforeSave, fileEdits, toChanges, type WorkspaceEdit } from "../editor/lsp";
 import { createState, editorExtensions, isWrapped, setWrap } from "../editor/editor";
 import { cleanupChanges } from "../editor/cleanup";
 import { isReading, linkAt, toggleReading } from "../editor/mdlive";
@@ -51,9 +51,9 @@ export class Editors {
   private closed: string[] = []; // closed tabs, last on top (Cmd+Shift+T)
   active = 0;
 
-  constructor(private files: Files, root: string, private wsId: string, private onStatus: (s: Status) => void) {
+  constructor(private files: Files, private root: string, private wsId: string, private onStatus: (s: Status) => void) {
     this.buffers = new Buffers(files, (path, doc) => createState(path, doc, wsId, root));
-    setLspHost(wsId, (path) => this.display(path));
+    setLspHost(wsId, { display: (path) => this.display(path), apply: async (e) => (await this.applyEdit(e)).length > 0 });
     this.recentKey = `ayaz.recent:${root}`;
   }
 
@@ -315,6 +315,21 @@ export class Editors {
     else b.state = b.state.update({ changes, userEvent: "input.replace" }).state;
     this.emit();
     return b;
+  }
+
+  // A language server's edit (rename, code action) applied like typing. Like :Replace, buffers that were clean
+  // are saved and dirty ones stay unsaved; files outside the folder are read-only and skipped. Returns the changed paths.
+  async applyEdit(edit: WorkspaceEdit): Promise<string[]> {
+    const done: string[] = [];
+    for (const [path, edits] of fileEdits(this.root, edit)) {
+      const before = await this.buffers.open(path);
+      if (before.state.readOnly) continue;
+      const wasDirty = isDirty(before);
+      const b = await this.edit(path, toChanges(before.state.doc, edits));
+      if (!wasDirty) await this.buffers.save(b);
+      done.push(path);
+    }
+    return done;
   }
 
   // What the session keeps: the file per pane (not terminals), the tabs, and every loaded buffer's cursor.

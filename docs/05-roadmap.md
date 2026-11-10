@@ -226,6 +226,10 @@ Done when: all four language groups have diagnostics, completion and navigation.
 
 - Done 2026-11-10: `gcc`, `gc{motion}` and `gc` in visual mode comment lines (codemirror-vim's operator over CM6's `toggleLineComment`, so the language's comment tokens). Brackets and quotes close themselves, backspace removes the pair (`closeBrackets`). Surround like nvim-surround: `ys{motion}{char}`, `yss{char}`, `ds{char}`, `cs{old}{new}`, `S{char}` in visual mode; an opening bracket puts spaces inside, a closing one doesn't, `b`/`B` are `(`/`{`. Since `d`, `c` and `y` are complete operators in codemirror-vim, `s` is an operator-pending map that cancels the operator and reads the chars itself. Browser tests in the Vim core list. **Still open:** `.` doesn't repeat a surround; no tags (`ysiwt`).
 
+## M25 – LSP keys
+
+- Done 2026-11-10: `K` shows the server's hover text as a tooltip at the cursor (gone on the next move, edit or Esc). `<Space>cr` asks for the new name in the picker and applies the rename to every file, also files that aren't open; like `:Replace`, clean buffers are saved, dirty ones stay unsaved. `<Space>ca` lists code actions (with the diagnostics on the selected lines, so quick fixes come too) and runs the picked one: its edit, its command, or both. Commands may send edits back through `workspace/applyEdit`, which lsp-client doesn't answer, so the transport does. `gI` and `gy` jump to the implementation and the type. Without a server the status line says why: no server for the file type, the server is still starting, or it isn't installed plus how to install it (also in the "not found in PATH" message). Node tests for the edit conversion and `applyEdit`, E2E with gopls (hover, rename across `src/greet.go` and `src/main.go`, the action list). **Still open:** file operations in edits (create, rename, delete) are skipped; `codeAction/resolve` isn't announced, so servers send edits up front.
+
 ## Later
 
 | | What | Plugs into |

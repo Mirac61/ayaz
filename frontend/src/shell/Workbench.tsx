@@ -6,7 +6,10 @@ import { isDirty } from "../core/buffers";
 import { label, Quickfix, replaceEdits, replacement, type Loc } from "../core/quickfix";
 import { Text } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
-import { closeLsp, documentSymbols, hasLsp, references, uriPath, workspaceSymbols, type Sym } from "../editor/lsp";
+import {
+  closeLsp, codeActions, documentSymbols, hasLsp, installHint, noServer, references, renameAt, runCommand, showHover, uriPath,
+  workspaceSymbols, type CodeAction, type Sym,
+} from "../editor/lsp";
 import { diagnosticsFor } from "../editor/diagnostics";
 import { nextDiagnostic, previousDiagnostic } from "@codemirror/lint";
 import { moveHunk, previewHunk, resetHunk } from "../editor/gitgutter";
@@ -661,8 +664,63 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
         async run() {
           const v = ed.activeView();
           const locs = v && (await references(v, ws.root));
-          if (!locs) return fail("No language server for this file");
+          if (!locs) return fail(noServer(ws.id, ed.current()?.path));
           setQf("References", await withText(locs));
+        },
+      },
+      {
+        id: "lsp.hover",
+        title: "Hover info (K)",
+        async run() {
+          const v = ed.activeView();
+          const r = v && (await showHover(v));
+          if (r === null) fail(noServer(ws.id, ed.current()?.path));
+          else if (!r) setMsg({ text: "No hover info here" });
+        },
+      },
+      {
+        id: "lsp.rename",
+        title: "Rename symbol",
+        run() {
+          const v = ed.activeView();
+          if (!v || !hasLsp(v)) return fail(noServer(ws.id, ed.current()?.path));
+          const w = v.state.wordAt(v.state.selection.main.head);
+          if (!w) return fail("No symbol under the cursor");
+          prompt("Rename to", v.state.sliceDoc(w.from, w.to), async (name) => {
+            const paths = await ed.applyEdit((await renameAt(v, name)) ?? {});
+            setMsg({ text: paths.length ? `Renamed in ${paths.length} files` : "Nothing to rename" });
+          });
+        },
+      },
+      {
+        id: "lsp.codeAction",
+        title: "Code actions",
+        async run() {
+          const v = ed.activeView();
+          const actions = v && (await codeActions(v, ws.id));
+          if (!actions) return fail(noServer(ws.id, ed.current()?.path));
+          if (!actions.length) return setMsg({ text: "No code actions here" });
+          const byItem = new WeakMap<Item, CodeAction>();
+          setPicker({
+            title: "Code actions",
+            async query(q) {
+              const items = actions.map((a) => {
+                const it = { label: a.title, hint: a.kind };
+                byItem.set(it, a);
+                return it;
+              });
+              return items.filter((it) => !q || it.label.toLowerCase().includes(q.toLowerCase()));
+            },
+            async pick(it) {
+              const a = byItem.get(it)!;
+              try {
+                if (a.edit) await ed.applyEdit(a.edit);
+                if (a.command) await runCommand(v, a.command);
+              } catch (e) {
+                fail(errText(e));
+              }
+            },
+          });
         },
       },
       {
@@ -671,7 +729,7 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
         async run() {
           const v = ed.activeView();
           const syms = v && (await documentSymbols(v, ws.root));
-          if (!syms) return fail("No language server for this file");
+          if (!syms) return fail(noServer(ws.id, ed.current()?.path));
           setPicker(symbolPicker("Symbols in file", async () => syms, true));
         },
       },
@@ -680,7 +738,7 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
         title: "Symbols in project",
         run() {
           const v = ed.activeView();
-          if (!v || !hasLsp(v)) return fail("No language server for this file");
+          if (!v || !hasLsp(v)) return fail(noServer(ws.id, ed.current()?.path));
           setPicker(symbolPicker("Symbols in project", async (q) => (q.trim() ? (await workspaceSymbols(v, ws.root, q)) ?? [] : []), false));
         },
       },
@@ -792,7 +850,9 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
   }), [ed]);
 
   useEffect(() => backend.onLspStatus(ws.id, (s) => {
-    if (s.state === "missing") fail(`${s.command} not found in PATH, no language features from it`);
+    if (s.state === "missing") {
+      fail(`${s.command} not found in PATH, no language features from it. Install: ${installHint(s.lang)}`);
+    }
     if (s.state === "nocdb") setMsg({ text: "clangd: no compile_commands.json, flags are guessed (cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON, or bear -- make)" });
   }), [ws.id]);
 

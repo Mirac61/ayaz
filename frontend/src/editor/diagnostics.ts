@@ -2,10 +2,14 @@
 // (gopls reports whole packages). The editor's own underlines still come from lsp-client's serverDiagnostics.
 
 // As in LSP: line and character are 0-based, severity 1 error, 2 warning, 3 info, 4 hint.
-export interface Diag { line: number; character: number; severity: number; message: string }
 export interface Published {
   uri: string;
   diagnostics: { range: { start: { line: number; character: number } }; severity?: number; message: string }[];
+}
+// raw: as the server sent it, for the context of a code action request.
+export interface Diag {
+  line: number; character: number; severity: number; message: string;
+  raw: Published["diagnostics"][number];
 }
 
 export class DiagStore {
@@ -16,7 +20,7 @@ export class DiagStore {
   // shortcut: keyed by URI alone, so two servers on one file overwrite each other; key by server if that comes up.
   publish(p: Published) {
     const ds = p.diagnostics.map((d) => ({
-      line: d.range.start.line, character: d.range.start.character, severity: d.severity ?? 1, message: d.message,
+      line: d.range.start.line, character: d.range.start.character, severity: d.severity ?? 1, message: d.message, raw: d,
     }));
     if (ds.length) this.byUri.set(p.uri, ds);
     else if (!this.byUri.delete(p.uri)) return;
@@ -43,6 +47,8 @@ export class DiagStore {
       return a.line - b.line || a.character - b.character;
     });
   }
+
+  forUri(uri: string): Diag[] { return this.byUri.get(uri) ?? []; }
 
   onChange(fn: () => void) {
     this.fns.add(fn);

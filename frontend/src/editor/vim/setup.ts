@@ -1,6 +1,6 @@
 import { Vim, type CodeMirror } from "@replit/codemirror-vim";
 import { foldAll, foldCode, toggleFold, unfoldAll, unfoldCode } from "@codemirror/language";
-import { jumpToDefinition } from "@codemirror/lsp-client";
+import { jumpToDefinition, jumpToImplementation, jumpToTypeDefinition } from "@codemirror/lsp-client";
 import { parseKeys, type Binding } from "../../core/keymap";
 import { installSurround } from "./surround";
 
@@ -56,11 +56,16 @@ export function installVim(r: Run, normal: Binding[], p: Prime) {
     Vim.mapCommand(keys, "action", keys, {}, { context: "normal" });
   }
 
-  // LSP: gd is a no-op in files without a server; gr fills the quickfix list.
-  Vim.defineAction("gd", (cm: CodeMirror) => void jumpToDefinition(cm.cm6!));
-  Vim.mapCommand("gd", "action", "gd", {}, { context: "normal" });
-  Vim.defineAction("gr", () => run("lsp.references"));
-  Vim.mapCommand("gr", "action", "gr", {}, { context: "normal" });
+  // LSP: gd, gI (implementation) and gy (type) are no-ops in files without a server; gr fills the quickfix list.
+  const jumps = { gd: jumpToDefinition, gI: jumpToImplementation, gy: jumpToTypeDefinition };
+  for (const [keys, cmd] of Object.entries(jumps)) {
+    Vim.defineAction(keys, (cm: CodeMirror) => void cmd(cm.cm6!));
+    Vim.mapCommand(keys, "action", keys, {}, { context: "normal" });
+  }
+  for (const [keys, command] of Object.entries({ gr: "lsp.references", K: "lsp.hover" })) {
+    Vim.defineAction(keys, () => run(command));
+    Vim.mapCommand(keys, "action", keys, {}, { context: "normal" });
+  }
 
   // codemirror-vim has no folds, CM6 does.
   const folds = { za: toggleFold, zc: foldCode, zo: unfoldCode, zM: foldAll, zR: unfoldAll };

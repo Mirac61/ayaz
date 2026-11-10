@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { fileUri, serverFor, streamTransport, uriPath } from "./lsp";
+import { Text } from "@codemirror/state";
+import { fileEdits, fileUri, serverFor, streamTransport, toChanges, uriPath } from "./lsp";
 
 const dec = new TextDecoder();
 
@@ -33,6 +34,19 @@ describe("streamTransport", () => {
     t.unsubscribe(h);
     sock.onmessage({ data: new TextEncoder().encode("{}").buffer });
     expect(got).toEqual(['{"ä":1}']);
+  });
+
+  test("workspace/applyEdit is answered here, not passed on", async () => {
+    const { sock, sent } = fakeSocket(1);
+    const edits: unknown[] = [];
+    const t = streamTransport(sock, {}, () => {}, async (e) => (edits.push(e), true));
+    const got: string[] = [];
+    t.subscribe((m) => got.push(m));
+    sock.onmessage({ data: JSON.stringify({ jsonrpc: "2.0", id: 7, method: "workspace/applyEdit", params: { edit: { changes: {} } } }) });
+    await Promise.resolve();
+    expect(edits).toEqual([{ changes: {} }]);
+    expect(got).toEqual([]);
+    expect(JSON.parse(sent[0])).toEqual({ jsonrpc: "2.0", id: 7, result: { applied: true } });
   });
 
   test("send on a closed stream throws, close is reported", () => {
@@ -70,4 +84,22 @@ test("serverFor: one server per language group", () => {
   expect(serverFor("A.java")).toEqual(["java", "jdtls"]);
   expect(serverFor("README.md")).toBeUndefined();
   expect(serverFor("file:///usr/include/stdio.h")?.[1]).toBe("clangd");
+});
+
+const r = (l1: number, c1: number, l2: number, c2: number) => ({ start: { line: l1, character: c1 }, end: { line: l2, character: c2 } });
+
+test("fileEdits: changes or documentChanges, per path, file operations left out", () => {
+  const e = { range: r(0, 0, 0, 1), newText: "x" };
+  expect(fileEdits("/r", { changes: { "file:///r/a.go": [e], "file:///r/b.go": [] } })).toEqual([["a.go", [e]]]);
+  expect(fileEdits("/r", {
+    changes: { "file:///r/ignored.go": [e] }, // documentChanges win
+    documentChanges: [{ textDocument: { uri: "file:///r/a.go" }, edits: [e] }, { kind: "create" }],
+  })).toEqual([["a.go", [e]]]);
+});
+
+test("toChanges: sorted offsets, clamped to the line and the doc", () => {
+  const doc = Text.of(["ab", "cd"]);
+  expect(toChanges(doc, [
+    { range: r(1, 0, 1, 1), newText: "C" }, { range: r(0, 0, 0, 9), newText: "A" }, { range: r(5, 0, 5, 0), newText: "!" },
+  ])).toEqual([{ from: 0, to: 2, insert: "A" }, { from: 3, to: 4, insert: "C" }, { from: 5, to: 5, insert: "!" }]);
 });

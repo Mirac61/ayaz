@@ -1,5 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { execSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { e2eWorkspace } from "../playwright.config";
 
 const hasGopls = (() => { try { execSync("command -v gopls", { shell: "/bin/sh" }); return true; } catch { return false; } })();
 
@@ -80,4 +83,36 @@ test("diagnostics: counts, list and ]d", async ({ page }) => {
   await expect(page.getByRole("dialog", { name: /Quickfix: Diagnostics/ }).getByRole("option")).toHaveText([
     /broken\.go:1:1: error: C source files/, /broken\.go:4:2: error: undefined: undefinedThing/, /hello\.go:1:1: error: C source/,
   ]);
+});
+
+// M25: K shows the hover text, <Space>cr renames across files (the clean one is saved), <Space>ca lists actions.
+test("hover, rename across files, code actions", async ({ page }) => {
+  test.skip(!hasGopls, "gopls not in PATH");
+  await page.goto("/");
+  await expect(page.getByRole("tree", { name: "Files" })).toBeFocused();
+  await page.keyboard.type(" ff");
+  await page.keyboard.type("greetgo");
+  await expect(page.getByRole("option", { selected: true })).toHaveText(/src\/greet\.go/);
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".cm-content")).toContainText("func greet");
+  await page.keyboard.type("gg2jw"); // line 3: func greet
+  await expect(async () => {
+    await page.keyboard.type("K");
+    await expect(page.locator(".cm-lsp-hover-tooltip")).toContainText("func greet() string", { timeout: 2000 });
+  }).toPass({ timeout: 30_000 }); // gopls may still be loading the package
+  await page.keyboard.type("l");
+  await expect(page.locator(".cm-lsp-hover-tooltip")).toHaveCount(0);
+
+  await page.keyboard.type(" cr");
+  const input = page.getByRole("combobox", { name: "Search" });
+  await expect(input).toHaveValue("greet");
+  await input.fill("salute");
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".statusline")).toContainText("Renamed in 2 files");
+  expect(readFileSync(join(e2eWorkspace, "src", "main.go"), "utf8")).toContain("salute()");
+  await expect(page.locator(".cm-content")).toContainText("func salute");
+
+  await page.keyboard.type(" ca");
+  await expect(page.getByRole("dialog", { name: /Code actions/ }).getByRole("option").first()).toBeVisible();
+  await page.keyboard.press("Escape");
 });
