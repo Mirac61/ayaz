@@ -2,11 +2,12 @@
 import { Application, Browser, Clipboard, Events, Stream, Window } from "@wailsio/runtime";
 import { ConfigService, PingService, WorkspaceService } from "../../bindings/github.com/Mirac61/ayaz/app";
 import type { HeadFile, Info, Match, OpenEvent, Swap, Version } from "../../bindings/github.com/Mirac61/ayaz/app";
+import type { Blame } from "../../bindings/github.com/Mirac61/ayaz/internal/git";
 import type { Entry, TextFile } from "../../bindings/github.com/Mirac61/ayaz/internal/workspace";
 import type { Match as FileMatch } from "../../bindings/github.com/Mirac61/ayaz/internal/index";
 import type { Loc } from "./quickfix";
 
-export type { Entry, FileMatch, HeadFile, Info, Match, OpenEvent, Swap, TextFile, Version };
+export type { Blame, Entry, FileMatch, HeadFile, Info, Match, OpenEvent, Swap, TextFile, Version };
 
 // A batch of changes on disk. Paths are workspace-relative, files or folders; rescan: events were lost, check everything.
 // A file in the config folder the app watches.
@@ -76,6 +77,8 @@ export interface Files {
   reveal(path: string): Promise<void>; // in Finder / the file manager
   gitBranch(): Promise<string>; // "" outside a repository, a short SHA when detached
   gitHead(path: string): Promise<HeadFile>; // the file at HEAD; tracked=false for new files
+  // Who last changed line (1-based): text is the buffer's when it has unsaved changes, else "". null: nothing to show.
+  gitBlame(path: string, line: number, text: string): Promise<Blame | null>;
   gitStatus(): Promise<Record<string, string>>; // changed, untracked and ignored paths: M A ? ! U (empty outside a repo)
   // Hot exit: unsaved text kept in the user cache, outside the project.
   swapWrite(path: string, text: string): Promise<void>;
@@ -140,6 +143,7 @@ export const backend: Backend = {
     reveal: (path) => WorkspaceService.Reveal(ws, path),
     gitBranch: () => WorkspaceService.GitBranch(ws),
     gitHead: (path) => WorkspaceService.GitHead(ws, path),
+    gitBlame: (path, line, text) => WorkspaceService.GitBlame(ws, path, text, line),
     gitStatus: async () => ((await WorkspaceService.GitStatus(ws)) ?? {}) as Record<string, string>,
     swapWrite: (path, text) => WorkspaceService.SwapWrite(ws, path, text),
     swapRemove: (path) => WorkspaceService.SwapRemove(ws, path),

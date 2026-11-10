@@ -16,9 +16,17 @@ import (
 
 // run runs git in dir. A non-zero exit (not a repo, no such path) is ok=false; a missing git binary is an error.
 func run(dir string, args ...string) (out []byte, ok bool, err error) {
+	return runStdin(dir, "", args...)
+}
+
+// runStdin is run with text on git's standard input.
+func runStdin(dir, stdin string, args ...string) (out []byte, ok bool, err error) {
 	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
 	var stdout bytes.Buffer
 	cmd.Stdout = &stdout
+	if stdin != "" {
+		cmd.Stdin = strings.NewReader(stdin)
+	}
 	err = cmd.Run()
 	if _, exit := errors.AsType[*exec.ExitError](err); exit {
 		return nil, false, nil

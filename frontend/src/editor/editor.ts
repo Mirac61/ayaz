@@ -10,6 +10,7 @@ import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import { vim } from "@replit/codemirror-vim";
 import { indentationMarkers } from "@replit/codemirror-indentation-markers";
 import { kanagawaCM } from "../theme/kanagawa-cm";
+import { inlineBlame } from "./blame";
 import { snippetCompletion } from "./snippets";
 import { stickyScroll } from "./sticky";
 import { extOf, loadLanguage } from "../lang/registry";
@@ -62,6 +63,7 @@ export const editorExtensions = (): Extension[] => [
   keymap.of([...closeBracketsKeymap, ...defaultKeymap, ...historyKeymap, indentWithTab]),
   kanagawaCM,
   stickyScroll,
+  inlineBlame,
 ];
 
 // Line wrap, like nvim's `wrap`: from settings.json (off for code, on for Markdown), until <Space>uw sets it for every file.

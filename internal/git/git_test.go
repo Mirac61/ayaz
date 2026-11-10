@@ -154,3 +154,44 @@ func TestStatus(t *testing.T) {
 		t.Errorf("Status outside a repo = %v, %v", st, err)
 	}
 }
+
+func TestLineBlame(t *testing.T) {
+	root := repo(t)
+	write(t, filepath.Join(root, "a.txt"), "a\nsecond\n")
+	gitIn(t, root, "add", ".")
+	gitIn(t, root, "-c", "user.name=Ada", "-c", "user.email=ada@x", "commit", "-q", "-m", "add second")
+
+	first, ok, err := LineBlame(root, "a.txt", "", 1)
+	if err != nil || !ok || !first.Committed || first.Author != "t" || first.Summary != "init" || len(first.Hash) != 8 {
+		t.Fatalf("line 1 = %+v, %v, %v", first, ok, err)
+	}
+	second, _, _ := LineBlame(root, "a.txt", "", 2)
+	if second.Author != "Ada" || second.Summary != "add second" || second.Time == 0 || second.Hash == first.Hash {
+		t.Fatalf("line 2 = %+v", second)
+	}
+
+	// An unsaved buffer: the changed line isn't committed, the others still are, and the file's own subfolder works.
+	edited, ok, err := LineBlame(root, "a.txt", "a\nsecond, edited\n", 2)
+	if err != nil || !ok || edited.Committed || edited.Hash != "" {
+		t.Fatalf("edited line = %+v, %v, %v", edited, ok, err)
+	}
+	if kept, _, _ := LineBlame(root, "a.txt", "a\nsecond, edited\n", 1); kept.Author != "t" {
+		t.Fatalf("unchanged line = %+v", kept)
+	}
+	sub, ok, _ := LineBlame(filepath.Join(root, "sub"), "b.txt", "", 1)
+	if !ok || sub.Summary != "init" {
+		t.Fatalf("in a subfolder = %+v, %v", sub, ok)
+	}
+
+	// Not tracked, no such line, no repository: nothing to show, no error.
+	write(t, filepath.Join(root, "new.txt"), "x\n")
+	if _, ok, err := LineBlame(root, "new.txt", "", 1); ok || err != nil {
+		t.Fatalf("untracked: ok=%v err=%v", ok, err)
+	}
+	if _, ok, _ := LineBlame(root, "a.txt", "", 99); ok {
+		t.Fatal("line past the end")
+	}
+	if _, ok, err := LineBlame(t.TempDir(), "a.txt", "", 1); ok || err != nil {
+		t.Fatalf("no repository: ok=%v err=%v", ok, err)
+	}
+}

@@ -3,6 +3,7 @@ import { EditorState, Text } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { undo } from "@codemirror/commands";
 import { editorExtensions } from "./editor";
+import { inlineBlame, showBlame } from "./blame";
 import { diffWith, headEffects, isDiffing, moveHunk, previewHunk, resetHunk, setHead, toggleDiff } from "./gitgutter";
 
 let view: EditorView | null = null;
@@ -73,4 +74,22 @@ test("<Space>fh: a diff against an older version stays when HEAD moves, <Space>g
   expect(v.dom.querySelector(".cm-deletedChunk")?.textContent).toContain("old two");
   expect(toggleDiff(v)).toBe(true);
   expect(isDiffing(v.state)).toBe(false);
+});
+
+test("the blame text sits at the end of the cursor line and goes when the cursor moves", async () => {
+  const el = document.createElement("div");
+  document.body.append(el);
+  const v = new EditorView({ parent: el, state: EditorState.create({ doc: "one\ntwo\nthree", extensions: [inlineBlame] }) });
+  v.dispatch({ selection: { anchor: 5 } }); // in "two"
+  showBlame(v, "Ada, 3 days ago • a1b2c3d4 fix");
+  const line = () => [...el.querySelectorAll(".cm-line")].find((l) => l.querySelector(".cm-blame"))?.textContent;
+  expect(line()).toContain("two");
+  expect(el.querySelector(".cm-blame")?.textContent).toBe("Ada, 3 days ago • a1b2c3d4 fix");
+  v.dispatch({ selection: { anchor: 0 } });
+  expect(el.querySelector(".cm-blame")).toBeNull();
+  showBlame(v, "again");
+  v.dispatch({ changes: { from: 0, insert: "x" } });
+  expect(el.querySelector(".cm-blame")).toBeNull();
+  v.destroy();
+  el.remove();
 });

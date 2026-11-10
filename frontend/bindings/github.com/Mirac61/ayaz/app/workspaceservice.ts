@@ -12,6 +12,9 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as git$0 from "../internal/git/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as index$0 from "../internal/index/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -50,6 +53,14 @@ export function Create(ws: string, path: string, dir: boolean): $CancellableProm
 
 export function Find(ws: string, query: string, limit: number, ignored: boolean): $CancellablePromise<index$0.Match[] | null> {
     return $Call.ByID(2721793854, ws, query, limit, ignored);
+}
+
+/**
+ * GitBlame is who last changed line (1-based) of a file; text is the buffer's if it has unsaved changes, else "".
+ * nil: nothing to show (no repository, file not tracked).
+ */
+export function GitBlame(ws: string, path: string, text: string, line: number): $CancellablePromise<git$0.Blame | null> {
+    return $Call.ByID(1201630214, ws, path, text, line);
 }
 
 /**

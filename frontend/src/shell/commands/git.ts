@@ -1,14 +1,26 @@
 // Git in the buffer: hunks in the gutter and the diff against HEAD.
 import type { Command } from "../../core/commands";
+import { blameText, showBlame } from "../../editor/blame";
 import { moveHunk, previewHunk, resetHunk } from "../../editor/gitgutter";
-import { onView, type Ctx } from "./context";
+import { isDirty } from "../../core/buffers";
+import { errText, onView, type Ctx } from "./context";
 
 export function gitCommands(c: Ctx): Command[] {
+  const blame = async () => {
+    const v = c.ed.activeView(), buf = c.ed.current();
+    if (!v || !buf || buf.path.startsWith("/")) return;
+    const line = v.state.doc.lineAt(v.state.selection.main.head).number;
+    const info = await c.files.gitBlame(buf.path, line, isDirty(buf) ? v.state.doc.toString() : "");
+    if (!info) return c.say("No git history for this file");
+    showBlame(v, blameText(info));
+  };
+
   return [
     { id: "git.nextHunk", title: "Next git hunk (]c)", run: () => onView(c, (v) => moveHunk(v, 1), "No git changes in this file") },
     { id: "git.prevHunk", title: "Previous git hunk ([c)", run: () => onView(c, (v) => moveHunk(v, -1), "No git changes in this file") },
     { id: "git.previewHunk", title: "Preview git hunk", run: () => onView(c, previewHunk, "No git change on this line") },
     { id: "git.resetHunk", title: "Reset git hunk", run: () => onView(c, resetHunk, "No git change on this line") },
+    { id: "git.blame", title: "Git blame of this line (<Space>gb)", run: () => blame().catch((e) => c.fail(errText(e))) },
     {
       id: "git.diff",
       title: "Toggle diff against HEAD",

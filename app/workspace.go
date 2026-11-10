@@ -282,6 +282,23 @@ func (s *WorkspaceService) GitHead(ws, path string) (HeadFile, error) {
 	return HeadFile{Text: text, Tracked: tracked}, err
 }
 
+// GitBlame is who last changed line (1-based) of a file; text is the buffer's if it has unsaved changes, else "".
+// nil: nothing to show (no repository, file not tracked).
+func (s *WorkspaceService) GitBlame(ws, path, text string, line int) (*git.Blame, error) {
+	w, err := s.reg.Get(ws)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := w.Resolve(path); err != nil {
+		return nil, err
+	}
+	b, ok, err := git.LineBlame(w.Root, path, text, line)
+	if !ok || err != nil {
+		return nil, err
+	}
+	return &b, nil
+}
+
 func (s *WorkspaceService) List(ws, dir string) ([]workspace.Entry, error) {
 	w, err := s.reg.Get(ws)
 	if err != nil {

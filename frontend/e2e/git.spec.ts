@@ -68,3 +68,23 @@ test("diff against HEAD", async ({ page }) => {
   await page.keyboard.type(" gd");
   await expect(page.locator(".cm-deletedChunk")).toHaveCount(0);
 });
+
+// M60: <Space>gb shows who changed the line, at its end; an edited line is "not committed"; moving clears it.
+test("inline blame", async ({ page }) => {
+  const file = "gitblame.txt";
+  writeFileSync(join(e2eWorkspace, file), "one\ntwo\n");
+  commit(file);
+  await page.goto("/");
+  await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: file }).click();
+  await expect(page.locator(".cm-content")).toContainText("two");
+  await page.locator(".cm-content").click();
+  await page.keyboard.type("gg gb");
+  await expect(page.locator(".cm-blame")).toContainText("e2e, ");
+  await expect(page.locator(".cm-blame")).toContainText(file);
+  await page.keyboard.type("j");
+  await expect(page.locator(".cm-blame")).toHaveCount(0);
+  await page.keyboard.type("AX");
+  await page.keyboard.press("Escape");
+  await page.keyboard.type(" gb");
+  await expect(page.locator(".cm-blame")).toHaveText("Not committed yet");
+});
