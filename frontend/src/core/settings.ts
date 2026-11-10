@@ -17,6 +17,7 @@ export interface Settings extends FileSettings {
   terminalFontSize?: number; // the terminal's own, if it should differ from fontSize
   inlayHints: boolean; // parameter names and types from the language server, inline
   semanticTokens: boolean; // the language server's token types colour the code over the syntax highlighting
+  stickyScroll: boolean; // the functions and classes that scrolled out of view stay on top
   sidebar: "left" | "right"; // the file tree's side of the window
   statusline: "top" | "bottom"; // mode, messages and meta in the title bar, or in their own line under the code
   statusColors: Partial<Record<StatusColor, string>>; // hex colors over tokens.css --status-*
@@ -32,6 +33,7 @@ export const DEFAULTS: Settings = {
   fontSize: 13,
   inlayHints: false,
   semanticTokens: true,
+  stickyScroll: true,
   sidebar: "left",
   statusline: "top",
   statusColors: {},
@@ -93,12 +95,12 @@ export function parseSettings(json: string): Settings {
   }
   if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("settings.json: expected an object");
   const {
-    font, fontSize, terminalFontSize, inlayHints, semanticTokens, sidebar, statusline, statusColors, tasks, languages, ...file
+    font, fontSize, terminalFontSize, inlayHints, semanticTokens, stickyScroll, sidebar, statusline, statusColors, tasks, languages, ...file
   } = data as Record<string, unknown>;
   if (font !== undefined && typeof font !== "string") throw new Error('settings.json: "font" must be a string');
   if (inlayHints !== undefined && typeof inlayHints !== "boolean") throw new Error('settings.json: "inlayHints" must be a boolean');
-  if (semanticTokens !== undefined && typeof semanticTokens !== "boolean") {
-    throw new Error('settings.json: "semanticTokens" must be a boolean');
+  for (const [name, v] of Object.entries({ semanticTokens, stickyScroll })) {
+    if (v !== undefined && typeof v !== "boolean") throw new Error(`settings.json: "${name}" must be a boolean`);
   }
   if (sidebar !== undefined && sidebar !== "left" && sidebar !== "right") {
     throw new Error('settings.json: "sidebar" must be "left" or "right"');
@@ -146,7 +148,8 @@ export function parseSettings(json: string): Settings {
     ...DEFAULTS, ...(file as Partial<FileSettings>),
     ...(font !== undefined && { font }), ...(fontSize !== undefined && { fontSize: fontSize as number }), // checked above
     ...(terminalFontSize !== undefined && { terminalFontSize: terminalFontSize as number }),
-    ...(inlayHints !== undefined && { inlayHints }), ...(semanticTokens !== undefined && { semanticTokens }),
+    ...(inlayHints !== undefined && { inlayHints }), ...(semanticTokens !== undefined && { semanticTokens: semanticTokens as boolean }), // checked above
+    ...(stickyScroll !== undefined && { stickyScroll: stickyScroll as boolean }),
     ...(sidebar !== undefined && { sidebar }),
     ...(statusline !== undefined && { statusline }),
     ...(statusColors !== undefined && { statusColors: statusColors as Settings["statusColors"] }), // checked above

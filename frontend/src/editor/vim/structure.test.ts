@@ -4,7 +4,7 @@ import { go } from "@codemirror/lang-go";
 import { javascript } from "@codemirror/lang-javascript";
 import { cpp } from "@codemirror/lang-cpp";
 import { java } from "@codemirror/lang-java";
-import { functionStart, growRange, objectRange, type Kind } from "./structure";
+import { functionStart, growRange, objectRange, scopesAt, type Kind } from "./structure";
 
 // "|" marks the cursor; the answer is the text of the range.
 function text(lang: unknown, src: string, kind: Kind, inner: boolean, count = 1) {
@@ -106,5 +106,16 @@ describe("growing a selection", () => {
     expect(chain).toContain("{\n\tg(abc, 1)\n}");
     expect(chain[chain.length - 1]).toContain("package p");
     expect(new Set(chain).size).toBe(chain.length); // never the same range twice
+  });
+});
+
+describe("scopes for the sticky header", () => {
+  test("named functions and classes around the cursor, outermost first; literals are left out", () => {
+    const src = "class A {\n  m() {\n    const f = () => 1;\n    |x();\n  }\n}\n";
+    const at = src.indexOf("|");
+    const doc = src.slice(0, at) + src.slice(at + 1);
+    const state = EditorState.create({ doc, extensions: [javascript()] });
+    expect(scopesAt(state, at).map((r) => doc.slice(r.from, doc.indexOf("\n", r.from)))).toEqual(["class A {", "m() {"]);
+    expect(scopesAt(state, 0)).toHaveLength(1);
   });
 });

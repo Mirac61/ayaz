@@ -286,6 +286,10 @@ Done when: all four language groups have diagnostics, completion and navigation.
 
 - Done 2026-11-10: `textDocument/documentHighlight` (`editor/highlight.ts`): once the cursor has rested for 350 ms with nothing selected, the other occurrences of the symbol under it get a soft background (writes in the constant colour); moving or typing clears them at once, nothing is asked per key, a symbol that occurs once gets no mark. Servers without `documentHighlightProvider` are left alone. Browser test with a fake server (marks after the rest, write kind, clears on a move, one request for a burst of moves and edits). **Still open:** not tried against gopls, clangd or TypeScript in the app; no setting to turn it off; no `]]`/`[[` jumps between occurrences.
 
+## M57 – Sticky scroll
+
+- Done 2026-11-10: the functions, methods and classes whose first line has scrolled out of view stay on top of the editor as a panel (outermost first, at most 3 rows, signature without the opening brace); a click jumps to the definition. `"stickyScroll": false` in `settings.json` turns it off. Node tests (scopes around a position, anonymous functions left out, header text), browser tests (shows, follows into the next function, vanishes at the top, click jumps). **Ruling:** the scopes come from the Lezer tree, not from `textDocument/documentSymbol` as the plan said: the tree answers synchronously on every scroll frame, a server round trip per scroll could not, and for the four grammars with node tables the names are the same. **Still open:** grammars without a table (JSON, HTML, CSS, Markdown) get no rows; no breadcrumb path in the status line; rows aren't cut to the pane width on very long signatures except by ellipsis.
+
 ## Later
 
 | | What | Plugs into |

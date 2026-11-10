@@ -19,6 +19,9 @@
   // over the syntax highlighting. Needs a server that offers it (gopls, clangd, TypeScript, jdtls).
   "semanticTokens": true,
 
+  // Functions and classes whose first line has scrolled out of view stay on top of the editor; a click jumps there.
+  "stickyScroll": true,
+
   // The file tree's side of the window: "left" or "right". Cmd+B hides and shows it.
   "sidebar": "left",
 

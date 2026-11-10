@@ -121,3 +121,14 @@ export function growRange(state: EditorState, from: number, to: number): Range |
   }
   return null;
 }
+
+// The named functions, methods and classes around pos, outermost first, for the sticky header. Anonymous ones
+// (function literals, arrow functions) are skipped: their line says nothing about where you are.
+const ANONYMOUS = new Set(["FunctionLiteral", "FunctionExpression", "ArrowFunction"]);
+export function scopesAt(state: EditorState, pos: number): Range[] {
+  const out: Range[] = [];
+  for (let n: SyntaxNode | null = syntaxTree(state).resolveInner(pos, 1); n; n = n.parent) {
+    if ((FUNCTION.has(n.name) && !ANONYMOUS.has(n.name)) || CLASS.has(n.name)) out.unshift({ from: n.from, to: n.to });
+  }
+  return out;
+}
