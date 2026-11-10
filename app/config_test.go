@@ -17,13 +17,15 @@ func TestWatchConfigReportsSavedFiles(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 	os.WriteFile(filepath.Join(dir, "other.txt"), []byte("x"), 0o644)
 	os.WriteFile(filepath.Join(dir, "keymap.json"), []byte("[]"), 0o644)
-	select {
-	case f := <-got:
-		if f != "keymap.json" {
-			t.Fatalf("got %q, want keymap.json", f)
+	os.WriteFile(filepath.Join(dir, "snippets.json"), []byte("{}"), 0o644)
+	seen := map[string]bool{}
+	for !seen["keymap.json"] || !seen["snippets.json"] {
+		select {
+		case f := <-got:
+			seen[f] = true
+		case <-time.After(2 * time.Second):
+			t.Fatalf("changes reported: %v, want keymap.json and snippets.json", seen)
 		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("no change reported")
 	}
 }
 
@@ -39,6 +41,9 @@ func TestFolderCreatesSettingsOnce(t *testing.T) {
 	}
 	if b, _ := os.ReadFile(filepath.Join(dir, "keymap.json")); string(b) != string(defaultKeymap) {
 		t.Fatalf("keymap.json = %q", b)
+	}
+	if b, _ := os.ReadFile(filepath.Join(dir, "snippets.json")); string(b) != string(defaultSnippets) {
+		t.Fatalf("snippets.json = %q", b)
 	}
 	if err := os.WriteFile(filepath.Join(dir, "settings.json"), []byte(`{"fontSize": 14}`), 0o644); err != nil {
 		t.Fatal(err)

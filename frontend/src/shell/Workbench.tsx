@@ -13,6 +13,7 @@ import type { TermOptions } from "../terminal/terminal";
 import { Editors, type Status } from "./editors";
 import { borders, close, equalize, neighbor, panes, rects, resize, setBorder, split, type Dir, type Layout } from "./layout";
 import { loadSettings, settings, settingsError } from "../core/settings";
+import { loadSnippets, snippetsError } from "../core/snippets";
 import { Picker, type Item, type PickerSource } from "./Picker";
 import { Tree, type TreeHandle } from "./Tree";
 import { gitMarks, single } from "./gitstatus";
@@ -404,6 +405,11 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
     void loadKeymap();
     const offConfig = backend.onConfigChanged(async (file) => {
       if (file === "keymap.json") return void loadKeymap();
+      if (file === "snippets.json") {
+        loadSnippets(await backend.snippets().catch(() => ""));
+        if (snippetsError()) fail(snippetsError());
+        return;
+      }
       loadSettings(await backend.settings().catch(() => ""));
       if (settingsError()) fail(settingsError());
       setSide(settings().sidebar);

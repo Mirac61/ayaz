@@ -18,7 +18,7 @@ import (
 // (macOS: ~/Library/Application Support/ayaz, Linux: ~/.config/ayaz), or from $AYAZ_CONFIG_DIR (E2E).
 type ConfigService struct{}
 
-// ConfigChange is the "config:changed" event payload: settings.json or keymap.json was saved.
+// ConfigChange is the "config:changed" event payload: settings.json, keymap.json or snippets.json was saved.
 type ConfigChange struct {
 	File string `json:"file"`
 }
@@ -28,6 +28,9 @@ func (ConfigService) Keymap() (string, error) { return readConfig("keymap.json")
 
 // Settings returns settings.json as text, "" if there is none. The frontend parses and checks it.
 func (ConfigService) Settings() (string, error) { return readConfig("settings.json") }
+
+// Snippets returns snippets.json as text, "" if there is none. The frontend parses and checks it.
+func (ConfigService) Snippets() (string, error) { return readConfig("snippets.json") }
 
 // The defaults, each explained: what Folder writes when there is no settings.json yet.
 //
@@ -39,7 +42,12 @@ var defaultSettings []byte
 //go:embed keymap.default.json
 var defaultKeymap []byte
 
-// Folder creates the config folder, settings.json and keymap.json (explained) if missing, and returns the folder.
+// snippets.json's counterpart: no snippets yet, the format explained.
+//
+//go:embed snippets.default.json
+var defaultSnippets []byte
+
+// Folder creates the config folder, settings.json, keymap.json and snippets.json (explained) if missing, and returns the folder.
 func (ConfigService) Folder() (string, error) {
 	dir, err := configDir()
 	if err != nil {
@@ -49,7 +57,7 @@ func (ConfigService) Folder() (string, error) {
 		return "", err
 	}
 	// "{\n}\n" is what the first version of Folder wrote: still untouched, so it gets the explained defaults too.
-	for name, text := range map[string][]byte{"settings.json": defaultSettings, "keymap.json": defaultKeymap} {
+	for name, text := range map[string][]byte{"settings.json": defaultSettings, "keymap.json": defaultKeymap, "snippets.json": defaultSnippets} {
 		file := filepath.Join(dir, name)
 		if b, err := os.ReadFile(file); err == nil && string(b) != "{\n}\n" {
 			continue
@@ -75,7 +83,7 @@ func (ConfigService) OpenSettings() {
 	NewWindow(a, "settings", "/?settings")
 }
 
-// ServiceStartup watches the config folder, so a saved settings.json or keymap.json applies without a restart.
+// ServiceStartup watches the config folder, so a saved settings.json, keymap.json or snippets.json applies without a restart.
 func (ConfigService) ServiceStartup(ctx context.Context, _ application.ServiceOptions) error {
 	dir, err := configDir()
 	if err != nil {
@@ -92,7 +100,7 @@ func (ConfigService) ServiceStartup(ctx context.Context, _ application.ServiceOp
 	return nil
 }
 
-// watchConfig calls fn with "settings.json" or "keymap.json" each time one changes under dir (created if missing).
+// watchConfig calls fn with "settings.json", "keymap.json" or "snippets.json" each time one changes under dir (created if missing).
 func watchConfig(ctx context.Context, dir string, fn func(file string)) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
@@ -101,7 +109,7 @@ func watchConfig(ctx context.Context, dir string, fn func(file string)) error {
 		dir = real // macOS: events carry /private/var for /var
 	}
 	return watch.Start(ctx, dir, func(b watch.Batch) {
-		for _, f := range []string{"settings.json", "keymap.json"} {
+		for _, f := range []string{"settings.json", "keymap.json", "snippets.json"} {
 			if b.Rescan || slices.Contains(b.Paths, f) {
 				fn(f)
 			}

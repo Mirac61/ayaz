@@ -1,0 +1,13 @@
+// Your own snippets, in the shape of VS Code's snippet files, keyed by file extension like "languages" in settings.json
+// ("*" for every file). They show up in the completion list of that kind of file; a saved file applies at once.
+//
+// "prefix": what you type (a text, or a list of them). "body": the text (or a list of lines).
+// In the body $1, $2 are the stops Tab moves between, ${1:name} one with a default, $0 where the cursor ends.
+{
+  // "go": {
+  //   "iferr": { "prefix": "iferr", "body": ["if err != nil {", "\treturn ${1:err}", "}", "$0"], "description": "return the error" },
+  // },
+  // "*": {
+  //   "todo": { "prefix": "todo", "body": "// TODO: $0" },
+  // },
+}

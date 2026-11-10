@@ -9,6 +9,9 @@ import type { Loc } from "./quickfix";
 export type { Entry, FileMatch, HeadFile, Info, Match, OpenEvent, Swap, TextFile, Version };
 
 // A batch of changes on disk. Paths are workspace-relative, files or folders; rescan: events were lost, check everything.
+// A file in the config folder the app watches.
+export type ConfigFile = "settings.json" | "keymap.json" | "snippets.json";
+
 export interface FsChange { paths: string[] | null; rescan: boolean }
 
 // A language server's state, only "missing" so far: its command isn't in PATH.
@@ -38,6 +41,7 @@ export interface Backend {
   files(ws: string): Files;
   keymap(): Promise<string>; // the user's keymap.json, "" if none
   settings(): Promise<string>; // the user's settings.json, "" if none
+  snippets(): Promise<string>; // the user's snippets.json, "" if none
   configFolder(): Promise<string>; // where settings.json and keymap.json live; creates an empty settings.json
   openSettings(): Promise<void>; // a new window on the config folder, settings.json open
   // Fuzzy-ranks a short list (recent files, buffers, commands) with the Go matcher.
@@ -47,7 +51,7 @@ export interface Backend {
   onLspStatus(ws: string, fn: (s: LspStatus) => void): () => void;
   // HEAD, the index or the reflog of ws's repository moved (commit, checkout, stage); Go polls every second.
   onGitChanged(ws: string, fn: () => void): () => void;
-  onConfigChanged(fn: (file: "settings.json" | "keymap.json") => void): () => void; // saved in the config folder
+  onConfigChanged(fn: (file: ConfigFile) => void): () => void; // saved in the config folder
   openURL(url: string): Promise<void>; // in the system browser
   copy(text: string): Promise<void>; // to the system clipboard
   zoom(level: number): Promise<void>; // this window's page zoom, 1 = 100 %; fails in the server build
@@ -105,6 +109,7 @@ export const backend: Backend = {
   onCloseRequest: (fn) => Events.On("app:close-request", () => fn()),
   keymap: () => ConfigService.Keymap(),
   settings: () => ConfigService.Settings(),
+  snippets: () => ConfigService.Snippets(),
   configFolder: () => ConfigService.Folder(),
   openSettings: () => ConfigService.OpenSettings(),
   rank: async (items, q, limit) => (await WorkspaceService.Rank(items, q, limit)) ?? [],
@@ -123,7 +128,7 @@ export const backend: Backend = {
     Events.On("git:changed", (e: { data: { ws: string } }) => {
       if (e.data.ws === ws) fn();
     }),
-  onConfigChanged: (fn) => Events.On("config:changed", (e: { data: { file: "settings.json" | "keymap.json" } }) => fn(e.data.file)),
+  onConfigChanged: (fn) => Events.On("config:changed", (e: { data: { file: ConfigFile } }) => fn(e.data.file)),
   files: (ws) => ({
     list: async (dir) => (await WorkspaceService.List(ws, dir)) ?? [],
     readText: (path) => WorkspaceService.ReadText(ws, path),

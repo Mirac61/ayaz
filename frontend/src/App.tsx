@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { backend } from "./core/backend";
 import { loadSettings } from "./core/settings";
+import { loadSnippets } from "./core/snippets";
 import { symbolsFont } from "./theme/symbols";
 import { openTerminal } from "./terminal/terminal";
 import { Shell } from "./shell/Shell";
@@ -25,6 +26,7 @@ export default function App() {
     // Settings before the first editor: they go into every editor state.
     // The symbols font before the first frame: xterm's WebGL atlas would keep the boxes it drew without it.
     const symbols = symbolsFont();
+    void backend.snippets().then(loadSnippets, () => {});
     backend.settings()
       .then(loadSettings, () => loadSettings(""))
       .then(() => symbols)

@@ -12,7 +12,7 @@
 import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wailsio/runtime";
 
 /**
- * Folder creates the config folder, settings.json and keymap.json (explained) if missing, and returns the folder.
+ * Folder creates the config folder, settings.json, keymap.json and snippets.json (explained) if missing, and returns the folder.
  */
 export function Folder(): $CancellablePromise<string> {
     return $Call.ByID(871514224);
@@ -37,4 +37,11 @@ export function OpenSettings(): $CancellablePromise<void> {
  */
 export function Settings(): $CancellablePromise<string> {
     return $Call.ByID(1218625897);
+}
+
+/**
+ * Snippets returns snippets.json as text, "" if there is none. The frontend parses and checks it.
+ */
+export function Snippets(): $CancellablePromise<string> {
+    return $Call.ByID(2530698798);
 }

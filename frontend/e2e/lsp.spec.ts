@@ -212,3 +212,23 @@ test("call hierarchy: nobody calls hello", async ({ page }) => {
     await expect(page.locator(".statusline")).toContainText("No incoming calls", { timeout: 2000 });
   }).toPass({ timeout: 30_000 });
 });
+
+// M59: gopls completes fmt.Println before "fmt" is imported, and the import comes with it (additionalTextEdits).
+test("completing fmt.Println adds the import", async ({ page }) => {
+  test.skip(!hasGopls, "gopls not in PATH");
+  const file = join(e2eWorkspace, "noimport.go");
+  writeFileSync(file, "package main\n\nfunc noImport() {\n\tfmt.Printl\n}\n");
+  await page.goto("/");
+  await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: "noimport.go" }).click();
+  await expect(page.locator(".cm-content")).toContainText("fmt.Printl");
+  await page.locator(".cm-content").click();
+  await page.keyboard.type("gg3j$a"); // after Printl, in insert mode
+  await expect(async () => {
+    await page.keyboard.type("n");
+    await expect(page.locator(".cm-tooltip-autocomplete").getByText("Println", { exact: true }).first()).toBeVisible({ timeout: 3000 });
+  }).toPass({ timeout: 30_000 });
+  await page.waitForTimeout(200); // the popup ignores an Enter right after it opens
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".cm-content")).toContainText('import "fmt"');
+  await expect(page.locator(".cm-content")).toContainText("fmt.Println");
+});

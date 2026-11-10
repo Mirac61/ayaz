@@ -2,16 +2,17 @@
 // Go frames the JSON with Content-Length, so the stream carries one bare message per frame.
 import { StateEffect, StateField, type ChangeSet, type Extension, type Text } from "@codemirror/state";
 import { getIndentUnit, indentUnit } from "@codemirror/language";
-import { EditorView, showTooltip, type Tooltip } from "@codemirror/view";
+import { EditorView, keymap, showTooltip, type Tooltip } from "@codemirror/view";
 import {
-  LSPClient, LSPPlugin, Workspace, languageServerExtensions,
-  type Transport, type WorkspaceFile,
+  LSPClient, LSPPlugin, Workspace, findReferencesKeymap, formatKeymap, hoverTooltips, jumpToDefinitionKeymap,
+  languageServerExtensions, renameKeymap, serverDiagnostics, signatureHelp, type Transport, type WorkspaceFile,
 } from "@codemirror/lsp-client";
 import { backend } from "../core/backend";
 import { extOf } from "../lang/registry";
 import type { Loc } from "../core/quickfix";
 import { diagnosticsFor, dropDiagnostics, type Published } from "./diagnostics";
 import { inlayHints } from "./inlay";
+import { lspCompletion } from "./completion";
 import { documentHighlight } from "./highlight";
 import { SEMANTIC_CAPABILITY, semanticTokens } from "./semantic";
 import { isMac } from "../core/keymap";
@@ -481,6 +482,7 @@ export const CAPABILITIES = {
     semanticTokens: SEMANTIC_CAPABILITY,
     selectionRange: {},
     documentHighlight: {},
+    completion: { completionItem: { resolveSupport: { properties: ["additionalTextEdits"] } } },
     callHierarchy: {},
     codeAction: {
       dataSupport: true,
@@ -492,6 +494,15 @@ export const CAPABILITIES = {
   },
 };
 
+// What languageServerExtensions() bundles, with our completion source in place of the library's (see completion.ts).
+export const clientExtensions = (): ReturnType<typeof languageServerExtensions> => [
+  lspCompletion,
+  hoverTooltips(),
+  keymap.of([...formatKeymap, ...renameKeymap, ...jumpToDefinitionKeymap, ...findReferencesKeymap]),
+  signatureHelp(),
+  serverDiagnostics(),
+];
+
 // One client per (workspace, server), shared by every file it serves.
 function clientFor(ws: string, root: string, server: string): LSPClient {
   const key = `${ws}:${server}`;
@@ -499,7 +510,7 @@ function clientFor(ws: string, root: string, server: string): LSPClient {
   if (client) return client;
   client = new LSPClient({
     rootUri: fileUri(root),
-    extensions: [...languageServerExtensions(), { clientCapabilities: CAPABILITIES }],
+    extensions: [...clientExtensions(), { clientCapabilities: CAPABILITIES }],
     workspace: (c) => new Files(c, ws, root),
     notificationHandlers: diagnosticHandlers(ws, server),
   });
