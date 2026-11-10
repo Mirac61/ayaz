@@ -85,7 +85,12 @@ export function mergeKeymap(defaults: Binding[], user: Binding[]): Binding[] {
 
 // Checks a user keymap.json; returns the bindings or throws with a message for the status line.
 export function parseUserKeymap(json: string, known: (id: string) => boolean): Binding[] {
-  const data: unknown = JSON.parse(json);
+  let data: unknown;
+  try {
+    data = JSON.parse(json);
+  } catch (e) {
+    throw new Error(`keymap.json: ${e instanceof Error ? e.message : e}`);
+  }
   if (!Array.isArray(data)) throw new Error("keymap.json: expected a list of bindings");
   return data.map((b, i) => {
     const where = `keymap.json entry ${i + 1}`;

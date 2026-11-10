@@ -18,7 +18,7 @@ import { browsable, resolveLink } from "../editor/mdlive";
 import type { TermOptions } from "../terminal/terminal";
 import { Editors, type Status } from "./editors";
 import { borders, close, equalize, neighbor, panes, rects, resize, setBorder, split, type Dir, type Layout } from "./layout";
-import { settingsError } from "../core/settings";
+import { loadSettings, settingsError } from "../core/settings";
 import { Picker, type Item, type PickerSource } from "./Picker";
 import { Tree, type TreeHandle } from "./Tree";
 import { gitMarks } from "./gitstatus";
@@ -803,7 +803,8 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
     if (settingsError()) fail(settingsError());
 
     // The user's keymap.json goes on top of the defaults; a broken file keeps the defaults and says why.
-    backend.keymap().then((text) => {
+    // Read again whenever it is saved, like settings.json.
+    const loadKeymap = () => backend.keymap().then((text) => {
       let user: Binding[] = [];
       try {
         if (text.trim()) user = parseUserKeymap(text, (id) => commands.has(id));
@@ -820,7 +821,17 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
       installVim(run, normal, (keys) => seq.current?.prime(keys, normal));
       setBindings(defaultKeymap());
     });
-    return off;
+    void loadKeymap();
+    const offConfig = backend.onConfigChanged(async (file) => {
+      if (file === "keymap.json") return void loadKeymap();
+      loadSettings(await backend.settings().catch(() => ""));
+      if (settingsError()) fail(settingsError());
+      ed.settingsChanged();
+    });
+    return () => {
+      off();
+      offConfig();
+    };
   }, [ed]);
 
   // The tree's colors; asked again on every change on disk and in the repository.

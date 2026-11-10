@@ -8,8 +8,10 @@ import { join } from "node:path";
 // The copy is committed in a repository one level up: the git gutter has a HEAD, and the tree no .git folder.
 const repo = join(tmpdir(), "ayaz-e2e");
 export const e2eWorkspace = join(repo, "ayaz-e2e-ws");
+export const e2eConfig = join(tmpdir(), "ayaz-e2e-config"); // settings.json and keymap.json, empty at start
 if (!process.env.TEST_WORKER_INDEX) {
   rmSync(repo, { recursive: true, force: true });
+  rmSync(e2eConfig, { recursive: true, force: true });
   cpSync("../testdata/e2e-ws", e2eWorkspace, { recursive: true });
   const git = (...args: string[]) => execFileSync("git", ["-C", repo, ...args]);
   git("init", "-q", "-b", "main");
@@ -24,10 +26,15 @@ export default defineConfig({
   // a retry shows such a run as "flaky" instead of failing the gate.
   retries: 1,
   use: { browserName: "webkit", baseURL: "http://127.0.0.1:34115" },
+  // A saved config reaches every page of the shared server, so config.spec runs alone, after the rest.
+  projects: [
+    { name: "main", testIgnore: /config\.spec/ },
+    { name: "config", testMatch: /config\.spec/, dependencies: ["main"] },
+  ],
   webServer: {
     command: `../bin/ayaz-server --workspace ${e2eWorkspace}`,
     url: "http://127.0.0.1:34115",
-    env: { WAILS_SERVER_HOST: "127.0.0.1", WAILS_SERVER_PORT: "34115" },
+    env: { WAILS_SERVER_HOST: "127.0.0.1", WAILS_SERVER_PORT: "34115", AYAZ_CONFIG_DIR: e2eConfig },
     reuseExistingServer: false,
   },
 });

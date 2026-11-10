@@ -115,3 +115,7 @@ test("Sequencer: a pure prefix waits and reports what may follow (which-key)", (
   s.feed("<Esc>", bs); // dead end: hints close
   expect(seen[seen.length - 1]).toBe(":");
 });
+
+test("a syntax error in keymap.json names the file", () => {
+  expect(() => parseUserKeymap("[ broken", () => true)).toThrow(/^keymap\.json: /);
+});

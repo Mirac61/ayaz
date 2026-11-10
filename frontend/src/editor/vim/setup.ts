@@ -24,17 +24,18 @@ const EX: [name: string, prefix: string, command: string][] = [
 ];
 
 let installed = false;
+let mapped: string[] = []; // keys of the bindings mapped last, unmapped before a new keymap goes in
 
 // codemirror-vim runs a full match at once, so for "<Space>t" next to "<Space>tc" it hands over to the
 // workbench's Sequencer, which waits like Vim's timeoutlen.
 export type Prime = (keys: string) => void;
 let prime: Prime = () => {};
 
-// normal: the "normal" bindings of the keymap; mapped once per app, so keymap.json changes need a restart.
+// normal: the "normal" bindings of the keymap; a second call (keymap.json saved) replaces the earlier ones.
 export function installVim(r: Run, normal: Binding[], p: Prime) {
   run = r;
   prime = p;
-  if (installed) return;
+  if (installed) return mapBindings(normal);
   installed = true;
   Vim.map("jk", "<Esc>", "insert");
   Vim.map(";", ":", "normal");
@@ -43,12 +44,7 @@ export function installVim(r: Run, normal: Binding[], p: Prime) {
   // Space is the leader, like most nvim setups; by default it is a synonym for l.
   Vim.unmap("<Space>", undefined as never);
   Vim.unmap("<C-w>", "normal"); // a no-op by default, and it would swallow <C-w>h etc.
-  normal.forEach((b, i) => {
-    const action = `ayaz${i}`;
-    const isPrefix = normal.some((o) => o.keys !== b.keys && parseKeys(o.keys).join("").startsWith(parseKeys(b.keys).join("")));
-    Vim.defineAction(action, () => (isPrefix ? prime(b.keys) : run(b.command, b.arg)));
-    Vim.mapCommand(b.keys, "action", action, {}, { context: "normal" });
-  });
+  mapBindings(normal);
 
   // Links under the cursor and tabs; editor-only, so the tree keeps its own g keys.
   for (const [keys, command] of Object.entries({ gx: "link.browser", gf: "link.file", gt: "tab.next", gT: "tab.prev" })) {
@@ -75,4 +71,15 @@ export function installVim(r: Run, normal: Binding[], p: Prime) {
   }
 
   installSurround();
+}
+
+function mapBindings(normal: Binding[]) {
+  for (const keys of mapped) Vim.unmap(keys, "normal");
+  mapped = normal.map((b) => b.keys);
+  normal.forEach((b, i) => {
+    const action = `ayaz${i}`;
+    const isPrefix = normal.some((o) => o.keys !== b.keys && parseKeys(o.keys).join("").startsWith(parseKeys(b.keys).join("")));
+    Vim.defineAction(action, () => (isPrefix ? prime(b.keys) : run(b.command, b.arg)));
+    Vim.mapCommand(b.keys, "action", action, {}, { context: "normal" });
+  });
 }

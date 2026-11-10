@@ -30,3 +30,7 @@ test("mistakes are named", () => {
   expect(() => parseSettings('{"languages": {"go": {"tabs": 1}}}')).toThrow("languages.go");
   expect(() => parseSettings("{")).toThrow();
 });
+
+test("a syntax error names the file", () => {
+  expect(() => parseSettings("{ broken")).toThrow(/^settings\.json: /);
+});

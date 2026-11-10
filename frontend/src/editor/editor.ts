@@ -77,10 +77,19 @@ export function setWrap(on: boolean) {
   return wrapping.reconfigure(on ? EditorView.lineWrapping : []);
 }
 
+// Tab width and indent unit from settings.json, in a compartment so a saved settings.json applies to open files.
+const indenting = new Compartment();
+function indentFor(path: string | null): Extension {
+  const cfg = fileSettings(path);
+  return [EditorState.tabSize.of(cfg.tabWidth), indentUnit.of(cfg.tabs ? "\t" : " ".repeat(cfg.tabWidth))];
+}
+export const settingsEffects = (path: string | null) => [
+  indenting.reconfigure(indentFor(path)),
+  wrapping.reconfigure(wrapFor(path) ? EditorView.lineWrapping : []),
+];
+
 // Builds the state for a file, with its language loaded first so highlighting is there on the first frame.
 export async function createState(path: string | null, doc: string, ws?: string, root?: string): Promise<EditorState> {
   const lang = path ? await loadLanguage(path) : null;
-  const cfg = fileSettings(path);
-  const indent = [EditorState.tabSize.of(cfg.tabWidth), indentUnit.of(cfg.tabs ? "\t" : " ".repeat(cfg.tabWidth))];
-  return EditorState.create({ doc, extensions: [editorExtensions(), indent, wrapping.of(wrapFor(path) ? EditorView.lineWrapping : []), lang ?? [], path && ws && root ? lspExtension(ws, root, path) : [], path?.startsWith("/") ? EditorState.readOnly.of(true) : [], path && extOf(path) === "md" ? [mdlive, ws ? mdImages.of({ ws, file: path }) : []] : []] });
+  return EditorState.create({ doc, extensions: [editorExtensions(), indenting.of(indentFor(path)), wrapping.of(wrapFor(path) ? EditorView.lineWrapping : []), lang ?? [], path && ws && root ? lspExtension(ws, root, path) : [], path?.startsWith("/") ? EditorState.readOnly.of(true) : [], path && extOf(path) === "md" ? [mdlive, ws ? mdImages.of({ ws, file: path }) : []] : []] });
 }

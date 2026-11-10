@@ -42,7 +42,12 @@ function checkFile(o: Record<string, unknown>, where: string) {
 
 // Checks settings.json; returns the settings on top of the defaults or throws with a message for the status line.
 export function parseSettings(json: string): Settings {
-  const data: unknown = JSON.parse(json);
+  let data: unknown;
+  try {
+    data = JSON.parse(json);
+  } catch (e) {
+    throw new Error(`settings.json: ${e instanceof Error ? e.message : e}`);
+  }
   if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("settings.json: expected an object");
   const { font, fontSize, languages, ...file } = data as Record<string, unknown>;
   if (font !== undefined && typeof font !== "string") throw new Error('settings.json: "font" must be a string');
@@ -77,17 +82,17 @@ export function fileSettings(path: string | null, s = current): FileSettings {
   return { tabWidth: s.tabWidth, tabs: s.tabs, wrap: s.wrap, formatOnSave: s.formatOnSave, ...l };
 }
 
-// Takes settings.json's text ("" for none); a broken file keeps the defaults and settingsError says why.
+// Takes settings.json's text ("" for none); a broken file keeps what was there (the defaults at start) and settingsError says why.
 export function loadSettings(text: string) {
   try {
     current = text.trim() ? parseSettings(text) : DEFAULTS;
     problem = "";
   } catch (e) {
-    current = DEFAULTS;
     problem = e instanceof Error ? e.message : String(e);
   }
   const root = document.documentElement.style;
   root.setProperty("--editor-font-size", `${current.fontSize}px`);
+  root.removeProperty("--font-mono"); // back to the stylesheet's stack, so a reload doesn't stack fonts
   const mono = getComputedStyle(document.documentElement).getPropertyValue("--font-mono");
   if (current.font) root.setProperty("--font-mono", `"${current.font}", ${mono}`);
 }

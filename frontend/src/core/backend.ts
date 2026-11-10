@@ -40,6 +40,7 @@ export interface Backend {
   onLspStatus(ws: string, fn: (s: LspStatus) => void): () => void;
   // HEAD, the index or the reflog of ws's repository moved (commit, checkout, stage); Go polls every second.
   onGitChanged(ws: string, fn: () => void): () => void;
+  onConfigChanged(fn: (file: "settings.json" | "keymap.json") => void): () => void; // saved in the config folder
   openURL(url: string): Promise<void>; // in the system browser
   copy(text: string): Promise<void>; // to the system clipboard
   zoom(level: number): Promise<void>; // this window's page zoom, 1 = 100 %; fails in the server build
@@ -101,6 +102,7 @@ export const backend: Backend = {
     Events.On("git:changed", (e: { data: { ws: string } }) => {
       if (e.data.ws === ws) fn();
     }),
+  onConfigChanged: (fn) => Events.On("config:changed", (e: { data: { file: "settings.json" | "keymap.json" } }) => fn(e.data.file)),
   files: (ws) => ({
     list: async (dir) => (await WorkspaceService.List(ws, dir)) ?? [],
     readText: (path) => WorkspaceService.ReadText(ws, path),

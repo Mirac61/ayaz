@@ -4,7 +4,7 @@ import { getCM } from "@replit/codemirror-vim";
 import type { Files } from "../core/backend";
 import { Buffers, diff, isDirty, type Buffer } from "../core/buffers";
 import { setLspHost, formatBeforeSave, fileEdits, toChanges, type WorkspaceEdit } from "../editor/lsp";
-import { createState, editorExtensions, isWrapped, setWrap } from "../editor/editor";
+import { createState, editorExtensions, isWrapped, setWrap, settingsEffects } from "../editor/editor";
 import { cleanupChanges } from "../editor/cleanup";
 import { isReading, linkAt, toggleReading } from "../editor/mdlive";
 import { openTerminal, type TermHandle, type TermOptions } from "../terminal/terminal";
@@ -389,6 +389,18 @@ export class Editors {
       if (p.buf) shown.add(p.buf);
     }
     for (const b of this.buffers.list()) if (!shown.has(b)) b.state = b.state.update({ effects }).state;
+  }
+
+  // settings.json was saved: indent and wrap for every loaded buffer, font for every terminal.
+  settingsChanged() {
+    const shown = new Set<Buffer>();
+    for (const p of this.panes.values()) {
+      p.term?.setFont();
+      if (!p.view || !p.buf) continue;
+      p.view.dispatch({ effects: settingsEffects(p.buf.path) });
+      shown.add(p.buf);
+    }
+    for (const b of this.buffers.list()) if (!shown.has(b)) b.state = b.state.update({ effects: settingsEffects(b.path) }).state;
   }
 
   // Re-reads the active buffer from disk (`:e!`).

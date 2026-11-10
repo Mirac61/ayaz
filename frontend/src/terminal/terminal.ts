@@ -33,6 +33,7 @@ export interface TermHandle {
   input(data: string): void;
   setMode(m: TermMode): void;
   focus(): void;
+  setFont(): void; // takes font and size from settings again
   dispose(): void;
 }
 
@@ -156,6 +157,11 @@ export function openTerminal(el: HTMLElement, opts: TermOptions = {}): TermHandl
     input,
     setMode,
     focus: () => term.focus(),
+    setFont() {
+      term.options.fontFamily = getComputedStyle(document.documentElement).getPropertyValue("--font-mono");
+      term.options.fontSize = settings().fontSize;
+      if (el.clientWidth && el.clientHeight) fit.fit();
+    },
     dispose: () => {
       disposed = true;
       ro.disconnect();

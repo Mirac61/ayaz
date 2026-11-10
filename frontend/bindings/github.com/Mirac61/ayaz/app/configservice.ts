@@ -3,7 +3,7 @@
 
 /**
  * ConfigService reads the user's settings from <UserConfigDir>/ayaz/
- * (macOS: ~/Library/Application Support/ayaz, Linux: ~/.config/ayaz).
+ * (macOS: ~/Library/Application Support/ayaz, Linux: ~/.config/ayaz), or from $AYAZ_CONFIG_DIR (E2E).
  * @module
  */
 

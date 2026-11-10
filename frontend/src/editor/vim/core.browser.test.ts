@@ -13,7 +13,8 @@ import { defaultKeymap } from "../../core/keymap";
 
 // The real setup: jk, leader, folds, default keymap. Ex tests below swap in a recording runner.
 const primed: string[] = [];
-installVim(() => {}, defaultKeymap().filter((b) => b.context === "normal"), (k) => void primed.push(k));
+const normal = defaultKeymap().filter((b) => b.context === "normal");
+installVim(() => {}, normal, (k) => void primed.push(k));
 
 let view: EditorView | null = null;
 afterEach(() => {
@@ -208,7 +209,7 @@ describe("ex commands and leader keys run commands", () => {
     ["<C-w>v", "pane.splitRight()"], ["<C-w>l", "pane.right()"], ["<C-h>", "pane.left()"], ["<C-j>", "pane.down()"],
   ])("%s", async (keys, want) => {
     const calls: string[] = [];
-    installVim((id, arg) => void calls.push(`${id}(${arg ?? ""})`), [], (k) => void calls.push(`prime(${k})`));
+    installVim((id, arg) => void calls.push(`${id}(${arg ?? ""})`), normal, (k) => void calls.push(`prime(${k})`));
     await run("|a", keys);
     await vi.waitFor(() => expect(calls.join(" ")).toBe(want), { timeout: 500 });
   });
