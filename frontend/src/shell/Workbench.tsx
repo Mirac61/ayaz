@@ -1,22 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import { backend, type Grep, type Info } from "../core/backend";
+import { backend, type Info } from "../core/backend";
 import { Commands } from "../core/commands";
-import { defaultKeymap, isMac, keyName, mergeKeymap, parseKeys, parseUserKeymap, Sequencer, type Binding } from "../core/keymap";
-import { diff, isDirty } from "../core/buffers";
+import { defaultKeymap, isMac, keyName, mergeKeymap, parseUserKeymap, Sequencer, type Binding } from "../core/keymap";
+import { diff } from "../core/buffers";
 import { parseProblems } from "../core/tasks";
-import { label, Quickfix, replaceEdits, replacement, type Loc } from "../core/quickfix";
-import { Text } from "@codemirror/state";
-import type { EditorView } from "@codemirror/view";
-import {
-  closeLsp, codeActions, documentSymbols, hasLsp, installHint, noServer, references, renameAt, resolveAction, runCommand,
-  setLspMessages, showHover, uriPath, workspaceSymbols, type CodeAction, type Sym,
-} from "../editor/lsp";
+import { Quickfix } from "../core/quickfix";
+import { setLspMessages, installHint } from "../editor/lsp";
 import { diagnosticsFor } from "../editor/diagnostics";
-import { nextDiagnostic, previousDiagnostic } from "@codemirror/lint";
-import { moveHunk, previewHunk, resetHunk } from "../editor/gitgutter";
 import { installVim } from "../editor/vim/setup";
-import { browsable, resolveLink } from "../editor/mdlive";
 import type { TermOptions } from "../terminal/terminal";
 import { Editors, type Status } from "./editors";
 import { borders, close, equalize, neighbor, panes, rects, resize, setBorder, split, type Dir, type Layout } from "./layout";
@@ -25,29 +17,19 @@ import { Picker, type Item, type PickerSource } from "./Picker";
 import { Tree, type TreeHandle } from "./Tree";
 import { gitMarks, single } from "./gitstatus";
 import { loadSession, mergeCursors, saveSession, type Session } from "./session";
-import { fileIcon, folderIcon, symbolIcon } from "../theme/icons";
+import { folderIcon } from "../theme/icons";
+import { bang, errText, inTree, LIMIT, type Ctx } from "./commands/context";
+import { fileCommands } from "./commands/file";
+import { findCommands } from "./commands/find";
+import { gitCommands } from "./commands/git";
+import { lspCommands } from "./commands/lsp";
+import { quickfixTools } from "./commands/quickfix";
+import { restoreTabs, viewCommands } from "./commands/view";
+import { recentFolders } from "./folders";
+import { Handle, Hints, Pane } from "./parts";
 import "./shell.css";
 
-// Wails rejects with an Error whose message is Go's error string.
-const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
-
-// ":e! foo" → { force: true, rest: "foo" }
-const bang = (arg = "") => {
-  const force = arg.startsWith("!");
-  return { force, rest: (force ? arg.slice(1) : arg).trim() };
-};
-
-const LIMIT = 50;
-const SHOWN = 500; // project search hits listed in the picker; <C-q> takes all of them
 const STEP = 0.05; // <C-w>+/-/</>: share of the parent split (or of the window for the panel)
-// "5 min ago" for the history picker.
-function ago(t: number): string {
-  const s = Math.round((Date.now() - t) / 1000);
-  if (s < 60) return `${s} s ago`;
-  if (s < 3600) return `${Math.round(s / 60)} min ago`;
-  if (s < 86400) return `${Math.round(s / 3600)} h ago`;
-  return `${Math.round(s / 86400)} d ago`;
-}
 
 const clampPanel = (h: number) => Math.min(0.9, Math.max(0.1, h));
 const PANEL = -1; // pane id of the bottom panel; split panes count up from 1
@@ -124,10 +106,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
     flushSync(() => setSidebar(on));
     try { localStorage.setItem(sidebarKey, on ? "on" : "off"); } catch { /* a convenience */ }
   };
-  const tabsKey = "ayaz.tabs";
-  useEffect(() => {
-    try { ed.setTabs(localStorage.getItem(tabsKey) === "on"); } catch { /* default: no tabs */ }
-  }, [ed]);
+  useEffect(() => restoreTabs(ed), [ed]);
   const lay = useRef(layout);
   lay.current = layout;
 
@@ -186,33 +165,13 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
   const commands = useMemo(() => new Commands(), []);
   const qf = useMemo(() => new Quickfix(), []);
   const fail = (text: string) => setMsg({ text, error: true });
+  const say = (text: string) => setMsg({ text });
   useEffect(() => setLspMessages(ws.id, (text, level) =>
     setMsg({ text, error: level === "error", warning: level === "warning" })), [ws.id]);
   const run = (id: string, arg?: string) =>
     void Promise.resolve().then(() => commands.run(id, arg)).catch((e) => fail(errText(e)));
 
   useEffect(() => {
-    let showIgnored = false;
-    const inTree = () => !!document.activeElement?.closest(".sidebar");
-
-    const save = async (force: boolean) => {
-      const b = ed.current();
-      if (!b) return fail("No file name"), false;
-      try {
-        await ed.format(); // no-op without a language server (Q25: on for Go)
-        ed.cleanup();
-        await ed.buffers.save(b, force);
-        setMsg({ text: `"${b.path}" written` });
-        ed.emit();
-        return true;
-      } catch (e) {
-        fail(/changed on disk/.test(errText(e))
-          ? `"${b.path}" changed on disk since it was read. :w! overwrites, :e! reloads`
-          : errText(e));
-        return false;
-      }
-    };
-
     // Closes the window (ADR-0014: one workspace per window); the app quits after the last one.
     const quit = async (force: boolean) => {
       const d = ed.buffers.dirty();
@@ -255,23 +214,6 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       splitPane("row", { ws: ws.id, cmd, ...more });
     };
 
-    // M52: a task runs in a split that stays open when it ends; file:line lines it printed go to the quickfix list.
-    let lastTask: string | null = null;
-    const runTask = (name: string) => {
-      const cmd = settings().tasks[name];
-      if (cmd === undefined) return fail(`No task "${name}" in settings.json`);
-      lastTask = name;
-      setMsg({ text: `Task "${name}": ${cmd}` });
-      termSplit(cmd, {
-        onExit: () => {}, // keep the pane and its output
-        onOutput(text) {
-          const locs = parseProblems(text, ws.root);
-          if (locs.length) setQf(`Task "${name}"`, locs, false, false);
-          else setMsg({ text: `Task "${name}" ended, no file:line in its output` });
-        },
-      });
-    };
-
     const togglePanel = () => {
       const p = panelRef.current;
       if (p === "shown") {
@@ -304,139 +246,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       requestAnimationFrame(() => ed.focus(PANEL));
     };
 
-    const filePicker = (title: string, list: () => string[], hint?: (p: string) => string | undefined): PickerSource => ({
-      title,
-      async query(q) {
-        const all = list();
-        const ms = q.trim() ? await backend.rank(all, q, LIMIT) : all.slice(0, LIMIT).map((path) => ({ path, positions: [] }));
-        return ms.map((m) => ({ label: m.path, positions: m.positions ?? [], icon: fileIcon(m.path), hint: hint?.(m.path) }));
-      },
-      pick: (it) => run("file.open", it.label),
-    });
-
-    const locItem = (l: Loc): Item => ({ label: label(l), icon: fileIcon(l.path) });
-    const jump = async (l: Loc) => {
-      await ed.openAt(l.path, l.line, l.col);
-      if (qf.items.includes(l)) setMsg({ text: `(${qf.index + 1} of ${qf.items.length}) ${l.text.trim()}` });
-    };
-    const qfMove = (d: number) => {
-      if (!qf.items.length) return fail("No quickfix list");
-      const l = qf.move(d);
-      return l ? jump(l) : fail("No more items");
-    };
-    const qfPicker = (): PickerSource => ({
-      title: `Quickfix: ${qf.title}`,
-      query: async (q) => qf.items.filter((l) => !q || label(l).toLowerCase().includes(q.toLowerCase())).map(locItem),
-      pick: (it) => {
-        const i = qf.items.findIndex((l) => label(l) === it.label);
-        if (i >= 0) void jump(qf.select(i));
-      },
-      start: Math.max(qf.index, 0),
-    });
-    const setQf = (title: string, locs: Loc[], regex = false, sort = true) => {
-      qf.set(title, locs, regex, sort);
-      if (!locs.length) return fail(`${title}: no matches`);
-      setMsg({ text: `${title}: ${locs.length} matches, :cn / :cp to move, :copen to list` });
-      void qfMove(1);
-    };
-
-    // Symbols in a picker. rank: fuzzy-rank by name here (a file's symbols); else the server already matched (project).
-    // Items map to their symbol, so two symbols with one name (two `init`) both stay pickable.
-    const symbolPicker = (title: string, load: (q: string) => Promise<Sym[]>, rank: boolean): PickerSource => {
-      const sym = new WeakMap<Item, Sym>();
-      const item = (s: Sym, positions: number[] = []): Item => {
-        const it = { label: s.name, positions, icon: symbolIcon(s.kind), hint: rank ? s.container : `${s.path}:${s.line}` };
-        sym.set(it, s);
-        return it;
-      };
-      return {
-        title,
-        async query(q) {
-          const all = await load(q);
-          if (!rank || !q.trim()) return all.slice(0, SHOWN).map((s) => item(s));
-          const byName = new Map<string, Sym[]>();
-          for (const s of all) byName.set(s.name, [...(byName.get(s.name) ?? []), s]);
-          const ms = await backend.rank([...byName.keys()], q, LIMIT);
-          return ms.flatMap((m) => byName.get(m.path)!.map((s) => item(s, m.positions ?? [])));
-        },
-        pick: (it) => {
-          const s = sym.get(it);
-          if (s) void ed.openAt(s.path, s.line, s.col);
-        },
-      };
-    };
-
-    let grepRegex = false;
-    const grepPicker = (): PickerSource => {
-      let g: Grep | null = null, hits: Loc[] = [], q = "";
-      const regex = grepRegex; // the quickfix list remembers it for :Replace's $1, $2
-      return {
-        title: `Search in files${regex ? " (regex)" : ""} · <C-q> to quickfix`,
-        query(query, update) {
-          g?.cancel();
-          hits = [];
-          q = query;
-          if (!query.trim()) return Promise.resolve([]);
-          const cur = (g = files.grep(query, { regex, ignored: showIgnored }, (h) => {
-            hits.push(...h);
-            update(hits.slice(0, SHOWN).map(locItem));
-          }));
-          cur.done.then((err) => err && cur === g && fail(err));
-          return Promise.resolve([]);
-        },
-        pick: (_, i) => void (hits[i] && jump(hits[i])),
-        all: () => setQf(`Search "${q}"`, hits, regex),
-        close: () => g?.cancel(),
-      };
-    };
-
-    // Fills in each location's line text from the open buffer or the file.
-    const withText = async (locs: Loc[]) => {
-      const docs = new Map<string, Text | null>();
-      for (const l of locs) {
-        if (!docs.has(l.path)) {
-          const b = ed.buffers.get(l.path);
-          docs.set(l.path, b ? b.state.doc : await files.readText(l.path).then((f) => Text.of(f.content.split("\n")), () => null));
-        }
-        const d = docs.get(l.path);
-        if (d && l.line <= d.lines) l.text = d.line(l.line).text;
-      }
-      return locs;
-    };
-
-    // Replaces every quickfix match with `to`; buffers that were clean are saved, dirty ones stay open unsaved.
-    const replaceAll = async (to: string) => {
-      const byPath = new Map<string, Loc[]>();
-      for (const l of qf.items) byPath.set(l.path, [...(byPath.get(l.path) ?? []), l]);
-      let n = 0, skipped = 0;
-      const unsaved: string[] = [];
-      for (const [path, locs] of byPath) {
-        const before = await ed.buffers.open(path);
-        if (before.state.readOnly) { skipped += locs.length; continue; }
-        const wasDirty = isDirty(before);
-        const r = replaceEdits(locs, before.state.doc, to, qf.regex);
-        skipped += r.skipped;
-        if (!r.changes.length) continue;
-        const b = await ed.edit(path, r.changes);
-        n += r.changes.length;
-        if (wasDirty) unsaved.push(path);
-        else await ed.buffers.save(b);
-      }
-      ed.emit();
-      setMsg({ text: `Replaced ${n} in ${byPath.size} files` + (skipped ? `, ${skipped} skipped (changed since the search)` : "") + (unsaved.length ? `; not saved (had changes): ${unsaved.join(", ")}` : "") });
-    };
-
-    // File commands act on the tree's row while the tree has focus, else on the active buffer.
-    const target = () => {
-      if (inTree()) return tree.current?.selected() ?? null;
-      const b = ed.current();
-      return b && !b.path.startsWith("/") ? { path: b.path, dir: false } : null; // not a library file outside the folder
-    };
-    const unsavedUnder = (path: string) =>
-      ed.buffers.dirty().find((b) => b.path === path || b.path.startsWith(path + "/"));
-    const dirOf = (p: string) => p.slice(0, Math.max(p.lastIndexOf("/"), 0));
-    // A one-line prompt in the picker: the item is what was typed, Enter runs act with it.
-    const prompt = (title: string, initial: string, act: (text: string) => Promise<unknown>) => {
+    const prompt: Ctx["prompt"] = (title, initial, act) => {
       const back = inTree();
       setPicker({
         title,
@@ -445,156 +255,34 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
         pick: (it) => void act(it.label).then(() => back && tree.current?.focus(), (e) => fail(errText(e))),
       });
     };
+    const c: Ctx = { ws, files, ed, qf, tree, run, say, fail, setPicker, prompt, closePane };
+    const q = quickfixTools(c);
 
-    // In a terminal: the terminal font only (every terminal); elsewhere the whole page.
-    const zoomBy = async (d: number) => {
-      if (ed.isTerm()) return setMsg({ text: `Terminal font ${ed.zoomTerms(Math.sign(d))} px` });
-      const z = await setZoom(d ? zoomLevel() + d : 1);
-      setMsg({ text: `Zoom ${Math.round(z * 100)} %` });
-    };
-
-    // Runs f on the active editor; fails with err when there is none or f finds nothing to do.
-    const onView = (f: (v: EditorView) => boolean, err: string) => {
-      const v = ed.activeView();
-      if (!v || !f(v)) fail(err);
-    };
-
-    // @codemirror/lint selects the whole range, which puts Vim in visual mode; nvim's ]d lands on its start.
-    const toDiagnostic = (cmd: (v: EditorView) => boolean) => (v: EditorView) => {
-      if (!cmd(v)) return false;
-      v.dispatch({ selection: { anchor: v.state.selection.main.from } });
-      return true;
+    // M52: a task runs in a split that stays open when it ends; file:line lines it printed go to the quickfix list.
+    let lastTask: string | null = null;
+    const runTask = (name: string) => {
+      const cmd = settings().tasks[name];
+      if (cmd === undefined) return fail(`No task "${name}" in settings.json`);
+      lastTask = name;
+      say(`Task "${name}": ${cmd}`);
+      termSplit(cmd, {
+        onExit: () => {}, // keep the pane and its output
+        onOutput(text) {
+          const locs = parseProblems(text, ws.root);
+          if (locs.length) q.set(`Task "${name}"`, locs, false, false);
+          else say(`Task "${name}" ended, no file:line in its output`);
+        },
+      });
     };
 
     const keysFor = (id: string) => bindingsRef.current?.find((b) => b.command === id)?.keys;
 
     const off = commands.register(
-      { id: "file.save", title: "Save file (:w)", run: (a) => save(bang(a).force) },
-      { id: "file.saveClose", title: "Save and close pane (:wq)", run: async (a) => { if (await save(bang(a).force)) await closePane(bang(a).force); } },
-      {
-        id: "file.open",
-        title: "Open file (:e)",
-        async run(a) {
-          const { force, rest } = bang(a);
-          if (rest) return ed.open(rest.replace(/^\.\//, ""));
-          const b = ed.current();
-          if (!b) return;
-          if (isDirty(b) && !force) return fail("No write since last change (add ! to override)");
-          await ed.reload();
-        },
-      },
-      {
-        id: "file.new",
-        title: "New file or folder",
-        run() {
-          const t = target();
-          const dir = t ? (t.dir ? t.path : dirOf(t.path)) : "";
-          const at = dir ? `${dir}/` : "";
-          prompt(`New in ${at || "./"} · end with / for a folder`, at, async (path) => {
-            const isDir = path.endsWith("/");
-            const p = path.replace(/\/+$/, "").replace(/^\.\//, "");
-            await files.create(p, isDir);
-            await tree.current?.reveal(p);
-            if (!isDir) await ed.open(p);
-            setMsg({ text: `Created "${p}${isDir ? "/" : ""}"` });
-          });
-        },
-      },
-      {
-        id: "file.rename",
-        title: "Rename or move file",
-        run() {
-          const t = target();
-          if (!t) return fail("No file to rename");
-          const d = unsavedUnder(t.path);
-          if (d) return fail(`"${d.path}" has unsaved changes: save first (:w)`);
-          prompt(`Rename "${t.path}" to`, t.path, async (to) => {
-            if (to === t.path) return;
-            await files.rename(t.path, to);
-            await ed.moved(t.path, to);
-            await tree.current?.reveal(to);
-            setMsg({ text: `Renamed to "${to}"` });
-          });
-        },
-      },
-      {
-        id: "file.trash",
-        title: "Move file to trash",
-        run() {
-          const t = target();
-          if (!t) return fail("No file to delete");
-          const d = unsavedUnder(t.path);
-          if (d) return fail(`"${d.path}" has unsaved changes: save first (:w)`);
-          const back = inTree();
-          setPicker({
-            title: `Move "${t.path}${t.dir ? "/" : ""}" to the trash? · Enter confirms, Esc cancels`,
-            query: async () => [{ label: "Move to trash", icon: t.dir ? folderIcon(false) : fileIcon(t.path) }],
-            pick: () => void files.trash(t.path).then(async () => {
-              await ed.moved(t.path, null);
-              setMsg({ text: `"${t.path}" moved to the trash` });
-              if (back) tree.current?.focus();
-            }, (e) => fail(errText(e))),
-          });
-        },
-      },
-      {
-        id: "file.copyPath",
-        title: "Copy relative path",
-        async run() {
-          const t = target();
-          if (!t) return fail("No file");
-          await backend.copy(t.path);
-          setMsg({ text: `Copied "${t.path}"` });
-        },
-      },
-      {
-        id: "file.copyAbsPath",
-        title: "Copy absolute path",
-        async run() {
-          const t = target();
-          if (!t) return fail("No file");
-          await backend.copy(`${ws.root}/${t.path}`);
-          setMsg({ text: `Copied "${ws.root}/${t.path}"` });
-        },
-      },
-      {
-        id: "file.reveal",
-        title: "Reveal in Finder",
-        async run() {
-          const t = target();
-          if (!t) return fail("No file");
-          await files.reveal(t.path);
-        },
-      },
-      {
-        id: "tree.revealCurrent",
-        title: "Show current file in tree",
-        async run() {
-          const b = ed.current();
-          if (!b || b.path.startsWith("/")) return fail("No file from this folder");
-          await tree.current?.reveal(b.path);
-          tree.current?.focus();
-        },
-      },
-      {
-        id: "link.browser",
-        title: "Open link in browser (gx)",
-        async run() {
-          const t = ed.linkAtCursor();
-          if (!t || !browsable(t)) return fail("No URL under the cursor");
-          await backend.openURL(t);
-        },
-      },
-      {
-        id: "link.file",
-        title: "Go to linked file (gf)",
-        async run() {
-          const b = ed.current(), t = ed.linkAtCursor();
-          const p = b && t ? resolveLink(b.path, t) : null;
-          if (!p) return fail("No relative file link under the cursor");
-          await ed.open(p);
-        },
-      },
+      ...fileCommands(c),
+      ...findCommands(c, q),
+      ...lspCommands(c, q),
+      ...gitCommands(c),
+      ...viewCommands(c),
       {
         id: "md.preview",
         title: "Toggle Markdown preview in a split",
@@ -615,41 +303,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
           showSidebar(on);
         },
       },
-      {
-        id: "view.tabs",
-        title: "Toggle tab bar",
-        run() {
-          const on = !ed.tabsOn;
-          ed.setTabs(on);
-          try { localStorage.setItem(tabsKey, on ? "on" : "off"); } catch { /* a convenience */ }
-        },
-      },
-      {
-        id: "view.wrap",
-        title: "Toggle line wrap",
-        run() {
-          const on = !ed.wrapped();
-          ed.setWrap(on);
-          setMsg({ text: on ? "Line wrap on" : "Line wrap off" });
-        },
-      },
-      { id: "tab.next", title: "Next tab (gt)", run: () => ed.tabMove(1) },
-      { id: "tab.prev", title: "Previous tab (gT)", run: () => ed.tabMove(-1) },
-      { id: "tab.close", title: "Close tab", run: () => ed.tabClose() },
-      { id: "tab.reopen", title: "Reopen closed tab", run: async () => { if (!(await ed.reopen())) fail("No closed tab"); } },
-      { id: "nav.back", title: "Back to the previous file", run: async () => { if (!(await ed.nav(-1))) fail("At the start"); } },
-      { id: "nav.forward", title: "Forward to the next file", run: async () => { if (!(await ed.nav(1))) fail("At the end"); } },
-      {
-        id: "md.reading",
-        title: "Toggle reading view",
-        run: () => { if (!ed.toggleReading()) fail("Reading view is for Markdown files"); },
-      },
       { id: "app.quit", title: "Close window (:qa)", run: (a) => quit(bang(a).force) },
-      { id: "window.new", title: "New window", run: () => backend.newWindow() },
-      { id: "settings.open", title: "Open settings", run: () => backend.openSettings() },
-      { id: "view.zoomIn", title: "Zoom in", run: () => zoomBy(ZOOM_STEP) },
-      { id: "view.zoomOut", title: "Zoom out", run: () => zoomBy(-ZOOM_STEP) },
-      { id: "view.zoomReset", title: "Reset zoom", run: () => zoomBy(0) },
       {
         id: "folder.switch",
         title: "Switch folder",
@@ -706,191 +360,6 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       },
       { id: "task.last", title: "Run the last task again", run: () => (lastTask ? runTask(lastTask) : fail("No task run yet: <Space>rr")) },
       { id: "term.normal", title: "Terminal normal mode", run: () => ed.termNormal() },
-      {
-        id: "find.files",
-        title: "Find files",
-        run: () => setPicker({
-          title: showIgnored ? "Files (incl. ignored)" : "Files",
-          async query(q) {
-            const ms = await files.find(q, LIMIT, showIgnored);
-            return ms.map((m) => ({ label: m.path, positions: m.positions ?? [], icon: fileIcon(m.path) }));
-          },
-          pick: (it) => run("file.open", it.label),
-        }),
-      },
-      {
-        id: "find.toggleIgnored",
-        title: "Toggle ignored files in Find files",
-        run: () => setMsg({ text: (showIgnored = !showIgnored) ? "Find files: showing ignored files" : "Find files: hiding ignored files" }),
-      },
-      { id: "find.grep", title: "Search in files", run: () => setPicker(grepPicker()) },
-      {
-        id: "find.toggleRegex",
-        title: "Toggle regex in Search in files",
-        run: () => setMsg({ text: (grepRegex = !grepRegex) ? "Search in files: regex (Go RE2)" : "Search in files: literal" }),
-      },
-      { id: "qf.next", title: "Next quickfix entry (:cn)", run: () => qfMove(1) },
-      { id: "qf.prev", title: "Previous quickfix entry (:cp)", run: () => qfMove(-1) },
-      { id: "qf.open", title: "Quickfix list (:copen)", run: () => (qf.items.length ? setPicker(qfPicker()) : fail("No quickfix list")) },
-      {
-        id: "qf.replace",
-        title: "Replace quickfix matches (:Replace text)",
-        run(a) {
-          if (!qf.items.length) return fail("No quickfix list; search first (<Space>fw, then <C-q>)");
-          const to = a ?? "";
-          const paths = new Set(qf.items.map((l) => l.path)).size;
-          setPicker({
-            title: `Replace ${qf.items.length} matches in ${paths} files with "${to}" · Enter applies all, Esc cancels`,
-            query: async () => qf.items.map((l) => ({
-              label: `${l.path}:${l.line}: ${(l.text.slice(0, l.col) + replacement(l, to, qf.regex) + l.text.slice(l.col + l.len)).trim()}`,
-              icon: fileIcon(l.path),
-            })),
-            pick: () => run("qf.replaceNow", to),
-          });
-        },
-      },
-      { id: "qf.replaceNow", title: "Replace quickfix matches without preview", run: (a) => replaceAll(a ?? "") },
-      {
-        id: "lsp.references",
-        title: "References (gr)",
-        async run() {
-          const v = ed.activeView();
-          const locs = v && (await references(v, ws.root));
-          if (!locs) return fail(noServer(ws.id, ed.current()?.path));
-          setQf("References", await withText(locs));
-        },
-      },
-      {
-        id: "lsp.hover",
-        title: "Hover info (K)",
-        async run() {
-          const v = ed.activeView();
-          const r = v && (await showHover(v));
-          if (r === null) fail(noServer(ws.id, ed.current()?.path));
-          else if (!r) setMsg({ text: "No hover info here" });
-        },
-      },
-      {
-        id: "lsp.rename",
-        title: "Rename symbol",
-        run() {
-          const v = ed.activeView();
-          if (!v || !hasLsp(v)) return fail(noServer(ws.id, ed.current()?.path));
-          const w = v.state.wordAt(v.state.selection.main.head);
-          if (!w) return fail("No symbol under the cursor");
-          prompt("Rename to", v.state.sliceDoc(w.from, w.to), async (name) => {
-            const paths = await ed.applyEdit((await renameAt(v, name)) ?? {});
-            setMsg({ text: paths.length ? `Renamed in ${paths.length} files` : "Nothing to rename" });
-          });
-        },
-      },
-      {
-        id: "lsp.codeAction",
-        title: "Code actions",
-        async run() {
-          const v = ed.activeView();
-          const actions = v && (await codeActions(v, ws.id));
-          if (!actions) return fail(noServer(ws.id, ed.current()?.path));
-          if (!actions.length) return setMsg({ text: "No code actions here" });
-          const byItem = new WeakMap<Item, CodeAction>();
-          setPicker({
-            title: "Code actions",
-            async query(q) {
-              const items = actions.map((a) => {
-                const it = { label: a.title, hint: a.kind };
-                byItem.set(it, a);
-                return it;
-              });
-              return items.filter((it) => !q || it.label.toLowerCase().includes(q.toLowerCase()));
-            },
-            async pick(it) {
-              try {
-                const a = await resolveAction(v, byItem.get(it)!);
-                if (a.edit) await ed.applyEdit(a.edit);
-                if (a.command) await runCommand(v, a.command);
-              } catch (e) {
-                fail(errText(e));
-              }
-            },
-          });
-        },
-      },
-      {
-        id: "lsp.symbols",
-        title: "Symbols in file",
-        async run() {
-          const v = ed.activeView();
-          const syms = v && (await documentSymbols(v, ws.root));
-          if (!syms) return fail(noServer(ws.id, ed.current()?.path));
-          setPicker(symbolPicker("Symbols in file", async () => syms, true));
-        },
-      },
-      {
-        id: "lsp.workspaceSymbols",
-        title: "Symbols in project",
-        run() {
-          const v = ed.activeView();
-          if (!v || !hasLsp(v)) return fail(noServer(ws.id, ed.current()?.path));
-          setPicker(symbolPicker("Symbols in project", async (q) => (q.trim() ? (await workspaceSymbols(v, ws.root, q)) ?? [] : []), false));
-        },
-      },
-      {
-        id: "lsp.diagnostics",
-        title: "Diagnostics in the folder",
-        run() {
-          const severity = ["", "error", "warning", "info", "hint"];
-          const locs = diagnosticsFor(ws.id).all().flatMap((d): Loc[] => {
-            const path = uriPath(ws.root, d.uri);
-            if (path === null || path.startsWith("/")) return [];
-            const text = `${severity[d.severity] ?? ""}: ${d.message.split("\n")[0]}`;
-            return [{ path, line: d.line + 1, col: d.character, len: 0, text }];
-          });
-          if (!locs.length) return setMsg({ text: "No diagnostics" });
-          setQf("Diagnostics", locs, false, false);
-        },
-      },
-      { id: "lsp.nextDiagnostic", title: "Next diagnostic (]d)", run: () => onView(toDiagnostic(nextDiagnostic), "No diagnostics in this file") },
-      {
-        id: "lsp.prevDiagnostic",
-        title: "Previous diagnostic ([d)",
-        run: () => onView(toDiagnostic(previousDiagnostic), "No diagnostics in this file"),
-      },
-      { id: "git.nextHunk", title: "Next git hunk (]c)", run: () => onView((v) => moveHunk(v, 1), "No git changes in this file") },
-      { id: "git.prevHunk", title: "Previous git hunk ([c)", run: () => onView((v) => moveHunk(v, -1), "No git changes in this file") },
-      { id: "git.previewHunk", title: "Preview git hunk", run: () => onView(previewHunk, "No git change on this line") },
-      { id: "git.resetHunk", title: "Reset git hunk", run: () => onView(resetHunk, "No git change on this line") },
-      {
-        id: "git.diff",
-        title: "Toggle diff against HEAD",
-        run: () => { if (!ed.toggleDiff()) fail("This file has no version at HEAD to compare with"); },
-      },
-      {
-        id: "file.history",
-        title: "Local history: diff against an earlier save",
-        async run() {
-          const b = ed.current();
-          if (!b) return fail("No file");
-          const versions = await files.history(b.path);
-          if (!versions.length) return fail(`No earlier saves of "${b.path}" yet`);
-          const when = (t: number) => new Date(t).toLocaleString();
-          setPicker({
-            title: `History of ${b.path}`,
-            query: async () => versions.map((v) => ({ label: when(v.time), hint: `${ago(v.time)} · ${v.size} B` })),
-            pick: (_it, i) => void files.historyText(b.path, versions[i].time).then((text) => {
-              if (ed.current() !== b) return;
-              ed.diffWith(Text.of(text.split("\n")));
-              setMsg({ text: `Diff against the save before ${when(versions[i].time)}, <Space>gd closes it` });
-            }, (e) => fail(errText(e))),
-          });
-        },
-      },
-      { id: "find.recent", title: "Recent files", run: () => setPicker(filePicker("Recent files", () => ed.recent())) },
-      {
-        id: "find.buffers",
-        title: "Buffers",
-        run: () => setPicker(filePicker("Buffers", () => [...ed.bufferList().map((b) => b.path), ...ed.hiddenTerms()],
-          (p) => (ed.buffers.get(p) && isDirty(ed.buffers.get(p)!) ? "[+]" : undefined))),
-      },
       {
         id: "find.commands",
         title: "Command palette",
@@ -1195,194 +664,6 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       {bar === "bottom" && <footer className="statusline bottom">{mode}{line}</footer>}
       {hints && <Hints keys={hints.keys} next={hints.next} title={(id) => commands.list().find((c) => c.id === id)?.title ?? id} />}
       {picker && <Picker source={picker} onClose={() => { setPicker(null); if (!document.activeElement?.closest(".sidebar")) ed.focus(ed.active); }} />}
-    </div>
-  );
-}
-
-// The which-key box: one row per next key; a key that only leads further shows how many bindings follow.
-function Hints({ keys, next, title }: { keys: string[]; next: Binding[]; title(id: string): string }) {
-  const groups = new Map<string, Binding[]>();
-  for (const b of next) {
-    const k = parseKeys(b.keys)[keys.length];
-    groups.set(k, [...(groups.get(k) ?? []), b]);
-  }
-  return (
-    <div className="hints" role="status" aria-label="Next keys">
-      <div className="hints-title">{keys.join("")}</div>
-      <ul>
-        {[...groups].sort(([a], [b]) => a.localeCompare(b)).map(([k, bs]) => {
-          const exact = bs.find((b) => parseKeys(b.keys).length === keys.length + 1);
-          const more = bs.length - (exact ? 1 : 0);
-          return (
-            <li key={k}>
-              <kbd>{k}</kbd>
-              <span className={exact ? "" : "group"}>
-                {exact ? title(exact.command) : `+${more} keymap${more > 1 ? "s" : ""}`}
-                {exact && more > 0 && <span className="group"> +{more}</span>}
-              </span>
-            </li>
-          );
-        })}
-      </ul>
-    </div>
-  );
-}
-
-// A split border or the panel's top edge; dragging it calls onDrag with each pointer move.
-function Handle({ dir, style, onDrag }: { dir: "row" | "col"; style: React.CSSProperties; onDrag(e: PointerEvent): void }) {
-  return (
-    <div
-      className={`resize ${dir}`}
-      style={style}
-      onPointerDown={(e) => {
-        const el = e.currentTarget;
-        el.setPointerCapture(e.pointerId);
-        el.addEventListener("pointermove", onDrag);
-        el.addEventListener("pointerup", () => el.removeEventListener("pointermove", onDrag), { once: true });
-        e.preventDefault(); // no text selection while dragging
-      }}
-    />
-  );
-}
-
-interface PaneProps {
-  id: number;
-  active: boolean;
-  style: React.CSSProperties;
-  edge: { left: boolean; top: boolean };
-  mount(el: HTMLDivElement): () => void;
-}
-
-// Panes are siblings positioned from the layout rects, so a split never remounts an existing editor.
-function Pane({ id, active, style, edge, mount }: PaneProps) {
-  const el = useRef<HTMLDivElement>(null);
-  useEffect(() => mount(el.current!), []);
-  const cls = ["pane", active && "active", edge.left && "edge-left", edge.top && "edge-top"].filter(Boolean).join(" ");
-  return <div ref={el} className={cls} style={style} data-pane={id} />;
-}
-
-// Page zoom for every window (same origin), like VS Code's: the whole UI scales, terminal and PDFs included.
-// A focused terminal zooms its font instead (Editors.zoomTerms).
-const ZOOM_KEY = "ayaz.zoom", ZOOM_STEP = 0.1;
-function zoomLevel(): number {
-  try {
-    const z = Number(localStorage.getItem(ZOOM_KEY));
-    return z >= 0.5 && z <= 2 ? z : 1;
-  } catch {
-    return 1; // storage blocked
-  }
-}
-async function setZoom(z: number) {
-  z = Math.round(Math.min(2, Math.max(0.5, z)) * 10) / 10;
-  try { localStorage.setItem(ZOOM_KEY, String(z)); } catch { /* a convenience */ }
-  await backend.zoom(z);
-  return z;
-}
-
-// Folders opened in any window, most recent first (shared by all windows: same origin).
-const FOLDERS_KEY = "ayaz.folders";
-function recentFolders(): { root: string; name: string }[] {
-  try {
-    const v: unknown = JSON.parse(localStorage.getItem(FOLDERS_KEY) ?? "[]");
-    return Array.isArray(v) ? v.filter((f) => typeof f?.root === "string" && typeof f?.name === "string") : [];
-  } catch {
-    return []; // storage blocked or corrupt
-  }
-}
-function rememberFolder(w: Info) {
-  try {
-    localStorage.setItem(FOLDERS_KEY, JSON.stringify([{ root: w.root, name: w.name }, ...recentFolders().filter((f) => f.root !== w.root)].slice(0, 20)));
-  } catch { /* a convenience */ }
-}
-
-// The keys to know first, for the welcome page; from the default keymap (the user's keymap.json is read later).
-const keysOf = (...ids: string[]) => defaultKeymap().filter((b) => ids.includes(b.command)).map((b) => b.keys);
-const FIRST_KEYS: [keys: string[], what: string][] = [
-  [keysOf("find.files"), "Find files"],
-  [keysOf("find.grep"), "Search in files"],
-  [keysOf("find.commands"), "All commands and their keys"],
-  [keysOf("tree.focus"), "File tree"],
-  [keysOf("term.panel"), "Terminal"],
-  [keysOf("pane.splitRight", "pane.splitDown"), "Split down, right"],
-  [["gd", "gr", "K"], "Definition, references, hover"],
-  [keysOf("lsp.rename", "lsp.codeAction"), "Rename, code actions"],
-  [[":w", ":q"], "Save, close"],
-];
-
-// Opens the folder from the command line (first window only), otherwise shows recent folders and the dialog.
-export function Shell() {
-  const settingsWindow = new URLSearchParams(location.search).has("settings");
-  const [ws, setWs] = useState<Info | null | undefined>(undefined);
-  const [err, setErr] = useState("");
-  const show = (w: Info | null) => { if (w) rememberFolder(w); setWs(w); };
-  useEffect(() => {
-    if (zoomLevel() !== 1) void setZoom(zoomLevel()).catch(() => {}); // no window zoom in the server build
-    if (new URLSearchParams(location.search).has("new")) return setWs(null); // a new window starts empty
-    const failed = (e: unknown) => { setErr(errText(e)); setWs(null); };
-    // The settings window isn't a recent folder.
-    if (settingsWindow) return void backend.configFolder().then(backend.openFolder).then(setWs, failed);
-    backend.initialWorkspace().then(show, failed);
-  }, []);
-
-  const open = (root: string | null) => (root ? backend.openFolder(root) : backend.openFolderDialog());
-  const pick = (root: string | null) => open(root).then((w) => w && show(w), (e) => setErr(errText(e)));
-
-  // Another folder in this window: open the new one first (the dialog may be cancelled), then tear the old one down.
-  const switchTo = (root: string | null) => {
-    const old = ws;
-    open(root).then((w) => {
-      if (!w || !old) return;
-      show(w);
-      closeLsp(old.id);
-      void backend.closeWorkspace(old.id);
-    }, (e) => setErr(errText(e)));
-  };
-
-  if (ws === undefined) return null;
-  if (ws) return <Workbench key={ws.id} ws={ws} onSwitch={switchTo} initial={settingsWindow ? "settings.json" : undefined} />;
-  const recent = recentFolders().slice(0, 9);
-  const onKey = (e: React.KeyboardEvent) => {
-    if (e.key === "," && (isMac ? e.metaKey : e.ctrlKey)) return void backend.openSettings(); // no keymap here
-    const f = recent[Number(e.key) - 1]; // 1–9 open a recent folder
-    if (f && !e.metaKey && !e.ctrlKey) pick(f.root);
-  };
-  return (
-    <div className="welcome" onKeyDown={onKey}>
-      <div className="titlebar">Ayaz</div>
-      <div className="welcome-card">
-        <div className="welcome-list">
-          <div>
-            <div className="welcome-title">No folder open</div>
-            <div className="welcome-sub">Open a folder or pick one of the recent ones.</div>
-          </div>
-          {recent.length > 0 && (
-            <nav aria-label="Recent folders">
-              <div className="welcome-label">Recent</div>
-              {recent.map((f, i) => (
-                <button key={f.root} onClick={() => pick(f.root)} title={f.root} autoFocus={i === 0}>
-                  <kbd aria-hidden>{i + 1}</kbd>
-                  <span className="welcome-name">{f.name}</span>
-                  <span className="welcome-path">{f.root}</span>
-                </button>
-              ))}
-            </nav>
-          )}
-          <nav aria-label="Start">
-            <div className="welcome-label">Start</div>
-            <button autoFocus={!recent.length} onClick={() => pick(null)}>Open folder…</button>
-          </nav>
-          <section aria-label="Keys">
-            <div className="welcome-label">Keys</div>
-            {FIRST_KEYS.map(([keys, what]) => (
-              <div key={what} className="welcome-key">
-                <span className="welcome-chips">{keys.map((k) => <kbd key={k}>{k}</kbd>)}</span>
-                <span>{what}</span>
-              </div>
-            ))}
-          </section>
-          {err && <div className="welcome-err">{err}</div>}
-        </div>
-      </div>
     </div>
   );
 }

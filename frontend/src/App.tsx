@@ -3,7 +3,7 @@ import { backend } from "./core/backend";
 import { loadSettings } from "./core/settings";
 import { symbolsFont } from "./theme/symbols";
 import { openTerminal } from "./terminal/terminal";
-import { Shell } from "./shell/Workbench";
+import { Shell } from "./shell/Shell";
 import { ScrollTest } from "./spikes/ScrollTest";
 import { runS4, type Stats } from "./spikes/bindingLatency";
 import { runS6, runS7 } from "./spikes/terminalBench";
