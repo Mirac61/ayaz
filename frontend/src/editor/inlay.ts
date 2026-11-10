@@ -83,7 +83,7 @@ const fetcher = ViewPlugin.fromClass(class {
 });
 
 const theme = EditorView.baseTheme({
-  ".cm-inlay-hint": { color: "#727169", fontSize: "0.9em" }, // kanagawa's comment color
+  ".cm-inlay-hint": { color: "var(--syn-comment, #727169)", fontSize: "0.9em" }, // the theme's comment color
 });
 
 export const inlayHints: Extension = [hintField, fetcher, theme];

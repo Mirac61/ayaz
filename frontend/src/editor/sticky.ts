@@ -60,12 +60,12 @@ function panel(view: EditorView): Panel {
 }
 
 const theme = EditorView.baseTheme({
-  ".cm-sticky": { borderBottom: "1px solid rgb(255 255 255 / 0.08)", backgroundColor: "var(--bg-1, #161617)", padding: "2px 0" },
+  ".cm-sticky": { borderBottom: "none", backgroundColor: "var(--bg-2, #19191b)", padding: "2px 0" },
   ".cm-sticky-row": {
-    padding: "0 16px", whiteSpace: "pre", overflow: "hidden", textOverflow: "ellipsis", cursor: "pointer", color: "#a1a1a6",
+    padding: "0 16px", whiteSpace: "pre", overflow: "hidden", textOverflow: "ellipsis", cursor: "pointer", color: "var(--fg-2, #c8c093)",
     fontFamily: "var(--font-mono)", fontSize: "var(--editor-font-size, 13px)", lineHeight: "1.6",
   },
-  ".cm-sticky-row:hover": { color: "#dcd7ba" },
+  ".cm-sticky-row:hover": { color: "var(--fg-1, #dcd7ba)" },
 });
 
 export const stickyScroll: Extension = [showPanel.of(panel), theme];

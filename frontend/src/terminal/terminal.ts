@@ -9,7 +9,7 @@ import "@xterm/xterm/css/xterm.css";
 import { backend } from "../core/backend";
 import { isMac } from "../core/keymap";
 import { settings } from "../core/settings";
-import { kanagawaTerm } from "../theme/kanagawa-term";
+import { terminalTheme } from "../theme/themes";
 import { parseOsc7 } from "./osc";
 
 // "terminal": keys go to the shell (nvim's terminal mode); "normal": scrollback, search, copy (Ctrl-\ Ctrl-n).
@@ -81,7 +81,7 @@ function bufferText(t: Terminal): string {
 
 export function openTerminal(el: HTMLElement, opts: TermOptions = {}): TermHandle {
   const term = new Terminal({
-    theme: kanagawaTerm,
+    theme: terminalTheme(),
     fontFamily: getComputedStyle(document.documentElement).getPropertyValue("--font-mono"),
     fontSize: termFontSize(),
     scrollback: 10_000,
@@ -204,6 +204,7 @@ export function openTerminal(el: HTMLElement, opts: TermOptions = {}): TermHandl
     setMode,
     focus: () => term.focus(),
     setFont() {
+      term.options.theme = terminalTheme(); // a changed theme in settings.json reaches open terminals here too
       term.options.fontFamily = getComputedStyle(document.documentElement).getPropertyValue("--font-mono");
       term.options.fontSize = termFontSize();
       if (el.clientWidth && el.clientHeight) fit.fit();

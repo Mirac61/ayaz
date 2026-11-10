@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { backend, type Info, type OpenEvent } from "../core/backend";
 import { Commands } from "../core/commands";
-import { defaultKeymap, isMac, keyName, mergeKeymap, parseUserKeymap, Sequencer, type Binding } from "../core/keymap";
-import { diff } from "../core/buffers";
+import { defaultKeymap, keyName, mergeKeymap, parseUserKeymap, Sequencer, type Binding } from "../core/keymap";
+import { diff, lf } from "../core/buffers";
 import { parseProblems } from "../core/tasks";
 import { Quickfix } from "../core/quickfix";
 import { setLspMessages, installHint } from "../editor/lsp";
@@ -18,7 +18,8 @@ import { Picker, type Item, type PickerSource } from "./Picker";
 import { Tree, type TreeHandle } from "./Tree";
 import { gitMarks, single } from "./gitstatus";
 import { loadSession, mergeBreakpoints, mergeCursors, saveSession, type Session } from "./session";
-import { folderIcon } from "../theme/icons";
+import { extOf } from "../lang/registry";
+import { commandIcon, folderIcon } from "../theme/icons";
 import { bang, errText, inTree, LIMIT, type Ctx } from "./commands/context";
 import { fileCommands } from "./commands/file";
 import { findCommands } from "./commands/find";
@@ -171,16 +172,33 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
 
   const commands = useMemo(() => new Commands(), []);
   const qf = useMemo(() => new Quickfix(), []);
-  const fail = (text: string) => setMsg({ text, error: true });
-  const say = (text: string) => setMsg({ text });
+  const msgTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const setTransientMsg = (m: { text: string; error?: boolean; warning?: boolean } | null) => {
+    clearTimeout(msgTimer.current);
+    setMsg(m);
+    if (m && !m.error && !m.warning) {
+      msgTimer.current = setTimeout(() => setMsg(null), 3000);
+    }
+  };
+  const fail = (text: string) => {
+    clearTimeout(msgTimer.current);
+    setMsg({ text, error: true });
+  };
+  const say = (text: string) => setTransientMsg({ text });
   // The debugger (M48): one session per window, its stops shown in the editors, its state in the status line.
   const [debug, setDebug] = useState<DebugStatus>("idle");
   const sayRef = useRef(say);
   sayRef.current = say;
   const dbg = useMemo(() => new Debugger(ws.root, ed, () => dapStream(ws.id), setDebug, (t) => sayRef.current(t)), [ed]);
-  useEffect(() => () => dbg.dispose(), [dbg]);
-  useEffect(() => setLspMessages(ws.id, (text, level) =>
-    setMsg({ text, error: level === "error", warning: level === "warning" })), [ws.id]);
+  useEffect(() => () => {
+    clearTimeout(msgTimer.current);
+    dbg.dispose();
+  }, [dbg]);
+  useEffect(() => setLspMessages(ws.id, (text, level) => {
+    if (level === "error" || level === "warning") {
+      setMsg({ text, error: level === "error", warning: level === "warning" });
+    }
+  }), [ws.id]);
   const run = (id: string, arg?: string) =>
     void Promise.resolve().then(() => commands.run(id, arg)).catch((e) => fail(errText(e)));
 
@@ -325,7 +343,8 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
         run: () => setPicker({
           title: "Switch folder",
           async query(q) {
-            const items = [{ label: "Open folder…", hint: "dialog" }, ...recentFolders().filter((f) => f.root !== ws.root).map((f) => ({ label: f.root, icon: folderIcon(false) }))];
+            const recent = recentFolders().filter((f) => f.root !== ws.root).map((f) => ({ label: f.root, icon: folderIcon(false) }));
+            const items = [...recent, { label: "Open folder…", hint: "dialog", icon: folderIcon(true) }];
             return items.filter((it) => !q || it.label.toLowerCase().includes(q.toLowerCase()));
           },
           pick(it) {
@@ -377,14 +396,17 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       { id: "term.normal", title: "Terminal normal mode", run: () => ed.termNormal() },
       {
         id: "find.commands",
-        title: "Command palette",
+        title: "Command palette (:keymap)",
         run: () => setPicker({
           title: "Commands",
           async query(q) {
             const cs = commands.list();
             const byTitle = new Map(cs.map((c) => [c.title, c]));
             const ms = q.trim() ? await backend.rank([...byTitle.keys()], q, LIMIT) : cs.map((c) => ({ path: c.title, positions: [] }));
-            return ms.map((m): Item => ({ label: m.path, positions: m.positions ?? [], hint: keysFor(byTitle.get(m.path)!.id) }));
+            return ms.map((m): Item => {
+              const cmd = byTitle.get(m.path)!;
+              return { label: m.path, positions: m.positions ?? [], icon: commandIcon(cmd.id), hint: keysFor(cmd.id) };
+            });
           },
           pick: (it) => {
             const c = commands.list().find((x) => x.title === it.label);
@@ -483,7 +505,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
     void files.swaps().then(async (list) => {
       const offer: typeof list = [];
       for (const s of list) {
-        const disk = await files.readText(s.path).then((f) => f.content, () => "");
+        const disk = await files.readText(s.path).then((f) => lf(f.content), () => "");
         if (disk === s.text) await files.swapRemove(s.path);
         else offer.push(s);
       }
@@ -583,6 +605,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
 
   const rs = rects(layout);
   const mode = <span className={`mode ${status.mode}`}>{status.mode}</span>;
+  const branchEl = branch ? <span className="branch" title="Git branch">{branch}</span> : null;
   const dir = status.path?.slice(0, status.path.lastIndexOf("/") + 1);
   const file = (
     <span className="file" title={status.path ?? undefined}>
@@ -591,11 +614,14 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       {status.dirty && <span className="dirty" title="Modified" />}
     </span>
   );
+  const ft = status.path && !status.path.startsWith("term://") && !status.path.startsWith("debug://")
+    ? extOf(status.path)
+    : "";
   const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
-  // Messages, then the counts that are not zero, the branch and the position: all plain text.
+  // Messages, then the counts that are not zero, the filetype and the position: all plain text.
   const line = (
     <>
-      <span className={msg?.error ? "msg error" : msg?.warning ? "msg warning" : "msg"}>{msg?.text}</span>
+      <span role="status" className={msg?.error ? "msg error" : msg?.warning ? "msg warning" : "msg"}>{msg?.text}</span>
       <span className="meta">
         {(diag.errors > 0 || diag.warnings > 0) && (
           <button className="diag" title="Diagnostics (<Space>fd)" tabIndex={-1}
@@ -605,7 +631,8 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
           </button>
         )}
         {debug !== "idle" && <span className="debug" title="Debugger: <Space>dq stops it">DEBUG {debug}</span>}
-        {branch && <span className="branch" title="Git branch">{branch}</span>}
+        {status.eol && <span className="filetype" title="Line endings of this file are kept on save">{status.eol}</span>}
+        {ft && <span className="filetype">{ft}</span>}
         <span className="location">{status.info ?? `${status.line}:${status.col}`}</span>
       </span>
     </>
@@ -613,19 +640,31 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
   return (
     <div className={`workbench${max && panel === "shown" ? " max" : ""}${sidebar ? ` sidebar-${side}` : " nosidebar"} bar-${bar}`}
       data-ws={ws.id}>
-      {/* "statusline": "top" puts mode, file and messages in the title bar, so the code gets the full height;
-          "bottom" leaves the file there, centered like a window title, and the rest goes under the code. */}
-      {bar === "top" ? (
-        <header className={isMac ? "statusline mac" : "statusline"}>
+      {/* Title bar across the full width; the Neovim laststatus=3 statusline sits under the code (shell.css). */}
+      <header className="titlebar">
+        <button
+          type="button"
+          className="titlebar-project"
+          title="Open recent project (<Space>fp)"
+          tabIndex={-1}
+          onMouseDown={(e) => { e.preventDefault(); run("folder.switch"); }}
+        >
+          {ws.name}
+        </button>
+        {file}
+      </header>
+      {bar === "top" && (
+        <header className="statusline">
           {mode}
+          {branchEl}
           {file}
           {line}
         </header>
-      ) : (
-        <header className="titlebar">{file}</header>
       )}
       <aside className="sidebar" hidden={!sidebar}>
-        <div className="sidebar-title">{ws.name}</div>
+        <div className="sidebar-title">
+          <span className="sidebar-tab active">files</span>
+        </div>
         <Tree
           ref={tree}
           files={files}
@@ -702,7 +741,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
           />
         </div>
       )}
-      {bar === "bottom" && <footer className="statusline bottom">{mode}{line}</footer>}
+      {bar === "bottom" && <footer className="statusline bottom">{mode}{branchEl}{file}{line}</footer>}
       {hints && <Hints keys={hints.keys} next={hints.next} title={(id) => commands.list().find((c) => c.id === id)?.title ?? id} />}
       {picker && <Picker source={picker} onClose={() => { setPicker(null); if (!document.activeElement?.closest(".sidebar")) ed.focus(ed.active); }} />}
     </div>

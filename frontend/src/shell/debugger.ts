@@ -6,6 +6,8 @@ import { scopeRow, toggle, type Row } from "../debug/variables";
 // buffer, its state in the status line. The editor is behind a small interface so this runs in tests.
 export interface DebugEditor {
   breakpoints(): Record<string, number[]>;
+  // The folder (workspace-relative, "" for the root) of the Go file in the active editor, null if it isn't one.
+  activeGoDir(): string | null;
   openAt(path: string, line: number, col: number): Promise<void>;
   setDebugLine(path: string | null, line?: number): void;
   appendOutput(text: string): Promise<void>;
@@ -27,7 +29,7 @@ export class Debugger {
   get status(): DebugStatus { return this.session?.state ?? "idle"; }
   get frames() { return this.session?.frames ?? []; }
 
-  // Starts debugging the folder's Go package with the breakpoints of every loaded buffer.
+  // Starts debugging the Go package of the active file (or the folder's) with the breakpoints of every loaded buffer.
   async start() {
     if (this.session && this.session.state !== "ended") return this.say("Already debugging: <Space>dq stops it");
     const session = (this.session = new DebugSession(new DapClient(this.connect()), this.root, {
@@ -45,7 +47,8 @@ export class Debugger {
       },
     }));
     try {
-      await session.start(this.ed.breakpoints());
+      const dir = this.ed.activeGoDir(); // the package of the file you are in, else the folder's own
+      await session.start(this.ed.breakpoints(), dir ? `${this.root}/${dir}` : undefined);
     } catch (e) {
       throw e instanceof Error ? e : new Error(String(e));
     }

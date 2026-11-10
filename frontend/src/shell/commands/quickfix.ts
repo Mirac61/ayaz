@@ -1,6 +1,6 @@
 // The quickfix list as the shell uses it: jump, pick, fill from a search or the LSP, replace across files.
 import { Text } from "@codemirror/state";
-import { isDirty } from "../../core/buffers";
+import { isDirty, lf } from "../../core/buffers";
 import { label, replaceEdits, type Loc } from "../../core/quickfix";
 import { fileIcon } from "../../theme/icons";
 import type { Item, PickerSource } from "../Picker";
@@ -43,7 +43,7 @@ export function quickfixTools({ ed, files, qf, say, fail }: Ctx) {
     for (const l of locs) {
       if (!docs.has(l.path)) {
         const b = ed.buffers.get(l.path);
-        docs.set(l.path, b ? b.state.doc : await files.readText(l.path).then((f) => Text.of(f.content.split("\n")), () => null));
+        docs.set(l.path, b ? b.state.doc : await files.readText(l.path).then((f) => Text.of(lf(f.content).split("\n")), () => null));
       }
       const d = docs.get(l.path);
       if (d && l.line <= d.lines) l.text = d.line(l.line).text;

@@ -6,7 +6,14 @@ export interface Buffer {
   state: EditorState;
   mtime: number; // mtime the buffer was read or last written with, 0 = not on disk yet
   saved: Text; // doc as on disk, for the dirty flag
+  eol: Eol; // the file's line ending: the doc holds "\n" only, save writes eol back
 }
+
+export type Eol = "\n" | "\r\n";
+
+// shortcut: a file mixing both endings is written back with the first line's, upgrade when someone minds.
+export const eolOf = (text: string): Eol => (/\r\n/.test(text.slice(0, text.indexOf("\n") + 1)) ? "\r\n" : "\n");
+export const lf = (text: string) => text.replace(/\r\n/g, "\n");
 
 // Buffers with no file: the debugger's output.
 export const isVirtual = (path: string) => path.startsWith("debug://");
@@ -52,7 +59,7 @@ export class Buffers {
     const have = this.m.get(path);
     if (have) return have;
     const state = await this.makeState(path, "");
-    const b: Buffer = { path, state, mtime: 0, saved: state.doc };
+    const b: Buffer = { path, state, mtime: 0, saved: state.doc, eol: "\n" };
     this.m.set(path, b);
     return b;
   }
@@ -65,8 +72,9 @@ export class Buffers {
     } catch (e) {
       if (!notFound(e)) throw e;
     }
-    const state = await this.makeState(path, content);
-    const b: Buffer = { path, state, mtime, saved: state.doc };
+    const eol = eolOf(content);
+    const state = await this.makeState(path, lf(content));
+    const b: Buffer = { path, state, mtime, saved: state.doc, eol };
     this.m.set(path, b);
     return b;
   }
@@ -81,13 +89,15 @@ export class Buffers {
       return { kind: b.mtime ? "deleted" : "same" };
     }
     if (f.mtime === b.mtime) return { kind: "same" };
-    if (f.content === b.state.doc.toString()) {
+    const content = lf(f.content);
+    if (content === b.state.doc.toString()) {
       b.mtime = f.mtime;
       b.saved = b.state.doc;
       return { kind: "same" };
     }
     if (isDirty(b)) return { kind: "conflict" };
-    return { kind: "reload", content: f.content, mtime: f.mtime };
+    b.eol = eolOf(f.content);
+    return { kind: "reload", content, mtime: f.mtime };
   }
 
   // Hot exit (M49): a dirty buffer's text goes to its swap when it changed since the last write; a buffer that is
@@ -126,7 +136,7 @@ export class Buffers {
     const doc = b.state.doc;
     let expected = b.mtime;
     if (force) expected = await this.files.readText(b.path).then((f) => f.mtime, (e) => (notFound(e) ? 0 : Promise.reject(e)));
-    b.mtime = await this.files.writeText(b.path, doc.toString(), expected);
+    b.mtime = await this.files.writeText(b.path, b.eol === "\n" ? doc.toString() : doc.toString().replace(/\n/g, b.eol), expected);
     b.saved = doc;
   }
 }

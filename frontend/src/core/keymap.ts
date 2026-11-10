@@ -31,6 +31,7 @@ export function defaultKeymap(mac = isMac): Binding[] {
     n("<Space>fk", "find.commands"),
     n("<Space>fw", "find.grep"),
     n("<Space>fp", "folder.switch"),
+    n("<Space>ft", "theme.switch"),
     n("<Space>fs", "lsp.symbols"),
     n("<Space>fS", "lsp.workspaceSymbols"),
     n("<Space>fd", "lsp.diagnostics"),
@@ -96,7 +97,7 @@ export function defaultKeymap(mac = isMac): Binding[] {
       : [g("<C-S-p>", "find.files"), g("<C-S-j>", "term.panel"), g("<C-S-n>", "window.new"),
         g("<C-,>", "settings.open"), g("<C-S-b>", "view.sidebar")]),
     ...(mac
-      ? [g("<D-S-t>", "tab.reopen"), g("<D-[>", "nav.back"), g("<D-]>", "nav.forward"), g("<C-->", "nav.back"),
+      ? [g("<D-w>", "tab.close"), g("<D-S-t>", "tab.reopen"), g("<D-[>", "nav.back"), g("<D-]>", "nav.forward"), g("<C-->", "nav.back"),
         g("<C-S-_>", "nav.forward")] // Ctrl -, Ctrl Shift - like VS Code on macOS: brackets need Alt on German layouts
       : [g("<C-S-t>", "tab.reopen"), g("<A-Left>", "nav.back"), g("<A-Right>", "nav.forward")]),
     // "+" has its own key on German layouts, "=" on US ones.

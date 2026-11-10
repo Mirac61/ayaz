@@ -51,7 +51,7 @@ const field = StateField.define<DecorationSet>({
 });
 
 const theme = EditorView.baseTheme({
-  ".cm-blame": { color: "#727169", fontStyle: "italic", paddingLeft: "3ch" }, // kanagawa's comment color
+  ".cm-blame": { color: "var(--syn-comment, #727169)", fontStyle: "italic", paddingLeft: "3ch" }, // the theme's comment color
 });
 
 export const inlineBlame: Extension = [field, theme];

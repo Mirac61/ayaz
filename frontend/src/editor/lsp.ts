@@ -8,7 +8,7 @@ import {
   languageServerExtensions, renameKeymap, serverDiagnostics, signatureHelp, type Transport, type WorkspaceFile,
 } from "@codemirror/lsp-client";
 import { backend } from "../core/backend";
-import { extOf } from "../lang/registry";
+import { serverFor } from "../lang/registry";
 import type { Loc } from "../core/quickfix";
 import { diagnosticsFor, dropDiagnostics, type Published } from "./diagnostics";
 import { inlayHints } from "./inlay";
@@ -17,19 +17,6 @@ import { documentHighlight } from "./highlight";
 import { SEMANTIC_CAPABILITY, semanticTokens } from "./semantic";
 import { isMac } from "../core/keymap";
 import { fileSettings } from "../core/settings";
-
-// Extension → [LSP language ID, server name]. Go maps the server name to a command (app/lsp.go);
-// one server per (workspace, server), so .c and .cpp share clangd, .ts and .js share one TypeScript server.
-const LANG: Record<string, [string, string]> = {
-  go: ["go", "gopls"],
-  c: ["c", "clangd"], h: ["c", "clangd"], cc: ["cpp", "clangd"], cpp: ["cpp", "clangd"], hpp: ["cpp", "clangd"],
-  js: ["javascript", "ts"], mjs: ["javascript", "ts"], jsx: ["javascriptreact", "ts"],
-  ts: ["typescript", "ts"], tsx: ["typescriptreact", "ts"],
-  html: ["html", "html"], css: ["css", "css"], json: ["json", "json"],
-  java: ["java", "jdtls"],
-};
-export const serverFor = (path: string): [lang: string, server: string] | undefined => LANG[extOf(path)];
-
 
 const enc = new TextEncoder();
 const dec = new TextDecoder();
@@ -443,6 +430,7 @@ const INSTALL: Record<string, string> = {
   css: "npm i -g vscode-langservers-extracted",
   json: "npm i -g vscode-langservers-extracted",
   jdtls: isMac ? "brew install jdtls" : "install jdtls with your package manager",
+  dlv: "go install github.com/go-delve/delve/cmd/dlv@latest", // the debugger, through the same "missing" status
 };
 export const installHint = (server: string) => INSTALL[server] ?? "";
 

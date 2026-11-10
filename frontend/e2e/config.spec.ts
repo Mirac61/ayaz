@@ -38,6 +38,35 @@ test("settings.json and keymap.json apply when saved", async ({ page }) => {
 });
 
 const hasGopls = (() => { try { execSync("command -v gopls", { shell: "/bin/sh" }); return true; } catch { return false; } })();
+
+// "theme" picks a built-in theme, "themes" holds your own on top of another; both apply when saved, a wrong name is reported.
+test("theme and themes in settings.json recolor the chrome, the code and the terminal's page", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: "search.txt" }).click();
+  const root = page.locator("html");
+  const bg = () => root.evaluate((el) => getComputedStyle(el).getPropertyValue("--bg-0").trim());
+  const syn = () => root.evaluate((el) => getComputedStyle(el).getPropertyValue("--syn-keyword").trim());
+  await expect.poll(bg).toBe("#161617"); // graphite, the default
+
+  writeFileSync(join(e2eConfig, "settings.json"), JSON.stringify({ theme: "tokyo-night" }));
+  await expect.poll(bg).toBe("#16161e");
+  await expect.poll(syn).toBe("#bb9af7");
+
+  writeFileSync(
+    join(e2eConfig, "settings.json"),
+    JSON.stringify({ theme: "mine", themes: { mine: { extends: "gruvbox-dark", ui: { bg0: "#101014" } } } }),
+  );
+  await expect.poll(bg).toBe("#101014");
+  expect(await root.evaluate((el) => getComputedStyle(el).getPropertyValue("--bg-1").trim())).toBe("#282828");
+
+  writeFileSync(join(e2eConfig, "settings.json"), JSON.stringify({ theme: "nope" }));
+  await expect(page.locator(".statusline .msg.error")).toContainText('unknown theme "nope"');
+  expect(await bg()).toBe("#101014"); // the last good theme stays
+
+  rmSync(join(e2eConfig, "settings.json"));
+  await expect.poll(bg).toBe("#161617");
+});
+
 const hasGo = (() => { try { execSync("command -v go", { shell: "/bin/sh" }); return true; } catch { return false; } })();
 
 // M43: "inlayHints": true shows gopls' parameter names, saving it off again hides them.

@@ -113,3 +113,16 @@ test.fail("mA in one file, 'A from another jumps back", async ({ page }) => {
   await page.keyboard.type("'A");
   await expect(page.locator(".statusline")).toContainText("README.md", { timeout: 2000 });
 });
+
+test("Cmd+W closes the tab and shows the next one", async ({ page }) => {
+  test.skip(process.platform !== "darwin", "Cmd is the Mac key");
+  await page.goto("/");
+  const tree = page.getByRole("tree", { name: "Files" });
+  await tree.getByRole("treeitem", { name: "README.md" }).click();
+  await tree.getByRole("treeitem", { name: "notes.md" }).click();
+  const tabs = page.locator(".tabbar .tab");
+  await expect(tabs).toHaveCount(2);
+  await page.keyboard.press("Meta+w");
+  await expect(tabs).toHaveCount(1);
+  await expect(tabs.first()).toContainText("README.md");
+});

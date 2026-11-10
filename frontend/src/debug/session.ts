@@ -35,11 +35,12 @@ export class DebugSession {
     client.on("closed", () => this.end());
   }
 
-  // Launches the package in root with these breakpoints (workspace-relative path → lines). Rejects if launching fails.
-  async start(breakpoints: Record<string, number[]>) {
+  // Launches a package (an absolute folder, the root's own by default) with these breakpoints (workspace-relative path
+  // → lines). Rejects if launching fails.
+  async start(breakpoints: Record<string, number[]>, program?: string) {
     this.hooks.state("starting");
     try {
-      await launch(this.client, { root: this.root, breakpoints });
+      await launch(this.client, { root: this.root, program, breakpoints });
     } catch (e) {
       this.end();
       throw e;

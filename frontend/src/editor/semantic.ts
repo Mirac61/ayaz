@@ -2,7 +2,7 @@ import { StateEffect, StateField, type Extension } from "@codemirror/state";
 import { Decoration, EditorView, ViewPlugin, type DecorationSet, type ViewUpdate } from "@codemirror/view";
 import { LSPPlugin } from "@codemirror/lsp-client";
 import { settings } from "../core/settings";
-import { palette as c } from "../theme/kanagawa-cm";
+import { palette as c } from "../theme/cm-theme";
 import { applyEdits, decodeTokens, tokenClass, type DataEdit, type Legend } from "./semantic-tokens";
 
 // Semantic tokens from the language server, over the syntax highlighting: the server knows a name is a parameter

@@ -49,6 +49,18 @@ const make = (init: Record<string, string>) => {
 const edit = (s: EditorState, text: string) => s.update({ changes: { from: 0, insert: text } }).state;
 
 describe("Buffers", () => {
+  test("a CRLF file stays CRLF: the doc holds LF, save writes the file's ending back", async () => {
+    const { bufs, disk, touch } = make({ "w.txt": "a\r\nb\r\n" });
+    const b = await bufs.open("w.txt");
+    expect(b.state.doc.toString()).toBe("a\nb\n");
+    expect(b.eol).toBe("\r\n");
+    b.state = edit(b.state, "x");
+    await bufs.save(b);
+    expect(disk.get("w.txt")?.content).toBe("xa\r\nb\r\n");
+    touch("w.txt", "xa\r\nb\r\n"); // same text, new mtime: still clean
+    expect(await bufs.checkDisk(b)).toEqual({ kind: "same" });
+  });
+
   test("open reads once, edits mark dirty, save clears it", async () => {
     const { bufs, disk } = make({ "a.go": "x" });
     const b = await bufs.open("a.go");

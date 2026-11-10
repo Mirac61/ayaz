@@ -1,6 +1,7 @@
 // The debugger (M48): breakpoints, starting, stepping, stopping and the variables of the stopped program.
 import type { Command } from "../../core/commands";
 import { lines, type Row } from "../../debug/variables";
+import { installHint } from "../../editor/lsp";
 import type { Item, PickerSource } from "../Picker";
 import { errText, type Ctx } from "./context";
 
@@ -30,6 +31,12 @@ export function debugCommands(c: Ctx): Command[] {
     };
   };
 
+  // The adapter ending before it launched usually means Delve isn't installed; the stream's "missing" status said so too.
+  const startFailed = (e: unknown) => {
+    const text = errText(e);
+    c.fail(text.includes("ended") ? `${text}. Is dlv installed? ${installHint("dlv")}` : text);
+  };
+
   return [
     {
       id: "debug.toggleBreakpoint",
@@ -45,12 +52,12 @@ export function debugCommands(c: Ctx): Command[] {
     {
       id: "debug.start",
       title: "Debug the folder's Go package (<Space>dd)",
-      run: () => c.dbg.start().catch((e) => c.fail(errText(e))),
+      run: () => c.dbg.start().catch(startFailed),
     },
     {
       id: "debug.continue",
       title: "Debug: continue, or start (F5, <Space>dc)",
-      run: () => (c.dbg.status === "idle" ? c.dbg.start().catch((e) => c.fail(errText(e))) : c.dbg.step("continue")),
+      run: () => (c.dbg.status === "idle" ? c.dbg.start().catch(startFailed) : c.dbg.step("continue")),
     },
     { id: "debug.next", title: "Debug: step over (F10, <Space>dn)", run: () => void c.dbg.step("next") },
     { id: "debug.stepIn", title: "Debug: step into (F11, <Space>ds)", run: () => void c.dbg.step("stepIn") },

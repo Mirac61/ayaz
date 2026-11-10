@@ -9,6 +9,7 @@ function setup(breakpoints: Record<string, number[]> = { "main.go": [6] }) {
   const statuses: DebugStatus[] = [];
   const ed: DebugEditor = {
     breakpoints: () => breakpoints,
+    activeGoDir: () => null,
     openAt: async (path, line) => void log.push(`open ${path}:${line}`),
     setDebugLine: (path, line) => void log.push(`line ${path ?? "none"}${path ? `:${line}` : ""}`),
     appendOutput: async (text) => void log.push(`out ${text.trim()}`),
@@ -85,7 +86,7 @@ test("a failed launch rejects and leaves the debugger idle", async () => {
   const f = fakeAdapter({ failLaunch: true });
   const statuses: DebugStatus[] = [];
   const nothing = async () => {};
-  const ed: DebugEditor = { breakpoints: () => ({}), openAt: nothing, setDebugLine: () => {}, appendOutput: nothing };
+  const ed: DebugEditor = { breakpoints: () => ({}), activeGoDir: () => null, openAt: nothing, setDebugLine: () => {}, appendOutput: nothing };
   const dbg = new Debugger("/p", ed, () => f.transport, (s) => statuses.push(s), () => {});
   await expect(dbg.start()).rejects.toThrow("could not launch process");
   expect(dbg.status).toBe("idle");
@@ -110,7 +111,7 @@ test("variables: nothing while running; when stopped Locals comes open and Globa
     },
   });
   const nothing = async () => {};
-  const ed: DebugEditor = { breakpoints: () => ({}), openAt: nothing, setDebugLine: () => {}, appendOutput: nothing };
+  const ed: DebugEditor = { breakpoints: () => ({}), activeGoDir: () => null, openAt: nothing, setDebugLine: () => {}, appendOutput: nothing };
   const dbg = new Debugger("/p", ed, () => f.transport, () => {}, () => {});
   await dbg.start();
   expect(await dbg.variables()).toBeNull(); // running

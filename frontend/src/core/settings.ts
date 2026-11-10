@@ -1,4 +1,5 @@
 import { extOf } from "../lang/registry";
+import { applyTheme, DEFAULT_THEME, parseThemeSpecs, resolveTheme, themeNames, type ThemeSpec } from "../theme/themes";
 
 // settings.json next to keymap.json. Read at start and again whenever it is saved (like the keymap).
 // "languages" is keyed by file extension ("go", "md", "ts") and overrides the global values for those files:
@@ -20,6 +21,9 @@ export interface Settings extends FileSettings {
   stickyScroll: boolean; // the functions and classes that scrolled out of view stay on top
   sidebar: "left" | "right"; // the file tree's side of the window
   statusline: "top" | "bottom"; // mode, messages and meta in the title bar, or in their own line under the code
+  glass?: boolean; // optional translucent chrome/overlays; solid is the default
+  theme: string; // a built-in theme (see theme/themes.ts) or one of "themes"
+  themes: Record<string, ThemeSpec>; // your own, each on top of another ("extends"), by name
   statusColors: Partial<Record<StatusColor, string>>; // hex colors over tokens.css --status-*
   tasks: Record<string, string>; // name → shell command, run with <Space>rr in the folder
   languages: Record<string, Partial<FileSettings>>;
@@ -36,6 +40,8 @@ export const DEFAULTS: Settings = {
   stickyScroll: true,
   sidebar: "left",
   statusline: "top",
+  theme: DEFAULT_THEME,
+  themes: {},
   statusColors: {},
   tasks: {},
   tabWidth: 4,
@@ -95,11 +101,12 @@ export function parseSettings(json: string): Settings {
   }
   if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("settings.json: expected an object");
   const {
-    font, fontSize, terminalFontSize, inlayHints, semanticTokens, stickyScroll, sidebar, statusline, statusColors, tasks, languages, ...file
+    font, fontSize, terminalFontSize, inlayHints, semanticTokens, stickyScroll,
+    sidebar, statusline, glass, theme, themes, statusColors, tasks, languages, ...file
   } = data as Record<string, unknown>;
   if (font !== undefined && typeof font !== "string") throw new Error('settings.json: "font" must be a string');
   if (inlayHints !== undefined && typeof inlayHints !== "boolean") throw new Error('settings.json: "inlayHints" must be a boolean');
-  for (const [name, v] of Object.entries({ semanticTokens, stickyScroll })) {
+  for (const [name, v] of Object.entries({ semanticTokens, stickyScroll, glass })) {
     if (v !== undefined && typeof v !== "boolean") throw new Error(`settings.json: "${name}" must be a boolean`);
   }
   if (sidebar !== undefined && sidebar !== "left" && sidebar !== "right") {
@@ -108,6 +115,10 @@ export function parseSettings(json: string): Settings {
   if (statusline !== undefined && statusline !== "top" && statusline !== "bottom") {
     throw new Error('settings.json: "statusline" must be "top" or "bottom"');
   }
+  if (theme !== undefined && typeof theme !== "string") throw new Error('settings.json: "theme" must be a theme name');
+  const specs = themes === undefined ? {} : parseThemeSpecs(themes);
+  resolveTheme((theme as string | undefined) ?? DEFAULT_THEME, specs); // an unknown theme or a circle fails here
+  for (const name of Object.keys(specs)) resolveTheme(name, specs);
   if (statusColors !== undefined) {
     if (!statusColors || typeof statusColors !== "object" || Array.isArray(statusColors)) {
       throw new Error('settings.json: "statusColors" must be an object');
@@ -152,6 +163,9 @@ export function parseSettings(json: string): Settings {
     ...(stickyScroll !== undefined && { stickyScroll: stickyScroll as boolean }),
     ...(sidebar !== undefined && { sidebar }),
     ...(statusline !== undefined && { statusline }),
+    ...(glass !== undefined && { glass: glass as boolean }),
+    ...(theme !== undefined && { theme: theme as string }), // checked above
+    themes: specs,
     ...(statusColors !== undefined && { statusColors: statusColors as Settings["statusColors"] }), // checked above
     ...(tasks !== undefined && { tasks: tasks as Settings["tasks"] }), // checked above
     languages: langs,
@@ -160,9 +174,31 @@ export function parseSettings(json: string): Settings {
 
 let current = DEFAULTS;
 let problem = "";
+let override = ""; // a theme picked with the theme command: kept until settings.json names another one
+let fileTheme = DEFAULTS.theme;
 
 export const settings = () => current;
 export const settingsError = () => problem; // why settings.json was ignored, "" if it wasn't
+export const themeName = () => override || current.theme;
+export const availableThemes = () => themeNames(current.themes);
+
+// Puts the theme on the page, then the colors of "statusColors" over it.
+function paintTheme() {
+  applyTheme(resolveTheme(themeName(), current.themes), !!current.glass);
+  const root = document.documentElement.style;
+  for (const k of STATUS_COLORS) {
+    const c = current.statusColors[k];
+    if (c) root.setProperty(`--status-${k}`, c);
+  }
+}
+
+// The theme command: this theme until settings.json names another one. Returns false for an unknown name.
+export function setThemeOverride(name: string): boolean {
+  if (!availableThemes().includes(name)) return false;
+  override = name;
+  paintTheme();
+  return true;
+}
 
 // The settings for one file: its language's values over the global ones.
 export function fileSettings(path: string | null, s = current): FileSettings {
@@ -179,13 +215,12 @@ export function loadSettings(text: string) {
     problem = e instanceof Error ? e.message : String(e);
   }
   const root = document.documentElement.style;
+  document.documentElement.toggleAttribute("data-glass", !!current.glass);
   root.setProperty("--editor-font-size", `${current.fontSize}px`);
   root.removeProperty("--font-mono"); // back to the stylesheet's stack, so a reload doesn't stack fonts
   const mono = getComputedStyle(document.documentElement).getPropertyValue("--font-mono");
   if (current.font) root.setProperty("--font-mono", `"${current.font}", ${mono}`);
-  for (const k of STATUS_COLORS) {
-    const c = current.statusColors[k];
-    if (c) root.setProperty(`--status-${k}`, c);
-    else root.removeProperty(`--status-${k}`); // tokens.css default
-  }
+  if (current.theme !== fileTheme) override = "";
+  fileTheme = current.theme;
+  paintTheme();
 }

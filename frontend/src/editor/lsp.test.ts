@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { Text } from "@codemirror/state";
-import { fileOps, fileUri, serverFor, streamTransport, toChanges, uriPath } from "./lsp";
+import { fileOps, fileUri, streamTransport, toChanges, uriPath } from "./lsp";
+import { serverFor } from "../lang/registry";
 
 const dec = new TextDecoder();
 

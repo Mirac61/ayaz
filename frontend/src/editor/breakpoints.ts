@@ -53,7 +53,7 @@ export function toggleBreakpoint(view: EditorView): boolean {
 
 const theme = EditorView.baseTheme({
   ".cm-bp .cm-gutterElement": { width: "12px", display: "flex", alignItems: "center", justifyContent: "center" },
-  ".cm-bp-dot": { width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#e82424" }, // kanagawa samuraiRed
+  ".cm-bp-dot": { width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "var(--error, #e82424)" }, // kanagawa samuraiRed
 });
 
 export const breakpointGutter: Extension = [

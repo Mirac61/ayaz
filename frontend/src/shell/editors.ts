@@ -19,7 +19,10 @@ import { historyRoute } from "../editor/vim/setup";
 import { breakpointLines, setLines as setBreakpointLines, toggleBreakpoint } from "../editor/breakpoints";
 import { setDebugLine } from "../editor/debugline";
 import { diffWith, headEffects, toggleDiff } from "../editor/gitgutter";
+import { setEditorConfig } from "../core/editorconfig";
 import { Waits } from "./waits";
+import { UndoSteps } from "./undoSteps";
+import { HiddenTerms } from "./terminals";
 
 export interface Status {
   pane: number;
@@ -29,6 +32,7 @@ export interface Status {
   line: number;
   col: number;
   lines: number;
+  eol?: "LF" | "CRLF"; // shown only for CRLF, the unusual one
   info?: string; // a viewer's status (zoom, size) in place of line:col
 }
 
@@ -55,24 +59,31 @@ export class Editors {
   private lastEditor = 0; // where files open while a terminal pane is active
   private tabs = new Map<number, string[]>(); // per pane: files shown in it, in the order first shown
   private dirtyTabs = ""; // the dirty buffers' paths when the tabs were last drawn
-  tabsOn = false; // set through setTabs
+  tabsOn = true; // set through setTabs
   cursors: Record<string, number> = {}; // from the session: where the cursor was when a file loads again
   bps: Record<string, number[]> = {}; // from the session: the breakpoints a file gets when it loads again
   private jumps = new Map<number, Jumps>(); // per pane: back/forward across files
   private navigating = false; // nav() is opening a file: not a new jump
   private closed: string[] = []; // closed tabs, last on top (Cmd+Shift+T)
   private waits = new Waits(); // `ayaz --wait`: files somebody waits to see closed
-  private hidden: { term: TermHandle; box: HTMLElement; title: string; cmd: string }[] = []; // terminals without a pane
-  private holder: HTMLElement | null = null; // keeps hidden terminals in the document, undrawn
+  private hidden = new HiddenTerms();
   private terms = 0; // numbers the terminals: "shell 1", "lazygit 2"
   onTermExit: (id: number) => void = () => {}; // the shell in split pane id ended (the panel passes its own onExit)
-  // Per buffer: the pane behind each undo (and redo) step, newest last. Each pane keeps its own CM6 history,
-  // so u runs in the pane that made the latest step, and the change syncs to the others (like nvim's one undo tree).
-  private steps = new WeakMap<Buffer, { undo: number[]; redo: number[] }>();
+  private steps = new UndoSteps(); // see there: u runs in the pane that made the latest step
   active = 0;
 
+  // The root .editorconfig, read before the first buffer is made. Missing or unreadable: none.
+  private editorConfig: Promise<void>;
+  private loadEditorConfig() {
+    // Looked up in the folder's listing first: reading a missing file would log an error in the console.
+    return this.files.list("").then(
+      (es) => (es.some((e) => e.name === ".editorconfig" && !e.dir) ? this.files.readText(".editorconfig") : { content: "" }),
+    ).then((f) => setEditorConfig(f.content), () => setEditorConfig(""));
+  }
+
   constructor(private files: Files, private root: string, private wsId: string, private onStatus: (s: Status) => void) {
-    this.buffers = new Buffers(files, (path, doc) => createState(path, doc, wsId, root));
+    this.editorConfig = this.loadEditorConfig();
+    this.buffers = new Buffers(files, async (path, doc) => { await this.editorConfig; return createState(path, doc, wsId, root); });
     setLspHost(wsId, { display: (path) => this.display(path), apply: async (e) => (await this.applyEdit(e)).length > 0 });
     this.recentKey = `ayaz.recent:${root}`;
   }
@@ -115,7 +126,7 @@ export class Editors {
   // closing: the pane goes away for good (not just swapping its content), so its tabs go too.
   detach(id: number, closing = false) {
     const p = this.panes.get(id);
-    if (p?.buf) this.forgetSteps(id, p.buf);
+    if (p?.buf) this.steps.forget(id, p.buf);
     p?.view?.destroy();
     if (p?.term && closing && id > 0) this.hide(p);
     else p?.term?.dispose();
@@ -187,15 +198,17 @@ export class Editors {
     await this.open(list[(i + d + list.length) % list.length]);
   }
 
-  // Drops the current file from the pane's tabs and shows its neighbor. The buffer itself stays loaded, so nothing is lost.
-  async tabClose() {
-    const id = this.active, p = this.panes.get(id);
+  // Drops a file (default: the current one) from the pane's tabs and shows its neighbor. The buffer itself stays
+  // loaded, so nothing is lost.
+  async tabClose(path?: string, id = this.active) {
+    const p = this.panes.get(id);
     const cur = p?.buf?.path ?? (p?.viewer ? p.title : undefined);
-    const list = this.tabs.get(id);
-    if (!cur || !list) return;
-    const i = list.indexOf(cur);
+    const list = this.tabs.get(id), target = path ?? cur;
+    if (!target || !list || !list.includes(target)) return;
+    const i = list.indexOf(target);
     list.splice(i, 1);
-    this.pushClosed(cur);
+    this.pushClosed(target);
+    if (target !== cur) return this.renderTabs(id);
     const next = list[Math.min(i, list.length - 1)];
     if (next) await this.open(next, id);
     else { this.replace(id); this.renderTabs(id); }
@@ -211,8 +224,9 @@ export class Editors {
   private renderTabs(id: number) {
     const p = this.panes.get(id);
     if (!p) return;
+    const list = this.tabs.get(id) ?? [];
     let bar = p.el.querySelector<HTMLElement>(":scope > .tabbar");
-    if (!this.tabsOn || p.term) return void bar?.remove();
+    if (!this.tabsOn || p.term || !list.length) return void bar?.remove();
     if (!bar) {
       bar = document.createElement("div");
       bar.className = "tabbar";
@@ -220,19 +234,35 @@ export class Editors {
       p.el.prepend(bar);
     }
     const cur = p.buf?.path ?? (p.viewer ? p.title : undefined);
-    bar.replaceChildren(...(this.tabs.get(id) ?? []).map((path) => {
+    bar.replaceChildren(...list.map((path) => {
+      const active = path === cur, slash = path.lastIndexOf("/");
       const t = document.createElement("button");
-      t.className = path === cur ? "tab active" : "tab";
+      t.type = "button";
+      t.className = active ? "tab active" : "tab";
       t.setAttribute("role", "tab");
-      t.setAttribute("aria-selected", String(path === cur));
+      t.setAttribute("aria-selected", String(active));
       t.title = path;
-      t.textContent = path.slice(path.lastIndexOf("/") + 1);
+      const name = Object.assign(document.createElement("span"), { className: "tab-name" });
+      if (active && slash >= 0) {
+        const dir = document.createElement("span");
+        dir.className = "dir";
+        dir.textContent = path.slice(0, slash + 1);
+        name.append(dir, path.slice(slash + 1));
+      } else {
+        name.textContent = path.slice(slash + 1);
+      }
+      t.append(name);
       const b = this.buffers.get(path);
       if (b && isDirty(b)) t.append(Object.assign(document.createElement("span"), { className: "dirty", title: "Modified" }));
+      const x = Object.assign(document.createElement("span"), { className: "tab-close", title: "Close" });
+      x.addEventListener("mousedown", (e) => { e.preventDefault(); e.stopPropagation(); void this.tabClose(path, id); });
+      t.append(x);
       t.tabIndex = -1;
       t.addEventListener("mousedown", (e) => { e.preventDefault(); void this.open(path, id); });
       return t;
     }));
+    const scrollOpts = { inline: "nearest", block: "nearest", container: "nearest" } as ScrollIntoViewOptions;
+    bar.querySelector(".active")?.scrollIntoView(scrollOpts);
   }
 
   focus(id: number) {
@@ -430,6 +460,13 @@ export class Editors {
 
   pathOf(id: number) { return this.panes.get(id)?.buf?.path; }
 
+  // The folder of the Go file in the active editor, workspace-relative ("" for the root); null for anything else.
+  activeGoDir(): string | null {
+    const path = this.current()?.path;
+    if (!path || path.startsWith("/") || !path.endsWith(".go")) return null;
+    return path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
+  }
+
   // Every loaded buffer's breakpoints (files without any are left out): what the debugger is given.
   breakpoints(): Record<string, number[]> {
     const out: Record<string, number[]> = {};
@@ -520,11 +557,11 @@ export class Editors {
     for (const p of this.panes.values()) {
       p.term?.setFont();
       if (!p.view || !p.buf) continue;
-      p.view.dispatch({ effects: settingsEffects(p.buf.path) });
+      p.view.dispatch({ effects: settingsEffects(p.buf.path, p.view.state.doc) });
       shown.add(p.buf);
     }
-    for (const b of this.buffers.list()) if (!shown.has(b)) b.state = b.state.update({ effects: settingsEffects(b.path) }).state;
-    for (const h of this.hidden) h.term.setFont();
+    for (const b of this.buffers.list()) if (!shown.has(b)) b.state = b.state.update({ effects: settingsEffects(b.path, b.state.doc) }).state;
+    this.hidden.setFont();
   }
 
   // Re-reads the active buffer from disk (`:e!`).
@@ -571,6 +608,11 @@ export class Editors {
   // Brings loaded buffers in line with disk after a watcher event (null = check all). Clean buffers reload in place,
   // keeping cursor and undo; returns a notice for dirty or deleted ones.
   async diskChanged(paths: string[] | null): Promise<string | null> {
+    if (!paths || paths.includes(".editorconfig")) {
+      this.editorConfig = this.loadEditorConfig();
+      await this.editorConfig;
+      this.settingsChanged();
+    }
     const hit = (p: string) => !paths || paths.some((c) => p === c || p.startsWith(c + "/")); // a folder covers its files
     for (const p of this.panes.values()) if (p.viewer && hit(p.title!)) p.viewer.reload?.();
     let note: string | null = null;
@@ -627,7 +669,7 @@ export class Editors {
 
   private setBuf(id: number, b: Buffer) {
     const p = this.panes.get(id)!;
-    if (p.buf && p.buf !== b) this.forgetSteps(id, p.buf); // its view takes the other buffer's history
+    if (p.buf && p.buf !== b) this.steps.forget(id, p.buf); // its view takes the other buffer's history
     p.buf = b;
     p.view!.setState(b.state);
     if (isReading(b.state)) toggleReading(p.view!); // a preview pane's reading view stays in that pane
@@ -675,6 +717,7 @@ export class Editors {
       line: l.number,
       col: head - l.from + 1,
       lines: st.doc.lines,
+      eol: p.buf?.eol === "\r\n" ? "CRLF" : undefined,
     });
   }
 
@@ -682,12 +725,12 @@ export class Editors {
   zoomTerms(d: number): number {
     setTermZoom(d ? termZoom() + d : 0);
     for (const p of this.panes.values()) p.term?.setFont();
-    for (const h of this.hidden) h.term.setFont();
+    this.hidden.setFont();
     return termFontSize();
   }
 
   // Hidden terminals by name, for the buffer list.
-  hiddenTerms() { return this.hidden.map((h) => `term://${h.title}`); }
+  hiddenTerms() { return this.hidden.titles().map((t) => `term://${t}`); }
 
   // :q! on a terminal: the shell ends instead of hiding.
   killTerm(id: number) {
@@ -698,8 +741,7 @@ export class Editors {
 
   // The folder closes: hidden shells go with it.
   dropHidden() {
-    for (const h of this.hidden.splice(0)) h.term.dispose();
-    this.holder?.remove();
+    this.hidden.disposeAll();
   }
 
   private showTerm(id: number, el: HTMLElement, h: { term: TermHandle; box: HTMLElement; title: string; cmd: string }) {
@@ -712,23 +754,16 @@ export class Editors {
   }
 
   private hide(p: Pane) {
-    if (!this.holder) {
-      this.holder = document.createElement("div");
-      this.holder.style.display = "none";
-      document.body.append(this.holder);
-    }
     const box = p.el.querySelector<HTMLElement>(":scope > .pane-term")!;
-    this.holder.append(box);
-    this.hidden.push({ term: p.term!, box, title: p.title!, cmd: p.cmd ?? "" });
+    this.hidden.add({ term: p.term!, box, title: p.title!, cmd: p.cmd ?? "" });
   }
 
   // Shows hidden terminal `title` in pane id, in place of what it showed (a terminal there is hidden in turn).
   private unhide(title: string, id: number): number {
-    const i = this.hidden.findIndex((h) => h.title === title);
     const p = this.panes.get(id);
-    if (i < 0) throw new Error(`No terminal "${title}"`);
+    if (!this.hidden.has(title)) throw new Error(`No terminal "${title}"`);
     if (!p) throw new Error("No pane to show it in");
-    const [h] = this.hidden.splice(i, 1);
+    const h = this.hidden.take(title)!;
     this.detach(id, !!p.term);
     this.showTerm(id, p.el, h);
     return id;
@@ -745,13 +780,7 @@ export class Editors {
 
   // A shell ended: a hidden one leaves the list; a shown one closes its pane (or the panel, through its own onExit).
   private termExited(t: TermHandle, onExit?: () => void) {
-    const h = this.hidden.findIndex((x) => x.term === t);
-    if (h >= 0) {
-      const [gone] = this.hidden.splice(h, 1);
-      gone.term.dispose();
-      gone.box.remove();
-      return;
-    }
+    if (this.hidden.end(t)) return;
     if (onExit) return onExit();
     const id = [...this.panes].find(([, p]) => p.term === t)?.[0];
     if (id !== undefined) this.onTermExit(id);
@@ -787,8 +816,7 @@ export class Editors {
   // u or <C-r> in pane id: false lets Vim undo in this pane, as it would anyway.
   private historyIn(id: number, redoing: boolean): boolean {
     const b = this.panes.get(id)?.buf;
-    const list = b && (redoing ? this.steps.get(b)?.redo : this.steps.get(b)?.undo);
-    const owner = list?.[list.length - 1];
+    const owner = b ? this.steps.owner(b, redoing) : undefined;
     const o = owner === undefined || owner === id ? undefined : this.panes.get(owner);
     if (!o?.view || o.buf !== b) return false;
     (redoing ? redo : undo)(o.view);
@@ -796,33 +824,11 @@ export class Editors {
     return true;
   }
 
-  private forgetSteps(id: number, b: Buffer) {
-    const s = this.steps.get(b);
-    if (s) for (const l of [s.undo, s.redo]) l.splice(0, l.length, ...l.filter((x) => x !== id));
-  }
-
-  // An edit adds a step for pane id (CM6 may merge it into the last one: then the depth stays), undo and redo move one.
-  private trackSteps(id: number, b: Buffer, trs: readonly Transaction[], depth: number, state: EditorState) {
-    let s = this.steps.get(b);
-    if (!s) this.steps.set(b, (s = { undo: [], redo: [] }));
-    const move = (from: number[], to: number[]) => {
-      const i = from.lastIndexOf(id);
-      if (i >= 0) from.splice(i, 1);
-      to.push(id);
-    };
-    if (trs.some((t) => t.isUserEvent("undo"))) move(s.undo, s.redo);
-    else if (trs.some((t) => t.isUserEvent("redo"))) move(s.redo, s.undo);
-    else if (undoDepth(state) > depth) {
-      s.undo.push(id);
-      s.redo.length = 0;
-    }
-  }
-
   private dispatch(id: number, trs: readonly Transaction[], v: EditorView) {
     const depth = undoDepth(v.state);
     v.update(trs);
     const p = this.panes.get(id);
-    if (p?.buf && trs.some((t) => t.docChanged && !t.annotation(synced))) this.trackSteps(id, p.buf, trs, depth, v.state);
+    if (p?.buf && trs.some((t) => t.docChanged && !t.annotation(synced))) this.steps.track(id, p.buf, trs, depth, v.state);
     if (p?.buf) {
       // Other panes on the same buffer get the same changes, outside their undo history (see steps).
       for (const tr of trs) {

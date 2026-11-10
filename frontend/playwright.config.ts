@@ -31,9 +31,11 @@ export default defineConfig({
   // A saved config reaches every page of the shared server, so config.spec runs alone, after the rest.
   // swap.spec too: its unsaved files are offered back in every page that opens the folder meanwhile.
   projects: [
-    { name: "main", testIgnore: /(config|swap)\.spec/ },
+    { name: "main", testIgnore: /(config|swap|debug)\.spec/ },
     { name: "config", testMatch: /config\.spec/, dependencies: ["main"] },
     { name: "swap", testMatch: /swap\.spec/, dependencies: ["config"] },
+    // Opt-in (AYAZ_DEBUG_E2E=1), and it adds a folder to the workspace, so it goes last.
+    { name: "debug", testMatch: /debug\.spec/, dependencies: ["swap"] },
   ],
   webServer: {
     command: `../bin/ayaz-server --workspace ${e2eWorkspace}`,

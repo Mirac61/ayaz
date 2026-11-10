@@ -107,11 +107,12 @@ export interface StoppedEvent {
 export interface OutputEvent { category?: string; output: string }
 
 export interface LaunchOptions {
-  root: string; // absolute path of the folder: Delve debugs the package there
+  root: string; // absolute path of the folder
+  program?: string; // absolute path of the package folder Delve builds and debugs; the folder's own by default
   breakpoints: Record<string, number[]>; // workspace-relative path → lines (1-based)
 }
 
-// Starts debugging the Go package in root: initialize, launch, then (after the adapter says "initialized") the
+// Starts debugging the Go package in program (the folder's root by default): initialize, launch, then (after the adapter says "initialized") the
 // breakpoints, then configurationDone. Delve answers launch only after configurationDone, so it isn't awaited first.
 export async function launch(client: DapClient, opts: LaunchOptions): Promise<void> {
   await client.request("initialize", {
@@ -119,7 +120,7 @@ export async function launch(client: DapClient, opts: LaunchOptions): Promise<vo
     supportsVariableType: true,
   });
   const initialized = client.next("initialized");
-  const launched = client.request("launch", { mode: "debug", program: opts.root, cwd: opts.root });
+  const launched = client.request("launch", { mode: "debug", program: opts.program ?? opts.root, cwd: opts.root });
   await Promise.race([initialized, launched]); // a failed launch answers before "initialized"
   for (const [path, lines] of Object.entries(opts.breakpoints)) {
     await setBreakpoints(client, opts.root, path, lines);

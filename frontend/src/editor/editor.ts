@@ -1,4 +1,4 @@
-import { Compartment, EditorState, type Extension } from "@codemirror/state";
+import { Compartment, EditorState, type Extension, type Text } from "@codemirror/state";
 import {
   EditorView, GutterMarker, drawSelection, gutter, highlightActiveLine, highlightActiveLineGutter,
   highlightSpecialChars, keymap,
@@ -9,7 +9,7 @@ import { search } from "@codemirror/search";
 import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import { vim } from "@replit/codemirror-vim";
 import { indentationMarkers } from "@replit/codemirror-indentation-markers";
-import { kanagawaCM } from "../theme/kanagawa-cm";
+import { cmTheme } from "../theme/cm-theme";
 import { inlineBlame } from "./blame";
 import { breakpointGutter } from "./breakpoints";
 import { conflictMarks } from "./conflicts";
@@ -20,6 +20,8 @@ import { extOf, loadLanguage } from "../lang/registry";
 import { mdImages, mdlive } from "./mdlive";
 import { lspExtension } from "./lsp";
 import { gitGutter } from "./gitgutter";
+import { editorConfigIndent } from "../core/editorconfig";
+import { detectIndent, INDENT_SAMPLE } from "../core/indent";
 import { fileSettings } from "../core/settings";
 
 class Num extends GutterMarker {
@@ -65,7 +67,7 @@ export const editorExtensions = (): Extension[] => [
   closeBrackets(),
   search(),
   keymap.of([...closeBracketsKeymap, ...defaultKeymap, ...historyKeymap, indentWithTab]),
-  kanagawaCM,
+  cmTheme,
   stickyScroll,
   inlineBlame,
   conflictMarks,
@@ -90,12 +92,15 @@ export function setWrap(on: boolean) {
 
 // Tab width and indent unit from settings.json, in a compartment so a saved settings.json applies to open files.
 const indenting = new Compartment();
-function indentFor(path: string | null): Extension {
-  const cfg = fileSettings(path);
-  return [EditorState.tabSize.of(cfg.tabWidth), indentUnit.of(cfg.tabs ? "\t" : " ".repeat(cfg.tabWidth))];
+// .editorconfig wins, then the file's own indentation (core/indent.ts), then settings.json.
+function indentFor(path: string | null, sample = ""): Extension {
+  const cfg = fileSettings(path), ec = editorConfigIndent(path), found = detectIndent(sample);
+  const tabs = ec.tabs ?? (found ? found.tabs : cfg.tabs);
+  const width = ec.size ?? (found && !found.tabs ? found.width : cfg.tabWidth);
+  return [EditorState.tabSize.of(ec.tabWidth ?? (tabs ? cfg.tabWidth : width)), indentUnit.of(tabs ? "\t" : " ".repeat(width))];
 }
-export const settingsEffects = (path: string | null) => [
-  indenting.reconfigure(indentFor(path)),
+export const settingsEffects = (path: string | null, doc?: Text) => [
+  indenting.reconfigure(indentFor(path, doc?.sliceString(0, INDENT_SAMPLE))),
   wrapping.reconfigure(wrapFor(path) ? EditorView.lineWrapping : []),
 ];
 
@@ -113,7 +118,10 @@ export function hasLongLine(doc: string): boolean {
   return false;
 }
 
+// Files written as text: the webview underlines misspelled words (code stays quiet).
+const PROSE = new Set(["md", "txt", "typ", "tex"]);
+
 export async function createState(path: string | null, doc: string, ws?: string, root?: string): Promise<EditorState> {
   const lang = path && !hasLongLine(doc) ? await loadLanguage(path) : null;
-  return EditorState.create({ doc, extensions: [editorExtensions(), indenting.of(indentFor(path)), wrapping.of(wrapFor(path) ? EditorView.lineWrapping : []), lang ?? [], path && ws && root ? lspExtension(ws, root, path) : [], path?.startsWith("/") || path?.startsWith("debug://") ? EditorState.readOnly.of(true) : [], path ? snippetCompletion(extOf(path)) : [], path && extOf(path) === "md" ? [mdlive, ws ? mdImages.of({ ws, file: path }) : []] : []] });
+  return EditorState.create({ doc, extensions: [editorExtensions(), indenting.of(indentFor(path, doc.slice(0, INDENT_SAMPLE))), wrapping.of(wrapFor(path) ? EditorView.lineWrapping : []), lang ?? [], path && ws && root ? lspExtension(ws, root, path) : [], path?.startsWith("/") || path?.startsWith("debug://") ? EditorState.readOnly.of(true) : [], path ? snippetCompletion(extOf(path)) : [], path && PROSE.has(extOf(path)) ? EditorView.contentAttributes.of({ spellcheck: "true" }) : [], path && extOf(path) === "md" ? [mdlive, ws ? mdImages.of({ ws, file: path }) : []] : []] });
 }
