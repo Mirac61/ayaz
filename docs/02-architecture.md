@@ -236,6 +236,27 @@ In the pickers: `Ctrl-n/p` or `Ctrl-j/k` move, `Enter` opens, `Esc` closes.
 - A binding replaces the default with the same context and keys; `"command": ""` removes it.
 - Command IDs: open the palette (`<Space>fk`). A broken file keeps the defaults and shows the reason in the status line.
 
+### Settings
+
+`settings.json` in the same folder, read at start. Every key is optional; `languages` is keyed by file extension and overrides the values above it for those files:
+
+```json
+{
+  "font": "JetBrains Mono",
+  "fontSize": 14,
+  "tabWidth": 4,
+  "tabs": false,
+  "wrap": false,
+  "formatOnSave": false,
+  "languages": { "ts": { "tabWidth": 2 }, "c": { "formatOnSave": true } }
+}
+```
+
+- `font` goes in front of the built-in monospace fonts (they stay as fallbacks for icons); `fontSize` is in px, for editor and terminal.
+- `tabWidth` is the shown width of a tab and the indent; `tabs` indents with tabs instead.
+- `wrap` is the default until `<Space>uw` toggles it; `formatOnSave` runs the language server's formatter on `:w`.
+- Built in: `go` indents with tabs and formats on save, `md` wraps. A broken file keeps the defaults and says why in the status line.
+
 ## Extension points
 
 | Later | Plugs into | Core changes |

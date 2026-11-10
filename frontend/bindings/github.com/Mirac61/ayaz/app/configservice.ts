@@ -17,3 +17,10 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 export function Keymap(): $CancellablePromise<string> {
     return $Call.ByID(2235390643);
 }
+
+/**
+ * Settings returns settings.json as text, "" if there is none. The frontend parses and checks it.
+ */
+export function Settings(): $CancellablePromise<string> {
+    return $Call.ByID(1218625897);
+}

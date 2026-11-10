@@ -14,11 +14,16 @@ const c = {
 const theme = EditorView.theme(
   {
     "&": { height: "100%", color: c.fg, backgroundColor: "transparent" },
-    ".cm-scroller": { fontFamily: "var(--font-mono)", fontSize: "13px", lineHeight: "24px", paddingTop: "16px" },
+    ".cm-scroller": {
+      fontFamily: "var(--font-mono)",
+      fontSize: "var(--editor-font-size, 13px)", // settings.json; tests run without tokens.css
+      lineHeight: "calc(var(--editor-font-size, 13px) + 11px)",
+      paddingTop: "16px",
+    },
     "&:not(.cm-focused) .cm-content": { opacity: 0.72 },
     ".cm-content": { caretColor: c.cursor },
     ".cm-gutters": { backgroundColor: "transparent", color: "#6e6e73", border: "none", paddingLeft: "16px" },
-    ".cm-lineNumbers .cm-gutterElement": { minWidth: "32px", padding: "0 16px 0 0", fontSize: "12px" },
+    ".cm-lineNumbers .cm-gutterElement": { minWidth: "32px", padding: "0 16px 0 0", fontSize: "calc(var(--editor-font-size, 13px) - 1px)" },
     // Git signs right of the numbers, like LazyVim's statuscolumn: a bar per line, a triangle where lines went.
     ".cm-git .cm-gutterElement": { width: "3px", marginRight: "5px", position: "relative" },
     ".cm-git-add": { backgroundColor: "var(--git-add)" },

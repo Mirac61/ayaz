@@ -8,6 +8,7 @@ import { WebglAddon } from "@xterm/addon-webgl";
 import "@xterm/xterm/css/xterm.css";
 import { backend } from "../core/backend";
 import { isMac } from "../core/keymap";
+import { settings } from "../core/settings";
 import { kanagawaTerm } from "../theme/kanagawa-term";
 
 // "terminal": keys go to the shell (nvim's terminal mode); "normal": scrollback, search, copy (Ctrl-\ Ctrl-n).
@@ -50,7 +51,7 @@ export function openTerminal(el: HTMLElement, opts: TermOptions = {}): TermHandl
   const term = new Terminal({
     theme: kanagawaTerm,
     fontFamily: getComputedStyle(document.documentElement).getPropertyValue("--font-mono"),
-    fontSize: 13,
+    fontSize: settings().fontSize,
     scrollback: 10_000,
     allowProposedApi: true, // unicode11
   });

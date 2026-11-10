@@ -12,12 +12,17 @@ import (
 type ConfigService struct{}
 
 // Keymap returns keymap.json as text, "" if there is none. The frontend parses and checks it.
-func (ConfigService) Keymap() (string, error) {
+func (ConfigService) Keymap() (string, error) { return readConfig("keymap.json") }
+
+// Settings returns settings.json as text, "" if there is none. The frontend parses and checks it.
+func (ConfigService) Settings() (string, error) { return readConfig("settings.json") }
+
+func readConfig(name string) (string, error) {
 	dir, err := os.UserConfigDir()
 	if err != nil {
 		return "", err
 	}
-	b, err := os.ReadFile(filepath.Join(dir, "ayaz", "keymap.json"))
+	b, err := os.ReadFile(filepath.Join(dir, "ayaz", name))
 	if errors.Is(err, fs.ErrNotExist) {
 		return "", nil
 	}

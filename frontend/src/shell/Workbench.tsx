@@ -18,6 +18,7 @@ import { browsable, resolveLink } from "../editor/mdlive";
 import type { TermOptions } from "../terminal/terminal";
 import { Editors, type Status } from "./editors";
 import { borders, close, equalize, neighbor, panes, rects, resize, setBorder, split, type Dir, type Layout } from "./layout";
+import { settingsError } from "../core/settings";
 import { Picker, type Item, type PickerSource } from "./Picker";
 import { Tree, type TreeHandle } from "./Tree";
 import { loadSession, mergeCursors, saveSession, type Session } from "./session";
@@ -792,6 +793,8 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
         }),
       },
     );
+
+    if (settingsError()) fail(settingsError());
 
     // The user's keymap.json goes on top of the defaults; a broken file keeps the defaults and says why.
     backend.keymap().then((text) => {

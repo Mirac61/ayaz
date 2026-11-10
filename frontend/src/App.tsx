@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { backend } from "./core/backend";
+import { loadSettings } from "./core/settings";
 import { openTerminal } from "./terminal/terminal";
 import { Shell } from "./shell/Workbench";
 import { ScrollTest } from "./spikes/ScrollTest";
@@ -20,7 +21,11 @@ export default function App() {
   const termEl = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    backend.spikeMode().then(setMode, () => setMode(""));
+    // Settings before the first editor: they go into every editor state.
+    backend.settings()
+      .then(loadSettings, () => loadSettings(""))
+      .then(() => backend.spikeMode())
+      .then(setMode, () => setMode(""));
   }, []);
 
   // app:ready once the first real frame is painted (two rAFs: the second runs after the first paint).

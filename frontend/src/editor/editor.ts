@@ -4,7 +4,7 @@ import {
   highlightSpecialChars, keymap,
 } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
-import { bracketMatching, codeFolding, indentOnInput } from "@codemirror/language";
+import { bracketMatching, codeFolding, indentOnInput, indentUnit } from "@codemirror/language";
 import { search } from "@codemirror/search";
 import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import { vim } from "@replit/codemirror-vim";
@@ -14,6 +14,7 @@ import { extOf, loadLanguage } from "../lang/registry";
 import { mdImages, mdlive } from "./mdlive";
 import { lspExtension } from "./lsp";
 import { gitGutter } from "./gitgutter";
+import { fileSettings } from "../core/settings";
 
 class Num extends GutterMarker {
   constructor(readonly text: string) { super(); }
@@ -60,7 +61,7 @@ export const editorExtensions = (): Extension[] => [
   kanagawaCM,
 ];
 
-// Line wrap, like nvim's `wrap`: off for code, on for Markdown, until <Space>uw sets it for every file.
+// Line wrap, like nvim's `wrap`: from settings.json (off for code, on for Markdown), until <Space>uw sets it for every file.
 const wrapping = new Compartment();
 const WRAP_KEY = "ayaz.wrap";
 export function wrapFor(path: string | null): boolean {
@@ -68,7 +69,7 @@ export function wrapFor(path: string | null): boolean {
     const v = localStorage.getItem(WRAP_KEY);
     if (v === "on" || v === "off") return v === "on";
   } catch { /* storage blocked: the default */ }
-  return !!path && extOf(path) === "md";
+  return fileSettings(path).wrap;
 }
 export const isWrapped = (s: EditorState) => wrapping.get(s) === EditorView.lineWrapping;
 export function setWrap(on: boolean) {
@@ -79,5 +80,7 @@ export function setWrap(on: boolean) {
 // Builds the state for a file, with its language loaded first so highlighting is there on the first frame.
 export async function createState(path: string | null, doc: string, ws?: string, root?: string): Promise<EditorState> {
   const lang = path ? await loadLanguage(path) : null;
-  return EditorState.create({ doc, extensions: [editorExtensions(), wrapping.of(wrapFor(path) ? EditorView.lineWrapping : []), lang ?? [], path && ws && root ? lspExtension(ws, root, path) : [], path?.startsWith("/") ? EditorState.readOnly.of(true) : [], path && extOf(path) === "md" ? [mdlive, ws ? mdImages.of({ ws, file: path }) : []] : []] });
+  const cfg = fileSettings(path);
+  const indent = [EditorState.tabSize.of(cfg.tabWidth), indentUnit.of(cfg.tabs ? "\t" : " ".repeat(cfg.tabWidth))];
+  return EditorState.create({ doc, extensions: [editorExtensions(), indent, wrapping.of(wrapFor(path) ? EditorView.lineWrapping : []), lang ?? [], path && ws && root ? lspExtension(ws, root, path) : [], path?.startsWith("/") ? EditorState.readOnly.of(true) : [], path && extOf(path) === "md" ? [mdlive, ws ? mdImages.of({ ws, file: path }) : []] : []] });
 }

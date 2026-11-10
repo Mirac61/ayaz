@@ -22,6 +22,7 @@
   --git-del: #c34043;
 
   --font-ui: system-ui, -apple-system, "SF Pro Text", "Helvetica Neue", sans-serif;
+  --editor-font-size: 13px; /* settings.json "fontSize" */
   --font-mono: "SF Mono", "FiraCode Nerd Font", "JetBrainsMono Nerd Font", "Symbols Nerd Font", "JetBrains Mono", Menlo, monospace;
 }
 

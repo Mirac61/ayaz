@@ -12,6 +12,7 @@ import { extOf } from "../lang/registry";
 import type { Loc } from "../core/quickfix";
 import { diagnosticsFor, dropDiagnostics, type Published } from "./diagnostics";
 import { isMac } from "../core/keymap";
+import { fileSettings } from "../core/settings";
 
 // Extension → [LSP language ID, server name]. Go maps the server name to a command (app/lsp.go);
 // one server per (workspace, server), so .c and .cpp share clangd, .ts and .js share one TypeScript server.
@@ -25,8 +26,6 @@ const LANG: Record<string, [string, string]> = {
 };
 export const serverFor = (path: string): [lang: string, server: string] | undefined => LANG[extOf(path)];
 
-// Q25: format on save per language, on for Go only by default.
-const FORMAT_ON_SAVE = new Set(["go"]);
 
 const enc = new TextEncoder();
 const dec = new TextDecoder();
@@ -316,7 +315,8 @@ export async function workspaceSymbols(view: EditorView, root: string, query: st
 // Formats the document through the server and waits for it; gives up after 2 s so a hung server can't block saving.
 export async function formatBeforeSave(view: EditorView): Promise<void> {
   const plugin = LSPPlugin.get(view);
-  if (!plugin?.client.connected || view.state.readOnly || !FORMAT_ON_SAVE.has(serverFor(plugin.uri)?.[0] ?? "")) return;
+  // Q25: per language in settings.json, on for Go only by default.
+  if (!plugin?.client.connected || view.state.readOnly || !fileSettings(plugin.uri).formatOnSave) return;
   const { client, uri } = plugin;
   client.sync();
   const job = client.withMapping(async (mapping) => {

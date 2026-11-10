@@ -230,6 +230,10 @@ Done when: all four language groups have diagnostics, completion and navigation.
 
 - Done 2026-11-10: `K` shows the server's hover text as a tooltip at the cursor (gone on the next move, edit or Esc). `<Space>cr` asks for the new name in the picker and applies the rename to every file, also files that aren't open; like `:Replace`, clean buffers are saved, dirty ones stay unsaved. `<Space>ca` lists code actions (with the diagnostics on the selected lines, so quick fixes come too) and runs the picked one: its edit, its command, or both. Commands may send edits back through `workspace/applyEdit`, which lsp-client doesn't answer, so the transport does. `gI` and `gy` jump to the implementation and the type. Without a server the status line says why: no server for the file type, the server is still starting, or it isn't installed plus how to install it (also in the "not found in PATH" message). Node tests for the edit conversion and `applyEdit`, E2E with gopls (hover, rename across `src/greet.go` and `src/main.go`, the action list). **Still open:** file operations in edits (create, rename, delete) are skipped; `codeAction/resolve` isn't announced, so servers send edits up front.
 
+## M26 – settings.json
+
+- Done 2026-11-10: `settings.json` next to `keymap.json` (`ConfigService.Settings`), read before the first editor: `font`, `fontSize` (editor and terminal), `tabWidth`, `tabs`, `wrap`, `formatOnSave`, and `languages` keyed by file extension with the same file keys on top. The defaults keep the old behavior (Go: tabs and format on save, Markdown: wrap) except the indent, now 4 spaces instead of CM6's 2. Unknown keys and wrong types are named in the status line, the defaults stay. Font size through `--editor-font-size`, line height size + 11 px (24 px at 13). Documented in 02-architecture. Node tests for parsing and merging. **Still open:** changes need a restart, like the keymap; the font in the app by hand.
+
 ## Later
 
 | | What | Plugs into |
