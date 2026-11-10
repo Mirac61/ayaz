@@ -1,8 +1,35 @@
-// The debugger (M48): breakpoints, starting, stepping and stopping. Variables come next.
+// The debugger (M48): breakpoints, starting, stepping, stopping and the variables of the stopped program.
 import type { Command } from "../../core/commands";
+import { lines, type Row } from "../../debug/variables";
+import type { Item, PickerSource } from "../Picker";
 import { errText, type Ctx } from "./context";
 
 export function debugCommands(c: Ctx): Command[] {
+  // The variables as a list: Enter opens a variable that has something below it (the list comes back with it open),
+  // on any other it says its whole value. Typing filters.
+  const variables = (rows: Row[], start = 0): PickerSource => {
+    const shown = lines(rows), byItem = new WeakMap<Item, Row>();
+    const items = shown.map((l): Item => {
+      const item = { label: l.label, hint: l.hint };
+      byItem.set(item, l.row);
+      return item;
+    });
+    return {
+      title: "Variables of the stopped program",
+      start,
+      query: async (q) => items.filter((i) => i.label.toLowerCase().includes(q.toLowerCase())),
+      pick(item) {
+        const row = byItem.get(item);
+        if (!row) return;
+        if (row.ref <= 0) return c.say(`${row.name} = ${row.value}`);
+        void c.dbg.toggleRow(row).then(
+          () => c.setPicker(variables(rows, shown.findIndex((l) => l.row === row))),
+          (e) => c.fail(errText(e)),
+        );
+      },
+    };
+  };
+
   return [
     {
       id: "debug.toggleBreakpoint",
@@ -28,6 +55,12 @@ export function debugCommands(c: Ctx): Command[] {
     { id: "debug.next", title: "Debug: step over (F10, <Space>dn)", run: () => void c.dbg.step("next") },
     { id: "debug.stepIn", title: "Debug: step into (F11, <Space>ds)", run: () => void c.dbg.step("stepIn") },
     { id: "debug.stepOut", title: "Debug: step out (Shift+F11, <Space>do)", run: () => void c.dbg.step("stepOut") },
+    {
+      id: "debug.variables",
+      title: "Debug: variables of the stopped program (<Space>dv)",
+      run: () => void c.dbg.variables().then((rows) => (rows ? c.setPicker(variables(rows)) : c.say("The program isn't stopped")),
+        (e) => c.fail(errText(e))),
+    },
     { id: "debug.stop", title: "Debug: stop (<Space>dq)", run: () => void c.dbg.stop() },
     { id: "debug.output", title: "Debug: show the program's output (<Space>dl)", run: () => void c.ed.showOutput() },
   ];

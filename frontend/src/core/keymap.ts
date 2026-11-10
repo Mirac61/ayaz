@@ -58,6 +58,7 @@ export function defaultKeymap(mac = isMac): Binding[] {
     n("<Space>do", "debug.stepOut"),
     n("<Space>dq", "debug.stop"),
     n("<Space>dl", "debug.output"),
+    n("<Space>dv", "debug.variables"),
     n("<Space>mo", "git.conflictOurs"),
     n("<Space>mt", "git.conflictTheirs"),
     n("<Space>mb", "git.conflictBoth"),

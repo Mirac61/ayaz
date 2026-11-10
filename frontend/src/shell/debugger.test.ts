@@ -91,3 +91,36 @@ test("a failed launch rejects and leaves the debugger idle", async () => {
   expect(dbg.status).toBe("idle");
   expect(statuses[statuses.length - 1]).toBe("idle");
 });
+
+test("variables: nothing while running; when stopped Locals comes open and Globals (expensive) stays closed", async () => {
+  const f = fakeAdapter({
+    answer: (m) => {
+      if (m.command === "stackTrace") {
+        return { stackFrames: [{ id: 9, name: "main", line: 6, column: 1, source: { path: "/p/main.go" } }] };
+      }
+      if (m.command === "scopes") {
+        const globals = { name: "Globals", variablesReference: 2, expensive: true };
+        return { scopes: [{ name: "Locals", variablesReference: 1 }, globals] };
+      }
+      if (m.command === "variables") {
+        const i = { name: "i", value: "3", type: "int", variablesReference: 0 };
+        return { variables: m.arguments.variablesReference === 1 ? [i] : [] };
+      }
+      return undefined;
+    },
+  });
+  const nothing = async () => {};
+  const ed: DebugEditor = { breakpoints: () => ({}), openAt: nothing, setDebugLine: () => {}, appendOutput: nothing };
+  const dbg = new Debugger("/p", ed, () => f.transport, () => {}, () => {});
+  await dbg.start();
+  expect(await dbg.variables()).toBeNull(); // running
+  f.push({ type: "event", event: "stopped", body: { reason: "breakpoint", threadId: 1 } });
+  await tick();
+  const rows = (await dbg.variables())!;
+  const summary = rows.map((r) => [r.name, r.open, r.children?.map((c) => c.name)]);
+  expect(summary).toEqual([["Locals", true, ["i"]], ["Globals", false, undefined]]);
+  expect(f.requests.find((r) => r.command === "scopes")?.arguments).toEqual({ frameId: 9 });
+  await dbg.toggleRow(rows[1]); // opening Globals loads it then
+  expect(rows[1].open).toBe(true);
+  expect(f.requests[f.requests.length - 1]).toEqual({ command: "variables", arguments: { variablesReference: 2 } });
+});

@@ -1,4 +1,6 @@
-import { DapClient, launch, setBreakpoints, type OutputEvent, type StackFrame, type StoppedEvent } from "./dap";
+import {
+  DapClient, launch, setBreakpoints, type OutputEvent, type Scope, type StackFrame, type StoppedEvent, type Variable,
+} from "./dap";
 
 // One debugging session: starting, the program stopping and running again, stepping, ending. The editor side
 // (which file, which line, what the status line says) hangs on the hooks, so this stays testable without one.
@@ -49,6 +51,18 @@ export class DebugSession {
     if (this.state !== "paused") return;
     this.set("running");
     await this.client.request(step, { threadId: this.threadId });
+  }
+
+  // The scopes of the innermost frame (arguments, locals, globals) while the program is stopped; [] otherwise.
+  async scopes(): Promise<Scope[]> {
+    const frame = this.frames[0];
+    if (this.state !== "paused" || !frame) return [];
+    return (await this.client.request<{ scopes: Scope[] }>("scopes", { frameId: frame.id })).scopes;
+  }
+
+  // The children of a scope or variable.
+  async variables(ref: number): Promise<Variable[]> {
+    return (await this.client.request<{ variables: Variable[] }>("variables", { variablesReference: ref })).variables;
   }
 
   // New breakpoint lines for one file while the program runs or is stopped.

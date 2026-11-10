@@ -1,5 +1,6 @@
 import { DapClient, type Transport } from "../debug/dap";
 import { DebugSession, type DebugState, type Step } from "../debug/session";
+import { scopeRow, toggle, type Row } from "../debug/variables";
 
 // The debugger as the workbench uses it: one session at a time, its stops shown in the editor, its output in a
 // buffer, its state in the status line. The editor is behind a small interface so this runs in tests.
@@ -56,6 +57,25 @@ export class Debugger {
     if (s.state !== "paused") return this.say("The program is running");
     this.ed.setDebugLine(null);
     await s.resume(kind);
+  }
+
+  // The stopped program's scopes as rows to open: Locals and Arguments come open, the expensive ones (Globals) closed.
+  // null: nothing is stopped.
+  async variables(): Promise<Row[] | null> {
+    const s = this.session;
+    if (!s || s.state !== "paused") return null;
+    const scopes = await s.scopes();
+    const rows = scopes.map(scopeRow);
+    for (let i = 0; i < rows.length; i++) {
+      if (!scopes[i].expensive) await toggle(rows[i], (ref) => s.variables(ref));
+    }
+    return rows;
+  }
+
+  // Opens or closes one row (loading its children the first time).
+  toggleRow(row: Row) {
+    const s = this.session;
+    return s ? toggle(row, (ref) => s.variables(ref)) : Promise.resolve();
   }
 
   // The workbench goes away (another folder, a closed window): end the session without a word.
