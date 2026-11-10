@@ -14,7 +14,7 @@ test("markdown preview in a split", async ({ page }) => {
   await expect(editor).toHaveCount(2);
   const preview = page.locator(".cm-editor.cm-reading");
   await expect(preview).toHaveCount(1);
-  await expect(page.locator(".statusline")).toContainText("NORMAL"); // typing goes to the source
+  await expect(page.locator(".statusline")).toContainText("normal"); // typing goes to the source
 
   await page.keyboard.type('Go<b id="inj">raw</b> and live text');
   await page.keyboard.press("Escape");
@@ -48,13 +48,13 @@ test("markdown preview scrolls with the source and back", async ({ page }) => {
 
   await page.keyboard.press("Control+w");
   await page.keyboard.type("l");
-  await expect(status).toContainText("READ"); // the preview leads now
+  await expect(status).toContainText("read"); // the preview leads now
   await scroll(preview, 0);
   await expect.poll(both).toBe("line 1");
 
   await page.keyboard.press("Control+w");
   await page.keyboard.type("h");
-  await expect(status).toContainText("NORMAL");
+  await expect(status).toContainText("normal");
   await scroll(source, 5000);
   await expect.poll(both).toMatch(/^line 2\d\d$/);
 });

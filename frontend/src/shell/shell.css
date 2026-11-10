@@ -1,33 +1,39 @@
 /* Graphite chrome (theme/tokens.css): focus is a lighter surface, never a colored line. */
-.workbench { display: grid; grid-template-columns: 248px 1fr; grid-template-rows: 38px 1fr auto 30px; height: 100%; }
-.titlebar { grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; height: 38px; flex: none; color: var(--fg-3); white-space: nowrap; overflow: hidden; }
+.workbench { display: grid; grid-template-columns: 248px 1fr; grid-template-rows: var(--bar) 1fr auto; height: 100%; }
+.titlebar { grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; height: var(--bar); flex: none; color: var(--fg-3); white-space: nowrap; overflow: hidden; }
 .sidebar { grid-row: 2 / 4; }
-/* The editor card: inset 6 px from the window edge, panes 1 px apart */
-.panes, .panel { position: relative; min-width: 0; min-height: 0; margin: 0 6px 6px 0; background: var(--bg-0); border: 1px solid var(--edge); overflow: hidden; }
-.panes { border-radius: 6px; }
-.panel { border-radius: 6px; overflow: visible; }
+/* No file tree: the editor card takes the whole width, inset on both sides */
+.workbench.nosidebar { grid-template-columns: 1fr; }
+/* "sidebar": "right" in settings.json */
+.workbench.sidebar-right { grid-template-columns: 1fr 248px; }
+.workbench.sidebar-right .sidebar { grid-column: 2; }
+.workbench.sidebar-right .panes, .workbench.sidebar-right .panel { grid-column: 1; }
+.workbench.sidebar-right .sidebar { border-right: 0; border-left: 1px solid var(--edge-overlay); }
+.sidebar[hidden] { display: none; }
+/* No card: the code runs to the window edges, hairlines part it from the top bar, the tree and the terminal */
+.panes, .panel { position: relative; min-width: 0; min-height: 0; background: var(--bg-0); overflow: hidden; }
+.panel { border-top: 1px solid var(--edge-overlay); overflow: visible; }
 .workbench.max .panes { display: none; }
 .workbench.max .panel { grid-row: 2 / 4; height: auto !important; }
 .resize { position: absolute; z-index: 3; }
 .resize.row { width: 6px; margin-left: -3px; cursor: col-resize; }
 .resize.col { height: 6px; margin-top: -3px; cursor: row-resize; }
-.panel > .resize.col { margin-top: -7px; }
+.panel > .resize.col { margin-top: -4px; }
 .resize:hover, .resize:active { background: var(--edge-overlay); }
 .panel[hidden] { display: none; }
 .pane { position: absolute; display: flex; flex-direction: column; overflow: hidden; background: var(--bg-1); contain: strict; }
-.panel > .pane { border-radius: 6px; }
 .pane:focus-within { background: var(--bg-2); }
 .pane-term { flex: 1; min-height: 0; padding: 2px 0 0 16px; }
 .pane:not(:focus-within) .pane-term .xterm-screen { opacity: 0.72; }
 .pane-term > .xterm { height: 100%; }
 .term-search { position: absolute; right: 12px; bottom: 8px; width: 240px; font: 13px var(--font-mono); color: var(--fg-1); background: var(--overlay); border: 1px solid var(--edge-overlay); border-radius: 6px; padding: 4px 10px; outline: none; z-index: 5; }
 .pane > .cm-editor { flex: 1; min-height: 0; }
-.pane.edge-left { border-left: 1px solid var(--hover); }
-.pane.edge-top { border-top: 1px solid var(--hover); }
+.pane.edge-left { border-left: 1px solid var(--edge-overlay); }
+.pane.edge-top { border-top: 1px solid var(--edge-overlay); }
 .glyph { display: inline-block; width: 16px; flex: none; text-align: center; font-family: var(--font-mono); filter: saturate(0.6) brightness(0.85); } /* devicon colors, muted */
 
-.sidebar { display: flex; flex-direction: column; min-height: 0; }
-.sidebar-title { display: flex; align-items: center; height: 32px; flex: none; padding: 0 16px 0 20px; font-size: 11px; font-weight: 600; color: var(--fg-3); }
+.sidebar { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--edge-overlay); }
+.sidebar-title { display: flex; align-items: center; height: 36px; flex: none; padding: 0 16px 0 20px; font-size: 11px; font-weight: 600; color: var(--fg-3); }
 .tree { flex: 1; overflow: auto; outline: none; padding-bottom: 8px; color: var(--fg-2); }
 .tree-row { position: absolute; left: 6px; right: 6px; display: flex; align-items: center; gap: 6px; padding-right: 10px; white-space: nowrap; border-radius: 6px; cursor: default; }
 .tree-row:hover, .tree-row.cursor { background: var(--hover); }
@@ -41,24 +47,37 @@
 .tree-name.git-conflict { color: var(--git-del); }
 .tree-row:has(.git-ignored) { opacity: 0.45; }
 
-/* Status: the mode pill is the only colored surface of the UI */
-.statusline { grid-column: 1 / -1; display: flex; align-items: center; gap: 16px; padding: 0 12px; font-size: 12px; line-height: 16px; color: var(--fg-3); white-space: nowrap; overflow: hidden; }
-.statusline .mode { flex: none; height: 20px; display: flex; align-items: center; padding: 0 9px; border-radius: 10px; background: var(--accent); color: #fff; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; }
-.statusline .insert { background: var(--insert); color: #04210d; } /* white on green is only ~2:1 */
-.statusline .visual { background: var(--visual); }
-.statusline .file { display: flex; align-items: center; gap: 6px; }
+/* The status line: text only. The mode's name is its one color (tokens.css --status-*), counts show only when not zero.
+   On top it is the title bar, where macOS draws its traffic lights over the first 88 px. */
+.statusline { grid-column: 1 / -1; grid-row: 1; display: flex; align-items: center; gap: 20px; padding: 0 20px; font-size: 12.5px; line-height: 16px; color: var(--fg-3); white-space: nowrap; overflow: hidden; border-bottom: 1px solid var(--edge-overlay); }
+.statusline.mac { padding-left: 100px; }
+.statusline.bottom { grid-row: 4; height: 28px; padding: 0 16px; font-size: 12px; border-bottom: 0; border-top: 1px solid var(--edge-overlay); }
+.workbench.bar-bottom { grid-template-rows: var(--bar) 1fr auto 28px; }
+.workbench.bar-bottom > .titlebar { padding: 0 100px; border-bottom: 1px solid var(--edge-overlay); }
+.workbench.bar-bottom .sidebar { grid-row: 2 / 4; }
+.statusline .mode { flex: none; min-width: 7ch; font: 500 12px var(--font-mono); color: var(--status-normal); }
+.statusline .insert { color: var(--status-insert); }
+.statusline .visual { color: var(--status-visual); }
+.statusline .replace { color: var(--status-replace); }
+.statusline .terminal { color: var(--status-terminal); }
+.statusline .read { color: var(--status-read); }
+.statusline .view { color: var(--status-view); }
+.file { display: flex; align-items: center; min-width: 0; overflow: hidden; color: var(--fg-1); font-weight: 500; }
+.file .dir { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--fg-4); font-weight: 400; }
+.file .dirty { margin-left: 8px; }
 .dirty { width: 6px; height: 6px; flex: none; border-radius: 50%; background: var(--fg-3); }
 .statusline .msg { flex: 1; min-width: 0; text-align: right; color: var(--fg-4); overflow: hidden; text-overflow: ellipsis; }
-.statusline .msg.error { color: var(--error); }
-.statusline .location { font: 11.5px var(--font-mono); }
-.statusline .diag { font: 11.5px var(--font-mono); background: none; border: none; padding: 0; color: var(--fg-3); cursor: pointer; }
-.statusline .diag .e { color: var(--error); }
-.statusline .diag .w { color: var(--warning); }
-.statusline .branch { font: 11.5px var(--font-mono); color: var(--fg-2); }
+.statusline .msg.error { color: var(--status-error); }
+.statusline .msg.warning { color: var(--status-warning); }
+.statusline .meta { flex: none; display: flex; align-items: center; gap: 20px; font: 12px var(--font-mono); font-variant-numeric: tabular-nums; }
+.statusline .diag { display: flex; gap: 20px; font: inherit; background: none; border: none; padding: 0; cursor: pointer; }
+.statusline .diag .e { color: var(--status-error); }
+.statusline .diag .w { color: var(--status-warning); }
+.statusline .location { min-width: 5ch; text-align: right; }
 
 /* Empty: a short keyboard list, no illustration */
 .welcome { display: flex; flex-direction: column; height: 100%; }
-.welcome-card { flex: 1; min-height: 0; overflow-y: auto; display: flex; justify-content: center; padding: 14vh 0 32px; margin: 0 6px 6px; background: var(--bg-1); border: 1px solid var(--edge); border-radius: 6px; }
+.welcome-card { flex: 1; min-height: 0; overflow-y: auto; display: flex; justify-content: center; padding: 14vh 0 32px; background: var(--bg-1); border-top: 1px solid var(--edge-overlay); }
 .welcome-list { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 32px; }
 .welcome-title { padding: 0 10px; font-size: 15px; line-height: 22px; font-weight: 600; }
 .welcome-sub { padding: 0 10px; color: var(--fg-3); }
@@ -75,7 +94,7 @@
 
 /* Overlays fade in with 4 px of travel; focus and resize change instantly */
 @keyframes overlay-in { from { opacity: 0; transform: translateY(-4px); } }
-.picker-backdrop { position: fixed; inset: 38px 0 0; display: flex; justify-content: center; align-items: flex-start; padding: 58px 16px 0; background: rgb(0 0 0 / 0.35); z-index: 10; }
+.picker-backdrop { position: fixed; inset: var(--bar) 0 0; display: flex; justify-content: center; align-items: flex-start; padding: 58px 16px 0; background: rgb(0 0 0 / 0.35); z-index: 10; }
 .picker, .hints { background: var(--overlay); border: 1px solid var(--edge-overlay); border-radius: 12px; box-shadow: 0 20px 50px rgb(0 0 0 / 0.5); animation: overlay-in 120ms cubic-bezier(0.2, 0, 0, 1); }
 .picker { width: min(640px, 100%); display: flex; flex-direction: column; max-height: 60vh; overflow: hidden; }
 .picker-head { height: 48px; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 16px; border-bottom: 1px solid var(--edge-overlay); }
@@ -90,7 +109,7 @@
 .picker-empty { padding: 7px 10px; color: var(--fg-3); }
 
 /* which-key: what may follow the keys typed so far */
-.hints { position: fixed; right: 12px; bottom: 36px; min-width: 260px; max-width: min(520px, calc(100% - 24px)); padding: 10px 16px 12px; z-index: 9; }
+.hints { position: fixed; right: 12px; bottom: 12px; min-width: 260px; max-width: min(520px, calc(100% - 24px)); padding: 10px 16px 12px; z-index: 9; }
 .hints-title { font-family: var(--font-mono); padding-bottom: 6px; }
 .hints ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 4px 16px; color: var(--fg-2); }
 .hints li { display: flex; align-items: center; gap: 8px; white-space: nowrap; }

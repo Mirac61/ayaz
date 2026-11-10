@@ -33,6 +33,8 @@ export interface Backend {
   files(ws: string): Files;
   keymap(): Promise<string>; // the user's keymap.json, "" if none
   settings(): Promise<string>; // the user's settings.json, "" if none
+  configFolder(): Promise<string>; // where settings.json and keymap.json live; creates an empty settings.json
+  openSettings(): Promise<void>; // a new window on the config folder, settings.json open
   // Fuzzy-ranks a short list (recent files, buffers, commands) with the Go matcher.
   rank(items: string[], query: string, limit: number): Promise<FileMatch[]>;
   // Calls fn for changes on disk in workspace ws, also our own saves. Returns the unsubscribe function.
@@ -86,6 +88,8 @@ export const backend: Backend = {
   onCloseRequest: (fn) => Events.On("app:close-request", () => fn()),
   keymap: () => ConfigService.Keymap(),
   settings: () => ConfigService.Settings(),
+  configFolder: () => ConfigService.Folder(),
+  openSettings: () => ConfigService.OpenSettings(),
   rank: async (items, q, limit) => (await WorkspaceService.Rank(items, q, limit)) ?? [],
   openURL: (url) => Browser.OpenURL(url),
   copy: (text) => Clipboard.SetText(text),

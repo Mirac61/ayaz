@@ -26,3 +26,41 @@ func TestWatchConfigReportsSavedFiles(t *testing.T) {
 		t.Fatal("no change reported")
 	}
 }
+
+func TestFolderCreatesSettingsOnce(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "ayaz")
+	t.Setenv("AYAZ_CONFIG_DIR", dir)
+	got, err := ConfigService{}.Folder()
+	if err != nil || got != dir {
+		t.Fatalf("Folder() = %q, %v", got, err)
+	}
+	if b, _ := os.ReadFile(filepath.Join(dir, "settings.json")); string(b) != string(defaultSettings) {
+		t.Fatalf("settings.json = %q", b)
+	}
+	if b, _ := os.ReadFile(filepath.Join(dir, "keymap.json")); string(b) != string(defaultKeymap) {
+		t.Fatalf("keymap.json = %q", b)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "settings.json"), []byte(`{"fontSize": 14}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := (ConfigService{}).Folder(); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(filepath.Join(dir, "settings.json")); string(b) != `{"fontSize": 14}` {
+		t.Fatalf("Folder overwrote settings.json: %q", b)
+	}
+}
+
+func TestFolderFillsTheOldEmptySettings(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("AYAZ_CONFIG_DIR", dir)
+	if err := os.WriteFile(filepath.Join(dir, "settings.json"), []byte("{\n}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := (ConfigService{}).Folder(); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(filepath.Join(dir, "settings.json")); string(b) != string(defaultSettings) {
+		t.Fatalf("settings.json = %q", b)
+	}
+}

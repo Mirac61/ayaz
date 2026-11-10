@@ -74,7 +74,7 @@ test("diagnostics: counts, list and ]d", async ({ page }) => {
   await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: "broken.go" }).click();
   const status = page.locator(".statusline");
   // undefinedThing, and hello.c in the package for broken.go and hello.go (not open: the store still has it)
-  await expect(status.locator(".diag .e")).toContainText("E 3", { timeout: 30_000 });
+  await expect(status.locator(".diag .e")).toContainText("3 errors", { timeout: 30_000 });
   await page.keyboard.type("gg]d");
   await expect(status).toContainText("4:2");
   await status.locator(".diag").click();

@@ -1,5 +1,6 @@
 import { expect, test } from "vitest";
 import { DEFAULTS, fileSettings, parseSettings } from "./settings";
+import template from "../../../app/settings.default.json?raw";
 
 test("defaults: Go indents with tabs and formats on save, Markdown wraps", () => {
   expect(fileSettings("a/main.go", DEFAULTS)).toEqual({ tabWidth: 4, tabs: true, wrap: false, formatOnSave: true });
@@ -45,4 +46,27 @@ test("terminalFontSize: optional, same range as fontSize", () => {
   expect(DEFAULTS.terminalFontSize).toBeUndefined();
   expect(parseSettings('{"terminalFontSize": 15}').terminalFontSize).toBe(15);
   expect(() => parseSettings('{"terminalFontSize": 99}')).toThrow(/"terminalFontSize" must be a number from 6 to 48/);
+});
+
+test("the file tree goes left or right", () => {
+  expect(parseSettings('{"sidebar": "right"}').sidebar).toBe("right");
+  expect(() => parseSettings('{"sidebar": "top"}')).toThrow('"sidebar" must be "left" or "right"');
+});
+
+test("the status line goes top or bottom, its colors are hex per key", () => {
+  expect(parseSettings('{"statusline": "bottom"}').statusline).toBe("bottom");
+  expect(() => parseSettings('{"statusline": "left"}')).toThrow('"statusline" must be "top" or "bottom"');
+  expect(parseSettings('{"statusColors": {"insert": "#98bb6c"}}').statusColors).toEqual({ insert: "#98bb6c" });
+  expect(() => parseSettings('{"statusColors": {"pink": "#fff"}}')).toThrow('unknown status color "pink"');
+  expect(() => parseSettings('{"statusColors": {"normal": "blue"}}')).toThrow("statusColors.normal must be a hex color");
+});
+
+test("comments and trailing commas are allowed; strings keep their slashes and commas", () => {
+  const s = parseSettings(`// top\n{ /* a */ "font": "a // b, }", // c\n "languages": { "ts": { "tabWidth": 2, }, }, }`);
+  expect(s.font).toBe("a // b, }");
+  expect(s.languages.ts).toEqual({ tabWidth: 2 });
+});
+
+test("the settings.json written for a new user is the defaults", () => {
+  expect(parseSettings(template)).toEqual(DEFAULTS);
 });

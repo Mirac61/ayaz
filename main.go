@@ -39,7 +39,7 @@ func main() {
 	a.HandleStream("search", ws.HandleSearch)
 	a.HandleStream("echo", app.HandleEcho)
 
-	app.NewWindow(a, "/")
+	app.NewWindow(a, "", "/")
 
 	if err := a.Run(); err != nil {
 		log.Fatal(err)

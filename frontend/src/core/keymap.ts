@@ -3,6 +3,8 @@
 //   global: everywhere, also in insert mode; meant for chords with Cmd/Ctrl.
 //   terminal: a terminal in terminal mode (keys go to the shell otherwise). Terminal normal mode uses "normal".
 
+import { stripJsonc } from "./settings";
+
 export type Context = "normal" | "global" | "terminal";
 const CONTEXTS: Context[] = ["normal", "global", "terminal"];
 
@@ -63,8 +65,10 @@ export function defaultKeymap(mac = isMac): Binding[] {
     n("<C-w>=", "pane.equal"),
     n("<C-w>z", "term.maximize"),
     ...(mac
-      ? [g("<D-p>", "find.files"), g("<D-S-p>", "find.commands"), g("<D-j>", "term.panel"), g("<D-S-n>", "window.new")]
-      : [g("<C-S-p>", "find.files"), g("<C-S-j>", "term.panel"), g("<C-S-n>", "window.new")]),
+      ? [g("<D-p>", "find.files"), g("<D-S-p>", "find.commands"), g("<D-j>", "term.panel"), g("<D-S-n>", "window.new"),
+        g("<D-,>", "settings.open"), g("<D-b>", "view.sidebar")]
+      : [g("<C-S-p>", "find.files"), g("<C-S-j>", "term.panel"), g("<C-S-n>", "window.new"),
+        g("<C-,>", "settings.open"), g("<C-S-b>", "view.sidebar")]),
     ...(mac
       ? [g("<D-S-t>", "tab.reopen"), g("<D-[>", "nav.back"), g("<D-]>", "nav.forward"), g("<C-->", "nav.back"),
         g("<C-S-_>", "nav.forward")] // Ctrl -, Ctrl Shift - like VS Code on macOS: brackets need Alt on German layouts
@@ -87,7 +91,7 @@ export function mergeKeymap(defaults: Binding[], user: Binding[]): Binding[] {
 export function parseUserKeymap(json: string, known: (id: string) => boolean): Binding[] {
   let data: unknown;
   try {
-    data = JSON.parse(json);
+    data = JSON.parse(stripJsonc(json));
   } catch (e) {
     throw new Error(`keymap.json: ${e instanceof Error ? e.message : e}`);
   }

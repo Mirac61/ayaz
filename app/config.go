@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	_ "embed"
 	"errors"
 	"io/fs"
 	"log"
@@ -27,6 +28,52 @@ func (ConfigService) Keymap() (string, error) { return readConfig("keymap.json")
 
 // Settings returns settings.json as text, "" if there is none. The frontend parses and checks it.
 func (ConfigService) Settings() (string, error) { return readConfig("settings.json") }
+
+// The defaults, each explained: what Folder writes when there is no settings.json yet.
+//
+//go:embed settings.default.json
+var defaultSettings []byte
+
+// keymap.json's counterpart: no bindings yet, the format explained.
+//
+//go:embed keymap.default.json
+var defaultKeymap []byte
+
+// Folder creates the config folder, settings.json and keymap.json (explained) if missing, and returns the folder.
+func (ConfigService) Folder() (string, error) {
+	dir, err := configDir()
+	if err != nil {
+		return "", err
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", err
+	}
+	// "{\n}\n" is what the first version of Folder wrote: still untouched, so it gets the explained defaults too.
+	for name, text := range map[string][]byte{"settings.json": defaultSettings, "keymap.json": defaultKeymap} {
+		file := filepath.Join(dir, name)
+		if b, err := os.ReadFile(file); err == nil && string(b) != "{\n}\n" {
+			continue
+		} else if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return "", err
+		}
+		if err := os.WriteFile(file, text, 0o644); err != nil {
+			return "", err
+		}
+	}
+	return dir, nil
+}
+
+// OpenSettings opens a window on the config folder with settings.json (Cmd+,), or brings the open one to the front.
+func (ConfigService) OpenSettings() {
+	a := application.Get()
+	if w, ok := a.Window.GetByName("settings"); ok {
+		w.UnMinimise()
+		w.Show()
+		w.Focus()
+		return
+	}
+	NewWindow(a, "settings", "/?settings")
+}
 
 // ServiceStartup watches the config folder, so a saved settings.json or keymap.json applies without a restart.
 func (ConfigService) ServiceStartup(ctx context.Context, _ application.ServiceOptions) error {

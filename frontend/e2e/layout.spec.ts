@@ -30,7 +30,7 @@ test("drag a split border, <C-w>=, panel height and maximize", async ({ page }) 
 
   await page.keyboard.type(" t");
   const panel = page.locator(".panel");
-  await expect(page.locator(".statusline")).toContainText("TERMINAL");
+  await expect(page.locator(".statusline")).toContainText("terminal");
   const before = (await box(panel)).height;
   await drag(page, panel.locator("> .resize"), 0, -150);
   const after = (await box(panel)).height;
@@ -48,6 +48,25 @@ test("drag a split border, <C-w>=, panel height and maximize", async ({ page }) 
   await page.reload();
   await expect(page.getByRole("tree", { name: "Files" })).toBeFocused();
   await page.keyboard.type(" t");
-  await expect(page.locator(".statusline")).toContainText("TERMINAL");
+  await expect(page.locator(".statusline")).toContainText("terminal");
   expect(Math.abs((await box(panel)).height - after)).toBeLessThan(2);
+});
+
+// Cmd+B hides the file tree and the editor takes its width; <Space>e brings it back focused; the choice survives a reload.
+test("hide and show the file tree", async ({ page }) => {
+  const toggle = process.platform === "darwin" ? "Meta+b" : "Control+Shift+b";
+  await page.goto("/?renderer=dom");
+  const tree = page.getByRole("tree", { name: "Files" });
+  await expect(tree).toBeFocused();
+  const wide = (await box(page.locator(".panes"))).width;
+  await page.keyboard.press(toggle);
+  await expect(tree).toBeHidden();
+  await expect.poll(async () => (await box(page.locator(".panes"))).width).toBeGreaterThan(wide + 200);
+  await page.reload();
+  await expect(page.locator(".panes")).toBeVisible();
+  await expect(tree).toBeHidden();
+  await page.keyboard.type(" e");
+  await expect(tree).toBeFocused();
+  await page.reload();
+  await expect(tree).toBeVisible();
 });

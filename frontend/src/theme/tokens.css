@@ -21,10 +21,24 @@
   --git-mod: #7e9cd8;
   --git-del: #c34043;
 
+  --bar: 38px; /* the top bar; 52 px on macOS, where the inset traffic lights center at 26 */
+  /* The mode name and counts in the status line: Kanagawa's softer hues, settings.json "statusColors" overrides them */
+  --status-normal: #7e9cd8;
+  --status-insert: #98bb6c;
+  --status-visual: #957fb8;
+  --status-replace: #e46876;
+  --status-terminal: #c0a36e;
+  --status-read: #7aa89f;
+  --status-view: #8e8e93;
+  --status-error: #e46876;
+  --status-warning: #dca561;
+
   --font-ui: system-ui, -apple-system, "SF Pro Text", "Helvetica Neue", sans-serif;
   --editor-font-size: 13px; /* settings.json "fontSize" */
   --font-mono: "SF Mono", "FiraCode Nerd Font", "JetBrainsMono Nerd Font", "Symbols Nerd Font", "JetBrains Mono", Menlo, "Ayaz Symbols", monospace;
 }
+
+:root[data-mac] { --bar: 52px; }
 
 html, body, #root {
   margin: 0;

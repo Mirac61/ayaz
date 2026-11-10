@@ -186,18 +186,19 @@ func (s *WorkspaceService) CloseWindow(ctx context.Context) {
 }
 
 // NewWindow opens another window on the welcome screen.
-func (s *WorkspaceService) NewWindow() { NewWindow(application.Get(), "/?new") }
+func (s *WorkspaceService) NewWindow() { NewWindow(application.Get(), "", "/?new") }
 
-// NewWindow opens a window at url with the app's window options.
-func NewWindow(a *application.App, url string) *application.WebviewWindow {
+// NewWindow opens a window at url with the app's window options; name "" gets Wails' "window-<id>".
+func NewWindow(a *application.App, name, url string) *application.WebviewWindow {
 	win := a.Window.NewWithOptions(application.WebviewWindowOptions{
+		Name:   name,
 		Title:  "Ayaz",
 		Width:  1200,
 		Height: 800,
 		// bg-0, so there is no white flash before the first paint.
 		BackgroundColour: application.NewRGB(0x16, 0x16, 0x17),
-		// The traffic lights sit in the frontend's 38 px .titlebar.
-		Mac: application.MacWindow{TitleBar: application.MacTitleBarHiddenInset, InvisibleTitleBarHeight: 38},
+		// The traffic lights sit in the frontend's 52 px top bar (--bar), centered at 26 px.
+		Mac: application.MacWindow{TitleBar: application.MacTitleBarHiddenInset, InvisibleTitleBarHeight: 52},
 		URL: url,
 	})
 	win.OnWindowEvent(events.Common.WindowRuntimeReady, func(*application.WindowEvent) { UncapFrameRate(win) })

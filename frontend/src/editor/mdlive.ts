@@ -84,16 +84,21 @@ export function mdDecorations(state: EditorState, from = 0, to = state.doc.lengt
           hide(marks[1].from, n.to);
         }
       } else if (name === "FencedCode" || name === "CodeBlock") {
-        // Fence lines stay (dimmed), so line heights don't change; the code itself is highlighted by its own parser.
-        const closed = n.node.getChildren("CodeMark").length === 2, last = doc.lineAt(n.to).from;
+        // Fence lines stay, so line heights don't change: the opening one is the card's header with the language
+        // and the copy button, the closing one its bottom padding. The code is highlighted by its own parser.
+        const fences = n.node.getChildren("CodeMark"), closed = fences.length === 2, last = doc.lineAt(n.to).from;
         eachLine(n, (at, first) => {
           const fence = name === "FencedCode" && (first || closed && at === last);
-          out.lines.push({ at, cls: fence ? "cm-md-code-line cm-md-fence" : "cm-md-code-line" });
+          const edge = fence ? (first ? " cm-md-fence cm-md-code-top" : " cm-md-fence cm-md-code-bottom") : "";
+          out.lines.push({ at, cls: "cm-md-code-line" + edge });
           if (fence && first) {
             const code = n.node.getChild("CodeText"), end = doc.lineAt(at).to;
             out.widgets.push({ from: end, to: end, kind: "copy", text: code ? doc.sliceString(code.from, code.to) : "" });
           }
         });
+        for (const f of fences) hide(f.from, f.to);
+        const info = n.node.getChild("CodeInfo");
+        if (info) out.marks.push({ from: info.from, to: info.to, cls: "cm-md-lang" });
         for (const q of n.node.getChildren("QuoteMark")) hideQuote(q.from, q.to); // quoted code: the marks sit inside it
         return false;
       } else if (name === "Blockquote") {
@@ -366,6 +371,16 @@ function build(v: EditorView): [DecorationSet, DecorationSet] {
 
 const live = ViewPlugin.fromClass(Live, { decorations: (p) => p.deco });
 
+// Two squares and a tick, drawn as masks so they take the button's color.
+const svg = (d: string) => {
+  const open = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5'"
+    + " stroke-linecap='round' stroke-linejoin='round'>";
+  return `url("data:image/svg+xml,${encodeURIComponent(open + d + "</svg>")}")`;
+};
+const copyIcon = svg("<rect x='5.5' y='5.5' width='8' height='8' rx='1.5'/>"
+  + "<path d='M10.5 5.5v-2a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 3.5V9A1.5 1.5 0 0 0 4 10.5h1.5'/>");
+const checkIcon = svg("<path d='M3 8.5l3 3 7-7'/>");
+
 const theme = EditorView.baseTheme({
   ".cm-md-h1": { fontSize: "1.6em" },
   ".cm-md-h2": { fontSize: "1.4em" },
@@ -373,7 +388,21 @@ const theme = EditorView.baseTheme({
   ".cm-md-h4, .cm-md-h5, .cm-md-h6": { fontSize: "1.05em" },
   ".cm-md-code": { backgroundColor: "rgb(255 255 255 / 0.08)", borderRadius: "5px", padding: "1px 5px" },
   ".cm-md-link": { color: "#0a84ff", textDecoration: "underline" },
-  ".cm-md-code-line": { backgroundColor: "rgb(255 255 255 / 0.04)" },
+  // A card like GitHub's: the borders are drawn per line, so every line keeps its height.
+  ".cm-md-code-line": {
+    backgroundColor: "rgb(255 255 255 / 0.04)",
+    boxShadow: "inset 1px 0 0 var(--md-code-border), inset -1px 0 0 var(--md-code-border)",
+    "--md-code-border": "rgb(255 255 255 / 0.08)",
+  },
+  ".cm-md-code-top": {
+    borderRadius: "8px 8px 0 0", backgroundColor: "rgb(255 255 255 / 0.06)",
+    boxShadow: "inset 1px 0 0 var(--md-code-border), inset -1px 0 0 var(--md-code-border), inset 0 1px 0 var(--md-code-border)",
+  },
+  ".cm-md-code-bottom": {
+    borderRadius: "0 0 8px 8px",
+    boxShadow: "inset 1px 0 0 var(--md-code-border), inset -1px 0 0 var(--md-code-border), inset 0 -1px 0 var(--md-code-border)",
+  },
+  ".cm-md-lang": { font: "11px var(--font-ui)", color: "var(--fg-3)", textTransform: "lowercase" },
   ".cm-md-quote": { borderLeft: "3px solid #3a3a3d", paddingLeft: "8px", color: "#c8c093" },
   ".cm-md-table": { overflowX: "auto", padding: "4px 0" },
   ".cm-md-table table": { borderCollapse: "collapse" },
@@ -388,6 +417,11 @@ const theme = EditorView.baseTheme({
     font: "11px/18px var(--font-ui)", color: "var(--fg-3)", background: "var(--bg-3)",
     border: "none", borderRadius: "5px", padding: "0 7px", cursor: "default",
   },
+  ".cm-md-copy::before": {
+    content: '""', display: "inline-block", width: "11px", height: "11px", marginRight: "5px", verticalAlign: "-1px",
+    backgroundColor: "currentColor", mask: `${copyIcon} center / contain no-repeat`,
+  },
+  ".cm-md-copy[data-label=Copied]::before": { mask: `${checkIcon} center / contain no-repeat` },
   ".cm-md-copy::after": { content: "attr(data-label)" },
   ".cm-md-copy:hover": { color: "var(--fg-1)" },
   "&.cm-reading .cm-activeLine": { backgroundColor: "transparent" },

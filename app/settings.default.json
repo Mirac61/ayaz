@@ -1,0 +1,49 @@
+// Ayaz settings. Saving applies them right away, no restart.
+// Comments and trailing commas are allowed. Delete a line to get its default back.
+// keymap.json in this folder holds your key bindings.
+{
+  // Editor font, put in front of the built-in monospace fonts (they stay as fallbacks for Nerd Font icons).
+  // "" keeps the built-in ones. Example: "JetBrains Mono"
+  "font": "",
+
+  // Font size of the editor and the terminal in px, 6 to 48. Cmd+= / Cmd+- zoom on top of it.
+  "fontSize": 13,
+
+  // The terminal's own font size, if it should differ from fontSize.
+  // "terminalFontSize": 13,
+
+  // Parameter names and types from the language server, shown inline.
+  "inlayHints": false,
+
+  // The file tree's side of the window: "left" or "right". Cmd+B hides and shows it.
+  "sidebar": "left",
+
+  // Where mode, messages, errors, branch and position go: "top" (the title bar) or "bottom" (a line under the code).
+  "statusline": "top",
+
+  // Colors of the mode name and the error and warning counts, as hex. Delete a key to get its default back.
+  // Keys: normal, insert, visual, replace, terminal, read, view, error, warning.
+  "statusColors": {
+    // "normal": "#7e9cd8",
+    // "insert": "#98bb6c",
+  },
+
+  // Width of a tab, and the indent unless "tabs" is on. 1 to 16.
+  "tabWidth": 4,
+
+  // Indent with tabs instead of spaces.
+  "tabs": false,
+
+  // Wrap long lines. <Space>uw toggles it for the open file.
+  "wrap": false,
+
+  // Format through the language server when saving.
+  "formatOnSave": false,
+
+  // Per language, keyed by file extension. Overrides tabWidth, tabs, wrap and formatOnSave for those files.
+  "languages": {
+    "go": { "tabs": true, "formatOnSave": true },
+    "md": { "wrap": true },
+    // "ts": { "tabWidth": 2 },
+  },
+}

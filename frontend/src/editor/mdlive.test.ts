@@ -47,7 +47,7 @@ const cases: [src: string, want: string][] = [
   ["[**bold** link](x)\n|", "bold link\n"],
   ["![alt](img.png)\n|", "![alt](img.png)\n"], // images come in M6
   ["<https://x.org>\n|", "<https://x.org>\n"],
-  ["```\n**x**\n```\n|", "```\n**x**\n```\n"], // code blocks stay literal
+  ["```\n**x**\n```\n|", "\n**x**\n\n"], // code stays literal, only the fences go
   ["    *x*\n\n|", "    *x*\n\n"], // indented code too
   ["*a*\n|*b*", "a\n*b*"],
   ["|*a*\n*b*", "*a*\nb"],
@@ -120,18 +120,20 @@ test("toggleReading is null without live preview", () => {
 
 const codeLines = (src: string) => mdDecorations(state(src)).lines.map((l) => `${l.at}:${l.cls.replace(/cm-md-/g, "")}`);
 
-test("fenced code: every line gets the code class, the fences are dimmed", () => {
-  expect(codeLines("```go\nx := 1\n```\n|")).toEqual(["0:code-line fence", "6:code-line", "13:code-line fence"]);
+test("fenced code: every line gets the code class, the fences are the card's top and bottom", () => {
+  expect(codeLines("```go\nx := 1\n```\n|"))
+    .toEqual(["0:code-line fence code-top", "6:code-line", "13:code-line fence code-bottom"]);
 });
 
-test("an unclosed fence dims only its opening line", () => {
-  expect(codeLines("```\ncode\n|")).toEqual(["0:code-line fence", "4:code-line", "9:code-line"]);
+test("an unclosed fence has only a top", () => {
+  expect(codeLines("```\ncode\n|")).toEqual(["0:code-line fence code-top", "4:code-line", "9:code-line"]);
 });
 
 test("tilde fences, empty blocks and fences with text around", () => {
-  expect(codeLines("~~~\na\n~~~\n|")).toEqual(["0:code-line fence", "4:code-line", "6:code-line fence"]);
-  expect(codeLines("```\n```\n|")).toEqual(["0:code-line fence", "4:code-line fence"]);
-  expect(codeLines("a\n\n```\nb\n```\nc\n|").map((l) => l.split(":")[1])).toEqual(["code-line fence", "code-line", "code-line fence"]);
+  expect(codeLines("~~~\na\n~~~\n|")).toEqual(["0:code-line fence code-top", "4:code-line", "6:code-line fence code-bottom"]);
+  expect(codeLines("```\n```\n|")).toEqual(["0:code-line fence code-top", "4:code-line fence code-bottom"]);
+  expect(codeLines("a\n\n```\nb\n```\nc\n|").map((l) => l.split(":")[1]))
+    .toEqual(["code-line fence code-top", "code-line", "code-line fence code-bottom"]);
 });
 
 test("an opening fence gets a copy button with the code, without the fences", () => {
@@ -171,7 +173,7 @@ test.each<[string, string]>([
   [">  two spaces\n|", " two spaces\n"],
   ["> a\n|> b", "a\n> b"], // the cursor line keeps its mark
   ["> - item\n|", "- item\n"],
-  ["> ```\n> x\n> ```\n|", "```\nx\n```\n"],
+  ["> ```\n> x\n> ```\n|", "\nx\n\n"],
   ["a > b\n|", "a > b\n"],
 ])("quote %j reads as %j", (src, want) => expect(shown(src)).toBe(want));
 
@@ -277,7 +279,7 @@ test.each<[string, string]>([
   ["---\n|x", "\nx"],
   ["|---\nx", "---\nx"], // the cursor line keeps the raw rule
   ["Title\n---\n|", "Title\n---\n"], // under text it is a setext heading, not a rule
-  ["```\n---\n```\n|", "```\n---\n```\n"],
+  ["```\n---\n```\n|", "\n---\n\n"],
   ["--\n|", "--\n"],
 ])("rule %j reads as %j", (src, want) => expect(shown(src)).toBe(want));
 

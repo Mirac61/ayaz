@@ -1,0 +1,15 @@
+// Ayaz key bindings, on top of the built-in ones. Saving applies them right away, no restart.
+// Comments and trailing commas are allowed.
+//
+// Each entry binds keys to a command ID, e.g. find.files, find.commands, file.save, tree.focus, term.panel,
+// pane.splitRight, settings.open. An unknown ID is reported in the status line.
+//   "keys":    Vim notation: "<Space>ff", "<C-w>h", "<D-p>" (Cmd), "<C-S-p>" (Ctrl+Shift+P)
+//   "command": the command ID; "" removes the built-in binding with the same keys and context
+//   "context": "normal" (default; editor normal mode and the file tree), "global" (everywhere, also
+//              insert mode; for Cmd/Ctrl chords) or "terminal" (a terminal in terminal mode)
+//   "arg":     an argument for commands that take one
+[
+  // { "keys": "<Space>w", "command": "file.save" },
+  // { "keys": "<D-b>", "command": "tree.focus", "context": "global" },
+  // { "keys": "<Space>ff", "command": "" },
+]

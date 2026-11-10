@@ -61,19 +61,15 @@ const theme = EditorView.theme(
     ".cm-lsp-documentation ul": { margin: "2px 0", paddingLeft: "18px" },
     ".cm-lsp-documentation code, .cm-lsp-documentation pre": { fontFamily: "var(--font-mono)", fontSize: "12px", color: c.fg },
     ".cm-lsp-documentation a": { color: "var(--accent)", textDecoration: "none" },
-    // LSP messages and other dialogs: the design's banner, a soft rounded strip above the code.
+    // LSP errors and other dialogs: one flat line over the code, parted by a hairline like the rest of the chrome.
     ".cm-panels-top": { backgroundColor: "transparent", borderBottom: "none" },
     ".cm-panel.cm-dialog": {
-      margin: "10px 16px 0", padding: "8px 36px 8px 14px",
-      borderRadius: "8px", backgroundColor: "rgb(255 255 255 / 0.06)", color: "var(--fg-1)",
+      padding: "7px 36px 7px 20px", borderBottom: "1px solid var(--edge-overlay)", color: "var(--fg-2)",
       fontFamily: "var(--font-ui)", fontSize: "12.5px",
     },
     ".cm-dialog form": { display: "flex", alignItems: "center", gap: "8px" },
     ".cm-lsp-message button[type=submit]": { display: "inline", marginLeft: "auto" },
-    ".cm-dialog button": {
-      font: "11px var(--font-ui)", color: "var(--fg-2)", background: "var(--bg-3)", border: "none", borderRadius: "5px",
-      padding: "1px 8px",
-    },
+    ".cm-dialog button": { font: "12.5px var(--font-ui)", color: "var(--fg-1)", background: "none", border: "none", padding: "0 4px" },
     ".cm-dialog .cm-dialog-close": { background: "none", color: "var(--fg-3)", top: "50%", transform: "translateY(-50%)", right: "8px" },
     ".cm-tooltip-autocomplete > ul > li[aria-selected]": { backgroundColor: "var(--bg-3)", color: "var(--fg-1)" },
     ".cm-panels": { backgroundColor: "var(--bg-0)", color: c.fg },

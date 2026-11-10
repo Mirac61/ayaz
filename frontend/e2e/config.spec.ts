@@ -55,3 +55,18 @@ test("inlay hints follow settings.json", async ({ page }) => {
   await expect(hints).toHaveCount(0);
   rmSync(join(e2eConfig, "settings.json"));
 });
+
+// "statusline": "bottom" moves mode and meta under the code, the file stays on top; statusColors recolor the mode.
+test("status line at the bottom, with its own colors", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: "search.txt" }).click();
+  await expect(page.locator("header.statusline .mode")).toHaveText("normal");
+  writeFileSync(join(e2eConfig, "settings.json"), JSON.stringify({ statusline: "bottom", statusColors: { normal: "#ff0000" } }));
+  const bottom = page.locator("footer.statusline");
+  await expect(bottom.locator(".mode")).toHaveText("normal");
+  await expect(bottom.locator(".mode")).toHaveCSS("color", "rgb(255, 0, 0)");
+  await expect(page.locator("header.titlebar")).toContainText("search.txt");
+  await expect(page.locator("header.statusline")).toHaveCount(0);
+  rmSync(join(e2eConfig, "settings.json"));
+  await expect(page.locator("header.statusline .mode")).toHaveCSS("color", "rgb(126, 156, 216)"); // back to the default
+});

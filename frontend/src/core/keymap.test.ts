@@ -1,4 +1,5 @@
 import { afterEach, expect, test, vi } from "vitest";
+import template from "../../../app/keymap.default.json?raw";
 import { defaultKeymap, keyName, mergeKeymap, parseKeys, parseUserKeymap, Sequencer, type Binding } from "./keymap";
 
 const ev = (key: string, mods: Partial<Record<"ctrlKey" | "altKey" | "shiftKey" | "metaKey", boolean>> = {}, code = "") =>
@@ -118,4 +119,8 @@ test("Sequencer: a pure prefix waits and reports what may follow (which-key)", (
 
 test("a syntax error in keymap.json names the file", () => {
   expect(() => parseUserKeymap("[ broken", () => true)).toThrow(/^keymap\.json: /);
+});
+
+test("the keymap.json written for a new user parses and binds nothing", () => {
+  expect(parseUserKeymap(template, () => true)).toEqual([]);
 });

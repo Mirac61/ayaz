@@ -108,6 +108,11 @@ export interface Host {
 const hosts = new Map<string, Host>();
 export const setLspHost = (ws: string, h: Host) => void hosts.set(ws, h);
 
+// window/showMessage goes to the status line instead of a banner over the code.
+type Show = (text: string, level: "error" | "warning" | "info") => void;
+const messages = new Map<string, Show>();
+export const setLspMessages = (ws: string, f: Show) => void messages.set(ws, f);
+
 class OpenFile implements WorkspaceFile {
   views: EditorView[] = [];
   version = 0;
@@ -421,6 +426,12 @@ export const diagnosticHandlers = (ws: string, server = "") => ({
     diagnosticsFor(ws).publish(p, server);
     return false;
   },
+  // type 1 error, 2 warning, 3 info, 4 log (dropped, like the library does)
+  "window/showMessage": (_c: LSPClient, p: { type: number; message: string }) => {
+    const show = messages.get(ws);
+    if (show && p.type <= 3) show(`${server}: ${p.message}`, p.type === 1 ? "error" : p.type === 2 ? "warning" : "info");
+    return !!show;
+  },
 });
 
 // Code actions as literals (title + edit), and server commands may send edits back (workspace/applyEdit).
@@ -485,6 +496,7 @@ export function closeLsp(ws: string) {
     clients.delete(key);
   }
   hosts.delete(ws);
+  messages.delete(ws);
   dropDiagnostics(ws);
 }
 

@@ -16,13 +16,22 @@ export interface Settings extends FileSettings {
   fontSize: number; // editor and terminal, in px
   terminalFontSize?: number; // the terminal's own, if it should differ from fontSize
   inlayHints: boolean; // parameter names and types from the language server, inline
+  sidebar: "left" | "right"; // the file tree's side of the window
+  statusline: "top" | "bottom"; // mode, messages and meta in the title bar, or in their own line under the code
+  statusColors: Partial<Record<StatusColor, string>>; // hex colors over tokens.css --status-*
   languages: Record<string, Partial<FileSettings>>;
 }
+
+export const STATUS_COLORS = ["normal", "insert", "visual", "replace", "terminal", "read", "view", "error", "warning"] as const;
+export type StatusColor = (typeof STATUS_COLORS)[number];
 
 export const DEFAULTS: Settings = {
   font: "",
   fontSize: 13,
   inlayHints: false,
+  sidebar: "left",
+  statusline: "top",
+  statusColors: {},
   tabWidth: 4,
   tabs: false,
   wrap: false,
@@ -43,18 +52,65 @@ function checkFile(o: Record<string, unknown>, where: string) {
   }
 }
 
+// settings.json and keymap.json may hold // and /* */ comments and trailing commas, like VS Code's. Strips them.
+export function stripJsonc(text: string): string {
+  return strip(strip(text, false), true);
+}
+
+// One pass: comments, or (once they are gone) trailing commas.
+function strip(text: string, commas: boolean): string {
+  let out = "";
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === '"') {
+      let j = i + 1;
+      while (j < text.length && text[j] !== '"') j += text[j] === "\\" ? 2 : 1;
+      out += text.slice(i, j + 1);
+      i = j;
+    } else if (commas) {
+      if (c !== "," || !/^\s*[}\]]/.test(text.slice(i + 1, i + 200))) out += c;
+    } else if (c === "/" && text[i + 1] === "/") {
+      while (i + 1 < text.length && text[i + 1] !== "\n") i++;
+    } else if (c === "/" && text[i + 1] === "*") {
+      const end = text.indexOf("*/", i + 2);
+      i = end < 0 ? text.length : end + 1;
+    } else out += c;
+  }
+  return out;
+}
+
 // Checks settings.json; returns the settings on top of the defaults or throws with a message for the status line.
 export function parseSettings(json: string): Settings {
   let data: unknown;
   try {
-    data = JSON.parse(json);
+    data = JSON.parse(stripJsonc(json));
   } catch (e) {
     throw new Error(`settings.json: ${e instanceof Error ? e.message : e}`);
   }
   if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("settings.json: expected an object");
-  const { font, fontSize, terminalFontSize, inlayHints, languages, ...file } = data as Record<string, unknown>;
+  const { font, fontSize, terminalFontSize, inlayHints, sidebar, statusline, statusColors, languages, ...file } =
+    data as Record<string, unknown>;
   if (font !== undefined && typeof font !== "string") throw new Error('settings.json: "font" must be a string');
   if (inlayHints !== undefined && typeof inlayHints !== "boolean") throw new Error('settings.json: "inlayHints" must be a boolean');
+  if (sidebar !== undefined && sidebar !== "left" && sidebar !== "right") {
+    throw new Error('settings.json: "sidebar" must be "left" or "right"');
+  }
+  if (statusline !== undefined && statusline !== "top" && statusline !== "bottom") {
+    throw new Error('settings.json: "statusline" must be "top" or "bottom"');
+  }
+  if (statusColors !== undefined) {
+    if (!statusColors || typeof statusColors !== "object" || Array.isArray(statusColors)) {
+      throw new Error('settings.json: "statusColors" must be an object');
+    }
+    for (const [k, v] of Object.entries(statusColors)) {
+      if (!(STATUS_COLORS as readonly string[]).includes(k)) {
+        throw new Error(`settings.json: unknown status color "${k}", one of ${STATUS_COLORS.join(", ")}`);
+      }
+      if (typeof v !== "string" || !/^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(v)) {
+        throw new Error(`settings.json: statusColors.${k} must be a hex color like "#7e9cd8"`);
+      }
+    }
+  }
   for (const [k, v] of Object.entries({ fontSize, terminalFontSize })) {
     if (v !== undefined && !(typeof v === "number" && v >= 6 && v <= 48)) {
       throw new Error(`settings.json: "${k}" must be a number from 6 to 48`);
@@ -74,7 +130,10 @@ export function parseSettings(json: string): Settings {
     ...DEFAULTS, ...(file as Partial<FileSettings>),
     ...(font !== undefined && { font }), ...(fontSize !== undefined && { fontSize: fontSize as number }), // checked above
     ...(terminalFontSize !== undefined && { terminalFontSize: terminalFontSize as number }),
-    ...(inlayHints !== undefined && { inlayHints }), languages: langs,
+    ...(inlayHints !== undefined && { inlayHints }), ...(sidebar !== undefined && { sidebar }),
+    ...(statusline !== undefined && { statusline }),
+    ...(statusColors !== undefined && { statusColors: statusColors as Settings["statusColors"] }), // checked above
+    languages: langs,
   };
 }
 
@@ -103,4 +162,9 @@ export function loadSettings(text: string) {
   root.removeProperty("--font-mono"); // back to the stylesheet's stack, so a reload doesn't stack fonts
   const mono = getComputedStyle(document.documentElement).getPropertyValue("--font-mono");
   if (current.font) root.setProperty("--font-mono", `"${current.font}", ${mono}`);
+  for (const k of STATUS_COLORS) {
+    const c = current.statusColors[k];
+    if (c) root.setProperty(`--status-${k}`, c);
+    else root.removeProperty(`--status-${k}`); // tokens.css default
+  }
 }

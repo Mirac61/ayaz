@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { backend, type Grep, type Info } from "../core/backend";
 import { Commands } from "../core/commands";
-import { defaultKeymap, keyName, mergeKeymap, parseKeys, parseUserKeymap, Sequencer, type Binding } from "../core/keymap";
+import { defaultKeymap, isMac, keyName, mergeKeymap, parseKeys, parseUserKeymap, Sequencer, type Binding } from "../core/keymap";
 import { isDirty } from "../core/buffers";
 import { label, Quickfix, replaceEdits, replacement, type Loc } from "../core/quickfix";
 import { Text } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 import {
   closeLsp, codeActions, documentSymbols, hasLsp, installHint, noServer, references, renameAt, resolveAction, runCommand,
-  showHover, uriPath, workspaceSymbols, type CodeAction, type Sym,
+  setLspMessages, showHover, uriPath, workspaceSymbols, type CodeAction, type Sym,
 } from "../editor/lsp";
 import { diagnosticsFor } from "../editor/diagnostics";
 import { nextDiagnostic, previousDiagnostic } from "@codemirror/lint";
@@ -18,7 +19,7 @@ import { browsable, resolveLink } from "../editor/mdlive";
 import type { TermOptions } from "../terminal/terminal";
 import { Editors, type Status } from "./editors";
 import { borders, close, equalize, neighbor, panes, rects, resize, setBorder, split, type Dir, type Layout } from "./layout";
-import { loadSettings, settingsError } from "../core/settings";
+import { loadSettings, settings, settingsError } from "../core/settings";
 import { Picker, type Item, type PickerSource } from "./Picker";
 import { Tree, type TreeHandle } from "./Tree";
 import { gitMarks, single } from "./gitstatus";
@@ -43,7 +44,8 @@ const PANEL = -1; // pane id of the bottom panel; split panes count up from 1
 
 // One workspace: tree on the left, editor panes in splits, status line. Every action is a command (ADR-0010).
 // onSwitch opens another folder in this window: a root from the recent list, or null for the folder dialog.
-export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | null): void }) {
+// initial: a file to open in pane 1 after the session is back (settings.json in the settings window).
+export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: string | null): void; initial?: string }) {
   const files = useMemo(() => backend.files(ws.id), [ws.id]);
   const [status, setStatus] = useState<Status>({ pane: 1, path: null, dirty: false, mode: "normal", line: 1, col: 1, lines: 1 });
   const lastSplit = useRef(1); // the split pane to go back to from the panel
@@ -90,7 +92,7 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
     else hintTimer.current = setTimeout(() => set({ keys, next }), 200);
   };
   const [layout, setLayout] = useState<Layout>(session?.layout ?? { pane: 1 });
-  const [msg, setMsg] = useState<{ text: string; error?: boolean } | null>(null);
+  const [msg, setMsg] = useState<{ text: string; error?: boolean; warning?: boolean } | null>(null);
   const [branch, setBranch] = useState("");
   const [diag, setDiag] = useState({ errors: 0, warnings: 0 });
   const [picker, setPicker] = useState<PickerSource | null>(null);
@@ -99,6 +101,19 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
   const splitFrom = useRef(new Map<number, number>()); // new pane → the pane it was split from
   const previewNext = useRef(new Set<number>()); // new panes that turn into a Markdown preview once mounted
   const previews = useRef(new Set<number>()); // panes showing a preview
+  const sidebarKey = "ayaz.sidebar";
+  const [sidebar, setSidebar] = useState(() => {
+    try { return localStorage.getItem(sidebarKey) !== "off"; } catch { return true; }
+  });
+  const [side, setSide] = useState(() => settings().sidebar);
+  const [bar, setBar] = useState(() => settings().statusline);
+  const sidebarOn = useRef(sidebar);
+  sidebarOn.current = sidebar;
+  // flushSync: the tree must be shown before it can take the focus.
+  const showSidebar = (on: boolean) => {
+    flushSync(() => setSidebar(on));
+    try { localStorage.setItem(sidebarKey, on ? "on" : "off"); } catch { /* a convenience */ }
+  };
   const tabsKey = "ayaz.tabs";
   useEffect(() => {
     try { ed.setTabs(localStorage.getItem(tabsKey) === "on"); } catch { /* default: no tabs */ }
@@ -159,6 +174,8 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
   const commands = useMemo(() => new Commands(), []);
   const qf = useMemo(() => new Quickfix(), []);
   const fail = (text: string) => setMsg({ text, error: true });
+  useEffect(() => setLspMessages(ws.id, (text, level) =>
+    setMsg({ text, error: level === "error", warning: level === "warning" })), [ws.id]);
   const run = (id: string, arg?: string) =>
     void Promise.resolve().then(() => commands.run(id, arg)).catch((e) => fail(errText(e)));
 
@@ -560,6 +577,15 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
         },
       },
       {
+        id: "view.sidebar",
+        title: "Toggle file tree",
+        run() {
+          const on = !sidebarOn.current;
+          if (!on && document.activeElement?.closest(".sidebar")) ed.focus(ed.active);
+          showSidebar(on);
+        },
+      },
+      {
         id: "view.tabs",
         title: "Toggle tab bar",
         run() {
@@ -590,6 +616,7 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
       },
       { id: "app.quit", title: "Close window (:qa)", run: (a) => quit(bang(a).force) },
       { id: "window.new", title: "New window", run: () => backend.newWindow() },
+      { id: "settings.open", title: "Open settings", run: () => backend.openSettings() },
       { id: "view.zoomIn", title: "Zoom in", run: () => zoomBy(ZOOM_STEP) },
       { id: "view.zoomOut", title: "Zoom out", run: () => zoomBy(-ZOOM_STEP) },
       { id: "view.zoomReset", title: "Reset zoom", run: () => zoomBy(0) },
@@ -622,7 +649,14 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
       { id: "pane.narrower", title: "Pane narrower (<C-w><)", run: () => grow("row", -STEP) },
       { id: "pane.equal", title: "Equal pane sizes (<C-w>=)", run: () => setLayout(equalize(lay.current)) },
       { id: "term.maximize", title: "Maximize terminal panel", run: toggleMax },
-      { id: "tree.focus", title: "Focus file tree", run: () => tree.current?.focus() },
+      {
+        id: "tree.focus",
+        title: "Focus file tree",
+        run() {
+          if (!sidebarOn.current) showSidebar(true);
+          tree.current?.focus();
+        },
+      },
       { id: "term.panel", title: "Toggle terminal panel", run: togglePanel },
       { id: "term.split", title: "Terminal in a split (:terminal)", run: () => termSplit() },
       { id: "term.lazygit", title: "lazygit", run: () => termSplit("lazygit") },
@@ -837,6 +871,8 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
       if (file === "keymap.json") return void loadKeymap();
       loadSettings(await backend.settings().catch(() => ""));
       if (settingsError()) fail(settingsError());
+      setSide(settings().sidebar);
+      setBar(settings().statusline);
       ed.settingsChanged();
     });
     return () => {
@@ -936,10 +972,48 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
   if (!bindings) return null;
 
   const rs = rects(layout);
+  const mode = <span className={`mode ${status.mode}`}>{status.mode}</span>;
+  const dir = status.path?.slice(0, status.path.lastIndexOf("/") + 1);
+  const file = (
+    <span className="file" title={status.path ?? undefined}>
+      {dir && <span className="dir">{dir}</span>}
+      {status.path?.slice(dir?.length) ?? "[No Name]"}
+      {status.dirty && <span className="dirty" title="Modified" />}
+    </span>
+  );
+  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+  // Messages, then the counts that are not zero, the branch and the position: all plain text.
+  const line = (
+    <>
+      <span className={msg?.error ? "msg error" : msg?.warning ? "msg warning" : "msg"}>{msg?.text}</span>
+      <span className="meta">
+        {(diag.errors > 0 || diag.warnings > 0) && (
+          <button className="diag" title="Diagnostics (<Space>fd)" tabIndex={-1}
+            onMouseDown={(e) => { e.preventDefault(); run("lsp.diagnostics"); }}>
+            {diag.errors > 0 && <span className="e">{plural(diag.errors, "error")}</span>}
+            {diag.warnings > 0 && <span className="w">{plural(diag.warnings, "warning")}</span>}
+          </button>
+        )}
+        {branch && <span className="branch" title="Git branch">{branch}</span>}
+        <span className="location">{status.info ?? `${status.line}:${status.col}`}</span>
+      </span>
+    </>
+  );
   return (
-    <div className={max && panel === "shown" ? "workbench max" : "workbench"} data-ws={ws.id}>
-      <div className="titlebar">{ws.name} — {status.path ?? "[No Name]"}</div>
-      <aside className="sidebar">
+    <div className={`workbench${max && panel === "shown" ? " max" : ""}${sidebar ? ` sidebar-${side}` : " nosidebar"} bar-${bar}`}
+      data-ws={ws.id}>
+      {/* "statusline": "top" puts mode, file and messages in the title bar, so the code gets the full height;
+          "bottom" leaves the file there, centered like a window title, and the rest goes under the code. */}
+      {bar === "top" ? (
+        <header className={isMac ? "statusline mac" : "statusline"}>
+          {mode}
+          {file}
+          {line}
+        </header>
+      ) : (
+        <header className="titlebar">{file}</header>
+      )}
+      <aside className="sidebar" hidden={!sidebar}>
         <div className="sidebar-title">{ws.name}</div>
         <Tree
           ref={tree}
@@ -970,7 +1044,8 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
                 previews.current.add(id);
                 if (from !== undefined) { ed.focus(from); ed.syncScroll(from); }
               }
-              if (session) void restore(id);
+              if (id === 1 && initial) void restore(id).then(() => ed.open(initial, 1)).catch(() => {});
+              else if (session) void restore(id);
               else if (id === 1) tree.current?.focus(); // no file open yet, so start in the tree
               return () => { previews.current.delete(id); ed.detach(id, true); };
             }}
@@ -1013,22 +1088,7 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
           />
         </div>
       )}
-      <footer className="statusline">
-        <span className={`mode ${status.mode}`}>{status.mode.toUpperCase()}</span>
-        {branch && <span className="branch" title="Git branch">{"\ue0a0"} {branch}</span>}
-        <span className="file">
-          {status.path ?? "[No Name]"}
-          {status.dirty && <span className="dirty" title="Modified" />}
-        </span>
-        <span className={msg?.error ? "msg error" : "msg"}>{msg?.text}</span>
-        {(diag.errors > 0 || diag.warnings > 0) && (
-          <button className="diag" title="Diagnostics (<Space>fd)" tabIndex={-1}
-            onMouseDown={(e) => { e.preventDefault(); run("lsp.diagnostics"); }}>
-            <span className="e">E {diag.errors}</span> <span className="w">W {diag.warnings}</span>
-          </button>
-        )}
-        <span className="location">{status.info ?? `${status.line}:${status.col}`}</span>
-      </footer>
+      {bar === "bottom" && <footer className="statusline bottom">{mode}{line}</footer>}
       {hints && <Hints keys={hints.keys} next={hints.next} title={(id) => commands.list().find((c) => c.id === id)?.title ?? id} />}
       {picker && <Picker source={picker} onClose={() => { setPicker(null); if (!document.activeElement?.closest(".sidebar")) ed.focus(ed.active); }} />}
     </div>
@@ -1147,13 +1207,17 @@ const FIRST_KEYS: [keys: string[], what: string][] = [
 
 // Opens the folder from the command line (first window only), otherwise shows recent folders and the dialog.
 export function Shell() {
+  const settingsWindow = new URLSearchParams(location.search).has("settings");
   const [ws, setWs] = useState<Info | null | undefined>(undefined);
   const [err, setErr] = useState("");
   const show = (w: Info | null) => { if (w) rememberFolder(w); setWs(w); };
   useEffect(() => {
     if (zoomLevel() !== 1) void setZoom(zoomLevel()).catch(() => {}); // no window zoom in the server build
     if (new URLSearchParams(location.search).has("new")) return setWs(null); // a new window starts empty
-    backend.initialWorkspace().then(show, (e) => { setErr(errText(e)); setWs(null); });
+    const failed = (e: unknown) => { setErr(errText(e)); setWs(null); };
+    // The settings window isn't a recent folder.
+    if (settingsWindow) return void backend.configFolder().then(backend.openFolder).then(setWs, failed);
+    backend.initialWorkspace().then(show, failed);
   }, []);
 
   const open = (root: string | null) => (root ? backend.openFolder(root) : backend.openFolderDialog());
@@ -1171,9 +1235,10 @@ export function Shell() {
   };
 
   if (ws === undefined) return null;
-  if (ws) return <Workbench key={ws.id} ws={ws} onSwitch={switchTo} />;
+  if (ws) return <Workbench key={ws.id} ws={ws} onSwitch={switchTo} initial={settingsWindow ? "settings.json" : undefined} />;
   const recent = recentFolders().slice(0, 9);
   const onKey = (e: React.KeyboardEvent) => {
+    if (e.key === "," && (isMac ? e.metaKey : e.ctrlKey)) return void backend.openSettings(); // no keymap here
     const f = recent[Number(e.key) - 1]; // 1–9 open a recent folder
     if (f && !e.metaKey && !e.ctrlKey) pick(f.root);
   };

@@ -78,7 +78,7 @@ test("fenced code gets its language's highlighting and a background", async () =
   await vi.waitFor(() => expect(view!.contentDOM.querySelectorAll(".cm-md-code-line span[class]").length).toBeGreaterThan(0));
   expect(view!.contentDOM.querySelectorAll(".cm-md-code-line").length).toBe(3);
   expect(view!.contentDOM.querySelectorAll(".cm-md-fence").length).toBe(2);
-  expect(lines()).toEqual(["```go", "func main() {}", "```"]);
+  expect(lines()).toEqual(["```go", "func main() {}", ""]); // the cursor line keeps its fence, the other one hides
 });
 
 test("quotes lose their mark, bullets become dots, the cursor line stays raw", async () => {
