@@ -9,6 +9,9 @@ test("session: splits, files, active pane and cursor survive a reload", async ({
   await page.goto("/");
   const tree = page.getByRole("tree", { name: "Files" });
   const status = page.locator(".statusline");
+  await expect(tree).toBeFocused();
+  await page.keyboard.press("/"); // the tree draws only the rows that fit, and this file sorts late: filter first
+  await page.keyboard.type("session.txt");
   await tree.getByRole("treeitem", { name: "session.txt" }).click();
   await expect(page.locator(".cm-content")).toContainText("red gray");
   await page.keyboard.type("jw"); // line 2, second word
@@ -39,6 +42,9 @@ test("session: preview and terminal panes come back as what they were", async ({
   writeFileSync(join(e2eWorkspace, "session2.md"), "# Session two\n\nsome *text*\n");
   await page.goto("/?renderer=dom"); // WebGL draws to a canvas, so there'd be no text to assert on
   const tree = page.getByRole("tree", { name: "Files" });
+  await expect(tree).toBeFocused();
+  await page.keyboard.press("/"); // the tree draws only the rows that fit, and this file sorts late: filter first
+  await page.keyboard.type("session2.md");
   await tree.getByRole("treeitem", { name: "session2.md" }).click();
   await expect(page.locator(".cm-content")).toContainText("Session two");
   await page.keyboard.press(" ");

@@ -11,9 +11,10 @@ test("hot exit: typed text comes back after a reload, or is discarded", async ({
   writeFileSync(join(e2eWorkspace, "swap-b.txt"), "beta\n");
   await page.goto("/");
   const tree = page.getByRole("tree", { name: "Files" });
-  const editor = page.locator(".cm-content");
-  await page.keyboard.press("/"); // the tree is long now, its rows are drawn as far as they fit: filter first
+  await expect(tree).toBeFocused();
+  await page.keyboard.press("/"); // the tree draws only the rows that fit, and this file sorts late: filter first
   await page.keyboard.type("swap-a.txt");
+  const editor = page.locator(".cm-content");
   await tree.getByRole("treeitem", { name: "swap-a.txt" }).click();
   await expect(editor).toContainText("alpha");
   await page.keyboard.type("Okept ");
