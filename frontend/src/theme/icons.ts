@@ -31,3 +31,15 @@ export function fileIcon(name: string): Icon {
   const dot = lower.lastIndexOf(".");
   return byName[lower] ?? (dot >= 0 ? byExt[lower.slice(dot + 1)] : undefined) ?? file;
 }
+
+// LSP SymbolKind (1–26) → codicon glyph from the Nerd Font, colored like the Kanagawa groups for the same things.
+const SYM: Record<number, Icon> = {
+  1: ["\ueb60", "#dcd7ba"], 2: ["\uea8b", "#e6c384"], 3: ["\uea8b", "#e6c384"], 4: ["\uea8b", "#e6c384"],
+  5: ["\ueb5b", "#7aa89f"], 6: ["\uea8c", "#7e9cd8"], 7: ["\ueb65", "#e6c384"], 8: ["\ueb5f", "#e6c384"],
+  9: ["\uea8c", "#7e9cd8"], 10: ["\uea95", "#7aa89f"], 11: ["\ueb61", "#7aa89f"], 12: ["\uea8c", "#7e9cd8"],
+  13: ["\uea88", "#dcd7ba"], 14: ["\ueb5d", "#ffa066"], 15: ["\ueb8d", "#98bb6c"], 16: ["\uea90", "#d27e99"],
+  17: ["\uea8f", "#ffa066"], 18: ["\uea8a", "#dcd7ba"], 19: ["\uea8b", "#dcd7ba"], 20: ["\uea93", "#e6c384"],
+  21: ["\ueb63", "#727169"], 22: ["\ueb5e", "#ffa066"], 23: ["\uea91", "#7aa89f"], 24: ["\uea86", "#e6c384"],
+  25: ["\ueb64", "#c0a36e"], 26: ["\uea92", "#7aa89f"],
+};
+export const symbolIcon = (kind: number): Icon => SYM[kind] ?? ["\ueb63", "#727169"];

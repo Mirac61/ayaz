@@ -144,6 +144,50 @@ export async function references(view: EditorView, root: string): Promise<Loc[] 
   });
 }
 
+// A symbol from documentSymbol or workspace/symbol, as a place to jump to (path as uriPath gives it).
+export interface Sym { name: string; kind: number; container: string; path: string; line: number; col: number }
+
+type Range = { start: { line: number; character: number } };
+type DocSym = { name: string; kind: number; selectionRange: Range; children?: DocSym[] };
+type SymInfo = { name: string; kind: number; containerName?: string; location: { uri: string; range?: Range } };
+
+// Both result shapes as one flat list: hierarchical DocumentSymbols (children named after their parent) or SymbolInformation.
+export function flatSymbols(res: (DocSym | SymInfo)[] | null, root: string, path: string): Sym[] {
+  const out: Sym[] = [];
+  const walk = (s: DocSym | SymInfo, container: string) => {
+    if ("location" in s) {
+      const p = uriPath(root, s.location.uri);
+      const at = s.location.range?.start ?? { line: 0, character: 0 }; // WorkspaceSymbol may come without a range
+      if (p !== null) out.push({ name: s.name, kind: s.kind, container: s.containerName ?? "", path: p, line: at.line + 1, col: at.character });
+      return;
+    }
+    const at = s.selectionRange.start;
+    out.push({ name: s.name, kind: s.kind, container, path, line: at.line + 1, col: at.character });
+    for (const c of s.children ?? []) walk(c, s.name);
+  };
+  for (const s of res ?? []) walk(s, "");
+  return out;
+}
+
+export const hasLsp = (view: EditorView) => !!LSPPlugin.get(view)?.client.connected;
+
+// The symbols of the view's file; null: no server.
+export async function documentSymbols(view: EditorView, root: string): Promise<Sym[] | null> {
+  const plugin = LSPPlugin.get(view);
+  if (!plugin?.client.connected) return null;
+  plugin.client.sync();
+  const res = await plugin.client.request<any, (DocSym | SymInfo)[] | null>("textDocument/documentSymbol", { textDocument: { uri: plugin.uri } });
+  return flatSymbols(res, root, uriPath(root, plugin.uri) ?? "");
+}
+
+// Symbols matching query across the project (and what the server adds, like the stdlib); null: no server.
+export async function workspaceSymbols(view: EditorView, root: string, query: string): Promise<Sym[] | null> {
+  const plugin = LSPPlugin.get(view);
+  if (!plugin?.client.connected) return null;
+  const res = await plugin.client.request<any, SymInfo[] | null>("workspace/symbol", { query });
+  return flatSymbols(res, root, "");
+}
+
 // Formats the document through the server and waits for it; gives up after 2 s so a hung server can't block saving.
 export async function formatBeforeSave(view: EditorView): Promise<void> {
   const plugin = LSPPlugin.get(view);

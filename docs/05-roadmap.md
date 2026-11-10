@@ -206,6 +206,10 @@ Done when: all four language groups have diagnostics, completion and navigation.
 
 - Done 2026-11-10: `internal/git` asks the `git` program for the branch (short SHA when detached) and a file's text at HEAD (`HEAD:./path`, so a folder inside a repo works). The watcher skips `.git/`, so Go polls `HEAD`, `index` and `logs/HEAD` once a second and sends `git:changed`; that catches commits from lazygit. The gutter right of the line numbers diffs the buffer against HEAD with `@codemirror/merge`'s `Chunk` (updated per keystroke, no full rediff): green bar added, blue changed, red triangle deleted. `]c`/`[c` jump between hunks (wrapping), `<Space>hp` previews, `<Space>hr` resets (undo works). The status line shows the branch. Node test for the sign mapping, browser test for gutter and keys, Go tests with a temp repo, E2E `git.spec.ts` (the e2e copy now sits in a repo one level up). **Still open:** in the app, a commit and `git checkout` from lazygit; diff view and tree colors (rest of L2).
 
+## M20 – Symbols
+
+- Done 2026-11-10: `<Space>fs` lists the file's symbols (`textDocument/documentSymbol`, hierarchical or flat, children named after their parent), ranked by name with the Go matcher. `<Space>fS` asks the server on every keystroke (`workspace/symbol`); the picker drops stale answers, results outside the folder (stdlib) open read-only like `gd`. Codicon glyphs per `SymbolKind`. Without a server: "No language server for this file". Browser test with a fake server, E2E with gopls. **Still open:** latency of `<Space>fS` in a big Go project; containers for gopls need the client to announce hierarchical symbols.
+
 ## Later
 
 | | What | Plugs into |

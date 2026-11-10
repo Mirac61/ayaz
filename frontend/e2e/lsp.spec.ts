@@ -41,3 +41,25 @@ test("gr lists references in quickfix", async ({ page }) => {
     await expect(page.locator(".statusline")).toContainText("(1 of 1) func hello() {", { timeout: 2000 });
   }).toPass({ timeout: 30_000 }); // gopls may still be loading the package
 });
+
+// M20: symbols in the file and in the project through gopls; Enter jumps.
+test("symbol pickers find hello and jump to it", async ({ page }) => {
+  test.skip(!hasGopls, "gopls not in PATH");
+  await page.goto("/");
+  await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: "hello.go" }).click();
+  await expect(page.locator(".cm-content")).toContainText("Println");
+  const status = page.locator(".statusline");
+
+  await page.keyboard.type(" fs");
+  const file = page.getByRole("dialog", { name: /Symbols in file/ });
+  await expect(file.getByRole("option").first()).toContainText("hello", { timeout: 30_000 });
+  await page.keyboard.press("Enter");
+  await expect(status).toContainText("5:1"); // gopls sends SymbolInformation: the whole declaration
+
+  await page.keyboard.type("gg fS");
+  const project = page.getByRole("dialog", { name: /Symbols in project/ });
+  await page.keyboard.type("main");
+  await expect(project.getByRole("option").filter({ hasText: "broken.go" })).toHaveCount(1, { timeout: 30_000 });
+  await project.getByRole("option").filter({ hasText: "broken.go" }).click();
+  await expect(status).toContainText("broken.go");
+});

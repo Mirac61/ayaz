@@ -6,7 +6,7 @@ import { isDirty } from "../core/buffers";
 import { label, Quickfix, replaceEdits, replacement, type Loc } from "../core/quickfix";
 import { Text } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
-import { closeLsp, references } from "../editor/lsp";
+import { closeLsp, documentSymbols, hasLsp, references, workspaceSymbols, type Sym } from "../editor/lsp";
 import { moveHunk, previewHunk, resetHunk } from "../editor/gitgutter";
 import { installVim } from "../editor/vim/setup";
 import { browsable, resolveLink } from "../editor/mdlive";
@@ -16,7 +16,7 @@ import { borders, close, equalize, neighbor, panes, rects, resize, setBorder, sp
 import { Picker, type Item, type PickerSource } from "./Picker";
 import { Tree, type TreeHandle } from "./Tree";
 import { loadSession, mergeCursors, saveSession, type Session } from "./session";
-import { fileIcon, folderIcon } from "../theme/icons";
+import { fileIcon, folderIcon, symbolIcon } from "../theme/icons";
 import "./shell.css";
 
 // Wails rejects with an Error whose message is Go's error string.
@@ -273,6 +273,32 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
       if (!locs.length) return fail(`${title}: no matches`);
       setMsg({ text: `${title}: ${locs.length} matches, :cn / :cp to move, :copen to list` });
       void qfMove(1);
+    };
+
+    // Symbols in a picker. rank: fuzzy-rank by name here (a file's symbols); else the server already matched (project).
+    // Items map to their symbol, so two symbols with one name (two `init`) both stay pickable.
+    const symbolPicker = (title: string, load: (q: string) => Promise<Sym[]>, rank: boolean): PickerSource => {
+      const sym = new WeakMap<Item, Sym>();
+      const item = (s: Sym, positions: number[] = []): Item => {
+        const it = { label: s.name, positions, icon: symbolIcon(s.kind), hint: rank ? s.container : `${s.path}:${s.line}` };
+        sym.set(it, s);
+        return it;
+      };
+      return {
+        title,
+        async query(q) {
+          const all = await load(q);
+          if (!rank || !q.trim()) return all.slice(0, SHOWN).map((s) => item(s));
+          const byName = new Map<string, Sym[]>();
+          for (const s of all) byName.set(s.name, [...(byName.get(s.name) ?? []), s]);
+          const ms = await backend.rank([...byName.keys()], q, LIMIT);
+          return ms.flatMap((m) => byName.get(m.path)!.map((s) => item(s, m.positions ?? [])));
+        },
+        pick: (it) => {
+          const s = sym.get(it);
+          if (s) void ed.openAt(s.path, s.line, s.col);
+        },
+      };
     };
 
     let grepRegex = false;
@@ -617,6 +643,25 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
           const locs = v && (await references(v, ws.root));
           if (!locs) return fail("No language server for this file");
           setQf("References", await withText(locs));
+        },
+      },
+      {
+        id: "lsp.symbols",
+        title: "Symbols in file",
+        async run() {
+          const v = ed.activeView();
+          const syms = v && (await documentSymbols(v, ws.root));
+          if (!syms) return fail("No language server for this file");
+          setPicker(symbolPicker("Symbols in file", async () => syms, true));
+        },
+      },
+      {
+        id: "lsp.workspaceSymbols",
+        title: "Symbols in project",
+        run() {
+          const v = ed.activeView();
+          if (!v || !hasLsp(v)) return fail("No language server for this file");
+          setPicker(symbolPicker("Symbols in project", async (q) => (q.trim() ? (await workspaceSymbols(v, ws.root, q)) ?? [] : []), false));
         },
       },
       { id: "git.nextHunk", title: "Next git hunk (]c)", run: () => onView((v) => moveHunk(v, 1), "No git changes in this file") },

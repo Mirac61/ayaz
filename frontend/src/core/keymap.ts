@@ -29,6 +29,8 @@ export function defaultKeymap(mac = isMac): Binding[] {
     n("<Space>fk", "find.commands"),
     n("<Space>fw", "find.grep"),
     n("<Space>fp", "folder.switch"),
+    n("<Space>fs", "lsp.symbols"),
+    n("<Space>fS", "lsp.workspaceSymbols"),
     n("]q", "qf.next"),
     n("[q", "qf.prev"),
     n("]c", "git.nextHunk"),
