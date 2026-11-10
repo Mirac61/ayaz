@@ -12,6 +12,7 @@ import { extOf } from "../lang/registry";
 import type { Loc } from "../core/quickfix";
 import { diagnosticsFor, dropDiagnostics, type Published } from "./diagnostics";
 import { inlayHints } from "./inlay";
+import { documentHighlight } from "./highlight";
 import { SEMANTIC_CAPABILITY, semanticTokens } from "./semantic";
 import { isMac } from "../core/keymap";
 import { fileSettings } from "../core/settings";
@@ -446,6 +447,7 @@ export const CAPABILITIES = {
     inlayHint: {},
     semanticTokens: SEMANTIC_CAPABILITY,
     selectionRange: {},
+    documentHighlight: {},
     codeAction: {
       dataSupport: true,
       resolveSupport: { properties: ["edit"] },
@@ -509,5 +511,5 @@ export function lspExtension(ws: string, root: string, path: string): Extension 
   const s = serverFor(path);
   if (!s) return [];
   const uri = path.startsWith("/") ? fileUri(path) : fileUri(root, path);
-  return [clientFor(ws, root, s[1]).plugin(uri, s[0]), hoverField, hoverEsc, inlayHints, semanticTokens];
+  return [clientFor(ws, root, s[1]).plugin(uri, s[0]), hoverField, hoverEsc, inlayHints, semanticTokens, documentHighlight];
 }

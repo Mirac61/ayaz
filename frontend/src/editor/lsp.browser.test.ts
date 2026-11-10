@@ -8,6 +8,7 @@ import {
 } from "./lsp";
 import { diagnosticsFor } from "./diagnostics";
 import { semanticTokens } from "./semantic";
+import { documentHighlight } from "./highlight";
 import { go } from "@codemirror/lang-go";
 
 // A fake language server: answers initialize, flags "bad" on didOpen, offers one completion.
@@ -276,4 +277,44 @@ test("typing in a document full of semantic tokens stays fast", async () => {
   times.sort((a, b) => a - b);
   console.warn(`SEMANTIC ${lines} lines, ${lines * 2} tokens: typing p95 ${times[18].toFixed(1)} max ${times[19].toFixed(1)} ms`);
   expect(times[18]).toBeLessThan(8);
+});
+
+// A server with documentHighlight: every `foo` in the text, the one in `foo = 1` as a write.
+test("occurrences of the symbol under the cursor get marked after a rest and clear when the cursor moves", async () => {
+  const handlers = new Set<(m: string) => void>();
+  const reply = (o: object) => queueMicrotask(() => handlers.forEach((h) => h(JSON.stringify({ jsonrpc: "2.0", ...o }))));
+  let asked = 0;
+  const transport: Transport = {
+    send(raw) {
+      const m = JSON.parse(raw);
+      if (m.method === "initialize") {
+        reply({ id: m.id, result: { capabilities: { textDocumentSync: 1, documentHighlightProvider: true } } });
+      } else if (m.method === "textDocument/documentHighlight") {
+        asked++;
+        const at = (character: number) => ({ start: { line: 0, character }, end: { line: 0, character: character + 3 } });
+        reply({ id: m.id, result: [{ range: at(0), kind: 3 }, { range: at(10) }] });
+      }
+    },
+    subscribe: (h) => void handlers.add(h),
+    unsubscribe: (h) => void handlers.delete(h),
+  };
+  const client = new LSPClient({ rootUri: "file:///r", extensions: [{ clientCapabilities: CAPABILITIES }] }).connect(transport);
+  await client.initializing;
+  const el = document.createElement("div");
+  document.body.append(el);
+  view = new EditorView({
+    parent: el,
+    state: EditorState.create({
+      doc: "foo = 1; x(foo)", extensions: [editorExtensions(), client.plugin("file:///r/a.go", "go"), documentHighlight],
+    }),
+  });
+  view.dispatch({ selection: { anchor: 1 } });
+  expect(el.querySelector(".cm-docHighlight")).toBeNull(); // not before the rest
+  await expect.poll(() => el.querySelectorAll(".cm-docHighlight").length).toBe(2);
+  expect(el.querySelectorAll(".cm-docHighlight-write").length).toBe(1);
+  view.dispatch({ selection: { anchor: 6 } });
+  expect(el.querySelector(".cm-docHighlight")).toBeNull(); // moving clears at once
+  view.dispatch({ selection: { anchor: 1 }, changes: { from: 7, insert: " " } });
+  await new Promise((r) => setTimeout(r, 100));
+  expect(asked).toBe(1); // nothing is asked per key
 });

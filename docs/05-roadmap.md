@@ -282,6 +282,10 @@ Done when: all four language groups have diagnostics, completion and navigation.
 
 - Done 2026-11-10: from the Lezer tree (`editor/vim/structure.ts`, keys in `structural.ts`): `af`/`if` (function; inner is the lines inside the braces, or an arrow function's expression), `ac`/`ic` (class, struct, interface, enum, Go `type`), `aa`/`ia` (argument or parameter; outer takes the comma after it, the last one the comma before), a count goes outwards (`2af`); `]f`/`[f` jump to the next or previous function start (also inside functions). `+` grows the selection one step (from normal mode it starts on the node under the cursor), `-` in visual mode takes a step back; the steps come from `textDocument/selectionRange` when the server offers it (gopls), else from the syntax tree. Node names for Go, JS/TS, C/C++ and Java. Node tests for every grammar, 12 browser tests in the Vim list, E2E with gopls (`++d` takes `fmt.Println` out). **Still open:** no `]c`/`[c` (class) and no `]a`; `d]f` has the old exclusive-linewise gap (leaves an empty line); other grammars (JSON, HTML, CSS, Markdown) have no objects; `+` and `-` replace Vim's own line motions in the editor (`-` only in visual mode).
 
+## M56 – Document highlight
+
+- Done 2026-11-10: `textDocument/documentHighlight` (`editor/highlight.ts`): once the cursor has rested for 350 ms with nothing selected, the other occurrences of the symbol under it get a soft background (writes in the constant colour); moving or typing clears them at once, nothing is asked per key, a symbol that occurs once gets no mark. Servers without `documentHighlightProvider` are left alone. Browser test with a fake server (marks after the rest, write kind, clears on a move, one request for a burst of moves and edits). **Still open:** not tried against gopls, clangd or TypeScript in the app; no setting to turn it off; no `]]`/`[[` jumps between occurrences.
+
 ## Later
 
 | | What | Plugs into |
