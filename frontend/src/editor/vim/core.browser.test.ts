@@ -120,6 +120,52 @@ const groups: Record<string, Case[]> = {
   ex: [[":s/a/b/<CR>", "|a a", "b a"], [":%s/a/b/g<CR>", "a\na a", "b\nb b"], [":2<CR>", "|a\nb\nc", "a\n|b\nc"]],
 };
 
+// M63: the daily nvim commands that weren't in the list above. Gaps found here are in `gaps` below.
+const fidelity: Case[] = [
+  // :g and :v with commands, :normal, ranges on :s and :d
+  [":g/a/d<CR>", "a1\nb\na2\nc", "b\nc"], [":v/a/d<CR>", "a1\nb\na2\nc", "a1\na2"],
+  [":g/a/s/$/!/<CR>", "a1\nb\na2", "a1!\nb\na2!"], [":g/a/normal Ax<CR>", "a1\nb\na2", "a1x\nb\na2x"],
+  [":%normal Ax<CR>", "a\nb", "ax\nbx"], [":2,3normal Ax<CR>", "a\nb\nc\nd", "a\nbx\ncx\nd"],
+  [":2,3s/./X/<CR>", "aa\nbb\ncc\ndd", "aa\nXb\nXc\ndd"], [":2,3d<CR>", "a\nb\nc\nd", "a\nd"],
+  [":%s/a/b/g<CR>", "a a\na", "b b\nb"], [":s/a/b/g<CR>", "a a\na", "b b\na"], [":.,+1s/a/X/<CR>", "a\na\na", "X\nX\na"],
+  [":%s/(a)(b)/$2$1/<CR>", "ab ab", "ba ab"], [":%s/(a)(b)/\\2\\1/<CR>", "ab ab", "ba ab"],
+  [":%s/\\(a\\)\\(b\\)/\\2\\1/<CR>", "ab ab", "ba ab"], [":m 2<CR>", "|a\nb\nc", "b\n|a\nc"], [":%s/a/b/gc<CR>yn", "a a", "b a"],
+  [":m0<CR>", "a\n|b", "|b\na"], [":t.<CR>", "|a\nb", "a\n|a\nb"], [":><CR>", "|a", "  |a"], [":m+1<CR>", "|a\nb\nc", "b\n|a\nc"],
+  [":1,2m$<CR>", "|a\nb\nc", "c\na\n|b"], [":t0<CR>", "a\n|b", "|b\na\nb"], [":2,3t0<CR>", "a\nb\n|c", "b\n|c\na\nb\nc"],
+  [":1,2><CR>", "|a\nb\nc", "  a\n  b\nc"], [":<<CR>", "  |a", "|a"], [":m$<CR>", "|a\nb", "b\n|a"],
+  // macros over lines, counts
+    ["qaA!<Esc>jq3@a", "|a\nb\nc\nd\ne", "a!\nb!\nc!\nd!\ne"],
+  ["qaA!<Esc>jq:2,4normal @a<CR>", "|a\nb\nc\nd\ne", "a!\nb!\nc!\nd!\ne"],
+  ["qqxq@q@@", "|abcd", "|d"],
+  // registers: named, append, black hole, numbered, yank register 0
+  ['"ayy"Ayyj"ap', "|a\nb", "a\nb\na\na"], ['yyj"_ddp', "|a\nb", "a\n|a"], ['yyjdd"0p', "|a\nb", "a\n|a"],
+  ['"ayiwj"bdd"ap', "|foo\nbar", "ffoooo"],
+  // visual: gv, o, block insert/append, visual line operators, a visual selection with . repeat
+    ["vly<Esc>gvd", "|abc", "|c"], ["vlohd", "a|bcd", "|d"], ["<C-v>jlc!<Esc>", "|ab\ncd", "!\n!"],
+  ["<C-v>j$Ax<Esc>", "|a\nbb", "ax\nbbx"],
+    ["Vjd", "|a\nb\nc", "c"], ["Vj>", "|a\nb", "  a\n  b"], ["vjJ", "|a\nb", "a b"], ["vi(y$p", "f(|ab)", "f(ab)ab"],
+  ["viwUw.", "|ab cd", "AB CD"],
+  // search and word motions
+    ["*", "|foo x foo", "foo x |foo"], ["#", "foo x |foo", "|foo x foo"], ["g*", "|foo foobar", "foo |foobar"],
+  ["/b<CR>nN", "|a b b", "a |b b"],
+  [":noh<CR>", "|a", "|a"],
+  // text object variants and counts
+    ["ci(x<Esc>", "f(|a, b)", "f(x)"], ["ca[x<Esc>", "g[|a]", "gx"], ["d2aw", "|a b c d", "|c d"],
+  ["yiwwviwp", "|a b", "a |a"], ["dis", "One. T|wo. Three.", "One.  Three."],
+  // misc nvim habits
+    ["ddp", "|a\nb", "b\n|a"], ["xp", "|ab", "b|a"], ["~~", "|ab", "AB"], ["gUiw", "|ab cd", "|AB cd"], ["guu", "|AB", "|ab"],
+  ["g~~", "|aB", "|Ab"],
+    ["J", "|a\n  b", "a| b"], ["gJ", "|a\nb", "a|b"], ["3x", "|abcd", "|d"], ["r<CR>", "a|b", "a\n|"], ["ZZ", "|a", "|a"],
+  ["==", "|a", "|a"],
+    ["o<Esc>", "|a", "a\n|"], ["yyP", "|a", "|a\na"], ["Yp", "|a\nb", "a\n|a\nb"], ["cwx<Esc>w.", "|a a", "x x"],
+  ["ct,x<Esc>", "|ab, c", "|x, c"],
+    ["%", "|(a)", "(a|)"], ["di<", "<|a>", "<>"], ["dt)", "f(|ab)", "f()"], ["d/c<CR>", "|ab c", "|c"], ["dgg", "a\n|b", "|"],
+  ["d$", "a|bc", "|a"],
+    ["zz", "|a", "|a"], ["m'", "|a", "|a"], ["gg=G", "|a\nb", "a\nb"], ["<C-a>", "|x 5", "x |6"], ["<C-x>", "|x 5", "x |4"],
+  ["5<C-a>", "|x 5", "x 1|0"],
+  ["gi", "|a", "|a"], ["g;", "|a", "|a"],
+];
+
 // Known gaps of codemirror-vim, documented in docs/01-research.md (Vim core list). test.fails keeps them honest:
 // if a gap gets fixed upstream, the test turns red and the list gets updated.
 const gaps = new Set<string>([
@@ -128,6 +174,9 @@ const gaps = new Set<string>([
   "dG", // deleting to the end leaves an empty last line instead of removing it
   'da"', "da'", // a" / a' don't take the trailing whitespace
   "dit", "dat", // no tag text objects
+  ":%s/(a)(b)/\\2\\1/<CR>", // a replacement has $1 and $2 (JavaScript's), not vim's \1 and \2
+  // patterns are JavaScript's: \( is a literal paren and groups are plain (...), vim's "magic" has it the other way round
+  ":%s/\\(a\\)\\(b\\)/\\2\\1/<CR>",
 ]);
 
 for (const [group, cases] of Object.entries(groups)) {
@@ -258,4 +307,13 @@ describe("structural text objects", () => {
     await userEvent.keyboard("d");
     await vi.waitFor(() => expect(v.state.doc.toString()).toBe("function a() { call(, 1) }"));
   });
+});
+
+describe("daily nvim commands (M63)", () => {
+  for (const [keys, start, want] of fidelity) {
+    (gaps.has(keys) ? test.fails : test)(`${keys}  ${JSON.stringify(start)}`, async () => {
+      const v = await run(start, keys);
+      await vi.waitFor(() => expect(shown(v, want.includes("|"))).toBe(want), { timeout: 500 });
+    });
+  }
 });

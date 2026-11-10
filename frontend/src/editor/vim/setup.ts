@@ -5,6 +5,7 @@ import { foldAll, foldCode, toggleFold, unfoldAll, unfoldCode } from "@codemirro
 import { jumpToDefinition, jumpToImplementation, jumpToTypeDefinition } from "@codemirror/lsp-client";
 import { parseKeys, type Binding } from "../../core/keymap";
 import { installSurround } from "./surround";
+import { installEx } from "./ex";
 import { installStructural } from "./structural";
 
 // Runs a command by ID (core/commands). Vim's maps and ex commands are global, so the latest workbench's runner wins.
@@ -79,6 +80,7 @@ export function installVim(r: Run, normal: Binding[], p: Prime) {
 
   installSurround();
   installStructural();
+  installEx();
 
   const plain = { undo: CodeMirror.commands.undo, redo: CodeMirror.commands.redo };
   CodeMirror.commands.undo = (cm: CodeMirror) => historyRoute.get(cm.cm6!)?.(false) || plain.undo(cm);
