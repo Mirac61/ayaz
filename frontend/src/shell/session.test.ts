@@ -11,7 +11,18 @@ test("parseSession keeps a valid session and drops entries of panes that aren't 
     active: 2,
     cursors: { "a.go": 12, "b.go": -1, "c.go": 1.5 },
   }));
-  expect(s).toEqual({ layout, panes: { 1: "a.go" }, tabs: { 1: ["a.go", "b.go"] }, active: 2, cursors: { "a.go": 12 } });
+  expect(s).toEqual({
+    layout, panes: { 1: "a.go" }, tabs: { 1: ["a.go", "b.go"] }, active: 2, cursors: { "a.go": 12 }, previews: [], terms: {},
+  });
+});
+
+test("parseSession keeps previews and terminals of panes in the layout", () => {
+  const s = parseSession(JSON.stringify({
+    layout, panes: { 1: "a.md" }, tabs: {}, active: 1, cursors: {},
+    previews: [1, 9, "x"], terms: { 2: "", 7: "lazygit", 1: 3 },
+  }));
+  expect(s?.previews).toEqual([1]);
+  expect(s?.terms).toEqual({ 2: "" });
 });
 
 test("parseSession rejects broken input and falls back to the first pane", () => {

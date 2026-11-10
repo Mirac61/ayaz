@@ -29,7 +29,10 @@ export interface Status {
 
 // A pane shows an editor (view), a terminal (term) or a viewer for images and the like (title is its file).
 // shortcut: a terminal lives and dies with its pane, unlike nvim's terminal buffers; add hidden terminals if wanted.
-interface Pane { el: HTMLElement; view?: EditorView; term?: TermHandle; viewer?: ViewHandle; title?: string; buf: Buffer | null; mode: string }
+interface Pane {
+  el: HTMLElement; view?: EditorView; term?: TermHandle; viewer?: ViewHandle; title?: string; buf: Buffer | null; mode: string;
+  cmd?: string; // a terminal's command, "" for a shell
+}
 
 // Marks changes copied from another pane showing the same buffer, so they aren't copied back.
 const synced = Annotation.define<boolean>();
@@ -61,7 +64,7 @@ export class Editors {
   // With term, the pane runs a terminal instead.
   attach(id: number, parent: HTMLElement, from?: number, term?: TermOptions) {
     if (term) {
-      const p: Pane = { el: parent, buf: null, mode: "terminal", title: term.cmd ?? "shell" };
+      const p: Pane = { el: parent, buf: null, mode: "terminal", title: term.cmd ?? "shell", cmd: term.cmd ?? "" };
       this.panes.set(id, p);
       this.renderTabs(id);
       p.term = openTerminal(parent, { ...term, onMode: (m) => { p.mode = m; if (id === this.active) this.emit(); } });
@@ -335,13 +338,15 @@ export class Editors {
   // What the session keeps: the file per pane (not terminals), the tabs, and every loaded buffer's cursor.
   snapshot() {
     const panes: Record<number, string> = {};
+    const terms: Record<number, string> = {};
     for (const [id, p] of this.panes) {
       const path = p.buf?.path ?? (p.viewer ? p.title : undefined);
       if (path && id > 0) panes[id] = path;
+      if (p.term && id > 0) terms[id] = p.cmd ?? "";
     }
     const cursors: Record<string, number> = {};
     for (const b of this.buffers.list()) cursors[b.path] = b.state.selection.main.head;
-    return { panes, tabs: Object.fromEntries(this.tabs), active: this.active, cursors };
+    return { panes, terms, tabs: Object.fromEntries(this.tabs), active: this.active, cursors };
   }
 
   // Session restore: the pane's tabs before its file opens (which adds to them).

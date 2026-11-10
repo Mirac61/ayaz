@@ -1,13 +1,16 @@
 import { panes, type Layout } from "./layout";
 
 // What a folder looked like when it was last open: splits, the file and tabs per pane, the active pane,
-// and where the cursor was in recently used files (like Vim's '" mark). Terminals come back as empty editors.
+// and where the cursor was in recently used files (like Vim's '" mark). Previews and terminals come back as such;
+// a terminal is a new shell (or its command again) in the folder, its old output is gone.
 export interface Session {
   layout: Layout;
   panes: Record<number, string>;
   tabs: Record<number, string[]>;
   active: number;
   cursors: Record<string, number>; // path → offset, oldest first
+  previews: number[]; // panes showing a Markdown preview of their file
+  terms: Record<number, string>; // terminal panes → their command, "" for a shell
 }
 
 const CURSORS = 200;
@@ -47,6 +50,8 @@ export function parseSession(text: string | null): Session | null {
     tabs: Object.fromEntries(Object.entries(v.tabs).filter(([id]) => ids.has(id)).map(([id, l]) => [id, strings(l)])),
     active: typeof v.active === "number" && ids.has(String(v.active)) ? v.active : panes(v.layout)[0],
     cursors: Object.fromEntries(Object.entries(v.cursors).filter(offset)),
+    previews: Array.isArray(v.previews) ? v.previews.filter((id) => ids.has(String(id))) : [], // missing before M38
+    terms: isObj(v.terms) ? Object.fromEntries(Object.entries(v.terms).filter(paneFile)) : {},
   };
 }
 

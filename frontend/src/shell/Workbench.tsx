@@ -77,6 +77,7 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
   const panesEl = useRef<HTMLDivElement>(null);
   const panelEl = useRef<HTMLDivElement>(null);
   const termFor = useRef(new Map<number, TermOptions>()); // new pane → the terminal it runs
+  const exitTerm = useRef((_id: number) => {}); // set with the commands below; panes mount before they exist
   const seq = useRef<Sequencer | null>(null);
   const [hints, setHints] = useState<{ keys: string[]; next: Binding[] } | null>(null);
   const hintTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -111,7 +112,7 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
     if (restoring.current) return;
     const snap = ed.snapshot();
     ed.cursors = mergeCursors(ed.cursors, snap.cursors);
-    saveSession(ws.root, { ...snap, layout: lay.current, cursors: ed.cursors });
+    saveSession(ws.root, { ...snap, layout: lay.current, cursors: ed.cursors, previews: [...previews.current] });
   };
   // Split, file, tab or cursor changed: save at most every 500 ms. Not a debounce: steady status updates
   // (a build writing files) would push it back forever. Leaving the folder saves at once.
@@ -128,9 +129,11 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
     saveNow();
   }, [ed]);
 
-  // A pane from the session gets its tabs and file back. A file that is gone by now is skipped.
+  // A pane from the session gets its tabs and file back, once. A file that is gone by now is skipped.
+  // Panes split off later aren't the session's: restoring them would pull the focus back to session.active.
+  const unrestored = useRef(new Set(session ? panes(session.layout) : []));
   const restore = async (id: number) => {
-    if (!session) return;
+    if (!session || !unrestored.current.delete(id)) return;
     if (session.tabs[id]) ed.setTabList(id, session.tabs[id]);
     const path = session.panes[id];
     restoring.current++;
@@ -139,6 +142,11 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
         await ed.open(path, id).catch(() => {});
         const b = ed.buffers.get(path);
         if (b && !b.mtime && !b.state.doc.length) await ed.moved(path, null);
+        if (b && session.previews.includes(id)) {
+          ed.focus(id);
+          ed.toggleReading();
+          previews.current.add(id);
+        }
       }
       // Every pane is mounted by now (they mount in one commit). Without files, start in the tree as usual.
       if (Object.keys(session.panes).length) ed.focus(session.active);
@@ -209,6 +217,7 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
 
     // A shell that exits closes its pane; the last pane turns back into an empty editor.
     const termExit = (id: number) => (panes(lay.current).length > 1 ? void closePane(true, id) : ed.replace(id));
+    exitTerm.current = termExit;
     // An empty editor pane (no file) is taken over, otherwise the terminal splits off to the right.
     const termSplit = (cmd?: string) => {
       const target = ed.active === PANEL ? lastSplit.current : ed.active;
@@ -949,7 +958,9 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
             edge={{ left: r.x > 0, top: r.y > 0 }}
             mount={(el) => {
               const from = splitFrom.current.get(id);
-              ed.attach(id, el, from, termFor.current.get(id));
+              const cmd = unrestored.current.has(id) ? session?.terms[id] : undefined; // a terminal from the session
+              ed.attach(id, el, from, termFor.current.get(id)
+                ?? (cmd === undefined ? undefined : { ws: ws.id, cmd: cmd || undefined, onExit: () => exitTerm.current(id) }));
               splitFrom.current.delete(id);
               termFor.current.delete(id);
               if (previewNext.current.delete(id)) {
