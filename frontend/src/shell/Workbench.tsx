@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import { backend, type Info } from "../core/backend";
+import { backend, type Info, type OpenEvent } from "../core/backend";
 import { Commands } from "../core/commands";
 import { defaultKeymap, isMac, keyName, mergeKeymap, parseUserKeymap, Sequencer, type Binding } from "../core/keymap";
 import { diff } from "../core/buffers";
@@ -210,8 +210,9 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
     // An empty editor pane (no file) is taken over, otherwise the terminal splits off to the right.
     const termSplit = (cmd?: string, more?: Partial<TermOptions>) => {
       const target = ed.active === PANEL ? lastSplit.current : ed.active;
-      if (ed.isEmpty(target)) return ed.replace(target, { ws: ws.id, cmd, ...more });
-      splitPane("row", { ws: ws.id, cmd, ...more });
+      const dir = cmd ? undefined : ed.termCwd(ed.active) || undefined; // a shell opens where the one in focus is (OSC 7)
+      if (ed.isEmpty(target)) return ed.replace(target, { ws: ws.id, cmd, dir, ...more });
+      splitPane("row", { ws: ws.id, cmd, dir, ...more });
     };
 
     const togglePanel = () => {
@@ -487,6 +488,23 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
     return () => { live = false; };
   }, [ed]);
 
+  // `ayaz file[:line]` from a terminal. With --wait (e.wait), the caller blocks until the file is closed here.
+  const openFile = async (e: OpenEvent) => {
+    let opened = true;
+    try {
+      if (e.line > 0) await ed.openAt(e.path, e.line, Math.max(e.col - 1, 0));
+      else await ed.open(e.path);
+    } catch (err) {
+      opened = false;
+      fail(errText(err));
+    }
+    if (e.wait) {
+      if (opened) await ed.whenClosed(e.path);
+      void backend.waitDone(e.wait);
+    }
+  };
+  useEffect(() => backend.onOpen(ws.id, (e) => void openFile(e)), [ed]);
+
   // The window's close button: refuse while something is unsaved, like :qa.
   useEffect(() => backend.onCloseRequest(() => {
     const d = ed.buffers.dirty();
@@ -617,9 +635,12 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
                 previews.current.add(id);
                 if (from !== undefined) { ed.focus(from); ed.syncScroll(from); }
               }
-              if (id === 1 && initial) void restore(id).then(() => ed.open(initial, 1)).catch(() => {});
-              else if (session) void restore(id);
+              let ready: Promise<unknown> = Promise.resolve();
+              if (id === 1 && initial) ready = restore(id).then(() => ed.open(initial, 1)).catch(() => {});
+              else if (session) ready = restore(id);
               else if (id === 1) tree.current?.focus(); // no file open yet, so start in the tree
+              // `ayaz file` started this window: its file opens on top of the restored session.
+              if (id === 1) void ready.catch(() => {}).then(() => backend.takeOpen()).then((e) => e && openFile(e), () => {});
               return () => { previews.current.delete(id); ed.detach(id, true); };
             }}
           />

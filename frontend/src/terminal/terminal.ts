@@ -10,6 +10,7 @@ import { backend } from "../core/backend";
 import { isMac } from "../core/keymap";
 import { settings } from "../core/settings";
 import { kanagawaTerm } from "../theme/kanagawa-term";
+import { parseOsc7 } from "./osc";
 
 // "terminal": keys go to the shell (nvim's terminal mode); "normal": scrollback, search, copy (Ctrl-\ Ctrl-n).
 export type TermMode = "terminal" | "normal";
@@ -20,6 +21,7 @@ export interface TermOptions {
   renderer?: "dom" | "webgl";
   ws?: string; // workspace ID: start in its root; none = home
   cmd?: string; // run this instead of an interactive shell, e.g. "lazygit"
+  dir?: string; // start here instead of the workspace root (a folder the shell of another terminal had cd'ed to)
   onExit?(): void;
   onOutput?(text: string): void; // at exit, everything it printed (scrollback included), for tasks' problem lines
   onMode?(m: TermMode): void;
@@ -32,6 +34,7 @@ export interface TermHandle {
   ws: WebSocket;
   ready: Promise<void>; // the stream is open and the shell is starting
   input(data: string): void;
+  cwd(): string; // where the shell says it is (OSC 7), "" until it says
   setMode(m: TermMode): void;
   focus(): void;
   setFont(): void; // takes font and size from settings again
@@ -94,6 +97,12 @@ export function openTerminal(el: HTMLElement, opts: TermOptions = {}): TermHandl
   term.open(el);
   if ((opts.renderer ?? defaultRenderer()) === "webgl") term.loadAddon(new WebglAddon());
   el.dataset.term = "";
+
+  let cwd = "";
+  term.parser.registerOscHandler(7, (data) => {
+    cwd = parseOsc7(data) || cwd;
+    return true;
+  });
 
   const ws = backend.stream("pty");
   // Go reads the config as the first frame (onopen below); keys or a resize before it would end the shell.
@@ -177,7 +186,7 @@ export function openTerminal(el: HTMLElement, opts: TermOptions = {}): TermHandl
     ws.onopen = () => {
       fit.fit();
       ws.send(JSON.stringify({
-        cols: term.cols, rows: term.rows, ws: opts.ws ?? "", cmd: opts.cmd ?? "",
+        cols: term.cols, rows: term.rows, ws: opts.ws ?? "", cmd: opts.cmd ?? "", dir: opts.dir ?? "",
         windowMs: opts.windowMs ?? 0, maxBytes: opts.maxBytes ?? 0,
       }));
       started = true;
@@ -191,6 +200,7 @@ export function openTerminal(el: HTMLElement, opts: TermOptions = {}): TermHandl
     ws,
     ready,
     input,
+    cwd: () => cwd,
     setMode,
     focus: () => term.focus(),
     setFont() {

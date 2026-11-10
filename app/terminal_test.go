@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -83,5 +84,19 @@ func TestCloseWorkspace(t *testing.T) {
 	}
 	if _, err := s.List(b.ID, ""); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestStartDir(t *testing.T) {
+	root, other := t.TempDir(), t.TempDir()
+	for _, c := range []struct{ want, got string }{
+		{other, other},
+		{"", root},
+		{"relative/dir", root},
+		{filepath.Join(other, "gone"), root},
+	} {
+		if got := startDir(root, c.want); got != c.got {
+			t.Errorf("startDir(%q) = %q, want %q", c.want, got, c.got)
+		}
 	}
 }

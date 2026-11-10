@@ -29,7 +29,7 @@ cp -R bin/ayaz.app /Applications/Ayaz.app
 ```
 
 The app isn't notarized. If macOS blocks the first start: right-click → Open, or `xattr -dr com.apple.quarantine /Applications/Ayaz.app`.
-From a terminal: `/Applications/Ayaz.app/Contents/MacOS/ayaz <folder>` opens a folder directly.
+From a terminal: `/Applications/Ayaz.app/Contents/MacOS/ayaz <folder>` opens a folder directly. With the app running, `ayaz file:12` shows the file in the window that has its folder open, and `EDITOR="ayaz --wait"` makes `git commit` wait for the buffer to close (put a symlink to that binary on your PATH).
 
 ### Arch Linux (Hyprland)
 

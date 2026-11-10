@@ -204,8 +204,22 @@ export function Swaps(ws: string): $CancellablePromise<$models.Swap[] | null> {
     return $Call.ByID(4169521283, ws);
 }
 
+/**
+ * TakeOpen is the file this window was opened for, once; nil if none.
+ */
+export function TakeOpen(): $CancellablePromise<$models.OpenEvent | null> {
+    return $Call.ByID(2237742650);
+}
+
 export function Trash(ws: string, path: string): $CancellablePromise<void> {
     return $Call.ByID(1296708849, ws, path);
+}
+
+/**
+ * WaitDone ends the `ayaz --wait` call that got this ID: its file is closed.
+ */
+export function WaitDone(id: number): $CancellablePromise<void> {
+    return $Call.ByID(3758823036, id);
 }
 
 /**

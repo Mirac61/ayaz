@@ -266,6 +266,14 @@ Done when: all four language groups have diagnostics, completion and navigation.
 
 - Done 2026-11-10: numbers in `docs/perf-log.md` (browser test `large.browser.test.ts`, `scripts/bigrepo.sh` + `TestBigRepo` on Go's source tree, 12k files). Long lines are what costs: from ~32 KB one line costs 15–25 ms per key with highlighting, so a file with a line over 20,000 characters opens as plain text (2 ms). A 10 MB Go file types at 3 ms, the repo needs no limit (index 45–62 ms, find 0.4 ms, search 150 ms, `git status` 65 ms). The browser test gates both cases under 8 ms per key. **Still open:** no notice in the status line that highlighting is off; 50 MB files scroll with dropped frames; Wails' bridge cost for a 10 MB `ReadText` not measured in the app; no repo with 100k+ files tried.
 
+## M52 – Tasks
+
+- Done 2026-11-10: `tasks` in `settings.json` (name → command); `<Space>rr` picks one, `<Space>rl` runs the last again. A task runs in a terminal split that stays after it ends; its output goes through a parser (`file:line:col: text`, Go, gcc, tsc) into the quickfix list. Node test for the parser, E2E with `go vet` on `broken.go`. **Still open:** no task output while the task runs (the list fills at exit); no `${file}` placeholders.
+
+## M53 – Shell integration
+
+- Done 2026-11-10: `ayaz file[:line[:col]]` from a terminal hands the file to the running app over a Unix socket (`<user cache>/ayaz/ayaz.sock`) and exits; the window whose folder holds the file shows it (deepest folder wins), otherwise a new window opens on the file's repository (else its folder). Without a running app the command starts one on that project. `--wait` (`-w`) keeps the call open until no pane shows the file any more (`:q`, `:wq`, another file in its place) or its window closes, so `EDITOR="ayaz --wait"` works for `git commit`. Terminals read OSC 7; a new terminal split starts in the folder the focused terminal reported. Go tests (argument parsing, socket round trip incl. wait, stale socket, start folder), Node tests (wait registry, OSC 7). **Still open:** not tried in the real app (window handling, `git commit` with `--wait`); zsh and bash don't send OSC 7 by themselves (a `precmd` hook printing `\e]7;file://$HOST$PWD\a`, mysh could do it natively); with `--wait` and no running app, the call lasts as long as the app; no `ayaz` on PATH yet (symlink `Contents/MacOS/ayaz`).
+
 ## Later
 
 | | What | Plugs into |

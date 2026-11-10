@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/Mirac61/ayaz/internal/lsp"
@@ -26,6 +27,7 @@ type termConfig struct {
 	MaxBytes int    `json:"maxBytes"`
 	WS       string `json:"ws"`  // workspace ID: the shell starts in its root; "" = home (spike views)
 	Cmd      string `json:"cmd"` // run this through the login shell instead of an interactive shell, e.g. "lazygit"
+	Dir      string `json:"dir"` // start here (an existing absolute folder) instead of the workspace root, see OSC 7
 }
 
 // HandleTerminal serves one shell per "pty" stream connection.
@@ -53,6 +55,7 @@ func (s *WorkspaceService) HandleTerminal(c *application.StreamConn) {
 		}
 		dir = w.Root
 	}
+	dir = startDir(dir, cfg.Dir)
 	args := []string{"-l"} // login shell: a Finder-started app has a bare PATH
 	if cfg.Cmd != "" {
 		args = append(args, "-c", cfg.Cmd)
@@ -86,6 +89,14 @@ func (s *WorkspaceService) HandleTerminal(c *application.StreamConn) {
 			}
 		}
 	}
+}
+
+// startDir is want if it is an existing absolute folder (where another shell had cd'ed to), else the default.
+func startDir(def, want string) string {
+	if st, err := os.Stat(want); filepath.IsAbs(want) && err == nil && st.IsDir() {
+		return want
+	}
+	return def
 }
 
 func (s *WorkspaceService) track(sess *pty.Session, ws string, on bool) {

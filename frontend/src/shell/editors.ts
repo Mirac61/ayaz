@@ -17,6 +17,7 @@ import { Jumps, type Spot } from "./jumps";
 import { browsable } from "../editor/mdlive";
 import { historyRoute } from "../editor/vim/setup";
 import { diffWith, headEffects, toggleDiff } from "../editor/gitgutter";
+import { Waits } from "./waits";
 
 export interface Status {
   pane: number;
@@ -54,6 +55,7 @@ export class Editors {
   private jumps = new Map<number, Jumps>(); // per pane: back/forward across files
   private navigating = false; // nav() is opening a file: not a new jump
   private closed: string[] = []; // closed tabs, last on top (Cmd+Shift+T)
+  private waits = new Waits(); // `ayaz --wait`: files somebody waits to see closed
   private hidden: { term: TermHandle; box: HTMLElement; title: string; cmd: string }[] = []; // terminals without a pane
   private holder: HTMLElement | null = null; // keeps hidden terminals in the document, undrawn
   private terms = 0; // numbers the terminals: "shell 1", "lazygit 2"
@@ -120,6 +122,16 @@ export class Editors {
       this.tabs.delete(id);
       this.jumps.delete(id);
     }
+    this.checkWaits();
+  }
+
+  // Resolves once no pane shows path any more (`:q`, `:wq`, another file in its place).
+  whenClosed(path: string): Promise<void> {
+    return new Promise((done) => this.waits.add(path, done));
+  }
+
+  private checkWaits() {
+    this.waits.check((path) => [...this.panes.values()].some((p) => (p.buf?.path ?? p.title) === path));
   }
 
   private pushClosed(...paths: string[]) {
@@ -225,6 +237,8 @@ export class Editors {
     this.setActive(id);
   }
 
+  // The folder the terminal in pane id reported with OSC 7, "" if it isn't one or hasn't said.
+  termCwd(id = this.active) { return this.panes.get(id)?.term?.cwd() ?? ""; }
   isTerm(id = this.active) { return !!this.panes.get(id)?.term; }
 
   // An editor pane with no file: a new terminal takes it over instead of splitting.
@@ -576,6 +590,7 @@ export class Editors {
   }
 
   emit() {
+    this.checkWaits();
     // Every change of a buffer's dirty state ends in emit(), so the dot in the tabs follows from here.
     const dirty = this.tabsOn ? this.buffers.dirty().map((b) => b.path).join("\n") : "";
     if (dirty !== this.dirtyTabs) {

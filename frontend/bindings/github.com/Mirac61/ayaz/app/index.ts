@@ -14,6 +14,7 @@ export type {
     HeadFile,
     Info,
     Match,
+    OpenEvent,
     Swap,
     Version
 } from "./models.js";

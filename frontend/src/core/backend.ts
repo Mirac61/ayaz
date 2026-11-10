@@ -1,12 +1,12 @@
 // The only place that imports generated bindings or the Wails runtime (02-architecture, principle 2).
 import { Application, Browser, Clipboard, Events, Stream, Window } from "@wailsio/runtime";
 import { ConfigService, PingService, WorkspaceService } from "../../bindings/github.com/Mirac61/ayaz/app";
-import type { HeadFile, Info, Match, Swap, Version } from "../../bindings/github.com/Mirac61/ayaz/app";
+import type { HeadFile, Info, Match, OpenEvent, Swap, Version } from "../../bindings/github.com/Mirac61/ayaz/app";
 import type { Entry, TextFile } from "../../bindings/github.com/Mirac61/ayaz/internal/workspace";
 import type { Match as FileMatch } from "../../bindings/github.com/Mirac61/ayaz/internal/index";
 import type { Loc } from "./quickfix";
 
-export type { Entry, FileMatch, HeadFile, Info, Match, Swap, TextFile, Version };
+export type { Entry, FileMatch, HeadFile, Info, Match, OpenEvent, Swap, TextFile, Version };
 
 // A batch of changes on disk. Paths are workspace-relative, files or folders; rescan: events were lost, check everything.
 export interface FsChange { paths: string[] | null; rescan: boolean }
@@ -30,6 +30,11 @@ export interface Backend {
   newWindow(): Promise<void>;
   // The user asked to close this window; the frontend decides (unsaved buffers) and calls closeWindow.
   onCloseRequest(fn: () => void): () => void;
+  // `ayaz file:line` from a terminal: the file this window was started for (once), and files sent to a running window.
+  // The shown file's close answers a waiting call (`--wait`) through waitDone(event.wait).
+  takeOpen(): Promise<OpenEvent | null>;
+  onOpen(ws: string, fn: (e: OpenEvent) => void): () => void;
+  waitDone(id: number): Promise<void>;
   files(ws: string): Files;
   keymap(): Promise<string>; // the user's keymap.json, "" if none
   settings(): Promise<string>; // the user's settings.json, "" if none
@@ -91,6 +96,12 @@ export const backend: Backend = {
   closeWorkspace: (ws) => WorkspaceService.Close(ws),
   closeWindow: () => WorkspaceService.CloseWindow(),
   newWindow: () => WorkspaceService.NewWindow(),
+  takeOpen: () => WorkspaceService.TakeOpen(),
+  onOpen: (ws, fn) =>
+    Events.On("app:open", (e: { data: OpenEvent }) => {
+      if (e.data.ws === ws) fn(e.data);
+    }),
+  waitDone: (id) => WorkspaceService.WaitDone(id),
   onCloseRequest: (fn) => Events.On("app:close-request", () => fn()),
   keymap: () => ConfigService.Keymap(),
   settings: () => ConfigService.Settings(),

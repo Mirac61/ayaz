@@ -23,13 +23,16 @@ type WorkspaceService struct {
 	reg  *workspace.Registry
 	args []string
 
-	mu      sync.Mutex
-	indexes map[indexKey]*lazyIndex
-	terms   map[*pty.Session]string       // running shells → workspace ("" for spike views), hung up on Close and quit
-	servers map[*lsp.Server]string        // running language servers → workspace, stopped on Close and quit
-	watches map[string]context.CancelFunc // workspace → its watcher
-	windows map[uint]string               // window ID → its workspace (ADR-0014)
-	closing map[uint]bool                 // windows the frontend allowed to close (nothing unsaved)
+	mu       sync.Mutex
+	indexes  map[indexKey]*lazyIndex
+	terms    map[*pty.Session]string       // running shells → workspace ("" for spike views), hung up on Close and quit
+	servers  map[*lsp.Server]string        // running language servers → workspace, stopped on Close and quit
+	watches  map[string]context.CancelFunc // workspace → its watcher
+	windows  map[uint]string               // window ID → its workspace (ADR-0014)
+	closing  map[uint]bool                 // windows the frontend allowed to close (nothing unsaved)
+	startup  map[uint]*startOpen           // new window → the file it opens with (`ayaz file`), see open.go
+	waits    map[int]*wait                 // `ayaz --wait` calls still waiting for their file to close
+	nextWait int
 }
 
 type indexKey struct {
@@ -54,12 +57,22 @@ func NewWorkspaceService(args []string) *WorkspaceService {
 	return &WorkspaceService{
 		reg: workspace.NewRegistry(), args: args, indexes: map[indexKey]*lazyIndex{},
 		terms: map[*pty.Session]string{}, servers: map[*lsp.Server]string{}, watches: map[string]context.CancelFunc{},
-		windows: map[uint]string{}, closing: map[uint]bool{},
+		windows: map[uint]string{}, closing: map[uint]bool{}, startup: map[uint]*startOpen{}, waits: map[int]*wait{},
 	}
 }
 
 // Initial opens the folder from the command line, nil if there was none. New windows don't ask (ADR-0014).
 func (s *WorkspaceService) Initial(ctx context.Context) (*Info, error) {
+	s.mu.Lock()
+	p := s.startup[windowID(ctx)]
+	s.mu.Unlock()
+	if p != nil { // `ayaz file`: the file's project
+		info, err := s.Open(ctx, p.root)
+		if info != nil {
+			p.ev.WS = info.ID
+		}
+		return info, err
+	}
 	if dir := folderArg(s.args); dir != "" {
 		return s.Open(ctx, dir)
 	}
@@ -144,6 +157,7 @@ func (s *WorkspaceService) bindWindow(ctx context.Context, ws string) {
 		delete(s.windows, id)
 		delete(s.closing, id)
 		s.mu.Unlock()
+		s.releaseWaits(id)
 		s.Close(ws)
 	})
 }

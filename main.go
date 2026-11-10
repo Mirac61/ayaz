@@ -14,6 +14,12 @@ import (
 var assets embed.FS
 
 func main() {
+	// `ayaz file[:line]` goes to the running app and ends here; with --wait it ends once the file is closed there.
+	cwd, _ := os.Getwd()
+	req := app.ParseOpen(os.Args[1:], cwd)
+	if req != nil && app.SendOpen(app.SocketPath(), *req) {
+		return
+	}
 	ws := app.NewWorkspaceService(os.Args[1:])
 	a := application.New(application.Options{
 		Name:        "Ayaz",
@@ -39,7 +45,8 @@ func main() {
 	a.HandleStream("search", ws.HandleSearch)
 	a.HandleStream("echo", app.HandleEcho)
 
-	app.NewWindow(a, "", "/")
+	win := app.NewWindow(a, "", "/")
+	defer app.ListenOpen(ws, win.ID(), req)()
 
 	if err := a.Run(); err != nil {
 		log.Fatal(err)

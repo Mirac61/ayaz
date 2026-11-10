@@ -29,6 +29,18 @@ export interface Match {
 }
 
 /**
+ * OpenEvent is "app:open": a file for the frontend to show, from `ayaz file:line`. Path is workspace-relative.
+ * Wait is 0, or an ID the frontend answers with WaitDone once the file is closed (`ayaz --wait`).
+ */
+export interface OpenEvent {
+    "ws": string;
+    "path": string;
+    "line": number;
+    "col": number;
+    "wait": number;
+}
+
+/**
  * Swap is the unsaved text of one buffer (hot exit, M49): written every few seconds while the buffer is dirty,
  * offered back when the folder opens again, removed once the buffer is clean.
  */
