@@ -20,6 +20,9 @@ if (!process.env.TEST_WORKER_INDEX) {
 // E2E against the Wails server build (no native window), in WebKit. Build it first: `task build:server`.
 export default defineConfig({
   testDir: "e2e",
+  // pdf.spec and terminal.spec each timed out once under load and never again in 7 runs (3 with all cores busy);
+  // a retry shows such a run as "flaky" instead of failing the gate.
+  retries: 1,
   use: { browserName: "webkit", baseURL: "http://127.0.0.1:34115" },
   webServer: {
     command: `../bin/ayaz-server --workspace ${e2eWorkspace}`,
