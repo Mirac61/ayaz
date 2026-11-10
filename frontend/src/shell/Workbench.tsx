@@ -21,7 +21,7 @@ import { borders, close, equalize, neighbor, panes, rects, resize, setBorder, sp
 import { loadSettings, settingsError } from "../core/settings";
 import { Picker, type Item, type PickerSource } from "./Picker";
 import { Tree, type TreeHandle } from "./Tree";
-import { gitMarks } from "./gitstatus";
+import { gitMarks, single } from "./gitstatus";
 import { loadSession, mergeCursors, saveSession, type Session } from "./session";
 import { fileIcon, folderIcon, symbolIcon } from "../theme/icons";
 import "./shell.css";
@@ -834,9 +834,9 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
     };
   }, [ed]);
 
-  // The tree's colors; asked again on every change on disk and in the repository.
+  // The tree's colors; asked again on every change on disk and in the repository, one `git status` at a time.
   const [git, setGit] = useState(() => gitMarks({}));
-  const loadGit = () => void files.gitStatus().then((s) => setGit(() => gitMarks(s)), () => {});
+  const loadGit = useMemo(() => single(() => files.gitStatus().then((s) => setGit(() => gitMarks(s)))), [files]);
 
   // Changes on disk (git checkout, codegen, our own saves) reach the tree and the open buffers.
   useEffect(() => backend.onFsChanged(ws.id, async (c) => {

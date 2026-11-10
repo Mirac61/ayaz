@@ -22,3 +22,21 @@ export function gitMarks(raw: Record<string, string>): (path: string) => string 
     return undefined;
   };
 }
+
+// One run at a time: calls while fn runs ask for one more run after it, so a burst of changes
+// (a checkout, a build) costs two `git status` instead of one per watcher batch.
+export function single(fn: () => Promise<void>): () => void {
+  let running = false, again = false;
+  const go = () => {
+    if (running) return void (again = true);
+    running = true;
+    void fn().catch(() => {}).finally(() => {
+      running = false;
+      if (again) {
+        again = false;
+        go();
+      }
+    });
+  };
+  return go;
+}
