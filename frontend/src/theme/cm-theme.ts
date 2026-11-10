@@ -2,13 +2,13 @@ import { EditorView } from "@codemirror/view";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags as t } from "@lezer/highlight";
 
-// Kanagawa (wave) syntax for CodeMirror, colors as kanagawa.nvim maps its Treesitter groups.
-const c = {
-  bgLine: "rgb(255 255 255 / 0.05)", sel: "rgb(255 255 255 / 0.1)", fg: "#dcd7ba",
-  comment: "#727169", keyword: "#957fb8", fn: "#7e9cd8", string: "#98bb6c", number: "#d27e99",
-  type: "#7aa89f", constant: "#ffa066", operator: "#c0a36e", punct: "#9cabca", special: "#e6c384",
-  ident: "#e6c384", field: "#e6c384", param: "#b8b4d0", red: "#e82424", cursor: "#dcd7ba",
-};
+import { BUILTIN_THEMES, DEFAULT_THEME, SYNTAX_KEYS, synVar, type SyntaxColors } from "./themes";
+
+// The syntax colors are CSS variables (--syn-*, set by applyTheme from the theme in settings.json), so a theme change
+// reaches open editors at once. The fallback is the default theme's color, for tests that run without a theme applied.
+const c = Object.fromEntries(
+  SYNTAX_KEYS.map((k) => [k, `var(${synVar(k)}, ${BUILTIN_THEMES[DEFAULT_THEME].syntax[k]})`]),
+) as SyntaxColors;
 
 // Surfaces come from the pane (shell.css: bg-1, bg-2 with focus), so the editor itself is transparent.
 const theme = EditorView.theme(
@@ -18,11 +18,11 @@ const theme = EditorView.theme(
       fontFamily: "var(--font-mono)",
       fontSize: "var(--editor-font-size, 13px)", // settings.json; tests run without tokens.css
       lineHeight: "calc(var(--editor-font-size, 13px) + 11px)",
-      paddingTop: "16px",
+      paddingTop: "4px",
     },
     "&:not(.cm-focused) .cm-content": { opacity: 0.72 },
     ".cm-content": { caretColor: c.cursor },
-    ".cm-gutters": { backgroundColor: "transparent", color: "#6e6e73", border: "none", paddingLeft: "16px" },
+    ".cm-gutters": { backgroundColor: "transparent", color: "var(--fg-4, #938aa9)", border: "none", paddingLeft: "16px" },
     ".cm-lineNumbers .cm-gutterElement": { minWidth: "32px", padding: "0 16px 0 0", fontSize: "calc(var(--editor-font-size, 13px) - 1px)" },
     // Git signs right of the numbers, like LazyVim's statuscolumn: a bar per line, a triangle where lines went.
     ".cm-git .cm-gutterElement": { width: "3px", marginRight: "5px", position: "relative" },
@@ -38,20 +38,20 @@ const theme = EditorView.theme(
     ".cm-git-preview .del": { color: "var(--git-del)" },
     ".cm-git-preview .add": { color: "var(--git-add)" },
     ".cm-activeLine": { backgroundColor: "transparent" },
-    "&.cm-focused .cm-activeLine": { backgroundColor: c.bgLine },
-    ".cm-activeLineGutter": { backgroundColor: "transparent", color: "#a1a1a6" },
-    "&.cm-focused .cm-activeLineGutter": { color: "#ffffff" },
-    "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection": { backgroundColor: c.sel },
+    "&.cm-focused .cm-activeLine": { backgroundColor: c.lineHighlight },
+    ".cm-activeLineGutter": { backgroundColor: "transparent", color: "var(--fg-2, #c8c093)" },
+    "&.cm-focused .cm-activeLineGutter": { color: "var(--fg-1, #dcd7ba)" },
+    "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection": { backgroundColor: c.selection },
     // The layer class outweighs codemirror-vim's own cursor colors.
-    ".cm-vimCursorLayer .cm-fat-cursor": { background: c.cursor, color: "#161617" },
-    "&:not(.cm-focused) .cm-vimCursorLayer .cm-fat-cursor": { background: "none", outline: "1px solid #8e8e93" },
-    ".cm-matchingBracket": { backgroundColor: c.sel, outline: "none" },
+    ".cm-vimCursorLayer .cm-fat-cursor": { background: c.cursor, color: "var(--bg-0, #0f0f10)" },
+    "&:not(.cm-focused) .cm-vimCursorLayer .cm-fat-cursor": { background: "none", outline: "1px solid var(--fg-3, #9cabca)" },
+    ".cm-matchingBracket": { backgroundColor: c.selection, outline: "none" },
     ".cm-searchMatch": { backgroundColor: "rgb(255 255 255 / 0.1)" },
     ".cm-searchMatch-selected": { backgroundColor: "rgb(255 255 255 / 0.22)" },
     // Tooltips (hover, completion, signature) look like the picker overlay.
     ".cm-tooltip": {
       backgroundColor: "var(--overlay)", color: "var(--fg-2)", border: "1px solid var(--edge-overlay)",
-      borderRadius: "8px", boxShadow: "0 12px 32px rgb(0 0 0 / 0.45)", overflow: "hidden",
+      borderRadius: "2px", boxShadow: "0 8px 24px rgb(0 0 0 / 0.35)", overflow: "hidden",
       fontFamily: "var(--font-ui)", fontSize: "12.5px", lineHeight: "18px",
     },
     ".cm-lsp-documentation": { padding: "8px 12px", maxWidth: "36em", maxHeight: "20em", overflowY: "auto" },
@@ -73,10 +73,21 @@ const theme = EditorView.theme(
     ".cm-dialog button": { font: "12.5px var(--font-ui)", color: "var(--fg-1)", background: "none", border: "none", padding: "0 4px" },
     ".cm-dialog .cm-dialog-close": { background: "none", color: "var(--fg-3)", top: "50%", transform: "translateY(-50%)", right: "8px" },
     ".cm-tooltip-autocomplete > ul > li[aria-selected]": { backgroundColor: "var(--bg-3)", color: "var(--fg-1)" },
-    ".cm-panels": { backgroundColor: "var(--bg-0)", color: c.fg },
-    ".cm-vim-panel input": { color: c.fg, fontFamily: "var(--font-mono)" },
-    ".cm-lintRange-error": { backgroundImage: "none", textDecoration: "underline wavy #ff453a", textUnderlineOffset: "4px" },
-    ".cm-lintRange-warning": { backgroundImage: "none", textDecoration: "underline wavy #ff9f0a", textUnderlineOffset: "4px" },
+    // Vim ":" and "/" command bar floats as a Spotlight overlay over the pane.
+    ".cm-panels": { backgroundColor: "transparent", color: c.fg, border: "none" },
+    ".cm-panels-bottom": {
+      position: "fixed", top: "58px", bottom: "auto", left: "50%", transform: "translateX(-50%)",
+      width: "min(520px, calc(100% - 32px))", backgroundColor: "var(--overlay, #181920)",
+      border: "1px solid var(--edge-overlay)", borderRadius: "2px",
+      boxShadow: "0 16px 40px rgb(0 0 0 / 0.45)", zIndex: 10, overflow: "hidden",
+    },
+    ".cm-vim-panel": { padding: "10px 16px", fontFamily: "var(--font-mono)", fontSize: "14px" },
+    ".cm-vim-panel input": {
+      color: c.fg, fontFamily: "var(--font-mono)", fontSize: "14px",
+      background: "none", border: "none", outline: "none",
+    },
+    ".cm-lintRange-error": { backgroundImage: "none", textDecoration: "underline wavy var(--error, #e82424)", textUnderlineOffset: "4px" },
+    ".cm-lintRange-warning": { backgroundImage: "none", textDecoration: "underline wavy var(--warning, #ff9e3b)", textUnderlineOffset: "4px" },
   },
   { dark: true },
 );
@@ -97,8 +108,8 @@ const highlight = HighlightStyle.define([
   { tag: t.emphasis, fontStyle: "italic" },
   { tag: t.strong, fontWeight: "bold" },
   { tag: t.link, color: c.type, textDecoration: "underline" },
-  { tag: t.invalid, color: c.red },
+  { tag: t.invalid, color: c.error },
 ]);
 
 export { c as palette }; // the semantic token colours (editor/semantic.ts) come from the same table
-export const kanagawaCM = [theme, syntaxHighlighting(highlight)];
+export const cmTheme = [theme, syntaxHighlighting(highlight)];

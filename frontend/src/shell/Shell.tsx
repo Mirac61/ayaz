@@ -4,6 +4,8 @@ import { defaultKeymap, isMac } from "../core/keymap";
 import { closeLsp } from "../editor/lsp";
 import { errText } from "./commands/context";
 import { rememberFolder, recentFolders } from "./folders";
+import { Picker, type PickerSource } from "./Picker";
+import { folderIcon } from "../theme/icons";
 import { setZoom, zoomLevel } from "./zoom";
 import { Workbench } from "./Workbench";
 
@@ -26,6 +28,7 @@ export function Shell() {
   const settingsWindow = new URLSearchParams(location.search).has("settings");
   const [ws, setWs] = useState<Info | null | undefined>(undefined);
   const [err, setErr] = useState("");
+  const [picker, setPicker] = useState<PickerSource | null>(null);
   const show = (w: Info | null) => { if (w) rememberFolder(w); setWs(w); };
   useEffect(() => {
     if (zoomLevel() !== 1) void setZoom(zoomLevel()).catch(() => {}); // no window zoom in the server build
@@ -58,9 +61,23 @@ export function Shell() {
     const f = recent[Number(e.key) - 1]; // 1–9 open a recent folder
     if (f && !e.metaKey && !e.ctrlKey) pick(f.root);
   };
+  const openRecentPicker = () => setPicker({
+    title: "Switch folder",
+    async query(q) {
+      const recent = recentFolders().map((f) => ({ label: f.root, icon: folderIcon(false) }));
+      const items = [...recent, { label: "Open folder…", hint: "dialog", icon: folderIcon(true) }];
+      return items.filter((it) => !q || it.label.toLowerCase().includes(q.toLowerCase()));
+    },
+    pick: (it) => void pick(it.hint === "dialog" ? null : it.label),
+  });
   return (
     <div className="welcome" onKeyDown={onKey}>
-      <div className="titlebar">Ayaz</div>
+      <div className="titlebar">
+        <button type="button" className="titlebar-project" tabIndex={-1} onClick={openRecentPicker}>
+          Open Recent Project
+        </button>
+        Ayaz
+      </div>
       <div className="welcome-card">
         <div className="welcome-list">
           <div>
@@ -95,6 +112,7 @@ export function Shell() {
           {err && <div className="welcome-err">{err}</div>}
         </div>
       </div>
+      {picker && <Picker source={picker} onClose={() => setPicker(null)} />}
     </div>
   );
 }

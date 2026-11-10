@@ -24,7 +24,7 @@ const byName: Record<string, Icon> = {
 };
 
 const file: Icon = ["\uf15b", "#6d8086"];
-export const folderIcon = (open: boolean): Icon => [open ? "\ue5fe" : "\ue5ff", "#7e9cd8"];
+export const folderIcon = (open: boolean): Icon => [open ? "\ue5fe" : "\ue5ff", "#85858b"];
 
 export function fileIcon(name: string): Icon {
   const lower = name.toLowerCase();
@@ -43,3 +43,30 @@ const SYM: Record<number, Icon> = {
   25: ["\ueb64", "#c0a36e"], 26: ["\uea92", "#7aa89f"],
 };
 export const symbolIcon = (kind: number): Icon => SYM[kind] ?? ["\ueb63", "#727169"];
+
+// Command palette and Spotlight icons (Nerd Font glyphs, Kanagawa palette colors).
+const CMD: Record<string, Icon> = {
+  "file.save": ["\uf0c7", "#98bb6c"],
+  "file.saveClose": ["\uf0c7", "#98bb6c"],
+  "file.open": ["\uf15b", "#7fb4ca"],
+  "file.new": ["\uf15b", "#98bb6c"],
+  "file.rename": ["\uf044", "#e6c384"],
+  "file.trash": ["\uf1f8", "#e46876"],
+  "pane.splitRight": ["\ueb56", "#7e9cd8"],
+  "pane.splitDown": ["\ueb56", "#7e9cd8"],
+  "pane.close": ["\uf00d", "#e46876"],
+  "app.quit": ["\uf00d", "#e46876"],
+  "settings.open": ["\uf013", "#e6c384"],
+  "find.commands": ["\uf11c", "#957fb8"],
+};
+
+export function commandIcon(id: string): Icon {
+  if (CMD[id]) return CMD[id];
+  if (id.startsWith("find.")) return ["\uf002", "#7fb4ca"];
+  if (id.startsWith("pane.") || id.startsWith("view.") || id.startsWith("tab.")) return ["\ueb56", "#7e9cd8"];
+  if (id.startsWith("term.") || id.startsWith("task.")) return ["\ue795", "#c0a36e"];
+  if (id.startsWith("git.") || id.startsWith("merge.")) return ["\ue725", "#dca561"];
+  if (id.startsWith("debug.")) return ["\uf188", "#e82424"];
+  if (id.startsWith("lsp.")) return ["\uea8c", "#7aa89f"];
+  return ["\ueb60", "#9cabca"];
+}

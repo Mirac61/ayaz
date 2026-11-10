@@ -1,4 +1,25 @@
 /* PDF viewer (viewers/pdf.ts). PDFViewer needs an absolutely positioned, scrolling container. */
-.pdf-viewer { position: absolute; inset: 0; overflow: auto; outline: none; background: transparent; }
-.pdf-viewer .pdfViewer .page { margin: 8px auto; border: 0; }
-.pdf-find { position: absolute; left: 8px; right: 8px; bottom: 8px; font: inherit; padding: 4px 10px; color: var(--fg-1); background: var(--overlay); border: 1px solid var(--edge-overlay); border-radius: 6px; outline: none; }
+.pdf-viewer {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  outline: none;
+  background: transparent;
+}
+.pdf-viewer .pdfViewer .page {
+  margin: 8px auto;
+  border: 0;
+}
+.pdf-find {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  font: inherit;
+  padding: 4px 10px;
+  color: var(--fg-1);
+  background: var(--overlay);
+  border: 1px solid var(--edge-overlay);
+  border-radius: 6px;
+  outline: none;
+}

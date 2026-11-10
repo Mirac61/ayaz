@@ -93,7 +93,7 @@ export function Picker({ source, onClose }: { source: PickerSource; onClose(): v
             // Modal: focus stays here until Enter, Esc or a click outside (focus trap).
             onBlur={(e) => { const el = e.currentTarget; requestAnimationFrame(() => el.isConnected && el.focus()); }}
           />
-          <span className="picker-hint">{items.length}</span>
+          <span className="picker-hint">{items.length === 1 ? "1 result" : `${items.length} results`}</span>
         </div>
         <ul className="picker-list" id="picker-list" role="listbox" ref={list}>
           {items.map((it, i) => (
