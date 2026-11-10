@@ -164,3 +164,22 @@ test("gopls semantic tokens colour the code", async ({ page }) => {
   await expect(page.locator(".cm-sem-namespace").filter({ hasText: /^fmt$/ }).last()).toBeVisible({ timeout: 30_000 });
   await expect(page.locator(".cm-sem-function").filter({ hasText: /^Println$/ })).toBeVisible();
 });
+
+// M55: `+` grows the selection along gopls' textDocument/selectionRange: Println, then fmt.Println.
+test("+ grows the selection with the server's selection ranges", async ({ page }) => {
+  test.skip(!hasGopls, "gopls not in PATH");
+  await page.goto("/");
+  await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: "hello.go" }).click();
+  await expect(page.locator(".cm-content")).toContainText("Println");
+  await page.locator(".cm-content").click();
+  await page.keyboard.type("gg5j^4l"); // onto Println in line 6
+  await expect(page.locator(".cm-sem-function").filter({ hasText: /^Println$/ })).toBeVisible({ timeout: 30_000 });
+  await page.keyboard.type("+");
+  await expect(page.locator(".cm-selectionBackground").first()).toBeVisible(); // the answer is asynchronous
+  await page.waitForTimeout(300);
+  await page.keyboard.type("+");
+  await page.waitForTimeout(500);
+  await page.keyboard.type("d");
+  await expect(page.locator(".cm-content")).not.toContainText("fmt.Println", { timeout: 10_000 });
+  await expect(page.locator(".cm-content")).toContainText('("hi")');
+});

@@ -217,3 +217,45 @@ describe("ex commands and leader keys run commands", () => {
     await vi.waitFor(() => expect(calls.join(" ")).toBe(want), { timeout: 500 });
   });
 });
+
+// M55: text objects and motions from the syntax tree (the grammar is a mounted extension, so each case names one).
+describe("structural text objects", () => {
+  const ts = javascript({ typescript: true });
+  const FN = "function a() {\n  one();\n}\n\nfunction b(x, y|y, z) {\n  two(x);\n  return 1;\n}\n\nfunction c() {}\n";
+  const cases: Case[] = [
+    ["dif", FN, "function a() {\n  one();\n}\n\nfunction b(x, yy, z) {\n}\n\nfunction c() {}\n"],
+    ["daf", FN, "function a() {\n  one();\n}\n\n\n\nfunction c() {}\n"],
+    ["cifx<Esc>", "function a() {\n  o|ne();\n}\n", "function a() {\nx}\n"],
+    ["daa", "f(a, b|b, c)", "f(a, c)"],
+    ["dia", "f(a, b|b, c)", "f(a, , c)"],
+    ["daa", "f(a, b, c|c)", "f(a, b)"],
+    ["cia1<Esc>", "f(a, g(x, |y), c)", "f(a, g(x, 1), c)"],
+    ["vafd", "x;\nfunction a() { |one() }\ny;", "x;\n\ny;"],
+    ["]f", "|x;\nfunction a() {}\nfunction b() {}\n", "x;\n|function a() {}\nfunction b() {}\n"],
+    ["]f]f", "|x;\nfunction a() {}\nfunction b() {}\n", "x;\nfunction a() {}\n|function b() {}\n"],
+    ["[f", "function a() {}\nfunction b() {}\nx|;\n", "function a() {}\n|function b() {}\nx;\n"],
+  ];
+  for (const [keys, start, want] of cases) {
+    test(`${keys}  ${JSON.stringify(start)}`, async () => {
+      const v = await run(start, keys, [ts]);
+      await vi.waitFor(() => expect(shown(v, want.includes("|"))).toBe(want), { timeout: 500 });
+    });
+  }
+
+  test("+ grows the selection by syntax, - takes the last step back", async () => {
+    const v = mount("function a() { call(ab|c, 1) }", [ts]);
+    const sel = () => v.state.sliceDoc(v.state.selection.main.from, v.state.selection.main.to);
+    await userEvent.keyboard("+");
+    await vi.waitFor(() => expect(sel()).toBe("abc"));
+    await userEvent.keyboard("+");
+    await vi.waitFor(() => expect(sel()).toBe("(abc, 1)"));
+    await userEvent.keyboard("+");
+    await vi.waitFor(() => expect(sel()).toBe("call(abc, 1)"));
+    await userEvent.keyboard("-");
+    await vi.waitFor(() => expect(sel()).toBe("(abc, 1)"));
+    await userEvent.keyboard("-");
+    await vi.waitFor(() => expect(sel()).toBe("abc"));
+    await userEvent.keyboard("d");
+    await vi.waitFor(() => expect(v.state.doc.toString()).toBe("function a() { call(, 1) }"));
+  });
+});

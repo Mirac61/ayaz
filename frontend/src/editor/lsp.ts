@@ -445,6 +445,7 @@ export const CAPABILITIES = {
   textDocument: {
     inlayHint: {},
     semanticTokens: SEMANTIC_CAPABILITY,
+    selectionRange: {},
     codeAction: {
       dataSupport: true,
       resolveSupport: { properties: ["edit"] },
