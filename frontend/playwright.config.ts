@@ -9,7 +9,7 @@ import { join } from "node:path";
 const repo = join(tmpdir(), "ayaz-e2e");
 export const e2eWorkspace = join(repo, "ayaz-e2e-ws");
 export const e2eConfig = join(tmpdir(), "ayaz-e2e-config"); // settings.json and keymap.json, empty at start
-const e2eCache = join(tmpdir(), "ayaz-e2e-cache"); // swaps (hot exit), not the user's
+export const e2eCache = join(tmpdir(), "ayaz-e2e-cache"); // swaps (hot exit), not the user's
 if (!process.env.TEST_WORKER_INDEX) {
   rmSync(repo, { recursive: true, force: true });
   rmSync(e2eConfig, { recursive: true, force: true });

@@ -1,15 +1,19 @@
 import { expect, test } from "@playwright/test";
-import { e2eWorkspace } from "../playwright.config";
-import { readFileSync, writeFileSync } from "node:fs";
+import { e2eCache, e2eWorkspace } from "../playwright.config";
+import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 // M49: unsaved text survives a reload (crash, killed app) and is offered back per file.
 test("hot exit: typed text comes back after a reload, or is discarded", async ({ page }) => {
+  // Other tests leave unsaved buffers behind (their swaps would be offered here too): this one starts from none.
+  rmSync(join(e2eCache, "swap"), { recursive: true, force: true });
   writeFileSync(join(e2eWorkspace, "swap-a.txt"), "alpha\n");
   writeFileSync(join(e2eWorkspace, "swap-b.txt"), "beta\n");
   await page.goto("/");
   const tree = page.getByRole("tree", { name: "Files" });
   const editor = page.locator(".cm-content");
+  await page.keyboard.press("/"); // the tree is long now, its rows are drawn as far as they fit: filter first
+  await page.keyboard.type("swap-a.txt");
   await tree.getByRole("treeitem", { name: "swap-a.txt" }).click();
   await expect(editor).toContainText("alpha");
   await page.keyboard.type("Okept ");
