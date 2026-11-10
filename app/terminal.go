@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/Mirac61/ayaz/internal/lsp"
 	"github.com/Mirac61/ayaz/internal/pty"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -120,7 +119,7 @@ func (s *WorkspaceService) ServiceShutdown() error {
 func (s *WorkspaceService) stop(match func(ws string) bool) {
 	s.mu.Lock()
 	var terms []*pty.Session
-	var servers []*lsp.Server
+	var servers []closer
 	for t, ws := range s.terms {
 		if match(ws) {
 			terms = append(terms, t)

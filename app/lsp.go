@@ -117,7 +117,7 @@ func hasCompileDB(root string) bool {
 	return false
 }
 
-func (s *WorkspaceService) trackServer(srv *lsp.Server, ws string, on bool) {
+func (s *WorkspaceService) trackServer(srv closer, ws string, on bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if on {

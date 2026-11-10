@@ -10,7 +10,6 @@ import (
 
 	"github.com/Mirac61/ayaz/internal/git"
 	"github.com/Mirac61/ayaz/internal/index"
-	"github.com/Mirac61/ayaz/internal/lsp"
 	"github.com/Mirac61/ayaz/internal/pty"
 	"github.com/Mirac61/ayaz/internal/watch"
 	"github.com/Mirac61/ayaz/internal/workspace"
@@ -26,7 +25,7 @@ type WorkspaceService struct {
 	mu       sync.Mutex
 	indexes  map[indexKey]*lazyIndex
 	terms    map[*pty.Session]string       // running shells → workspace ("" for spike views), hung up on Close and quit
-	servers  map[*lsp.Server]string        // running language servers → workspace, stopped on Close and quit
+	servers  map[closer]string             // running language servers and debug adapters → workspace, stopped on Close and quit
 	watches  map[string]context.CancelFunc // workspace → its watcher
 	windows  map[uint]string               // window ID → its workspace (ADR-0014)
 	closing  map[uint]bool                 // windows the frontend allowed to close (nothing unsaved)
@@ -34,6 +33,9 @@ type WorkspaceService struct {
 	waits    map[int]*wait                 // `ayaz --wait` calls still waiting for their file to close
 	nextWait int
 }
+
+// closer is a running child process the service ends with its workspace: a language server or a debug adapter.
+type closer interface{ Close() }
 
 type indexKey struct {
 	ws      string
@@ -56,7 +58,7 @@ type Info struct {
 func NewWorkspaceService(args []string) *WorkspaceService {
 	return &WorkspaceService{
 		reg: workspace.NewRegistry(), args: args, indexes: map[indexKey]*lazyIndex{},
-		terms: map[*pty.Session]string{}, servers: map[*lsp.Server]string{}, watches: map[string]context.CancelFunc{},
+		terms: map[*pty.Session]string{}, servers: map[closer]string{}, watches: map[string]context.CancelFunc{},
 		windows: map[uint]string{}, closing: map[uint]bool{}, startup: map[uint]*startOpen{}, waits: map[int]*wait{},
 	}
 }
