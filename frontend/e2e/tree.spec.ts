@@ -75,4 +75,16 @@ test("tree filter", async ({ page }) => {
   await page.keyboard.press("Enter");
   await page.keyboard.press("Enter"); // opens the file
   await expect(page.locator(".statusline")).toContainText("src/greet.go");
+
+  // M35: Enter typed before the results arrive waits for them, then lands on the first file
+  // (not on the row where the previous query's first file was).
+  await tree.focus();
+  await page.keyboard.press("/");
+  await page.keyboard.type("hellc");
+  await expect(tree.getByRole("treeitem")).toHaveText([/hello\.c/]);
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("/"); // the old text, selected
+  await page.keyboard.type("greetgo", { delay: 0 });
+  await page.keyboard.press("Enter");
+  await expect(tree.getByRole("treeitem", { name: "greet.go" })).toHaveAttribute("aria-selected", "true");
 });

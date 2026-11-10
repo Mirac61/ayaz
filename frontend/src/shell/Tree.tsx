@@ -67,6 +67,8 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
   // "/": the project's files matching the text (the same fuzzy search as <Space>ff), shown as a tree. null: off.
   const [filter, setFilter] = useState<string | null>(null);
   const [found, setFound] = useState<string[]>([]);
+  const answered = useRef(""); // the filter text `found` belongs to
+  const early = useRef(false); // Enter came before the answer: go to the first file once it's there
   const input = useRef<HTMLInputElement>(null);
 
   const loaded = useRef(children);
@@ -99,7 +101,14 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
   useEffect(() => {
     if (!filter) return setFound([]);
     let stale = false;
-    files.find(filter, FILTER_LIMIT, false).then((ms) => { if (!stale) setFound(ms.map((m) => m.path)); }, () => {});
+    files.find(filter, FILTER_LIMIT, false).then((ms) => {
+      if (stale) return;
+      const paths = ms.map((m) => m.path);
+      answered.current = filter;
+      setFound(paths);
+      if (early.current) revealing.current = filterRows(paths).find((r) => !r.dir)?.path ?? null;
+      early.current = false;
+    }, () => {});
     return () => { stale = true; };
   }, [filter, files]);
 
@@ -191,6 +200,7 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
     if (e.key === "Escape") setFilter(null);
     else if (e.key !== "Enter" && e.key !== "ArrowDown") return;
     e.preventDefault();
+    early.current = !!filter && answered.current !== filter;
     setCursor(Math.max(rows.findIndex((r) => !r.dir), 0));
     el.current?.focus();
   };
