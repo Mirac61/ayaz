@@ -53,6 +53,17 @@ export function Find(ws: string, query: string, limit: number, ignored: boolean)
 }
 
 /**
+ * GitBranch is the folder's branch, a short SHA when detached, "" outside a repository.
+ */
+export function GitBranch(ws: string): $CancellablePromise<string> {
+    return $Call.ByID(2200203215, ws);
+}
+
+export function GitHead(ws: string, path: string): $CancellablePromise<$models.HeadFile> {
+    return $Call.ByID(1952299173, ws, path);
+}
+
+/**
  * HandleLSP serves one language server per "lsp" stream connection. Frames are bare JSON in both directions;
  * Go adds and strips the Content-Length framing. If the server dies the stream closes and the frontend
  * reconnects (shortcut: no shared server per workspace+language, the frontend opens one stream per pair).

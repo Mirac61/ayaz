@@ -1,9 +1,9 @@
 import { expect, test } from "@playwright/test";
+import { e2eWorkspace } from "../playwright.config";
 import { readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const readme = join(tmpdir(), "ayaz-e2e-ws", "README.md"); // copied by playwright.config.ts
+const readme = join(e2eWorkspace, "README.md");
 
 // Tree → open → vim edit → :w lands on disk; an external change then blocks the next :w.
 test("open, edit, save, and conflict on external change", async ({ page }) => {
@@ -38,7 +38,7 @@ test("open, edit, save, and conflict on external change", async ({ page }) => {
 
 // M3: a file made outside shows up in the tree; a clean buffer follows disk, the cursor stays on its line.
 test("external changes reach tree and clean buffers", async ({ page }) => {
-  const file = join(tmpdir(), "ayaz-e2e-ws", "watched.txt");
+  const file = join(e2eWorkspace, "watched.txt");
   await page.goto("/");
   const tree = page.getByRole("tree", { name: "Files" });
   await expect(tree.getByRole("treeitem", { name: "README.md" })).toBeVisible();

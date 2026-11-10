@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/Mirac61/ayaz/internal/git"
 	"github.com/Mirac61/ayaz/internal/index"
 	"github.com/Mirac61/ayaz/internal/lsp"
 	"github.com/Mirac61/ayaz/internal/pty"
@@ -92,6 +93,7 @@ func (s *WorkspaceService) Open(ctx context.Context, root string) (*Info, error)
 			log.Printf("watch %s: %v", w.Root, err)
 		}
 	}()
+	go git.Watch(wctx, w.Root, func() { s.emit("git:changed", GitChange{WS: w.ID}) })
 	s.bindWindow(ctx, w.ID)
 	return &Info{ID: w.ID, Name: filepath.Base(w.Root), Root: w.Root}, nil
 }
@@ -191,9 +193,45 @@ func (s *WorkspaceService) changed(ws string, b watch.Batch) {
 	delete(s.indexes, indexKey{ws, false})
 	delete(s.indexes, indexKey{ws, true})
 	s.mu.Unlock()
+	s.emit("fs:changed", FsChange{WS: ws, Batch: b})
+}
+
+// GitChange is the "git:changed" event payload: HEAD, the index or the reflog moved (a commit, checkout, stage).
+type GitChange struct {
+	WS string `json:"ws"`
+}
+
+func (s *WorkspaceService) emit(name string, data any) {
 	if a := application.Get(); a != nil {
-		a.Event.Emit("fs:changed", FsChange{WS: ws, Batch: b})
+		a.Event.Emit(name, data)
 	}
+}
+
+// GitBranch is the folder's branch, a short SHA when detached, "" outside a repository.
+func (s *WorkspaceService) GitBranch(ws string) (string, error) {
+	w, err := s.reg.Get(ws)
+	if err != nil {
+		return "", err
+	}
+	return git.Branch(w.Root)
+}
+
+// HeadFile is a file's text at HEAD; Tracked is false for new files and outside a repository.
+type HeadFile struct {
+	Text    string `json:"text"`
+	Tracked bool   `json:"tracked"`
+}
+
+func (s *WorkspaceService) GitHead(ws, path string) (HeadFile, error) {
+	w, err := s.reg.Get(ws)
+	if err != nil {
+		return HeadFile{}, err
+	}
+	if _, err := w.Resolve(path); err != nil {
+		return HeadFile{}, err
+	}
+	text, tracked, err := git.Head(w.Root, path)
+	return HeadFile{Text: text, Tracked: tracked}, err
 }
 
 func (s *WorkspaceService) List(ws, dir string) ([]workspace.Entry, error) {

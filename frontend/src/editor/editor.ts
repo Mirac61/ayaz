@@ -12,6 +12,7 @@ import { kanagawaCM } from "../theme/kanagawa-cm";
 import { extOf, loadLanguage } from "../lang/registry";
 import { mdImages, mdlive } from "./mdlive";
 import { lspExtension } from "./lsp";
+import { gitGutter } from "./gitgutter";
 
 class Num extends GutterMarker {
   constructor(readonly text: string) { super(); }
@@ -38,6 +39,7 @@ export const editorExtensions = (): Extension[] => [
   vim(),
   EditorState.allowMultipleSelections.of(true), // vim's block mode is built on multiple selections
   hybridLineNumbers,
+  gitGutter,
   highlightActiveLineGutter(),
   highlightActiveLine(),
   highlightSpecialChars(),

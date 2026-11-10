@@ -1,12 +1,12 @@
 // The only place that imports generated bindings or the Wails runtime (02-architecture, principle 2).
 import { Application, Browser, Clipboard, Events, Stream, Window } from "@wailsio/runtime";
 import { ConfigService, PingService, WorkspaceService } from "../../bindings/github.com/Mirac61/ayaz/app";
-import type { Info, Match } from "../../bindings/github.com/Mirac61/ayaz/app";
+import type { HeadFile, Info, Match } from "../../bindings/github.com/Mirac61/ayaz/app";
 import type { Entry, TextFile } from "../../bindings/github.com/Mirac61/ayaz/internal/workspace";
 import type { Match as FileMatch } from "../../bindings/github.com/Mirac61/ayaz/internal/index";
 import type { Loc } from "./quickfix";
 
-export type { Entry, FileMatch, Info, Match, TextFile };
+export type { Entry, FileMatch, HeadFile, Info, Match, TextFile };
 
 // A batch of changes on disk. Paths are workspace-relative, files or folders; rescan: events were lost, check everything.
 export interface FsChange { paths: string[] | null; rescan: boolean }
@@ -37,6 +37,8 @@ export interface Backend {
   // Calls fn for changes on disk in workspace ws, also our own saves. Returns the unsubscribe function.
   onFsChanged(ws: string, fn: (c: FsChange) => void): () => void;
   onLspStatus(ws: string, fn: (s: LspStatus) => void): () => void;
+  // HEAD, the index or the reflog of ws's repository moved (commit, checkout, stage); Go polls every second.
+  onGitChanged(ws: string, fn: () => void): () => void;
   openURL(url: string): Promise<void>; // in the system browser
   copy(text: string): Promise<void>; // to the system clipboard
   zoom(level: number): Promise<void>; // this window's page zoom, 1 = 100 %; fails in the server build
@@ -59,6 +61,8 @@ export interface Files {
   rename(from: string, to: string): Promise<void>; // rejects if `to` exists
   trash(path: string): Promise<void>; // to the system trash
   reveal(path: string): Promise<void>; // in Finder / the file manager
+  gitBranch(): Promise<string>; // "" outside a repository, a short SHA when detached
+  gitHead(path: string): Promise<HeadFile>; // the file at HEAD; tracked=false for new files
 }
 
 export const backend: Backend = {
@@ -90,6 +94,10 @@ export const backend: Backend = {
     Events.On("lsp:status", (e: { data: LspStatus }) => {
       if (e.data.ws === ws) fn(e.data);
     }),
+  onGitChanged: (ws, fn) =>
+    Events.On("git:changed", (e: { data: { ws: string } }) => {
+      if (e.data.ws === ws) fn();
+    }),
   files: (ws) => ({
     list: async (dir) => (await WorkspaceService.List(ws, dir)) ?? [],
     readText: (path) => WorkspaceService.ReadText(ws, path),
@@ -99,6 +107,8 @@ export const backend: Backend = {
     rename: (from, to) => WorkspaceService.Rename(ws, from, to),
     trash: (path) => WorkspaceService.Trash(ws, path),
     reveal: (path) => WorkspaceService.Reveal(ws, path),
+    gitBranch: () => WorkspaceService.GitBranch(ws),
+    gitHead: (path) => WorkspaceService.GitHead(ws, path),
     grep(query, opts, onHits) {
       const sock = Stream("search") as WebSocket;
       sock.binaryType = "arraybuffer";

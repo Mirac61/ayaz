@@ -1,4 +1,4 @@
-import { EditorState, Transaction, Annotation } from "@codemirror/state";
+import { EditorState, Transaction, Annotation, Text } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { getCM } from "@replit/codemirror-vim";
 import type { Files } from "../core/backend";
@@ -13,6 +13,7 @@ import "../viewers/pdf";
 import { backend } from "../core/backend";
 import { Jumps, type Spot } from "./jumps";
 import { browsable } from "../editor/mdlive";
+import { setHead } from "../editor/gitgutter";
 
 export interface Status {
   pane: number;
@@ -49,7 +50,7 @@ export class Editors {
   private closed: string[] = []; // closed tabs, last on top (Cmd+Shift+T)
   active = 0;
 
-  constructor(files: Files, root: string, private wsId: string, private onStatus: (s: Status) => void) {
+  constructor(private files: Files, root: string, private wsId: string, private onStatus: (s: Status) => void) {
     this.buffers = new Buffers(files, (path, doc) => createState(path, doc, wsId, root));
     setLspHost(wsId, (path) => this.display(path));
     this.recentKey = `ayaz.recent:${root}`;
@@ -265,6 +266,7 @@ export class Editors {
     }
     const fresh = !this.buffers.get(path);
     const b = await this.buffers.open(path);
+    if (fresh) void this.loadHead(path);
     if (this.panes.get(id)!.viewer) this.replace(id); // back to an editor
     this.show(id, b);
     const at = this.cursors[path], v = this.panes.get(id)!.view!;
@@ -351,7 +353,26 @@ export class Editors {
   // Re-reads the active buffer from disk (`:e!`).
   async reload() {
     const b = this.current();
-    if (b) this.show(this.active, await this.buffers.load(b.path));
+    if (!b) return;
+    this.show(this.active, await this.buffers.load(b.path));
+    void this.loadHead(b.path);
+  }
+
+  // Fetches the file's text at HEAD for the git gutter, without holding up the open. Library files have none.
+  private async loadHead(path: string) {
+    if (path.startsWith("/")) return;
+    const h = await this.files.gitHead(path).catch(() => null);
+    const b = this.buffers.get(path);
+    if (!b) return;
+    const effects = setHead.of(h?.tracked ? Text.of(h.text.split("\n")) : null);
+    const shown = [...this.panes.values()].filter((p) => p.buf === b);
+    for (const p of shown) p.view!.dispatch({ effects }); // dispatch() keeps b.state in step
+    if (!shown.length) b.state = b.state.update({ effects }).state;
+  }
+
+  // HEAD moved (a commit, checkout): every loaded buffer compares against the new HEAD.
+  gitChanged() {
+    for (const b of this.buffers.list()) void this.loadHead(b.path);
   }
 
   // Brings loaded buffers in line with disk after a watcher event (null = check all). Clean buffers reload in place,

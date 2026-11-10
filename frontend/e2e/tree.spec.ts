@@ -1,9 +1,9 @@
 import { expect, test } from "@playwright/test";
+import { e2eWorkspace } from "../playwright.config";
 import { existsSync, readFileSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const ws = join(tmpdir(), "ayaz-e2e-ws"); // copied by playwright.config.ts
+const ws = e2eWorkspace;
 
 // M15: a/r/d in the tree. The trash itself is left out: it would land in the real ~/.Trash.
 test("tree: new file, rename with the open buffer, trash prompt cancels", async ({ page }) => {

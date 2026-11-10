@@ -1,13 +1,20 @@
 import { defineConfig } from "@playwright/test";
+import { execFileSync } from "node:child_process";
 import { cpSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 // The server gets a fresh copy of testdata/e2e-ws, so tests can write to it. Workers load this file too, only the main process copies.
-export const e2eWorkspace = join(tmpdir(), "ayaz-e2e-ws");
+// The copy is committed in a repository one level up: the git gutter has a HEAD, and the tree no .git folder.
+const repo = join(tmpdir(), "ayaz-e2e");
+export const e2eWorkspace = join(repo, "ayaz-e2e-ws");
 if (!process.env.TEST_WORKER_INDEX) {
-  rmSync(e2eWorkspace, { recursive: true, force: true });
+  rmSync(repo, { recursive: true, force: true });
   cpSync("../testdata/e2e-ws", e2eWorkspace, { recursive: true });
+  const git = (...args: string[]) => execFileSync("git", ["-C", repo, ...args]);
+  git("init", "-q", "-b", "main");
+  git("add", ".");
+  git("-c", "user.name=e2e", "-c", "user.email=e2e@ayaz", "commit", "-q", "-m", "e2e");
 }
 
 // E2E against the Wails server build (no native window), in WebKit. Build it first: `task build:server`.

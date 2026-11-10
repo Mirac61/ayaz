@@ -16,6 +16,9 @@
   --insert: #30d158;
   --visual: #bf5af2;
   --error: #ff453a;
+  --git-add: #76946a; /* Kanagawa autumnGreen, crystalBlue, autumnRed as gitsigns uses them */
+  --git-mod: #7e9cd8;
+  --git-del: #c34043;
 
   --font-ui: system-ui, -apple-system, "SF Pro Text", "Helvetica Neue", sans-serif;
   --font-mono: "SF Mono", "FiraCode Nerd Font", "JetBrainsMono Nerd Font", "Symbols Nerd Font", "JetBrains Mono", Menlo, monospace;

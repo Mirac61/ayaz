@@ -46,6 +46,7 @@
 .statusline .msg { flex: 1; min-width: 0; text-align: right; color: var(--fg-4); overflow: hidden; text-overflow: ellipsis; }
 .statusline .msg.error { color: var(--error); }
 .statusline .location { font: 11.5px var(--font-mono); }
+.statusline .branch { font: 11.5px var(--font-mono); color: var(--fg-2); }
 
 /* Empty: a short keyboard list, no illustration */
 .welcome { display: flex; flex-direction: column; height: 100%; }

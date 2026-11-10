@@ -5,7 +5,9 @@ import { defaultKeymap, keyName, mergeKeymap, parseKeys, parseUserKeymap, Sequen
 import { isDirty } from "../core/buffers";
 import { label, Quickfix, replaceEdits, replacement, type Loc } from "../core/quickfix";
 import { Text } from "@codemirror/state";
+import type { EditorView } from "@codemirror/view";
 import { closeLsp, references } from "../editor/lsp";
+import { moveHunk, previewHunk, resetHunk } from "../editor/gitgutter";
 import { installVim } from "../editor/vim/setup";
 import { browsable, resolveLink } from "../editor/mdlive";
 import type { TermOptions } from "../terminal/terminal";
@@ -82,6 +84,7 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
   };
   const [layout, setLayout] = useState<Layout>(session?.layout ?? { pane: 1 });
   const [msg, setMsg] = useState<{ text: string; error?: boolean } | null>(null);
+  const [branch, setBranch] = useState("");
   const [picker, setPicker] = useState<PickerSource | null>(null);
   const [bindings, setBindings] = useState<Binding[] | null>(null);
   const tree = useRef<TreeHandle>(null);
@@ -357,6 +360,12 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
       setMsg({ text: `Zoom ${Math.round(z * 100)} %` });
     };
 
+    // Runs f on the active editor; fails with err when there is none or f finds nothing to do.
+    const onView = (f: (v: EditorView) => boolean, err: string) => {
+      const v = ed.activeView();
+      if (!v || !f(v)) fail(err);
+    };
+
     const keysFor = (id: string) => bindingsRef.current?.find((b) => b.command === id)?.keys;
 
     const off = commands.register(
@@ -610,6 +619,10 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
           setQf("References", await withText(locs));
         },
       },
+      { id: "git.nextHunk", title: "Next git hunk (]c)", run: () => onView((v) => moveHunk(v, 1), "No git changes in this file") },
+      { id: "git.prevHunk", title: "Previous git hunk ([c)", run: () => onView((v) => moveHunk(v, -1), "No git changes in this file") },
+      { id: "git.previewHunk", title: "Preview git hunk", run: () => onView(previewHunk, "No git change on this line") },
+      { id: "git.resetHunk", title: "Reset git hunk", run: () => onView(resetHunk, "No git change on this line") },
       { id: "find.recent", title: "Recent files", run: () => setPicker(filePicker("Recent files", () => ed.recent())) },
       {
         id: "find.buffers",
@@ -664,6 +677,16 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
     const note = await ed.diskChanged(paths);
     if (note) fail(note);
   }), [ed, ws.id]);
+
+  // A commit or checkout (lazygit in the terminal, too): new HEAD for the gutter, maybe a new branch.
+  useEffect(() => {
+    const load = () => void files.gitBranch().then(setBranch, () => setBranch(""));
+    load();
+    return backend.onGitChanged(ws.id, () => {
+      load();
+      ed.gitChanged();
+    });
+  }, [ed, ws.id]);
 
   // The window's close button: refuse while something is unsaved, like :qa.
   useEffect(() => backend.onCloseRequest(() => {
@@ -797,6 +820,7 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
       )}
       <footer className="statusline">
         <span className={`mode ${status.mode}`}>{status.mode.toUpperCase()}</span>
+        {branch && <span className="branch" title="Git branch">{"\ue0a0"} {branch}</span>}
         <span className="file">
           {status.path ?? "[No Name]"}
           {status.dirty && <span className="dirty" title="Modified" />}

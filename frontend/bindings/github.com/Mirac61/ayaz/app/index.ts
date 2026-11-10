@@ -11,6 +11,7 @@ export {
 };
 
 export type {
+    HeadFile,
     Info,
     Match
 } from "./models.js";

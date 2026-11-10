@@ -202,12 +202,16 @@ Done when: all four language groups have diagnostics, completion and navigation.
 
 - Done 2026-11-10: `Cmd+Shift+T` (Linux `Ctrl+Shift+T`) reopens the tab closed last, also the tabs of a closed pane (up to 50). Back/forward per pane across files with the cursor, like a browser: `Cmd+[`/`Cmd+]` and `Ctrl -`/`Ctrl Shift -` on macOS (brackets need Alt on German layouts), `Alt+←`/`Alt+→` on Linux. Every file switch counts (tree, picker, `gd`, quickfix, tabs), a rename does not. Vim's `<C-o>`/`<C-i>` inside a file stay. Node test for the stacks, E2E `nav.spec.ts`.
 
+## M19 – Git in the gutter, branch in the status line (L2, first part)
+
+- Done 2026-11-10: `internal/git` asks the `git` program for the branch (short SHA when detached) and a file's text at HEAD (`HEAD:./path`, so a folder inside a repo works). The watcher skips `.git/`, so Go polls `HEAD`, `index` and `logs/HEAD` once a second and sends `git:changed`; that catches commits from lazygit. The gutter right of the line numbers diffs the buffer against HEAD with `@codemirror/merge`'s `Chunk` (updated per keystroke, no full rediff): green bar added, blue changed, red triangle deleted. `]c`/`[c` jump between hunks (wrapping), `<Space>hp` previews, `<Space>hr` resets (undo works). The status line shows the branch. Node test for the sign mapping, browser test for gutter and keys, Go tests with a temp repo, E2E `git.spec.ts` (the e2e copy now sits in a repo one level up). **Still open:** in the app, a commit and `git checkout` from lazygit; diff view and tree colors (rest of L2).
+
 ## Later
 
 | | What | Plugs into |
 |---|---|---|
 | L1 Tasks/build | run commands by key (`go test`, `make`, `pio run`), output in the terminal, errors in quickfix | `pty` + `quickfix` |
-| L2 Git | changes in the gutter, status in the tree, diff view | `git` process, CM6 gutter |
+| L2 Git | ~~changes in the gutter~~ (M19), status in the tree, diff view | `git` process, CM6 gutter |
 | L3 Debugger | DAP, breakpoints, variables (Delve first) | same pattern as LSP |
 | L4 Shell integration | `EDITOR=ayaz open` from the terminal (e.g. `sf` in mysh opens a buffer), OSC 7 for the current directory (mysh extension) | `pty` + single instance/CLI |
 
