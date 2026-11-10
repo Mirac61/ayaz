@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { e2eConfig } from "../playwright.config";
+import { execSync } from "node:child_process";
 import { rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -34,4 +35,23 @@ test("settings.json and keymap.json apply when saved", async ({ page }) => {
 
   rmSync(join(e2eConfig, "settings.json"));
   rmSync(join(e2eConfig, "keymap.json"));
+});
+
+const hasGopls = (() => { try { execSync("command -v gopls", { shell: "/bin/sh" }); return true; } catch { return false; } })();
+
+// M43: "inlayHints": true shows gopls' parameter names, saving it off again hides them.
+test("inlay hints follow settings.json", async ({ page }) => {
+  test.skip(!hasGopls, "gopls not in PATH");
+  test.setTimeout(60_000);
+  await page.goto("/");
+  await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: "hello.go" }).click();
+  await expect(page.locator(".cm-content")).toContainText("Println");
+  const hints = page.locator(".cm-inlay-hint");
+  await page.waitForTimeout(500);
+  await expect(hints).toHaveCount(0);
+  writeFileSync(join(e2eConfig, "settings.json"), JSON.stringify({ inlayHints: true }));
+  await expect(hints.first()).toBeVisible({ timeout: 30_000 });
+  writeFileSync(join(e2eConfig, "settings.json"), JSON.stringify({ inlayHints: false }));
+  await expect(hints).toHaveCount(0);
+  rmSync(join(e2eConfig, "settings.json"));
 });

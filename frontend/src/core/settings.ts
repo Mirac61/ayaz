@@ -1,6 +1,6 @@
 import { extOf } from "../lang/registry";
 
-// settings.json next to keymap.json. Read once at start, so changes need a restart (like the keymap).
+// settings.json next to keymap.json. Read at start and again whenever it is saved (like the keymap).
 // "languages" is keyed by file extension ("go", "md", "ts") and overrides the global values for those files:
 //   { "font": "JetBrains Mono", "fontSize": 14, "tabWidth": 4, "languages": { "ts": { "tabWidth": 2 } } }
 
@@ -14,12 +14,14 @@ export interface FileSettings {
 export interface Settings extends FileSettings {
   font: string; // put in front of the built-in monospace fonts, which stay as fallbacks (Nerd Font glyphs)
   fontSize: number; // editor and terminal, in px
+  inlayHints: boolean; // parameter names and types from the language server, inline
   languages: Record<string, Partial<FileSettings>>;
 }
 
 export const DEFAULTS: Settings = {
   font: "",
   fontSize: 13,
+  inlayHints: false,
   tabWidth: 4,
   tabs: false,
   wrap: false,
@@ -49,8 +51,9 @@ export function parseSettings(json: string): Settings {
     throw new Error(`settings.json: ${e instanceof Error ? e.message : e}`);
   }
   if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("settings.json: expected an object");
-  const { font, fontSize, languages, ...file } = data as Record<string, unknown>;
+  const { font, fontSize, inlayHints, languages, ...file } = data as Record<string, unknown>;
   if (font !== undefined && typeof font !== "string") throw new Error('settings.json: "font" must be a string');
+  if (inlayHints !== undefined && typeof inlayHints !== "boolean") throw new Error('settings.json: "inlayHints" must be a boolean');
   if (fontSize !== undefined && !(typeof fontSize === "number" && fontSize >= 6 && fontSize <= 48)) {
     throw new Error('settings.json: "fontSize" must be a number from 6 to 48');
   }
@@ -66,7 +69,8 @@ export function parseSettings(json: string): Settings {
   }
   return {
     ...DEFAULTS, ...(file as Partial<FileSettings>),
-    ...(font !== undefined && { font }), ...(fontSize !== undefined && { fontSize }), languages: langs,
+    ...(font !== undefined && { font }), ...(fontSize !== undefined && { fontSize }),
+    ...(inlayHints !== undefined && { inlayHints }), languages: langs,
   };
 }
 

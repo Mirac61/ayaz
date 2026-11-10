@@ -49,6 +49,20 @@ describe("streamTransport", () => {
     expect(JSON.parse(sent[0])).toEqual({ jsonrpc: "2.0", id: 7, result: { applied: true } });
   });
 
+  test("workspace/configuration: gopls gets its hint settings, other sections null", () => {
+    const { sock, sent } = fakeSocket(1);
+    const t = streamTransport(sock, {}, () => {});
+    const got: string[] = [];
+    t.subscribe((m) => got.push(m));
+    const params = { items: [{ section: "gopls" }, { section: "other" }] };
+    sock.onmessage({ data: JSON.stringify({ jsonrpc: "2.0", id: 3, method: "workspace/configuration", params }) });
+    expect(got).toEqual([]);
+    const reply = JSON.parse(sent[0]);
+    expect(reply.id).toBe(3);
+    expect(reply.result[0].hints.parameterNames).toBe(true);
+    expect(reply.result[1]).toBeNull();
+  });
+
   test("send on a closed stream throws, close is reported", () => {
     const { sock } = fakeSocket(3);
     let closed = 0;

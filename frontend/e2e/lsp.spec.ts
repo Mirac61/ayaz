@@ -116,3 +116,18 @@ test("hover, rename across files, code actions", async ({ page }) => {
   await expect(page.getByRole("dialog", { name: /Code actions/ }).getByRole("option").first()).toBeVisible();
   await page.keyboard.press("Escape");
 });
+
+// M43: typing a call shows the signature (lsp-client's signatureHelp, also in Vim's insert mode).
+test("signature help while typing a call", async ({ page }) => {
+  test.skip(!hasGopls, "gopls not in PATH");
+  await page.goto("/");
+  await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: "hello.go" }).click();
+  await expect(page.locator(".cm-content")).toContainText("Println");
+  await page.locator(".cm-content").click();
+  await expect(page.locator(".statusline")).not.toContainText("still starting", { timeout: 30_000 });
+  await page.keyboard.type("gg5jo");
+  await page.keyboard.type("fmt.Printf(");
+  await expect(page.locator(".cm-lsp-signature-tooltip")).toContainText("format string", { timeout: 30_000 });
+  await page.keyboard.press("Escape");
+  await page.keyboard.type("u");
+});

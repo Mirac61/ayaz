@@ -11,6 +11,7 @@ import { backend } from "../core/backend";
 import { extOf } from "../lang/registry";
 import type { Loc } from "../core/quickfix";
 import { diagnosticsFor, dropDiagnostics, type Published } from "./diagnostics";
+import { inlayHints } from "./inlay";
 import { isMac } from "../core/keymap";
 import { fileSettings } from "../core/settings";
 
@@ -36,8 +37,25 @@ export const fileUri = (root: string, path = "") =>
 type Stream = Pick<WebSocket, "readyState" | "send" | "close" | "onopen" | "onmessage" | "onclose" | "onerror" | "binaryType">;
 
 // Messages sent before the stream is open wait in a queue; the first frame is {ws, lang}.
+// What servers are told about themselves: the inlay hints they leave off by default (shown only with
+// "inlayHints" in settings.json). gopls asks through workspace/configuration, TypeScript gets didChangeConfiguration.
+const GOPLS = {
+  hints: {
+    assignVariableTypes: true, compositeLiteralFields: true, constantValues: true,
+    functionTypeParameters: true, parameterNames: true, rangeVariableTypes: true,
+  },
+};
+const TS_HINTS = {
+  inlayHints: {
+    includeInlayParameterNameHints: "all", includeInlayFunctionParameterTypeHints: true, includeInlayVariableTypeHints: true,
+    includeInlayPropertyDeclarationTypeHints: true, includeInlayFunctionLikeReturnTypeHints: true,
+    includeInlayEnumMemberValueHints: true,
+  },
+};
+const SERVER_SETTINGS = { typescript: TS_HINTS, javascript: TS_HINTS };
+
 // lsp-client answers every server request with "not implemented", so workspace/applyEdit (sent by commands of
-// code actions) is answered here; apply resolves to whether the edit was made.
+// code actions) and workspace/configuration are answered here; apply resolves to whether the edit was made.
 export function streamTransport(
   sock: Stream, hello: object, onClose: () => void, apply: (e: WorkspaceEdit) => Promise<boolean> = async () => false,
 ): Transport {
@@ -50,10 +68,13 @@ export function streamTransport(
   };
   sock.onmessage = (ev) => {
     const text = typeof ev.data === "string" ? ev.data : dec.decode(ev.data as ArrayBuffer);
-    const req = text.includes('"workspace/applyEdit"') ? JSON.parse(text) : null;
+    const req = text.includes('"workspace/applyEdit"') || text.includes('"workspace/configuration"') ? JSON.parse(text) : null;
+    const reply = (result: unknown) => sock.send(enc.encode(JSON.stringify({ jsonrpc: "2.0", id: req.id, result })));
     if (req?.method === "workspace/applyEdit" && req.id !== undefined) {
-      const reply = (applied: boolean) => sock.send(enc.encode(JSON.stringify({ jsonrpc: "2.0", id: req.id, result: { applied } })));
-      return void apply(req.params.edit).then(reply, () => reply(false));
+      return void apply(req.params.edit).then((applied) => reply({ applied }), () => reply({ applied: false }));
+    }
+    if (req?.method === "workspace/configuration" && req.id !== undefined) {
+      return void reply(req.params.items.map((i: { section?: string }) => (i.section === "gopls" ? GOPLS : null)));
     }
     handlers.forEach((h) => h(text));
   };
@@ -376,8 +397,9 @@ export const diagnosticHandlers = (ws: string, server = "") => ({
 
 // Code actions as literals (title + edit), and server commands may send edits back (workspace/applyEdit).
 const CAPABILITIES = {
-  workspace: { applyEdit: true, workspaceEdit: { documentChanges: true } },
+  workspace: { applyEdit: true, workspaceEdit: { documentChanges: true }, configuration: true },
   textDocument: {
+    inlayHint: {},
     codeAction: {
       codeActionLiteralSupport: {
         codeActionKind: { valueSet: ["", "quickfix", "refactor", "refactor.extract", "refactor.inline", "refactor.rewrite", "source", "source.organizeImports"] },
@@ -410,7 +432,10 @@ function clientFor(ws: string, root: string, server: string): LSPClient {
       setTimeout(connect, Math.min(30_000, 500 * 2 ** failures)); // backoff: 1 s, 2 s, 4 s ...
     }, async (e) => (await hosts.get(ws)?.apply(e)) ?? false);
     c.connect(transport);
-    c.initializing.then(() => (failures = 0), () => {});
+    c.initializing.then(() => {
+      failures = 0;
+      c.notification("workspace/didChangeConfiguration", { settings: SERVER_SETTINGS });
+    }, () => {});
   };
   connect();
   return client;
@@ -434,5 +459,6 @@ export function closeLsp(ws: string) {
 export function lspExtension(ws: string, root: string, path: string): Extension {
   const s = serverFor(path);
   if (!s) return [];
-  return [clientFor(ws, root, s[1]).plugin(path.startsWith("/") ? fileUri(path) : fileUri(root, path), s[0]), hoverField, hoverEsc];
+  const uri = path.startsWith("/") ? fileUri(path) : fileUri(root, path);
+  return [clientFor(ws, root, s[1]).plugin(uri, s[0]), hoverField, hoverEsc, inlayHints];
 }

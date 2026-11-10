@@ -34,3 +34,9 @@ test("mistakes are named", () => {
 test("a syntax error names the file", () => {
   expect(() => parseSettings("{ broken")).toThrow(/^settings\.json: /);
 });
+
+test("inlayHints: off by default, a boolean", () => {
+  expect(DEFAULTS.inlayHints).toBe(false);
+  expect(parseSettings('{"inlayHints": true}').inlayHints).toBe(true);
+  expect(() => parseSettings('{"inlayHints": 1}')).toThrow(/"inlayHints" must be a boolean/);
+});
