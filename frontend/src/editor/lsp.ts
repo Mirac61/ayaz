@@ -171,20 +171,53 @@ export class Files extends Workspace {
   }
 }
 
+interface LspRange { start: { line: number; character: number }; end: { line: number; character: number } }
+
+// A quickfix location without its text (the caller fills it in); null for a URI that isn't a file.
+function toLoc(root: string, uri: string, range: LspRange): Loc | null {
+  const path = uriPath(root, uri);
+  const { start, end } = range;
+  if (path === null) return null;
+  const len = end.line === start.line ? end.character - start.character : 0;
+  return { path, line: start.line + 1, col: start.character, len, text: "" };
+}
+
+const present = (l: Loc | null): l is Loc => l !== null;
+
 // References to the symbol at the cursor, as quickfix locations without text (the caller fills it in). null: no server.
 export async function references(view: EditorView, root: string): Promise<Loc[] | null> {
   const plugin = LSPPlugin.get(view);
   if (!plugin?.client.connected) return null;
   plugin.client.sync();
-  const res = await plugin.client.request<any, { uri: string; range: { start: { line: number; character: number }; end: { line: number; character: number } } }[] | null>(
+  const res = await plugin.client.request<any, { uri: string; range: LspRange }[] | null>(
     "textDocument/references",
     { textDocument: { uri: plugin.uri }, position: plugin.toPosition(view.state.selection.main.head), context: { includeDeclaration: true } },
   );
-  return (res ?? []).flatMap((r) => {
-    const path = uriPath(root, r.uri);
-    const { start, end } = r.range;
-    return path === null ? [] : [{ path, line: start.line + 1, col: start.character, len: end.line === start.line ? end.character - start.character : 0, text: "" }];
+  return (res ?? []).map((r) => toLoc(root, r.uri, r.range)).filter(present);
+}
+
+interface CallItem { name: string; uri: string; range: LspRange; selectionRange: LspRange }
+
+// The callers (where they call it) or the callees (where they are defined) of the function at the cursor, as quickfix
+// locations without text. null: no server; throws if the server has no call hierarchy.
+export async function callHierarchy(view: EditorView, root: string, dir: "incoming" | "outgoing"): Promise<Loc[] | null> {
+  const plugin = LSPPlugin.get(view);
+  if (!plugin?.client.connected) return null;
+  const { client } = plugin;
+  if (!client.serverCapabilities?.callHierarchyProvider) throw new Error("This language server has no call hierarchy");
+  client.sync();
+  const items = await client.request<object, CallItem[] | null>("textDocument/prepareCallHierarchy", {
+    textDocument: { uri: plugin.uri }, position: plugin.toPosition(view.state.selection.main.head),
   });
+  if (!items?.length) return [];
+  if (dir === "incoming") {
+    const calls = await client.request<object, { from: CallItem; fromRanges: LspRange[] }[] | null>(
+      "callHierarchy/incomingCalls", { item: items[0] },
+    );
+    return (calls ?? []).flatMap((c) => c.fromRanges.map((r) => toLoc(root, c.from.uri, r))).filter(present);
+  }
+  const calls = await client.request<object, { to: CallItem }[] | null>("callHierarchy/outgoingCalls", { item: items[0] });
+  return (calls ?? []).map((c) => toLoc(root, c.to.uri, c.to.selectionRange)).filter(present);
 }
 
 // A symbol from documentSymbol or workspace/symbol, as a place to jump to (path as uriPath gives it).
@@ -448,6 +481,7 @@ export const CAPABILITIES = {
     semanticTokens: SEMANTIC_CAPABILITY,
     selectionRange: {},
     documentHighlight: {},
+    callHierarchy: {},
     codeAction: {
       dataSupport: true,
       resolveSupport: { properties: ["edit"] },

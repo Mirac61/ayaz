@@ -6,8 +6,8 @@ import type { Command } from "../../core/commands";
 import type { Loc } from "../../core/quickfix";
 import { diagnosticsFor } from "../../editor/diagnostics";
 import {
-  codeActions, documentSymbols, hasLsp, noServer, references, renameAt, resolveAction, runCommand, showHover, uriPath,
-  workspaceSymbols, type CodeAction, type Sym,
+  callHierarchy, codeActions, documentSymbols, hasLsp, noServer, references, renameAt, resolveAction, runCommand, showHover,
+  uriPath, workspaceSymbols, type CodeAction, type Sym,
 } from "../../editor/lsp";
 import { symbolIcon } from "../../theme/icons";
 import type { Item, PickerSource } from "../Picker";
@@ -50,6 +50,15 @@ export function lspCommands(c: Ctx, q: QuickfixTools): Command[] {
     };
   };
 
+  const calls = async (dir: "incoming" | "outgoing") => {
+    const v = ed.activeView();
+    const locs = v && (await callHierarchy(v, ws.root, dir).catch((e) => void fail(errText(e))));
+    if (locs === undefined) return; // failed, already said
+    if (locs === null) return fail(noServer(ws.id, ed.current()?.path));
+    if (!locs.length) return say(`No ${dir} calls`);
+    q.set(dir === "incoming" ? "Incoming calls" : "Outgoing calls", await q.withText(locs));
+  };
+
   return [
     {
       id: "lsp.references",
@@ -60,6 +69,16 @@ export function lspCommands(c: Ctx, q: QuickfixTools): Command[] {
         if (!locs) return fail(noServer(ws.id, ed.current()?.path));
         q.set("References", await q.withText(locs));
       },
+    },
+    {
+      id: "lsp.incomingCalls",
+      title: "Incoming calls (callers of the function)",
+      run: () => calls("incoming"),
+    },
+    {
+      id: "lsp.outgoingCalls",
+      title: "Outgoing calls (functions it calls)",
+      run: () => calls("outgoing"),
     },
     {
       id: "lsp.hover",

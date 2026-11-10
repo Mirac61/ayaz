@@ -183,3 +183,32 @@ test("+ grows the selection with the server's selection ranges", async ({ page }
   await expect(page.locator(".cm-content")).not.toContainText("fmt.Println", { timeout: 10_000 });
   await expect(page.locator(".cm-content")).toContainText('("hi")');
 });
+
+// M58: <Space>co lists what hello calls (fmt.Println, in the standard library); <Space>ci says nobody calls hello.
+test("call hierarchy fills the quickfix list", async ({ page }) => {
+  test.skip(!hasGopls, "gopls not in PATH");
+  await page.goto("/");
+  await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: "hello.go" }).click();
+  await expect(page.locator(".cm-content")).toContainText("func hello");
+  await page.locator(".cm-content").click();
+  await page.keyboard.type("gg4jw"); // line 5: func hello
+  const status = page.locator(".statusline");
+  await expect(async () => {
+    await page.keyboard.type(" co");
+    await expect(status).toContainText("(1 of 1)", { timeout: 2000 });
+  }).toPass({ timeout: 30_000 });
+  await expect(status).toContainText("Println");
+});
+
+test("call hierarchy: nobody calls hello", async ({ page }) => {
+  test.skip(!hasGopls, "gopls not in PATH");
+  await page.goto("/");
+  await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: "hello.go" }).click();
+  await expect(page.locator(".cm-content")).toContainText("func hello");
+  await page.locator(".cm-content").click();
+  await page.keyboard.type("gg4jw");
+  await expect(async () => {
+    await page.keyboard.type(" ci");
+    await expect(page.locator(".statusline")).toContainText("No incoming calls", { timeout: 2000 });
+  }).toPass({ timeout: 30_000 });
+});

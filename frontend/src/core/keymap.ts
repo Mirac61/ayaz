@@ -39,6 +39,8 @@ export function defaultKeymap(mac = isMac): Binding[] {
     n("<Space>rl", "task.last"),
     n("<Space>cr", "lsp.rename"),
     n("<Space>ca", "lsp.codeAction"),
+    n("<Space>ci", "lsp.incomingCalls"),
+    n("<Space>co", "lsp.outgoingCalls"),
     n("]d", "lsp.nextDiagnostic"),
     n("[d", "lsp.prevDiagnostic"),
     n("]q", "qf.next"),

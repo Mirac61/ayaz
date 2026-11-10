@@ -25,7 +25,12 @@ export const LIMIT = 50;
 export const SHOWN = 500; // project search hits listed in the picker; <C-q> takes all of them
 
 // Wails rejects with an Error whose message is Go's error string.
-export const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
+// A language server's error arrives as a plain {code, message} object, not an Error.
+export const errText = (e: unknown) => {
+  if (e instanceof Error) return e.message;
+  const message = (e as { message?: unknown } | null)?.message;
+  return typeof message === "string" ? message : String(e);
+};
 
 // ":e! foo" → { force: true, rest: "foo" }
 export const bang = (arg = "") => {

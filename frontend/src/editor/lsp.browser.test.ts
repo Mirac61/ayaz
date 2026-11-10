@@ -4,7 +4,7 @@ import { EditorView } from "@codemirror/view";
 import { LSPClient, languageServerExtensions, type Transport } from "@codemirror/lsp-client";
 import { editorExtensions } from "./editor";
 import {
-  CAPABILITIES, Files, diagnosticHandlers, documentSymbols, formatBeforeSave, resolveAction, workspaceSymbols,
+  CAPABILITIES, Files, callHierarchy, diagnosticHandlers, documentSymbols, formatBeforeSave, resolveAction, workspaceSymbols,
 } from "./lsp";
 import { diagnosticsFor } from "./diagnostics";
 import { semanticTokens } from "./semantic";
@@ -317,4 +317,51 @@ test("occurrences of the symbol under the cursor get marked after a rest and cle
   view.dispatch({ selection: { anchor: 1 }, changes: { from: 7, insert: " " } });
   await new Promise((r) => setTimeout(r, 100));
   expect(asked).toBe(1); // nothing is asked per key
+});
+
+// A server with a call hierarchy: `run` is called from two places in b.go and calls `helper` in c.go.
+test("call hierarchy gives the call sites of the callers and the definitions of the callees", async () => {
+  const handlers = new Set<(m: string) => void>();
+  const reply = (o: object) => queueMicrotask(() => handlers.forEach((h) => h(JSON.stringify({ jsonrpc: "2.0", ...o }))));
+  const at = (line: number, c: number, len = 3) => ({ start: { line, character: c }, end: { line, character: c + len } });
+  const item = (name: string, uri: string) => ({ name, uri, range: at(0, 0, 10), selectionRange: at(4, 5) });
+  const transport: Transport = {
+    send(raw) {
+      const m = JSON.parse(raw);
+      if (m.method === "initialize") {
+        reply({ id: m.id, result: { capabilities: { textDocumentSync: 1, callHierarchyProvider: true } } });
+      } else if (m.method === "textDocument/prepareCallHierarchy") {
+        reply({ id: m.id, result: [item("run", "file:///r/a.go")] });
+      } else if (m.method === "callHierarchy/incomingCalls") {
+        reply({ id: m.id, result: [{ from: item("main", "file:///r/b.go"), fromRanges: [at(7, 1), at(9, 1)] }] });
+      } else if (m.method === "callHierarchy/outgoingCalls") {
+        reply({ id: m.id, result: [{ to: item("helper", "file:///r/c.go"), fromRanges: [at(1, 1)] }] });
+      }
+    },
+    subscribe: (h) => void handlers.add(h),
+    unsubscribe: (h) => void handlers.delete(h),
+  };
+  const client = new LSPClient({ rootUri: "file:///r", extensions: [{ clientCapabilities: CAPABILITIES }] }).connect(transport);
+  await client.initializing;
+  const el = document.createElement("div");
+  document.body.append(el);
+  view = new EditorView({
+    parent: el,
+    state: EditorState.create({ doc: "func run() {}", extensions: [editorExtensions(), client.plugin("file:///r/a.go", "go")] }),
+  });
+  const pos = (l: { path: string; line: number; col: number }) => `${l.path}:${l.line}:${l.col}`;
+  expect((await callHierarchy(view, "/r", "incoming"))!.map(pos)).toEqual(["b.go:8:1", "b.go:10:1"]);
+  expect((await callHierarchy(view, "/r", "outgoing"))!.map(pos)).toEqual(["c.go:5:5"]);
+});
+
+test("a server without call hierarchy says so", async () => {
+  const client = new LSPClient({ rootUri: "file:///r", extensions: languageServerExtensions() }).connect(fakeServer());
+  await client.initializing;
+  const el = document.createElement("div");
+  document.body.append(el);
+  view = new EditorView({
+    parent: el,
+    state: EditorState.create({ doc: "bad word", extensions: [editorExtensions(), client.plugin("file:///r/a.go", "go")] }),
+  });
+  await expect(callHierarchy(view, "/r", "incoming")).rejects.toThrow("no call hierarchy");
 });

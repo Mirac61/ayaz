@@ -290,6 +290,10 @@ Done when: all four language groups have diagnostics, completion and navigation.
 
 - Done 2026-11-10: the functions, methods and classes whose first line has scrolled out of view stay on top of the editor as a panel (outermost first, at most 3 rows, signature without the opening brace); a click jumps to the definition. `"stickyScroll": false` in `settings.json` turns it off. Node tests (scopes around a position, anonymous functions left out, header text), browser tests (shows, follows into the next function, vanishes at the top, click jumps). **Ruling:** the scopes come from the Lezer tree, not from `textDocument/documentSymbol` as the plan said: the tree answers synchronously on every scroll frame, a server round trip per scroll could not, and for the four grammars with node tables the names are the same. **Still open:** grammars without a table (JSON, HTML, CSS, Markdown) get no rows; no breadcrumb path in the status line; rows aren't cut to the pane width on very long signatures except by ellipsis.
 
+## M58 – Call hierarchy
+
+- Done 2026-11-10: `<Space>ci` fills the quickfix list with the call sites of the function's callers (`callHierarchy/incomingCalls`), `<Space>co` with the definitions of the functions it calls (`outgoingCalls`), both in the command picker too. A server without `callHierarchyProvider` says so; no result says "No incoming calls". The server's errors now show their message in the status line (they arrive as `{code, message}` objects and showed as "[object Object]"). Browser tests with a fake server (both directions, no provider), E2E with gopls (`hello` calls `fmt.Println` in the standard library; nobody calls `hello`). **Ruling:** the plan's M62 also names `<Space>co` (ours); M62 will take `<Space>m`-keys for conflicts instead. **Still open:** only the first item of `prepareCallHierarchy` is used; no tree view of deeper levels (run it again from a quickfix entry); outgoing lists each callee once, not each call site.
+
 ## Later
 
 | | What | Plugs into |
