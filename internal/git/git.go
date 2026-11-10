@@ -82,3 +82,50 @@ func Watch(ctx context.Context, root string, fn func()) {
 		}
 	}
 }
+
+// Status is the working tree's state per path below root, relative to root with "/": "M" changed (staged or not),
+// "A" added, "?" untracked, "!" ignored, "U" conflict. A folder that is untracked or ignored as a whole comes as
+// one entry without the trailing "/". Deleted files are left out (the tree can't show them). Empty outside a repository.
+func Status(root string) (map[string]string, error) {
+	out, ok, err := run(root, "rev-parse", "--show-prefix")
+	if !ok {
+		return map[string]string{}, err
+	}
+	prefix := strings.TrimSpace(string(out))
+	out, ok, err = run(root, "status", "--porcelain=v1", "-z", "--ignored=matching", "--untracked-files=normal", "--", ".")
+	if !ok {
+		return map[string]string{}, err
+	}
+	st := map[string]string{}
+	fields := strings.Split(string(out), "\x00")
+	for i := 0; i < len(fields); i++ {
+		f := fields[i]
+		if len(f) < 4 {
+			continue
+		}
+		x, y, path := f[0], f[1], f[3:]
+		if x == 'R' || x == 'C' {
+			i++ // the next field is the old path
+		}
+		// Porcelain paths are relative to the repository, whatever -C says.
+		rel, inside := strings.CutPrefix(strings.TrimSuffix(path, "/"), prefix)
+		if !inside || rel == "" {
+			continue
+		}
+		switch {
+		case x == '!':
+			st[rel] = "!"
+		case x == '?':
+			st[rel] = "?"
+		case x == 'U' || y == 'U' || (x == 'A' && y == 'A') || (x == 'D' && y == 'D'):
+			st[rel] = "U"
+		case y == 'D' || (x == 'D' && y == ' '):
+			// deleted: not in the tree
+		case x == 'A' || x == 'R' || x == 'C':
+			st[rel] = "A"
+		default:
+			st[rel] = "M"
+		}
+	}
+	return st, nil
+}

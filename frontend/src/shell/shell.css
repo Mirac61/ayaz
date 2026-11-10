@@ -35,6 +35,10 @@
 .tree:focus .tree-row.cursor { background: var(--bg-3); }
 .tree-chevron { width: 10px; flex: none; color: var(--fg-3); font: 10px var(--font-mono); }
 .tree-name { overflow: hidden; text-overflow: ellipsis; }
+.tree-name.git-mod { color: var(--git-mod); }
+.tree-name.git-add { color: var(--git-add); }
+.tree-name.git-conflict { color: var(--git-del); }
+.tree-row:has(.git-ignored) { opacity: 0.45; }
 
 /* Status: the mode pill is the only colored surface of the UI */
 .statusline { grid-column: 1 / -1; display: flex; align-items: center; gap: 16px; padding: 0 12px; font-size: 12px; line-height: 16px; color: var(--fg-3); white-space: nowrap; overflow: hidden; }

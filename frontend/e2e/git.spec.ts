@@ -38,3 +38,16 @@ test("git gutter, hunk keys, branch and a commit from outside", async ({ page })
   commit(file);
   await expect(page.locator(".cm-git-add")).toHaveCount(0, { timeout: 5000 });
 });
+
+// M29: the tree colors new and changed files and follows a commit from outside.
+test("git status colors the tree", async ({ page }) => {
+  const file = "gittree.txt";
+  writeFileSync(join(e2eWorkspace, file), "one\n");
+  await page.goto("/");
+  const name = page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: file }).locator(".tree-name");
+  await expect(name).toHaveClass(/git-add/);
+  commit(file);
+  await expect(name).not.toHaveClass(/git-/, { timeout: 5000 }); // Go polls the index once a second
+  writeFileSync(join(e2eWorkspace, file), "two\n");
+  await expect(name).toHaveClass(/git-mod/);
+});

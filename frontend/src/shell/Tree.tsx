@@ -20,14 +20,17 @@ interface Props {
   onOpen(path: string): void;
   onLeave(): void; // Esc: back to the editor
   onCommand(id: string): void; // file keys: a new, r rename, d trash, y/Y copy path, s reveal in Finder
+  git(path: string): string | undefined; // git state for the name's color (gitstatus.ts)
 }
+
+const GIT_CLASS: Record<string, string> = { M: " git-mod", A: " git-add", "?": " git-add", U: " git-conflict", "!": " git-ignored" };
 
 const KEYS: Record<string, string> = {
   a: "file.new", r: "file.rename", d: "file.trash", y: "file.copyPath", Y: "file.copyAbsPath", s: "file.reveal",
 };
 
 // Virtualized file tree: folders load when first expanded, only the visible rows are in the DOM.
-export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen, onLeave, onCommand }, ref) {
+export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen, onLeave, onCommand, git }, ref) {
   const [children, setChildren] = useState(new Map<string, Entry[]>());
   const [expanded, setExpanded] = useState(new Set<string>());
   const [cursor, setCursor] = useState(0);
@@ -156,6 +159,7 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
       <div style={{ height: rows.length * ROW, position: "relative" }}>
         {visible.map((r, k) => {
           const i = first + k;
+          const name = (r.dir ? "tree-name dir" : "tree-name") + (GIT_CLASS[git(r.path) ?? ""] ?? "");
           return (
             <div
               key={r.path}
@@ -168,7 +172,7 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
             >
               <span className="tree-chevron" aria-hidden>{r.dir ? (expanded.has(r.path) ? "\uf47c" : "\uf460") : ""}</span>
               <Glyph icon={r.dir ? folderIcon(expanded.has(r.path)) : fileIcon(r.name)} />
-              <span className={r.dir ? "tree-name dir" : "tree-name"}>{r.name}</span>
+              <span className={name}>{r.name}</span>
             </div>
           );
         })}

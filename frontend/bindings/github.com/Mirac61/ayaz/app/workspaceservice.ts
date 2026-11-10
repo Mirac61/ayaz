@@ -64,6 +64,13 @@ export function GitHead(ws: string, path: string): $CancellablePromise<$models.H
 }
 
 /**
+ * GitStatus is each changed, untracked or ignored path's state for the tree (see git.Status).
+ */
+export function GitStatus(ws: string): $CancellablePromise<{ [_ in string]?: string } | null> {
+    return $Call.ByID(997429033, ws);
+}
+
+/**
  * HandleLSP serves one language server per "lsp" stream connection. Frames are bare JSON in both directions;
  * Go adds and strips the Content-Length framing. If the server dies the stream closes and the frontend
  * reconnects (shortcut: no shared server per workspace+language, the frontend opens one stream per pair).

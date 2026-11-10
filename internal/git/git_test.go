@@ -94,3 +94,44 @@ func TestWatch(t *testing.T) {
 		t.Fatal("no change seen after a commit")
 	}
 }
+
+func TestStatus(t *testing.T) {
+	root := repo(t)
+	write(t, filepath.Join(root, "gone.txt"), "g\n")
+	gitIn(t, root, "add", "gone.txt")
+	gitIn(t, root, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "gone")
+	write(t, filepath.Join(root, ".gitignore"), "build/\n*.log\n")
+	write(t, filepath.Join(root, "a.txt"), "changed\n")
+	write(t, filepath.Join(root, "sub", "new.txt"), "n\n")
+	write(t, filepath.Join(root, "staged.txt"), "s\n")
+	gitIn(t, root, "add", "staged.txt")
+	write(t, filepath.Join(root, "build", "out.bin"), "x")
+	write(t, filepath.Join(root, "sub", "x.log"), "x")
+	write(t, filepath.Join(root, "fresh", "f.txt"), "f\n")
+	gitIn(t, root, "rm", "-q", "gone.txt")
+
+	st, err := Status(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{
+		"a.txt": "M", "sub/new.txt": "?", "staged.txt": "A", "build": "!", "sub/x.log": "!", "fresh": "?", ".gitignore": "?",
+	}
+	if len(st) != len(want) {
+		t.Errorf("Status = %v, want %v", st, want)
+	}
+	for p, c := range want {
+		if st[p] != c {
+			t.Errorf("Status[%q] = %q, want %q", p, st[p], c)
+		}
+	}
+
+	// A subfolder as the workspace: paths relative to it, nothing from outside.
+	sub, _ := Status(filepath.Join(root, "sub"))
+	if len(sub) != 2 || sub["new.txt"] != "?" || sub["x.log"] != "!" {
+		t.Errorf("Status(sub) = %v", sub)
+	}
+	if st, err := Status(t.TempDir()); err != nil || len(st) != 0 {
+		t.Errorf("Status outside a repo = %v, %v", st, err)
+	}
+}

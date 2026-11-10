@@ -64,6 +64,7 @@ export interface Files {
   reveal(path: string): Promise<void>; // in Finder / the file manager
   gitBranch(): Promise<string>; // "" outside a repository, a short SHA when detached
   gitHead(path: string): Promise<HeadFile>; // the file at HEAD; tracked=false for new files
+  gitStatus(): Promise<Record<string, string>>; // changed, untracked and ignored paths: M A ? ! U (empty outside a repo)
 }
 
 export const backend: Backend = {
@@ -111,6 +112,7 @@ export const backend: Backend = {
     reveal: (path) => WorkspaceService.Reveal(ws, path),
     gitBranch: () => WorkspaceService.GitBranch(ws),
     gitHead: (path) => WorkspaceService.GitHead(ws, path),
+    gitStatus: async () => ((await WorkspaceService.GitStatus(ws)) ?? {}) as Record<string, string>,
     grep(query, opts, onHits) {
       const sock = Stream("search") as WebSocket;
       sock.binaryType = "arraybuffer";

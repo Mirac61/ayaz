@@ -240,6 +240,15 @@ func (s *WorkspaceService) GitBranch(ws string) (string, error) {
 	return git.Branch(w.Root)
 }
 
+// GitStatus is each changed, untracked or ignored path's state for the tree (see git.Status).
+func (s *WorkspaceService) GitStatus(ws string) (map[string]string, error) {
+	w, err := s.reg.Get(ws)
+	if err != nil {
+		return nil, err
+	}
+	return git.Status(w.Root)
+}
+
 // HeadFile is a file's text at HEAD; Tracked is false for new files and outside a repository.
 type HeadFile struct {
 	Text    string `json:"text"`

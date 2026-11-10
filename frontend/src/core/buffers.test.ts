@@ -17,6 +17,7 @@ function fakeFiles(init: Record<string, string>) {
     reveal: async () => {},
     gitBranch: async () => "",
     gitHead: async () => ({ text: "", tracked: false }),
+    gitStatus: async () => ({}),
     readText: async (path) => {
       const f = disk.get(path);
       if (!f) throw new Error(`open /x/${path}: no such file or directory`);

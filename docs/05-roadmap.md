@@ -242,12 +242,16 @@ Done when: all four language groups have diagnostics, completion and navigation.
 
 - Done 2026-11-10: the page of a window without a folder (recent folders with `1`–`9`, "Open folder…") now also lists the keys to know first: find files, search, all commands, tree, terminal, splits, `gd`/`gr`/`K`, rename and code actions, `:w`/`:q`. The keys come from the default keymap, so they stay right when defaults change; the user's `keymap.json` isn't read yet on that page. The card scrolls when the window is short. E2E in `windows.spec.ts`. **Still open:** keys in Vim notation (`<D-p>`), not as `⌘P`.
 
+## M29 – Git status in the tree (L2, second part)
+
+- Done 2026-11-10: `git.Status` runs `git status --porcelain=v1 -z --ignored=matching` for the folder (paths made relative to it when it is a subfolder of the repo). The tree colors names: changed blue, new and untracked green, conflicts red, ignored rows at 45 % opacity; a folder takes the strongest state below it, files inside an untracked or ignored folder take that folder's. Asked again after every change on disk and on `git:changed` (Go's poll), so a commit from lazygit clears the colors. Go test with a temp repo (staged, deleted, ignored folder and file, subfolder as workspace), Node test for the roll-up, E2E new → commit → changed. **Still open:** a big repo (status on every save); no letters (M/U) next to the names, colors only.
+
 ## Later
 
 | | What | Plugs into |
 |---|---|---|
 | L1 Tasks/build | run commands by key (`go test`, `make`, `pio run`), output in the terminal, errors in quickfix | `pty` + `quickfix` |
-| L2 Git | ~~changes in the gutter~~ (M19), status in the tree, diff view | `git` process, CM6 gutter |
+| L2 Git | ~~changes in the gutter~~ (M19), ~~status in the tree~~ (M29), diff view | `git` process, CM6 gutter |
 | L3 Debugger | DAP, breakpoints, variables (Delve first) | same pattern as LSP |
 | L4 Shell integration | `EDITOR=ayaz open` from the terminal (e.g. `sf` in mysh opens a buffer), OSC 7 for the current directory (mysh extension) | `pty` + single instance/CLI |
 

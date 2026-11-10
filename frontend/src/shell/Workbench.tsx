@@ -21,6 +21,7 @@ import { borders, close, equalize, neighbor, panes, rects, resize, setBorder, sp
 import { settingsError } from "../core/settings";
 import { Picker, type Item, type PickerSource } from "./Picker";
 import { Tree, type TreeHandle } from "./Tree";
+import { gitMarks } from "./gitstatus";
 import { loadSession, mergeCursors, saveSession, type Session } from "./session";
 import { fileIcon, folderIcon, symbolIcon } from "../theme/icons";
 import "./shell.css";
@@ -817,17 +818,25 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
     return off;
   }, [ed]);
 
+  // The tree's colors; asked again on every change on disk and in the repository.
+  const [git, setGit] = useState(() => gitMarks({}));
+  const loadGit = () => void files.gitStatus().then((s) => setGit(() => gitMarks(s)), () => {});
+
   // Changes on disk (git checkout, codegen, our own saves) reach the tree and the open buffers.
   useEffect(() => backend.onFsChanged(ws.id, async (c) => {
     const paths = c.rescan ? null : c.paths ?? [];
     tree.current?.refresh(paths);
+    loadGit();
     const note = await ed.diskChanged(paths);
     if (note) fail(note);
   }), [ed, ws.id]);
 
   // A commit or checkout (lazygit in the terminal, too): new HEAD for the gutter, maybe a new branch.
   useEffect(() => {
-    const load = () => void files.gitBranch().then(setBranch, () => setBranch(""));
+    const load = () => {
+      void files.gitBranch().then(setBranch, () => setBranch(""));
+      loadGit();
+    };
     load();
     return backend.onGitChanged(ws.id, () => {
       load();
@@ -909,6 +918,7 @@ export function Workbench({ ws, onSwitch }: { ws: Info; onSwitch(root: string | 
           ref={tree}
           files={files}
           onOpen={(p) => run("file.open", p)}
+          git={git}
           onLeave={() => ed.focus(ed.active)}
           onCommand={(id) => run(id)}
         />
