@@ -28,7 +28,31 @@
   // Where mode, messages, errors, branch and position go: "top" (the title bar) or "bottom" (a line under the code).
   "statusline": "top",
 
-  // Colors of the mode name and the error and warning counts, as hex. Delete a key to get its default back.
+  // Optional translucent chrome and blur on floating overlays; solid is the default.
+  // "glass": false,
+
+  // The color theme: chrome, editor syntax and terminal together. Built in: "graphite", "kanagawa", "tokyo-night",
+  // "catppuccin-mocha", "gruvbox-dark", plus every name in "themes" below. <Space>ft switches for this session.
+  "theme": "graphite",
+
+  // Your own themes, each on top of another one ("extends", default "graphite"): name only what you change.
+  // A theme named like a built-in one ("tokyo-night") changes that one.
+  // Parts: "ui" (bg0 bgSidebar bgTabs tab tabActive bg1 bg2 bg3 hover overlay edge edgeSplit edgeOverlay fg1-fg4
+  // accent insert visual error warning gitAdd gitMod gitDel statusNormal statusInsert statusVisual statusReplace
+  // statusTerminal statusRead statusView statusError statusWarning), "syntax" (fg comment keyword fn string number
+  // type constant operator punct special field param error cursor selection lineHighlight) and "terminal"
+  // (background foreground cursor selectionBackground black red green yellow blue magenta cyan white and the bright
+  // variants, e.g. brightRed). Colors are hex or rgb(...) strings.
+  "themes": {
+    // "mine": {
+    //   "extends": "kanagawa",
+    //   "ui": { "bg0": "#101014", "accent": "#7aa2f7" },
+    //   "syntax": { "keyword": "#bb9af7" },
+    //   "terminal": { "red": "#f7768e" },
+    // },
+  },
+
+  // Colors of the mode name and the error and warning counts, as hex. They go over the theme. Delete a key to get its default back.
   // Keys: normal, insert, visual, replace, terminal, read, view, error, warning.
   "statusColors": {
     // "normal": "#7e9cd8",

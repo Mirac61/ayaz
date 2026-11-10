@@ -12,11 +12,13 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"unicode/utf8"
 )
 
 var (
 	ErrOutside  = errors.New("path outside workspace")
 	ErrConflict = errors.New("file changed on disk")
+	ErrBinary   = errors.New("not a text file (binary or not UTF-8): saving it would change its bytes")
 	ErrUnknown  = errors.New("unknown workspace")
 )
 
@@ -114,6 +116,9 @@ func (w *Workspace) ReadText(rel string) (TextFile, error) {
 	b, err := os.ReadFile(p)
 	if err != nil {
 		return TextFile{}, err
+	}
+	if !utf8.Valid(b) || strings.ContainsRune(string(b), 0) {
+		return TextFile{}, ErrBinary
 	}
 	st, err := os.Stat(p)
 	if err != nil {

@@ -96,6 +96,15 @@ export function GitStatus(ws: string): $CancellablePromise<{ [_ in string]?: str
 }
 
 /**
+ * HandleDAP serves one debug session per "dap" stream connection: a fresh Delve in the workspace's root, bare JSON
+ * messages in both directions (Go adds and strips the Content-Length framing). The session ends with the stream, the
+ * workspace or the app; the program being debugged goes down with the adapter's process group.
+ */
+export function HandleDAP(c: application$0.StreamConn | null): $CancellablePromise<void> {
+    return $Call.ByID(3288484112, c);
+}
+
+/**
  * HandleLSP serves one language server per "lsp" stream connection. Frames are bare JSON in both directions;
  * Go adds and strips the Content-Length framing. If the server dies the stream closes and the frontend
  * reconnects. The frontend opens one stream per workspace and language and shares it between panes, so a server

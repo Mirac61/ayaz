@@ -173,3 +173,18 @@ func TestCreateRename(t *testing.T) {
 		}
 	}
 }
+
+func TestReadTextRefusesBinary(t *testing.T) {
+	w, err := New("t", t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, b := range map[string][]byte{"nul.bin": {'a', 0, 'b'}, "latin1.txt": {0xe4, 'x'}} {
+		if err := os.WriteFile(filepath.Join(w.Root, name), b, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := w.ReadText(name); !errors.Is(err, ErrBinary) {
+			t.Errorf("%s: got %v, want ErrBinary", name, err)
+		}
+	}
+}

@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 
 	"github.com/Mirac61/ayaz/internal/watch"
@@ -135,4 +136,14 @@ func readConfig(name string) (string, error) {
 		return "", nil
 	}
 	return string(b), err
+}
+
+// glassRe matches an active "glass": true line (a commented one starts with //).
+var glassRe = regexp.MustCompile(`(?m)^\s*"glass"\s*:\s*true`)
+
+// glassOn reports whether settings.json asks for the translucent window. The window is made when it opens, so a
+// change takes effect for new windows only.
+func glassOn() bool {
+	s, _ := readConfig("settings.json")
+	return glassRe.MatchString(s)
 }

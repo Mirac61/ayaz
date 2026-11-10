@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"log"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -206,19 +207,39 @@ func (s *WorkspaceService) NewWindow() { NewWindow(application.Get(), "", "/?new
 
 // NewWindow opens a window at url with the app's window options; name "" gets Wails' "window-<id>".
 func NewWindow(a *application.App, name, url string) *application.WebviewWindow {
-	win := a.Window.NewWithOptions(application.WebviewWindowOptions{
+	opts := application.WebviewWindowOptions{
 		Name:   name,
 		Title:  "Ayaz",
 		Width:  1200,
 		Height: 800,
 		// bg-0, so there is no white flash before the first paint.
 		BackgroundColour: application.NewRGB(0x16, 0x16, 0x17),
-		// The traffic lights sit in the frontend's 52 px top bar (--bar), centered at 26 px.
-		Mac: application.MacWindow{TitleBar: application.MacTitleBarHiddenInset, InvisibleTitleBarHeight: 52},
-		URL: url,
-	})
+		// Standard 30 px macOS titlebar (--bar) with native traffic lights.
+		Mac:            application.MacWindow{TitleBar: application.MacTitleBarHidden, InvisibleTitleBarHeight: 30},
+		URL:            url,
+		EnableFileDrop: true,
+	}
+	if glassOn() { // "glass": true: the frontend's translucent surfaces show the desktop through the window
+		opts.BackgroundType = application.BackgroundTypeTranslucent
+		opts.BackgroundColour = application.NewRGBA(0, 0, 0, 0)
+		opts.Mac.Backdrop = application.MacBackdropTranslucent
+	}
+	win := a.Window.NewWithOptions(opts)
 	win.OnWindowEvent(events.Common.WindowRuntimeReady, func(*application.WindowEvent) { UncapFrameRate(win) })
+	win.OnWindowEvent(events.Common.WindowFilesDropped, func(e *application.WindowEvent) {
+		go openDropped(e.Context().DroppedFiles())
+	})
 	return win
+}
+
+// openDropped opens dropped files like `ayaz file` does, through the app's own socket: the window that has the file's
+// folder shows it, otherwise a new one opens. Folders are skipped.
+func openDropped(paths []string) {
+	for _, p := range paths {
+		if fi, err := os.Stat(p); err == nil && fi.Mode().IsRegular() {
+			SendOpen(SocketPath(), OpenRequest{Path: p})
+		}
+	}
 }
 
 // FsChange is the "fs:changed" event payload.

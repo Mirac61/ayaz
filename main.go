@@ -40,6 +40,7 @@ func main() {
 	})
 
 	app.OnReady(a)
+	app.CloseTabNotWindow(a)
 	a.HandleStream("pty", ws.HandleTerminal)
 	a.HandleStream("lsp", ws.HandleLSP)
 	a.HandleStream("dap", ws.HandleDAP)
