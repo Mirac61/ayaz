@@ -238,6 +238,10 @@ Done when: all four language groups have diagnostics, completion and navigation.
 
 - Done 2026-11-10: the Nerd Fonts "Symbols Only" font (v3.4.0, Mono, MIT, `theme/fonts/`) as woff2 (1.2 MB), last in `--font-mono`, so tree, tabs and shell prompts show icons without an installed Nerd Font; an installed one still wins. The face only covers the private use areas and the few extra symbols, so it never replaces a letter. It is added through `FontFace` and loaded before the first frame (a CSS `@font-face` wasn't known to WebKit yet at start), so xterm's WebGL atlas doesn't keep boxes. E2E checks it is loaded. **Still open:** a look in the app without any Nerd Font installed (Linux VM).
 
+## M28 – Welcome page with keys
+
+- Done 2026-11-10: the page of a window without a folder (recent folders with `1`–`9`, "Open folder…") now also lists the keys to know first: find files, search, all commands, tree, terminal, splits, `gd`/`gr`/`K`, rename and code actions, `:w`/`:q`. The keys come from the default keymap, so they stay right when defaults change; the user's `keymap.json` isn't read yet on that page. The card scrolls when the window is short. E2E in `windows.spec.ts`. **Still open:** keys in Vim notation (`<D-p>`), not as `⌘P`.
+
 ## Later
 
 | | What | Plugs into |

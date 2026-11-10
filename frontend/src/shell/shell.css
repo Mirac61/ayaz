@@ -53,7 +53,7 @@
 
 /* Empty: a short keyboard list, no illustration */
 .welcome { display: flex; flex-direction: column; height: 100%; }
-.welcome-card { flex: 1; display: flex; justify-content: center; padding-top: 20vh; margin: 0 6px 6px; background: var(--bg-1); border: 1px solid var(--edge); border-radius: 6px; }
+.welcome-card { flex: 1; min-height: 0; overflow-y: auto; display: flex; justify-content: center; padding: 14vh 0 32px; margin: 0 6px 6px; background: var(--bg-1); border: 1px solid var(--edge); border-radius: 6px; }
 .welcome-list { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 32px; }
 .welcome-title { padding: 0 10px; font-size: 15px; line-height: 22px; font-weight: 600; }
 .welcome-sub { padding: 0 10px; color: var(--fg-3); }
@@ -64,6 +64,8 @@
 .welcome button:focus-visible { background: var(--bg-3); color: var(--fg-1); }
 .welcome-name { width: 84px; flex: none; }
 .welcome-path { flex: 1; min-width: 0; color: var(--fg-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.welcome-key { min-height: 28px; display: flex; align-items: center; gap: 12px; padding: 0 10px; color: var(--fg-2); }
+.welcome-chips { width: 200px; flex: none; display: flex; flex-wrap: wrap; gap: 4px; }
 .welcome-err { padding: 0 10px; color: var(--error); }
 
 /* Overlays fade in with 4 px of travel; focus and resize change instantly */

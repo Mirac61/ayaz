@@ -34,3 +34,11 @@ test("two windows, switch folder, old workspace closed", async ({ page, context 
   expect(await fsStatus(page, `/fs/${first}/README.md`)).toBe(404); // torn down
   expect(await fsStatus(second, `/fs/${secondWs}/main.go`)).toBe(200); // the other window is untouched
 });
+
+// M28: an empty window lists the first keys to know, as the keymap has them.
+test("welcome page shows the main keys", async ({ page }) => {
+  await page.goto("/?new");
+  const keys = page.getByRole("region", { name: "Keys" });
+  await expect(keys).toContainText("Find files");
+  await expect(keys.locator("kbd").first()).toHaveText("<Space>ff");
+});

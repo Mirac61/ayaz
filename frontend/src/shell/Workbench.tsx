@@ -1092,6 +1092,20 @@ function rememberFolder(w: Info) {
   } catch { /* a convenience */ }
 }
 
+// The keys to know first, for the welcome page; from the default keymap (the user's keymap.json is read later).
+const keysOf = (...ids: string[]) => defaultKeymap().filter((b) => ids.includes(b.command)).map((b) => b.keys);
+const FIRST_KEYS: [keys: string[], what: string][] = [
+  [keysOf("find.files"), "Find files"],
+  [keysOf("find.grep"), "Search in files"],
+  [keysOf("find.commands"), "All commands and their keys"],
+  [keysOf("tree.focus"), "File tree"],
+  [keysOf("term.panel"), "Terminal"],
+  [keysOf("pane.splitRight", "pane.splitDown"), "Split down, right"],
+  [["gd", "gr", "K"], "Definition, references, hover"],
+  [keysOf("lsp.rename", "lsp.codeAction"), "Rename, code actions"],
+  [[":w", ":q"], "Save, close"],
+];
+
 // Opens the folder from the command line (first window only), otherwise shows recent folders and the dialog.
 export function Shell() {
   const [ws, setWs] = useState<Info | null | undefined>(undefined);
@@ -1149,6 +1163,15 @@ export function Shell() {
             <div className="welcome-label">Start</div>
             <button autoFocus={!recent.length} onClick={() => pick(null)}>Open folder…</button>
           </nav>
+          <section aria-label="Keys">
+            <div className="welcome-label">Keys</div>
+            {FIRST_KEYS.map(([keys, what]) => (
+              <div key={what} className="welcome-key">
+                <span className="welcome-chips">{keys.map((k) => <kbd key={k}>{k}</kbd>)}</span>
+                <span>{what}</span>
+              </div>
+            ))}
+          </section>
           {err && <div className="welcome-err">{err}</div>}
         </div>
       </div>
