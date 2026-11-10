@@ -120,3 +120,29 @@ test("stage and unstage a hunk", async ({ page }) => {
   expect(cached()).toContain("+fiveY");
   expect(cached()).not.toContain("oneX");
 });
+
+// M62: markers in a file are coloured, ]x jumps to the next conflict, <Space>mt / mo take a side.
+test("merge conflict: colours, ]x, take theirs and ours", async ({ page }) => {
+  const file = "conflict.txt";
+  const block = (n: string) => `<<<<<<< HEAD\nours ${n}\n=======\ntheirs ${n}\n>>>>>>> feature\n`;
+  writeFileSync(join(e2eWorkspace, file), `top\n${block("one")}mid\n${block("two")}end\n`);
+  await page.goto("/");
+  await page.keyboard.press("/");
+  await page.keyboard.type(file);
+  await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: file }).click();
+  await expect(page.locator(".cm-content")).toContainText("theirs two");
+  await expect(page.locator(".cm-conflict-marker")).toHaveCount(6);
+  await page.locator(".cm-content").click();
+  await page.keyboard.type("gg]x");
+  await expect(page.locator(".statusline")).toContainText("2:1");
+  await page.keyboard.type("]x");
+  await expect(page.locator(".statusline")).toContainText("8:1");
+  await page.keyboard.type("j mt"); // the second: theirs
+  await expect(page.locator(".cm-content")).toContainText("theirs two");
+  await expect(page.locator(".cm-content")).not.toContainText("ours two");
+  await page.keyboard.type("gg]xj mo"); // the first: ours (the cursor sits inside it)
+  await expect(page.locator(".cm-content")).not.toContainText("theirs one");
+  await expect(page.locator(".cm-conflict-marker")).toHaveCount(0);
+  await page.keyboard.type(":e!"); // nothing of this reaches the disk
+  await page.keyboard.press("Enter");
+});

@@ -11,6 +11,7 @@ import { vim } from "@replit/codemirror-vim";
 import { indentationMarkers } from "@replit/codemirror-indentation-markers";
 import { kanagawaCM } from "../theme/kanagawa-cm";
 import { inlineBlame } from "./blame";
+import { conflictMarks } from "./conflicts";
 import { snippetCompletion } from "./snippets";
 import { stickyScroll } from "./sticky";
 import { extOf, loadLanguage } from "../lang/registry";
@@ -64,6 +65,7 @@ export const editorExtensions = (): Extension[] => [
   kanagawaCM,
   stickyScroll,
   inlineBlame,
+  conflictMarks,
 ];
 
 // Line wrap, like nvim's `wrap`: from settings.json (off for code, on for Markdown), until <Space>uw sets it for every file.
