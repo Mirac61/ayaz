@@ -22,7 +22,7 @@ const COMMAND_ICONS: Record<string, string> = {
   "debug.next": "\uf050", "debug.stepIn": "\uf063", "debug.stepOut": "\uf062",
   "git.diff": "\uf440", "git.blame": "\uf007", "git.stageHunk": "\uf067", "git.unstageHunk": "\uf068", "git.resetHunk": "\uf0e2",
   "git.previewHunk": "\uf06e", "md.reading": "\uf06e", "md.preview": "\uf06e", "md.skin": "\uf1fc",
-  "view.wrap": "\uf039", "view.diagnosticText": "\uf071",
+  "view.wrap": "\uf039", "view.diagnosticText": "\uf071", "view.zen": "\uf06e", "git.toggleInlineBlame": "\uf007",
 };
 const COLUMN_AT = 8; // more rows than this flow into two columns
 

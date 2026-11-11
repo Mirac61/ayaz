@@ -45,6 +45,14 @@ export function gitCommands(c: Ctx): Command[] {
     { id: "git.prevConflict", title: "Previous merge conflict ([x)", run: () => onView(c, (v) => moveConflict(v, -1), none) },
     { id: "git.blame", title: "Git blame of this line (<Space>gb)", run: () => blame().catch((e) => c.fail(errText(e))) },
     {
+      id: "git.toggleInlineBlame",
+      title: "Toggle inline ghost blame (<Space>ub)",
+      run: () => {
+        const on = c.ed.toggleAutoBlame();
+        c.say(on ? "Inline ghost blame on" : "Inline ghost blame off");
+      },
+    },
+    {
       id: "git.diff",
       title: "Toggle diff against HEAD",
       run: () => { if (!c.ed.toggleDiff()) c.fail("This file has no version at HEAD to compare with"); },

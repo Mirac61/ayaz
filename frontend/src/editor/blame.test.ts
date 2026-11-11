@@ -1,5 +1,6 @@
 import { expect, test } from "vitest";
-import { ago, blameText } from "./blame";
+import { EditorState } from "@codemirror/state";
+import { ago, blameField, blameText, show } from "./blame";
 
 const NOW = 1_800_000_000;
 
@@ -17,4 +18,13 @@ test("the line shows author, age, commit and message; an uncommitted line says s
   const b = { hash: "a1b2c3d4", author: "Ada", time: NOW - 86400 * 3, summary: "fix the thing", committed: true };
   expect(blameText(b, NOW)).toBe("Ada, 3 days ago • a1b2c3d4 fix the thing");
   expect(blameText({ ...b, hash: "", committed: false }, NOW)).toBe("Not committed yet");
+});
+
+test("show effect sets the blame decoration and null removes it", () => {
+  let s = EditorState.create({ doc: "line 1\nline 2", extensions: [blameField] });
+  expect(s.field(blameField).size).toBe(0);
+  s = s.update({ effects: show.of({ at: 6, text: "Ada, 1 day ago" }) }).state;
+  expect(s.field(blameField).size).toBe(1);
+  s = s.update({ effects: show.of(null) }).state;
+  expect(s.field(blameField).size).toBe(0);
 });

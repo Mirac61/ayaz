@@ -124,3 +124,9 @@ test("a syntax error in keymap.json names the file", () => {
 test("the keymap.json written for a new user parses and binds nothing", () => {
   expect(parseUserKeymap(template, () => true)).toEqual([]);
 });
+
+test("defaultKeymap binds Zen mode and toggle inline blame in view group", () => {
+  const km = defaultKeymap();
+  expect(km.find((b) => b.keys === "<Space>uz")?.command).toBe("view.zen");
+  expect(km.find((b) => b.keys === "<Space>ub")?.command).toBe("git.toggleInlineBlame");
+});

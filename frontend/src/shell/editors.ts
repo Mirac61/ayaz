@@ -25,6 +25,7 @@ import { diffWith, headEffects, toggleDiff } from "../editor/gitgutter";
 import { setEditorConfig } from "../core/editorconfig";
 import { countWords, selectionSize } from "../core/words";
 import { searchCount } from "../core/searchcount";
+import { blameText, clearBlame, showBlame } from "../editor/blame";
 import { Waits } from "./waits";
 import { UndoSteps } from "./undoSteps";
 import { HiddenTerms } from "./terminals";
@@ -106,6 +107,41 @@ export class Editors {
     this.buffers = new Buffers(files, async (path, doc) => { await this.editorConfig; return createState(path, doc, wsId, root); });
     setLspHost(wsId, { display: (path) => this.display(path), apply: async (e) => (await this.applyEdit(e)).length > 0 });
     this.recentKey = `ayaz.recent:${root}`;
+  }
+
+  private autoBlame = (() => {
+    try { return localStorage.getItem("ayaz.inlineBlame") !== "off"; } catch { return true; }
+  })();
+  private blameTimer: ReturnType<typeof setTimeout> | undefined;
+
+  toggleAutoBlame(): boolean {
+    this.autoBlame = !this.autoBlame;
+    try { localStorage.setItem("ayaz.inlineBlame", this.autoBlame ? "on" : "off"); } catch { /* a convenience */ }
+    if (!this.autoBlame) {
+      clearTimeout(this.blameTimer);
+      const v = this.activeView();
+      if (v) clearBlame(v);
+    } else {
+      this.scheduleBlame();
+    }
+    return this.autoBlame;
+  }
+
+  private scheduleBlame() {
+    clearTimeout(this.blameTimer);
+    if (!this.autoBlame) return;
+    const p = this.panes.get(this.active);
+    if (!p?.view || !p.buf || p.buf.path.startsWith("/") || isVirtual(p.buf.path)) return;
+    const v = p.view, b = p.buf;
+    const head = v.state.selection.main.head;
+    const line = v.state.doc.lineAt(head).number;
+    this.blameTimer = setTimeout(async () => {
+      if (this.activeView() !== v || v.state.selection.main.head !== head) return;
+      const doc = isDirty(b) ? v.state.doc.toString() : "";
+      const info = await this.files.gitBlame(b.path, line, doc).catch(() => null);
+      if (!info || this.activeView() !== v || v.state.selection.main.head !== head) return;
+      showBlame(v, blameText(info));
+    }, 400);
   }
 
   // Creates the view for pane `id`. A split passes `from`, and the new pane shows the same buffer.
@@ -823,6 +859,7 @@ export class Editors {
       search: this.searchCount(p.view, head),
       recording: (this.recording = recordingRegister()),
     });
+    this.scheduleBlame();
   }
 
   // The "3/12" for Vim's last search; undefined before the first one. :noh clears the highlight but not the query, so

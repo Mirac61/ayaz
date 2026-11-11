@@ -26,6 +26,7 @@ const EX: [name: string, prefix: string, command: string][] = [
   ["cprevious", "cp", "qf.prev"],
   ["copen", "cope", "qf.open"],
   ["Replace", "Rep", "qf.replace"],
+  ["zen", "zen", "view.zen"],
 ];
 
 // Whether a palette line reads as a Vim ex command (":w", ":%s/a/b/", ":3,5d") rather than words to search commands by.

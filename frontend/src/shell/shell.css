@@ -127,6 +127,49 @@
   grid-row: 2 / 4;
   height: auto !important;
 }
+/* Zen mode: distraction-free fullscreen code view (<Space>uz, :zen) */
+.workbench.zen {
+  grid-template-columns: 1fr !important;
+  grid-template-rows: var(--bar) 1fr !important;
+}
+.workbench.zen .sidebar,
+.workbench.zen .panel,
+.workbench.zen .statusline,
+.workbench.zen .titlebar-tools,
+.workbench.zen .titlebar-project {
+  display: none !important;
+}
+.workbench.zen .titlebar {
+  opacity: 0.2;
+  transition: opacity 0.2s ease;
+}
+.workbench.zen .titlebar:hover {
+  opacity: 1;
+}
+.workbench.zen .panes {
+  grid-column: 1 !important;
+  grid-row: 2 !important;
+  background: var(--bg-0);
+}
+.workbench.zen.single-pane .pane {
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  display: flex;
+  align-items: center;
+  background: transparent;
+}
+.workbench.zen.single-pane .pane > .cm-editor,
+.workbench.zen.single-pane .pane > .pane-body,
+.workbench.zen.single-pane .pane > .tabbar {
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
+  background: var(--bg-1);
+  box-shadow: 0 0 40px rgb(0 0 0 / 25%);
+  border-left: 1px solid var(--edge-split);
+  border-right: 1px solid var(--edge-split);
+}
 .resize {
   position: absolute;
   z-index: 3;
@@ -434,8 +477,29 @@
   font: 10px var(--font-mono);
 }
 .tree-name {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.tree-git-badge {
+  flex: none;
+  margin-left: auto;
+  font: 10px var(--font-mono);
+  font-weight: 700;
+  line-height: 1;
+  padding: 1px 4px;
+  border-radius: 3px;
+  opacity: 0.9;
+}
+.tree-git-badge.git-mod {
+  color: var(--git-mod);
+}
+.tree-git-badge.git-add {
+  color: var(--git-add);
+}
+.tree-git-badge.git-conflict {
+  color: var(--git-del);
 }
 .tree-filter {
   flex: none;

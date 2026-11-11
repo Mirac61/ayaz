@@ -129,6 +129,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
     try { localStorage.setItem(SIDEBAR_KEY, String(sidebarW)); } catch { /* a convenience */ }
   }, [sidebarW]);
   const [bar, setBar] = useState(() => settings().statusline);
+  const [zen, setZen] = useState(false);
   const sidebarOn = useRef(sidebar);
   sidebarOn.current = sidebar;
   // flushSync: the tree must be shown before it can take the focus.
@@ -377,6 +378,17 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       ...gitCommands(c),
       ...debugCommands(c),
       ...viewCommands(c),
+      {
+        id: "view.zen",
+        title: "Toggle Zen mode (<Space>uz, :zen)",
+        run() {
+          setZen((z) => {
+            const next = !z;
+            say(next ? "Zen mode on (exit with <Space>uz)" : "Zen mode off");
+            return next;
+          });
+        },
+      },
       {
         id: "md.preview",
         title: "Toggle Markdown preview in a split",
@@ -809,7 +821,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
     </>
   );
   return (
-    <div className={`workbench${max && panel === "shown" ? " max" : ` dock-${dock}`}${sidebar ? ` sidebar-${side}` : " nosidebar"} bar-${bar}`}
+    <div className={`workbench${max && panel === "shown" ? " max" : ` dock-${dock}`}${sidebar ? ` sidebar-${side}` : " nosidebar"} bar-${bar}${zen ? " zen" : ""}${panes(layout).length === 1 ? " single-pane" : ""}`}
       style={{ "--sidebar-w": `${sidebarW}px` } as React.CSSProperties} data-ws={ws.id}>
       {/* Title bar across the full width; the Neovim laststatus=3 statusline sits under the code (shell.css). */}
       <header className="titlebar">

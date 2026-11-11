@@ -37,12 +37,13 @@ class BlameWidget extends WidgetType {
   ignoreEvent() { return true; }
 }
 
-const show = StateEffect.define<{ at: number; text: string }>();
-const field = StateField.define<DecorationSet>({
+export const show = StateEffect.define<{ at: number; text: string } | null>();
+export const blameField = StateField.define<DecorationSet>({
   create: () => Decoration.none,
   update(d, tr) {
     for (const e of tr.effects) {
       if (!e.is(show)) continue;
+      if (!e.value) return Decoration.none;
       return Decoration.set(Decoration.widget({ widget: new BlameWidget(e.value.text), side: 1 }).range(e.value.at));
     }
     return tr.docChanged || tr.selection ? Decoration.none : d;
@@ -51,12 +52,24 @@ const field = StateField.define<DecorationSet>({
 });
 
 const theme = EditorView.baseTheme({
-  ".cm-blame": { color: "var(--syn-comment, #727169)", fontStyle: "italic", paddingLeft: "3ch" }, // the theme's comment color
+  ".cm-blame": {
+    color: "var(--syn-comment, #727169)",
+    fontStyle: "italic",
+    paddingLeft: "3ch",
+    opacity: "0.75",
+    userSelect: "none",
+    pointerEvents: "none",
+  },
 });
 
-export const inlineBlame: Extension = [field, theme];
+export const inlineBlame: Extension = [blameField, theme];
 
 // Shows text at the end of the line the cursor is on.
 export function showBlame(view: EditorView, text: string) {
   view.dispatch({ effects: show.of({ at: view.state.doc.lineAt(view.state.selection.main.head).to, text }) });
+}
+
+// Clears any active blame decoration on this view.
+export function clearBlame(view: EditorView) {
+  view.dispatch({ effects: show.of(null) });
 }

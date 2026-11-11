@@ -55,6 +55,7 @@ interface Props {
 }
 
 const GIT_CLASS: Record<string, string> = { M: " git-mod", A: " git-add", "?": " git-add", U: " git-conflict", "!": " git-ignored" };
+export const GIT_BADGE: Record<string, string> = { M: "M", A: "A", "?": "U", U: "C" };
 
 const KEYS: Record<string, string> = {
   a: "file.new", r: "file.rename", d: "file.trash", y: "file.copyPath", Y: "file.copyAbsPath", s: "file.reveal",
@@ -270,7 +271,9 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
         <div style={{ height: rows.length * ROW, position: "relative" }}>
           {visible.map((r, k) => {
             const i = first + k;
-            const name = (r.dir ? "tree-name dir" : "tree-name") + (GIT_CLASS[git(r.path) ?? ""] ?? "");
+            const gitMark = git(r.path);
+            const name = (r.dir ? "tree-name dir" : "tree-name") + (GIT_CLASS[gitMark ?? ""] ?? "");
+            const badge = gitMark ? GIT_BADGE[gitMark] : undefined;
             const open = r.dir && (filter !== null || expanded.has(r.path));
             return (
               <div
@@ -287,6 +290,11 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
                 <span className="tree-chevron" aria-hidden>{r.dir ? (open ? "\uf47c" : "\uf460") : ""}</span>
                 <Glyph icon={r.dir ? folderIcon(open, r.name) : fileIcon(r.name)} />
                 <span className={name}>{r.name}</span>
+                {badge && gitMark && (
+                  <span className={`tree-git-badge ${GIT_CLASS[gitMark]?.trim()}`} aria-hidden>
+                    {badge}
+                  </span>
+                )}
               </div>
             );
           })}
