@@ -126,7 +126,9 @@ test("signature help while typing a call", async ({ page }) => {
   await page.locator(".cm-content").click();
   await expect(page.locator(".statusline")).not.toContainText("still starting", { timeout: 30_000 });
   await page.keyboard.type("gg5jo");
-  await page.keyboard.type("fmt.Printf(");
+  await page.keyboard.type("fmt.Printf");
+  await page.waitForTimeout(1000); // the "(" asks gopls at once: it must have the text typed so far (a slow runner is behind otherwise)
+  await page.keyboard.type("(");
   await expect(page.locator(".cm-lsp-signature-tooltip")).toContainText("format string", { timeout: 30_000 });
   await page.keyboard.press("Escape");
   await page.keyboard.type("u");

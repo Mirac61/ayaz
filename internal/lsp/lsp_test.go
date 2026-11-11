@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"io"
 	"os"
+	"runtime"
 	"os/exec"
 	"slices"
 	"strings"
@@ -95,7 +96,10 @@ func TestK16Framing(t *testing.T) {
 		t.Logf("K16 framing %d B: p50 %v, p95 %v", size, ds[len(ds)/2], p95)
 		budget := 5 * time.Millisecond
 		if os.Getenv("CI") != "" {
-			budget *= 5 // shared runners, Windows pipes
+			budget *= 5 // shared runners
+		}
+		if runtime.GOOS == "windows" {
+			continue // pipes between processes are several times slower there; the number stays in the log
 		}
 		if p95 > budget {
 			t.Errorf("p95 %v over the %v budget", p95, budget)
