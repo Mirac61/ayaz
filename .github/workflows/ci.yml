@@ -11,6 +11,7 @@ jobs:
       matrix:
         os: [macos-latest, ubuntu-24.04, windows-latest]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     defaults:
       run:
         shell: bash # the Windows runner defaults to PowerShell
@@ -21,7 +22,7 @@ jobs:
           go-version-file: go.mod
       - name: Linux GUI libraries (Wails links GTK4/WebKitGTK)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev
+        run: sudo apt-get -o Acquire::Retries=3 update && sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=3 install -y --no-install-recommends libgtk-4-dev libwebkitgtk-6.0-dev
       # main embeds frontend/dist, which only exists after a frontend build.
       - run: mkdir -p frontend/dist && touch frontend/dist/index.html
       # go test already vets what it compiles; the full vet runs once, and the windows job vets GOOS=windows.
@@ -35,6 +36,7 @@ jobs:
   # Windows is built from Linux: this catches code that only compiles on Unix (syscall.Kill, creack/pty) without a Windows runner.
   windows:
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     env:
       GOOS: windows
       CGO_ENABLED: "0"
@@ -49,6 +51,7 @@ jobs:
 
   frontend:
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: frontend
@@ -68,6 +71,7 @@ jobs:
       matrix:
         os: [ubuntu-24.04, macos-latest]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2

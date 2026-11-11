@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -12,6 +13,9 @@ import (
 
 // Quitting hangs up tracked shells: their output ends.
 func TestShutdownClosesShells(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("needs /bin/sh; the ConPTY side is checked on a real Windows machine")
+	}
 	s := NewWorkspaceService(nil)
 	sess, err := pty.Start(t.TempDir(), 80, 24, "/bin/sh")
 	if err != nil {
@@ -40,6 +44,9 @@ func drain(ch <-chan []byte) <-chan struct{} {
 
 // Close(ws) stops that workspace's shells and servers and forgets its ID; another workspace keeps running (ADR-0014).
 func TestCloseWorkspace(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("needs /bin/sh; the ConPTY side is checked on a real Windows machine")
+	}
 	s := NewWorkspaceService(nil)
 	a, err := s.Open(context.Background(), t.TempDir())
 	if err != nil {
