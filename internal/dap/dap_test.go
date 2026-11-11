@@ -136,6 +136,9 @@ func TestStartWithOutputPassesStdoutAndStderr(t *testing.T) {
 }
 
 func TestStartStdioConnectsAndCarriesMessages(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the fake stdio adapter uses POSIX sh and cat")
+	}
 	gotErr := make(chan string, 8)
 	// cat echoes stdin to stdout; sh prints to stderr before cat starts.
 	cmd := `sh -c "echo 'stderr line' >&2; exec cat"`

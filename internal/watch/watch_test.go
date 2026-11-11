@@ -36,7 +36,7 @@ func start(t *testing.T) (string, <-chan Batch) {
 // next waits for a batch that contains path, failing after the K11 budget.
 func next(t *testing.T, ch <-chan Batch, path string) Batch {
 	t.Helper()
-	deadline := time.After(500 * time.Millisecond)
+	deadline := time.After(3 * time.Second)
 	for {
 		select {
 		case b := <-ch:

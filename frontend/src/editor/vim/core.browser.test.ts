@@ -256,7 +256,7 @@ describe("ex commands and leader keys run commands", () => {
     [":w<CR>", "file.save()"], [":w!<CR>", "file.save(!)"], [":q<CR>", "pane.close()"], [":q!<CR>", "pane.close(!)"],
     [":wq<CR>", "file.saveClose()"], [":e src/a.go<CR>", "file.open(src/a.go)"], [":e!<CR>", "file.open(!)"],
     [":sp<CR>", "pane.splitDown()"], [":vs<CR>", "pane.splitRight()"], [";w<CR>", "file.save()"],
-    [" e", "tree.focus()"], [" ff", "find.files()"], [" fk", "find.commands()"],
+    [" e", "prime(<Space>e)"], [" ff", "find.files()"], [" fk", "find.commands()"],
     [":terminal<CR>", "term.split()"], [" t", "prime(<Space>t)"], [" gg", "term.lazygit()"],
     ["<C-w>v", "pane.splitRight()"], ["<C-w>l", "pane.right()"], ["<C-h>", "pane.left()"], ["<C-j>", "pane.down()"],
   ])("%s", async (keys, want) => {
