@@ -130,8 +130,10 @@ test("signature help while typing a call", async ({ page }) => {
   await page.waitForTimeout(1000); // the "(" asks gopls at once: it must have the text typed so far (a slow runner is behind otherwise)
   await page.keyboard.type("(");
   await expect(page.locator(".cm-lsp-signature-tooltip")).toContainText("format string", { timeout: 30_000 });
+  // u would undo only "()" (the wait splits the undo group); a dirty hello.go leaves a swap whose picker blocks the next tests.
   await page.keyboard.press("Escape");
-  await page.keyboard.type("u");
+  await page.keyboard.type(":e!\n");
+  await expect(page.locator(".titlebar .dirty")).toHaveCount(0);
 });
 
 // M44: an action whose edit creates a file (gopls' "Extract declarations to new file").
