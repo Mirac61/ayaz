@@ -1,3 +1,5 @@
+import { goAdapter, type DebugAdapter } from "./adapters";
+
 // A small Debug Adapter Protocol client: JSON messages with seq, type and command or event. No package: the protocol
 // is this thin. The transport carries bare JSON texts; Go does the Content-Length framing (internal/dap).
 
@@ -108,19 +110,21 @@ export interface OutputEvent { category?: string; output: string }
 
 export interface LaunchOptions {
   root: string; // absolute path of the folder
-  program?: string; // absolute path of the package folder Delve builds and debugs; the folder's own by default
+  program?: string; // absolute path of what the adapter debugs (for Go the package folder); the folder's own by default
+  adapter?: DebugAdapter; // Go (Delve) by default
   breakpoints: Record<string, number[]>; // workspace-relative path → lines (1-based)
 }
 
-// Starts debugging the Go package in program (the folder's root by default): initialize, launch, then (after the adapter says "initialized") the
-// breakpoints, then configurationDone. Delve answers launch only after configurationDone, so it isn't awaited first.
+// Starts debugging program (the folder's root by default): initialize, launch, then (after the adapter says "initialized")
+// the breakpoints, then configurationDone. Delve answers launch only after configurationDone, so it isn't awaited first.
 export async function launch(client: DapClient, opts: LaunchOptions): Promise<void> {
+  const adapter = opts.adapter ?? goAdapter;
   await client.request("initialize", {
-    clientID: "ayaz", clientName: "Ayaz", adapterID: "go", linesStartAt1: true, columnsStartAt1: true, pathFormat: "path",
+    clientID: "ayaz", clientName: "Ayaz", adapterID: adapter.adapterId, linesStartAt1: true, columnsStartAt1: true, pathFormat: "path",
     supportsVariableType: true,
   });
   const initialized = client.next("initialized");
-  const launched = client.request("launch", { mode: "debug", program: opts.program ?? opts.root, cwd: opts.root });
+  const launched = client.request("launch", adapter.launch(opts.program ?? opts.root, opts.root));
   await Promise.race([initialized, launched]); // a failed launch answers before "initialized"
   for (const [path, lines] of Object.entries(opts.breakpoints)) {
     await setBreakpoints(client, opts.root, path, lines);

@@ -96,7 +96,7 @@ export function GitStatus(ws: string): $CancellablePromise<{ [_ in string]?: str
 }
 
 /**
- * HandleDAP serves one debug session per "dap" stream connection: a fresh Delve in the workspace's root, bare JSON
+ * HandleDAP serves one debug session per "dap" stream connection: a fresh adapter in the workspace's root, bare JSON
  * messages in both directions (Go adds and strips the Content-Length framing). The session ends with the stream, the
  * workspace or the app; the program being debugged goes down with the adapter's process group.
  */

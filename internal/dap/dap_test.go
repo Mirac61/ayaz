@@ -134,3 +134,38 @@ func TestStartWithOutputPassesStdoutAndStderr(t *testing.T) {
 		}
 	}
 }
+
+func TestStartStdioConnectsAndCarriesMessages(t *testing.T) {
+	gotErr := make(chan string, 8)
+	// cat echoes stdin to stdout; sh prints to stderr before cat starts.
+	cmd := `sh -c "echo 'stderr line' >&2; exec cat"`
+	a, err := StartStdio(t.TempDir(), "/bin/sh", cmd, func(c, s string) {
+		if c == "stderr" {
+			gotErr <- strings.TrimSpace(s)
+		}
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer a.Close()
+	found := false
+	for !found {
+		select {
+		case s := <-gotErr:
+			if strings.Contains(s, "stderr line") {
+				found = true
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatal("timed out waiting for stderr line")
+		}
+	}
+	for _, msg := range []string{`{"seq":1,"command":"initialize"}`, `{"seq":2,"body":"hello"}`} {
+		if err := a.Send([]byte(msg)); err != nil {
+			t.Fatal(err)
+		}
+		got, err := a.Recv()
+		if err != nil || string(got) != msg {
+			t.Fatalf("got %q, %v", got, err)
+		}
+	}
+}

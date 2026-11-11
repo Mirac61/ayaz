@@ -608,11 +608,10 @@ export class Editors {
 
   pathOf(id: number) { return this.panes.get(id)?.buf?.path; }
 
-  // The folder of the Go file in the active editor, workspace-relative ("" for the root); null for anything else.
-  activeGoDir(): string | null {
+  // The active editor's file, workspace-relative; null if there is none or it lies outside the folder.
+  activePath(): string | null {
     const path = this.current()?.path;
-    if (!path || path.startsWith("/") || !path.endsWith(".go")) return null;
-    return path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
+    return path && !path.startsWith("/") ? path : null;
   }
 
   // Every loaded buffer's breakpoints (files without any are left out): what the debugger is given.

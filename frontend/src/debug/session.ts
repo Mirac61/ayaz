@@ -1,3 +1,4 @@
+import type { DebugAdapter } from "./adapters";
 import {
   DapClient, launch, setBreakpoints, type OutputEvent, type Scope, type StackFrame, type StoppedEvent, type Variable,
 } from "./dap";
@@ -35,12 +36,12 @@ export class DebugSession {
     client.on("closed", () => this.end());
   }
 
-  // Launches a package (an absolute folder, the root's own by default) with these breakpoints (workspace-relative path
+  // Launches program (an absolute path, the root's own by default) with these breakpoints (workspace-relative path
   // → lines). Rejects if launching fails.
-  async start(breakpoints: Record<string, number[]>, program?: string) {
+  async start(breakpoints: Record<string, number[]>, program?: string, adapter?: DebugAdapter) {
     this.hooks.state("starting");
     try {
-      await launch(this.client, { root: this.root, program, breakpoints });
+      await launch(this.client, { root: this.root, program, adapter, breakpoints });
     } catch (e) {
       this.end();
       throw e;

@@ -28,7 +28,8 @@ const startTimeout = 15 * time.Second
 // Adapter is one running debug adapter and the connection to it.
 type Adapter struct {
 	cmd   *exec.Cmd
-	conn  net.Conn
+	w     io.WriteCloser
+	r     io.Closer
 	in    *bufio.Reader
 	mu    sync.Mutex // serializes Send
 	close sync.Once
@@ -102,11 +103,48 @@ func StartWithOutput(dir, shell, command string, onOut func(category, text strin
 			kill()
 			return nil, fmt.Errorf("dap: %w", err)
 		}
-		return &Adapter{cmd: cmd, conn: conn, in: bufio.NewReader(conn)}, nil
+		return &Adapter{cmd: cmd, w: conn, r: conn, in: bufio.NewReader(conn)}, nil
 	case <-time.After(startTimeout):
 		kill()
 		return nil, errors.New("dap: the adapter didn't announce an address")
 	}
+}
+
+// StartStdio starts the adapter as a child process and communicates with it over stdin and stdout
+// (Content-Length framing, like LSP). What it writes on stderr reaches onOut as "stderr".
+func StartStdio(dir, shell, command string, onOut func(category, text string)) (*Adapter, error) {
+	cmd := proc.Command(shell, command)
+	cmd.Dir = dir
+	var errOut io.Reader
+	if onOut != nil {
+		pipe, err := cmd.StderrPipe()
+		if err != nil {
+			return nil, err
+		}
+		errOut = pipe
+	} else {
+		cmd.Stderr = os.Stderr
+	}
+	out, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, err
+	}
+	in, err := cmd.StdinPipe()
+	if err != nil {
+		return nil, err
+	}
+	if err := cmd.Start(); err != nil {
+		return nil, err
+	}
+	if errOut != nil {
+		go forward(errOut, func(text string) { onOut("stderr", text) })
+	}
+	return &Adapter{
+		cmd: cmd,
+		w:   in,
+		r:   out,
+		in:  bufio.NewReader(out),
+	}, nil
 }
 
 // forward reads r to its end and hands every chunk to fn.
@@ -127,7 +165,7 @@ func forward(r io.Reader, fn func(string)) {
 func (a *Adapter) Send(body []byte) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	return lsp.WriteMessage(a.conn, body)
+	return lsp.WriteMessage(a.w, body)
 }
 
 // Recv blocks for the next message; an error means the adapter is gone.
@@ -137,7 +175,12 @@ func (a *Adapter) Recv() ([]byte, error) { return lsp.ReadMessage(a.in) }
 // Safe to call more than once.
 func (a *Adapter) Close() {
 	a.close.Do(func() {
-		a.conn.Close()
+		if a.w != nil {
+			a.w.Close()
+		}
+		if a.r != nil && a.r != a.w {
+			a.r.Close()
+		}
 		proc.Terminate(a.cmd)
 		a.cmd.Wait()
 	})

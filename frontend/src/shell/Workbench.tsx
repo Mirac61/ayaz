@@ -237,7 +237,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
   const [debug, setDebug] = useState<DebugStatus>("idle");
   const sayRef = useRef(say);
   sayRef.current = say;
-  const dbg = useMemo(() => new Debugger(ws.root, ed, () => dapStream(ws.id), setDebug, (t) => sayRef.current(t)), [ed]);
+  const dbg = useMemo(() => new Debugger(ws.root, ed, (adapter) => dapStream(ws.id, adapter), setDebug, (t) => sayRef.current(t)), [ed]);
   useEffect(() => () => {
     clearTimeout(msgTimer.current);
     dbg.dispose();
@@ -923,7 +923,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
           tabIndex={-1}
           onMouseDown={(e) => { e.preventDefault(); run("folder.switch"); }}
         >
-          {ws.name}
+          <span className="titlebar-project-name">{ws.name}</span>
         </button>
         <span className="titlebar-file">{file}</span>
         <span className="titlebar-tools">

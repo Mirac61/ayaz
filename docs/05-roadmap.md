@@ -334,6 +334,10 @@ Done when: all four language groups have diagnostics, completion and navigation.
 
 - Done 2026-11-11: the debugged program's stderr reaches the output buffer (`<Space>dl`). Delve lets the program inherit its own stderr, which `internal/dap` sent to the app's stderr; `StartWithOutput` now pipes it and calls `onOut(category, text)` with `"stdout"` or `"stderr"`, `app/dap.go` turns both into output events with that category. Go test (`TestStartWithOutputPassesStdoutAndStderr`), the Delve E2E checks a `println` line. Plan: `docs/plans/2026-11-11-debugger-plan.md`. Delve's own log lines on stderr show up there too.
 
+## M69 – Debugger: adapter table and stdio mode
+
+- Done 2026-11-12: debug adapters table (`debug/adapters.ts`) replaces Go-only launch arguments and active file targets; `app/dap.go` dispatches to configured adapters and checks availability; `internal/dap` adds `StartStdio` for stdio-based debug adapters alongside Delve's TCP socket connection. Unit tests in `adapters.test.ts`, `debugger.test.ts`, and `internal/dap/dap_test.go`.
+
 ## Later
 
 | | What | Plugs into |
