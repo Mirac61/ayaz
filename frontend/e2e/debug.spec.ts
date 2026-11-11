@@ -24,6 +24,7 @@ func main() {
 		total += i
 	}
 	fmt.Println("total", total)
+	println("to stderr") // the builtin writes to stderr
 }
 `);
   await page.goto("/");
@@ -57,4 +58,5 @@ func main() {
   await expect(status).not.toContainText("DEBUG");
   await page.keyboard.type(" dl");
   await expect(code).toContainText("total 6");
+  await expect(code).toContainText("to stderr");
 });

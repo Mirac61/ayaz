@@ -44,7 +44,7 @@ func fakeAdapter(t *testing.T) string {
 		}
 	}()
 	// Start runs "exec <command>", so a script goes through sh -c.
-	return fmt.Sprintf(`sh -c "echo starting up; echo 'DAP server listening at: %s'; echo more output; sleep 30"`, l.Addr())
+	return fmt.Sprintf(`sh -c "echo starting up; echo 'DAP server listening at: %s'; echo more output; echo oops >&2; sleep 30"`, l.Addr())
 }
 
 func TestStartConnectsAndCarriesMessages(t *testing.T) {
@@ -115,20 +115,22 @@ func TestRealDelveAnswersInitialize(t *testing.T) {
 	}
 }
 
-// What the adapter writes after its address line (Delve: the debugged program's stdout) reaches onOut.
-func TestStartWithOutputPassesWhatFollowsTheAddress(t *testing.T) {
+// What the adapter writes after its address line (Delve: the debugged program's stdout) reaches onOut as "stdout", what
+// it writes on its stderr as "stderr".
+func TestStartWithOutputPassesStdoutAndStderr(t *testing.T) {
 	got := make(chan string, 8)
-	a, err := StartWithOutput(t.TempDir(), "/bin/sh", fakeAdapter(t), func(s string) { got <- s })
+	a, err := StartWithOutput(t.TempDir(), "/bin/sh", fakeAdapter(t), func(c, s string) { got <- c + ":" + strings.TrimSpace(s) })
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer a.Close()
-	select {
-	case s := <-got:
-		if !strings.Contains(s, "more output") {
-			t.Fatalf("got %q", s)
+	want := map[string]bool{"stdout:more output": true, "stderr:oops": true}
+	for len(want) > 0 {
+		select {
+		case s := <-got:
+			delete(want, s)
+		case <-time.After(5 * time.Second):
+			t.Fatalf("missing %v", want)
 		}
-	case <-time.After(5 * time.Second):
-		t.Fatal("no output")
 	}
 }

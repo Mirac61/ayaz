@@ -330,6 +330,10 @@ Done when: all four language groups have diagnostics, completion and navigation.
 
 - Done 2026-11-11: pasting an image into a Markdown buffer saves it as `assets/image-<date>-<time>.<ext>` next to the file (new `WorkspaceService.WriteNew`, never replaces a file, Go test) and inserts `![](assets/…)` (`editor/pasteImage.ts`, naming in `core/pasteImage.ts`); `<Space>fy` copies `path:line` of the cursor. Already there before this item and so not built: line ending and word count in the status line, binary guard (`ErrBinary`), SVG as code with its image beside it, dropping a file from the OS onto the window, tab drag and drop, terminal panel header. Open: the paste handler was not tried with a real clipboard in the app.
 
+## M68 – Debugger: program stderr
+
+- Done 2026-11-11: the debugged program's stderr reaches the output buffer (`<Space>dl`). Delve lets the program inherit its own stderr, which `internal/dap` sent to the app's stderr; `StartWithOutput` now pipes it and calls `onOut(category, text)` with `"stdout"` or `"stderr"`, `app/dap.go` turns both into output events with that category. Go test (`TestStartWithOutputPassesStdoutAndStderr`), the Delve E2E checks a `println` line. Plan: `docs/plans/2026-11-11-debugger-plan.md`. Delve's own log lines on stderr show up there too.
+
 ## Later
 
 | | What | Plugs into |

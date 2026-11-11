@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Mirac61/ayaz/internal/proc"
+	"io"
 	"net"
 	"os"
 	"os/exec"
@@ -39,18 +40,31 @@ func Start(dir, shell, command string) (*Adapter, error) {
 	return StartWithOutput(dir, shell, command, nil)
 }
 
-// StartWithOutput is Start, and passes what the adapter writes after its address line to onOut. For Delve that is the
-// debugged program's own stdout: it isn't sent as a DAP output event. onOut runs on the reader's goroutine.
-func StartWithOutput(dir, shell, command string, onOut func(string)) (*Adapter, error) {
+// StartWithOutput is Start, and passes what the adapter writes after its address line (category "stdout") and on its
+// stderr (category "stderr") to onOut. For Delve that is the debugged program's own output: it isn't sent as a DAP
+// output event. onOut runs on the readers' goroutines, once per stream at a time.
+func StartWithOutput(dir, shell, command string, onOut func(category, text string)) (*Adapter, error) {
 	cmd := proc.Command(shell, command)
 	cmd.Dir = dir
-	cmd.Stderr = os.Stderr
+	var errOut io.Reader
+	if onOut != nil {
+		pipe, err := cmd.StderrPipe()
+		if err != nil {
+			return nil, err
+		}
+		errOut = pipe
+	} else {
+		cmd.Stderr = os.Stderr
+	}
 	out, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, err
 	}
 	if err := cmd.Start(); err != nil {
 		return nil, err
+	}
+	if errOut != nil {
+		go forward(errOut, func(text string) { onOut("stderr", text) })
 	}
 	kill := func() {
 		proc.Terminate(cmd)
@@ -64,16 +78,12 @@ func StartWithOutput(dir, shell, command string, onOut func(string)) (*Adapter, 
 			if m := listening.FindStringSubmatch(line); m != nil {
 				addr <- m[1]
 				// Leaving the rest unread would block the adapter.
-				buf := make([]byte, 4096)
-				for {
-					n, err := r.Read(buf)
-					if n > 0 && onOut != nil {
-						onOut(string(buf[:n]))
+				forward(r, func(text string) {
+					if onOut != nil {
+						onOut("stdout", text)
 					}
-					if err != nil {
-						return
-					}
-				}
+				})
+				return
 			}
 			if err != nil {
 				close(addr)
@@ -96,6 +106,20 @@ func StartWithOutput(dir, shell, command string, onOut func(string)) (*Adapter, 
 	case <-time.After(startTimeout):
 		kill()
 		return nil, errors.New("dap: the adapter didn't announce an address")
+	}
+}
+
+// forward reads r to its end and hands every chunk to fn.
+func forward(r io.Reader, fn func(string)) {
+	buf := make([]byte, 4096)
+	for {
+		n, err := r.Read(buf)
+		if n > 0 {
+			fn(string(buf[:n]))
+		}
+		if err != nil {
+			return
+		}
 	}
 }
 
