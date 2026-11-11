@@ -14,6 +14,7 @@ const GROUP_ICONS: Record<string, string> = {
 };
 const COMMAND_ICONS: Record<string, string> = {
   "tree.focus": "\uf07b", "term.panel": "\uf120", "term.split": "\uf120", "term.lazygit": "\ue702",
+  "term.send": "\uf120", "term.float": "\uf120",
   "find.files": "\uf15b", "find.grep": "\uf002", "find.commands": "\uf0e7", "find.recent": "\uf1da", "find.buffers": "\uf0c5",
   "folder.switch": "\uf07c", "theme.switch": "\uf1fc", "lsp.symbols": "\uf1b2", "lsp.workspaceSymbols": "\uf1b3",
   "lsp.diagnostics": "\uf071", "file.history": "\uf1da", "lsp.rename": "\uf040", "lsp.codeAction": "\uf0eb",

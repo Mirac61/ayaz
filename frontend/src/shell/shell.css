@@ -1385,3 +1385,62 @@ body.dragging {
   pointer-events: none;
   transition: all var(--t-fast) var(--ease);
 }
+
+/* Floating scratchpad terminal (<Space>tf) */
+.float-term-backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: rgb(0 0 0 / 45%);
+  z-index: 50;
+  backdrop-filter: blur(2px);
+}
+.float-term-backdrop[hidden] {
+  display: none;
+}
+.float-term {
+  width: min(880px, 92vw);
+  height: min(540px, 78vh);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-1);
+  border: 1px solid var(--edge-overlay);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 20px 50px rgb(0 0 0 / 50%);
+  overflow: hidden;
+}
+.float-term-head {
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  background: var(--bg-0);
+  border-bottom: 1px solid var(--edge);
+  font: var(--text-sm) var(--font-ui);
+  color: var(--fg-2);
+  user-select: none;
+}
+.float-term-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+.float-term-title::before {
+  content: "\f120";
+  font-family: var(--font-mono);
+  color: var(--accent);
+}
+.float-term-body {
+  flex: 1;
+  min-height: 0;
+  padding: 6px 10px;
+  background: var(--term-bg, var(--bg-1));
+  overflow: hidden;
+}
+.float-term-body .xterm {
+  height: 100%;
+}

@@ -72,6 +72,9 @@ const isTermTab = (t: string) => t.startsWith(TERM);
 // The debugger's output: a buffer without a file (core/buffers `virtual`), opened like any path.
 export const OUTPUT = "debug://output";
 
+// Pane id of the bottom panel; split panes count up from 1.
+export const PANEL = -1;
+
 export class Editors {
   readonly buffers: Buffers;
   private panes = new Map<number, Pane>();
@@ -873,6 +876,22 @@ export class Editors {
     const vim = getCM(view)?.state.vim as { searchState_?: { getQuery(): RegExp | null } } | undefined;
     const query = vim?.searchState_?.getQuery();
     return (query?.source && searchCount(view.state.doc, query, head)) || undefined;
+  }
+
+  // Sends text to the active or panel terminal; returns false if no terminal is running.
+  sendToTerm(text: string): boolean {
+    const p = this.panes.get(PANEL);
+    if (p?.term) {
+      p.term.input(text.endsWith("\n") ? text : text + "\n");
+      return true;
+    }
+    for (const pane of this.panes.values()) {
+      if (pane.term) {
+        pane.term.input(text.endsWith("\n") ? text : text + "\n");
+        return true;
+      }
+    }
+    return false;
   }
 
   // Terminal zoom: d px more for every terminal (shown or hidden), 0 back to the size from settings.json.

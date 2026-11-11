@@ -13,8 +13,8 @@ import { setLspMessages, installHint } from "../editor/lsp";
 import { diagnosticsFor } from "../editor/diagnostics";
 import { projectTasks, type ProjectTask } from "../core/projectTasks";
 import { installPaletteKey, installVim, isEx } from "../editor/vim/setup";
-import type { TermOptions } from "../terminal/terminal";
-import { Editors, type Status } from "./editors";
+import { openTerminal, type TermHandle, type TermOptions } from "../terminal/terminal";
+import { Editors, PANEL, type Status } from "./editors";
 import { borders, close, equalize, neighbor, panes, rects, resize, setBorder, split, type Dir, type Layout } from "./layout";
 import { loadSettings, settings, settingsError } from "../core/settings";
 import { loadSnippets, snippetsError } from "../core/snippets";
@@ -52,7 +52,6 @@ const SIDEBAR_CLOSE = 100; // dragging the edge below this width closes the tree
 const clampSidebar = (w: number) => Math.round(Math.min(640, Math.max(160, w)));
 type Dock = "bottom" | "right" | "top";
 const DOCKS: Dock[] = ["bottom", "right", "top"]; // term.dock cycles them
-const PANEL = -1; // pane id of the bottom panel; split panes count up from 1
 
 // One workspace: tree on the left, editor panes in splits, status line. Every action is a command (ADR-0010).
 // onSwitch opens another folder in this window: a root from the recent list, or null for the folder dialog.
@@ -93,6 +92,22 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
   const panesEl = useRef<HTMLDivElement>(null);
   const panelEl = useRef<HTMLDivElement>(null);
   const [panelTitle, setPanelTitle] = useState("");
+  const [floatTerm, setFloatTerm] = useState(false);
+  const [floatMounted, setFloatMounted] = useState(false);
+  const floatHandle = useRef<TermHandle | null>(null);
+  useEffect(() => () => floatHandle.current?.dispose(), []);
+  const toggleFloatTerm = () => {
+    setFloatTerm((open) => {
+      const next = !open;
+      if (next) {
+        setFloatMounted(true);
+        requestAnimationFrame(() => floatHandle.current?.focus());
+      } else {
+        ed.focus(ed.active);
+      }
+      return next;
+    });
+  };
   const termFor = useRef(new Map<number, TermOptions>()); // new pane → the terminal it runs
   const seq = useRef<Sequencer | null>(null);
   const [hints, setHints] = useState<{ keys: string[]; next: Binding[] } | null>(null);
@@ -461,6 +476,40 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       },
       { id: "term.dock", title: "Move terminal panel (bottom, right, top)", run: () => setDock((d) => DOCKS[(DOCKS.indexOf(d) + 1) % DOCKS.length]) },
       { id: "term.panel", title: "Toggle terminal panel", run: togglePanel },
+      { id: "term.float", title: "Toggle floating scratch terminal (<Space>tf)", run: toggleFloatTerm },
+      {
+        id: "term.send",
+        title: "Send line or selection to terminal (<Space>ts)",
+        run() {
+          const v = ed.activeView();
+          if (!v) return fail("No active editor");
+          const { empty, from, to } = v.state.selection.main;
+          let text = "";
+          if (!empty) {
+            text = v.state.sliceDoc(from, to);
+          } else {
+            const line = v.state.doc.lineAt(from);
+            text = line.text;
+            if (line.number < v.state.doc.lines) {
+              const nextLine = v.state.doc.line(line.number + 1);
+              v.dispatch({ selection: { anchor: nextLine.from } });
+            }
+          }
+          if (!text.trim()) return;
+          if (floatTerm && floatHandle.current) {
+            floatHandle.current.input(text.endsWith("\n") ? text : text + "\n");
+            return say("Sent to scratch terminal");
+          }
+          const sent = ed.sendToTerm(text);
+          if (!sent) {
+            togglePanel();
+            setTimeout(() => {
+              ed.sendToTerm(text);
+            }, 150);
+          }
+          say("Sent to terminal");
+        },
+      },
       { id: "term.tab", title: "Terminal in a tab", run: termTab },
       { id: "term.split", title: "Terminal in a split (:terminal)", run: () => termSplit() },
       {
@@ -1016,6 +1065,47 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       {tabMenu && <ContextMenu at={tabMenu} items={tabMenu.items} onClose={() => setTabMenu(null)} />}
       {hints && <Hints keys={hints.keys} next={hints.next} title={(id) => commands.list().find((c) => c.id === id)?.title ?? id} />}
       {picker && <Picker source={picker} onClose={() => { setPicker(null); if (!document.activeElement?.closest(".sidebar")) ed.focus(ed.active); }} />}
+      {floatMounted && (
+        <div
+          className="float-term-backdrop"
+          hidden={!floatTerm}
+          onClick={toggleFloatTerm}
+        >
+          <div
+            className="float-term"
+            role="dialog"
+            aria-label="Scratch Terminal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <header className="float-term-head">
+              <span className="float-term-title">Scratch Terminal</span>
+              <button
+                type="button"
+                className="tab-close"
+                title="Close floating terminal (<Space>tf)"
+                onClick={toggleFloatTerm}
+              />
+            </header>
+            <div
+              className="float-term-body"
+              ref={(el) => {
+                if (el && !floatHandle.current) {
+                  floatHandle.current = openTerminal(el, {
+                    ws: ws.id,
+                    onExit: () => {
+                      setFloatTerm(false);
+                      setFloatMounted(false);
+                      floatHandle.current?.dispose();
+                      floatHandle.current = null;
+                    },
+                  });
+                  requestAnimationFrame(() => floatHandle.current?.focus());
+                }
+              }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
