@@ -1,8 +1,25 @@
 # Ayaz
 
-A keyboard-first code editor with a Neovim feel. It shows Markdown, PDFs and images properly and has a real terminal built in. Built with [Wails v3](https://v3.wails.io) (Go) and CodeMirror 6 (TypeScript).
+A keyboard-first code editor with a Neovim feel. It shows Markdown, PDFs and images properly and has a real terminal built in. Built with [Wails v3](https://v3.wails.io) (Go) and CodeMirror 6 (TypeScript), for macOS, Linux and Windows.
 
-![CI](https://github.com/Mirac61/ayaz/actions/workflows/ci.yml/badge.svg)
+[![CI](https://github.com/Mirac61/ayaz/actions/workflows/ci.yml/badge.svg)](https://github.com/Mirac61/ayaz/actions/workflows/ci.yml)
+[![Release](https://github.com/Mirac61/ayaz/actions/workflows/release.yml/badge.svg)](https://github.com/Mirac61/ayaz/actions/workflows/release.yml)
+[![Download](https://img.shields.io/badge/download-latest%20release-2ea44f?logo=github)](https://github.com/Mirac61/ayaz/releases/latest)
+[![Go](https://img.shields.io/badge/Go-Wails%20v3-00ADD8?logo=go&logoColor=white)](https://v3.wails.io)
+[![Platforms](https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows-555)](#install)
+
+![Screenshot of Ayaz: Go code on the left, a rendered Markdown document on the right, a terminal with git log below](docs/screenshot.png)
+
+## Contents
+
+- [Features](#features)
+- [Install](#install)
+- [Use](#use)
+- [Configuration files](#configuration-files)
+- [Develop](#develop)
+- [Contributing](#contributing)
+- [Docs](#docs)
+- [Status and license](#status-and-license)
 
 ## Features
 
@@ -20,7 +37,19 @@ A keyboard-first code editor with a Neovim feel. It shows Markdown, PDFs and ima
 
 ## Install
 
-Ayaz is built from source; there are no release downloads yet. Each platform needs **Go**, **[Bun](https://bun.sh)**, **[Task](https://taskfile.dev)** and the Wails CLI:
+### Download a release
+
+Every `v*` tag builds the three archives below ([latest release](https://github.com/Mirac61/ayaz/releases/latest)):
+
+| File | Platform | What's inside | How to start it |
+|---|---|---|---|
+| `ayaz-windows-amd64.zip` | Windows 10/11, x64 | `ayaz.exe` | Unzip anywhere and run `ayaz.exe`. SmartScreen warns because the exe isn't signed: *More info → Run anyway*. Needs WebView2 (part of Windows 11, on Windows 10 usually installed with Edge). |
+| `ayaz-macos-arm64.zip` | macOS, Apple silicon | `ayaz.app` | Unzip, move to `/Applications`. The app isn't notarized: right-click → Open on the first start, or `xattr -dr com.apple.quarantine /Applications/ayaz.app`. |
+| `ayaz-linux-amd64.tar.gz` | Linux, x64 | `ayaz` binary, `ayaz.desktop` | Put `ayaz` on your `PATH`, the desktop file in `~/.local/share/applications`. Needs `gtk4` and `webkitgtk-6.0`. |
+
+### Build from source
+
+Each platform needs **Go**, **[Bun](https://bun.sh)**, **[Task](https://taskfile.dev)** and the Wails CLI:
 
 ```sh
 go install github.com/wailsapp/wails/v3/cmd/wails3@v3.1.0
@@ -37,10 +66,6 @@ task install
 | Windows | `ayaz.exe` to `%LOCALAPPDATA%\Ayaz` and a Start menu shortcut | WebView2 (part of Windows 11) |
 
 Arch Linux can use the package instead: `cd build/linux/arch && makepkg -si`.
-
-The macOS app isn't notarized. If macOS blocks the first start, right-click → Open. `task install` already removes the quarantine flag.
-
-**Windows is new and has not been run on a real machine yet.** See [docs/08-windows.md](docs/08-windows.md) for what changed and what to check first.
 
 ### Language servers (optional)
 
@@ -75,9 +100,19 @@ The leader key is `Space`. A few bindings to start with:
 | `<Space>dd` / `db` / `dc` | start debugging / breakpoint / continue |
 | `<C-w>v` / `s` | split right / down |
 
-The welcome page lists more. Everything is a command ID: `<Space>fk` shows them all, and the keymap file (settings window) rebinds any of them. The defaults with comments are in [`app/keymap.default.json`](app/keymap.default.json).
+The welcome page lists more. Everything is a command ID: `<Space>fk` shows them all, and the keymap file rebinds any of them.
 
-Settings live in `~/Library/Application Support/ayaz` (macOS), `~/.config/ayaz` (Linux) or `%AppData%\ayaz` (Windows).
+## Configuration files
+
+Ayaz creates three JSON files on the first start, each with comments that explain the format. `Cmd+,` (Linux and Windows: `Ctrl+,`) opens them in a settings window; a saved file applies without a restart.
+
+| File | What it controls | Defaults, explained |
+|---|---|---|
+| `settings.json` | font and size, theme and colours, tab width, wrapping, format on save, sidebar and status line, project tasks, per-language overrides | [`app/settings.default.json`](app/settings.default.json) |
+| `keymap.json` | extra or changed key bindings, by mode and command ID | [`app/keymap.default.json`](app/keymap.default.json) |
+| `snippets.json` | your own snippets per language | [`app/snippets.default.json`](app/snippets.default.json) |
+
+They live in `~/Library/Application Support/ayaz` (macOS), `~/.config/ayaz` (Linux) or `%AppData%\ayaz` (Windows).
 
 ## Develop
 
@@ -93,7 +128,12 @@ bun run test:browser              # component tests (Vitest browser mode, WebKit
 bun run e2e                       # Playwright against the server build (see docs/04-testing.md)
 ```
 
-CI (`.github/workflows/ci.yml`) runs Go vet and tests on macOS and Linux, a Windows cross-build, the frontend checks, and the browser and E2E tests on both.
+| Workflow | Runs on | What it does |
+|---|---|---|
+| [`ci.yml`](.github/workflows/ci.yml) | every push | Go vet and tests on macOS and Linux, a Windows cross-build, the frontend checks, browser and E2E tests |
+| [`release.yml`](.github/workflows/release.yml) | `v*` tags, manual | builds the macOS, Windows and Linux archives; a tag also publishes them as a GitHub release |
+
+The code is split like this:
 
 | Folder | Contents |
 |---|---|
@@ -103,10 +143,16 @@ CI (`.github/workflows/ci.yml`) runs Go vet and tests on macOS and Linux, a Wind
 | `build/` | per-platform packaging (`darwin`, `linux`, `windows`) |
 | `docs/` | vision, research, architecture, ADRs, roadmap, test strategy |
 
+## Contributing
+
+Bug reports and ideas go into [issues](https://github.com/Mirac61/ayaz/issues). For a pull request, keep it to one change, add a test next to the code you touch, and run the checks from [Develop](#develop) before pushing; CI runs the same on macOS and Linux. Reports from Windows are especially welcome: [docs/08-windows.md](docs/08-windows.md) lists what to check first.
+
 ## Docs
 
 [Vision](docs/00-vision.md) · [Architecture](docs/02-architecture.md) · [Performance](docs/03-performance.md) · [Testing](docs/04-testing.md) · [Roadmap](docs/05-roadmap.md) · [Manual checks](docs/07-manual-checks.md) · [Windows](docs/08-windows.md) · [Decisions (ADRs)](docs/adr/)
 
-## Status
+## Status and license
 
-Daily-usable on macOS and Arch Linux/Hyprland. Windows is untested. No licence has been chosen yet, so all rights are reserved until one is added.
+Daily-usable on macOS and Arch Linux/Hyprland. Windows builds come with every release but haven't been tested much on real machines yet.
+
+No license has been chosen yet, so all rights are reserved until one is added.
