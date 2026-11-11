@@ -318,6 +318,10 @@ Done when: all four language groups have diagnostics, completion and navigation.
 
 - Done 2026-11-10: CI (`.github/workflows/ci.yml`) runs the browser tests and the E2E on macOS as well as Linux, with a real gopls (`v0.24.0`) so the LSP tests don't skip; the Go job already ran on both with `-race`. `docs/07-manual-checks.md` lists what no test reaches (the macOS app, the Hyprland machine) per milestone, with a release checklist. **Not done, needs the author:** the `LICENSE` (none is in the repository; the choice is theirs), the manual checks themselves, the Hyprland runs, and the push (`origin` is far behind, pushing waits for a go). The workflow wasn't run on GitHub from here: only its YAML was parsed and its commands match what runs locally.
 
+## M65 – UX pass
+
+- Done 2026-11-11 (unattended session, report in `docs/plans/2026-11-11-ux-report.md`): picker preview pane with the editor's colors (files, recent, buffers, search hits, symbols, quickfix), `name:line` in Find files, Cmd/Ctrl+Enter opens to the side, recent files first, folder dim with the file name kept whole, theme picker previews live; named which-key groups; tab names stay whole, middle and right click on tabs; right click menu and header buttons in the tree, draggable sidebar; `[3/12]` search count, selection size and word count in the status line; diagnostic text after the line (`<Space>ud`); color swatches; errors fade; recent files on the empty window. Fixes a picker that kept its instance (and lost the focus) when a pick opened another picker. Go: `WorkspaceService.Preview` (first bytes of a file).
+
 ## Later
 
 | | What | Plugs into |

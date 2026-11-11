@@ -188,3 +188,36 @@ func TestReadTextRefusesBinary(t *testing.T) {
 		}
 	}
 }
+
+func TestReadPreview(t *testing.T) {
+	w, err := New("t", t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	write := func(name string, b []byte) {
+		if err := os.WriteFile(filepath.Join(w.Root, name), b, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("small.txt", []byte("abc"))
+	write("long.txt", []byte("abcdef"))
+	write("umlaut.txt", []byte("abäcd")) // ä is two bytes: a limit of 3 cuts it
+	write("nul.bin", []byte{'a', 0, 'b'})
+	for _, c := range []struct {
+		name string
+		max  int
+		text string
+		more bool
+	}{
+		{"small.txt", 10, "abc", false}, {"small.txt", 3, "abc", false}, {"long.txt", 3, "abc", true},
+		{"umlaut.txt", 3, "ab", true}, {"umlaut.txt", 4, "abä", true},
+	} {
+		got, err := w.ReadPreview(c.name, c.max)
+		if err != nil || got.Text != c.text || got.More != c.more {
+			t.Errorf("%s max %d: got %+v, %v; want %q more=%v", c.name, c.max, got, err, c.text, c.more)
+		}
+	}
+	if _, err := w.ReadPreview("nul.bin", 10); !errors.Is(err, ErrBinary) {
+		t.Errorf("nul.bin: got %v, want ErrBinary", err)
+	}
+}

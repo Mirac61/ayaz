@@ -69,21 +69,3 @@ func TestFolderFillsTheOldEmptySettings(t *testing.T) {
 		t.Fatalf("settings.json = %q", b)
 	}
 }
-
-func TestGlassOn(t *testing.T) {
-	for body, want := range map[string]bool{
-		"{\n  \"glass\": true\n}":     true,
-		"{\n  // \"glass\": true,\n}": false,
-		"{\n  \"glass\": false\n}":    false,
-		"":                            false,
-	} {
-		dir := t.TempDir()
-		t.Setenv("AYAZ_CONFIG_DIR", dir)
-		if err := os.WriteFile(filepath.Join(dir, "settings.json"), []byte(body), 0o644); err != nil {
-			t.Fatal(err)
-		}
-		if got := glassOn(); got != want {
-			t.Errorf("glassOn(%q) = %v, want %v", body, got, want)
-		}
-	}
-}

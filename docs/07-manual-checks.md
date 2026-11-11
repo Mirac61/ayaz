@@ -20,6 +20,9 @@ What no automated test reaches: the native window, system dialogs, the real clip
 | A real `git merge` with conflicts: colours, `]x`, `<Space>mo` / `mt` / `mb`, then `git add` | M62 |
 | `"+y` and `"+p` with the system clipboard (headless WebKit denies it) | M63 |
 | Trash puts files in `~/.Trash`; zoom with xterm and PDF open; fS latency in a big project; wrap in Markdown | M15–M31 |
+| The picker preview (`<Space>ff`, `<Space>fw`) in the real window: scrolling the list with `<C-n>` held stays smooth; colors follow the theme | M65 |
+| Right click on a tree row and on a tab, middle click on a tab, dragging the sidebar edge in the native window (WebKit in the app, not only headless) | M65 |
+| Diagnostic text after the line (`<Space>ud`) while typing in a Go file with errors: no stutter; hex color swatches in `themes.ts` | M65 |
 | lazygit commit from the terminal split; btop and tables render | M5, M6 |
 | Hot exit: kill the app while typing, start again, restore offered per file | M49 |
 | Tasks: `<Space>rr` runs one from `settings.json`, errors fill the quickfix list | M52 |

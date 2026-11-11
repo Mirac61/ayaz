@@ -151,7 +151,7 @@ func (s *WorkspaceService) bindWindow(ctx context.Context, ws string) {
 		s.mu.Unlock()
 		if !ok {
 			e.Cancel()
-			win.EmitEvent("app:close-request")
+			win.EmitEvent("app:close-request", ws) // events reach every window: the payload says whose it is
 		}
 	})
 	win.OnWindowEvent(events.Common.WindowClosing, func(*application.WindowEvent) {
@@ -173,7 +173,7 @@ func (s *WorkspaceService) ShouldQuit() bool {
 	open := 0
 	for _, win := range a.Window.GetAll() {
 		s.mu.Lock()
-		_, hooked := s.windows[win.ID()]
+		ws, hooked := s.windows[win.ID()]
 		closing := s.closing[win.ID()]
 		s.mu.Unlock()
 		if closing {
@@ -181,7 +181,7 @@ func (s *WorkspaceService) ShouldQuit() bool {
 		}
 		open++
 		if hooked {
-			win.EmitEvent("app:close-request")
+			win.EmitEvent("app:close-request", ws)
 		} else {
 			win.Close()
 		}
@@ -212,17 +212,14 @@ func NewWindow(a *application.App, name, url string) *application.WebviewWindow 
 		Title:  "Ayaz",
 		Width:  1200,
 		Height: 800,
-		// bg-0, so there is no white flash before the first paint.
-		BackgroundColour: application.NewRGB(0x16, 0x16, 0x17),
+		// Always translucent: the stylesheet's surfaces are opaque until "glass" (or the Toggle transparency command) makes
+		// them see-through, so the mode switches live. Clear until the first paint, which is bg-0 anyway.
+		BackgroundType:   application.BackgroundTypeTranslucent,
+		BackgroundColour: application.NewRGBA(0, 0, 0, 0),
 		// Standard 30 px macOS titlebar (--bar) with native traffic lights.
-		Mac:            application.MacWindow{TitleBar: application.MacTitleBarHidden, InvisibleTitleBarHeight: 30},
+		Mac:            application.MacWindow{TitleBar: application.MacTitleBarHidden, InvisibleTitleBarHeight: 30, Backdrop: application.MacBackdropTranslucent},
 		URL:            url,
 		EnableFileDrop: true,
-	}
-	if glassOn() { // "glass": true: the frontend's translucent surfaces show the desktop through the window
-		opts.BackgroundType = application.BackgroundTypeTranslucent
-		opts.BackgroundColour = application.NewRGBA(0, 0, 0, 0)
-		opts.Mac.Backdrop = application.MacBackdropTranslucent
 	}
 	win := a.Window.NewWithOptions(opts)
 	win.OnWindowEvent(events.Common.WindowRuntimeReady, func(*application.WindowEvent) { UncapFrameRate(win) })
@@ -365,6 +362,15 @@ func (s *WorkspaceService) ReadText(ws, path string) (workspace.TextFile, error)
 		return readLibrary(libraryRoots(), path)
 	}
 	return w.ReadText(path)
+}
+
+// Preview reads the start of a workspace file for a picker's preview pane, at most max bytes.
+func (s *WorkspaceService) Preview(ws, path string, max int) (workspace.Preview, error) {
+	w, err := s.reg.Get(ws)
+	if err != nil {
+		return workspace.Preview{}, err
+	}
+	return w.ReadPreview(path, max)
 }
 
 // WriteText returns the new mtime. A stale expectedMtime fails with "file changed on disk".

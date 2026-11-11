@@ -30,6 +30,8 @@
 
   // Optional translucent chrome and blur on floating overlays; solid is the default.
   // "glass": false,
+  // How see-through glass is, 0.3 (very) to 1 (as designed). The palette (<Space>fk) has "Toggle transparency", which switches it live.
+  // "glassOpacity": 1,
 
   // The color theme: chrome, editor syntax and terminal together. Built in: "graphite", "kanagawa", "tokyo-night",
   // "catppuccin-mocha", "gruvbox-dark", plus every name in "themes" below. <Space>ft switches for this session.

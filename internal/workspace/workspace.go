@@ -2,8 +2,10 @@
 package workspace
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path"
@@ -125,6 +127,43 @@ func (w *Workspace) ReadText(rel string) (TextFile, error) {
 		return TextFile{}, err
 	}
 	return TextFile{Path: rel, Content: string(b), Mtime: st.ModTime().UnixMicro()}, nil
+}
+
+// Preview is the start of a text file for a picker's preview pane: at most max bytes, More when the file goes on.
+type Preview struct {
+	Text string `json:"text"`
+	More bool   `json:"more"`
+}
+
+// ReadPreview reads only the first max bytes, so a huge file costs no more than a small one.
+// A binary file is ErrBinary; a multi-byte character cut by the limit is dropped, not an error.
+func (w *Workspace) ReadPreview(rel string, max int) (Preview, error) {
+	p, err := w.Resolve(rel)
+	if err != nil {
+		return Preview{}, err
+	}
+	f, err := os.Open(p)
+	if err != nil {
+		return Preview{}, err
+	}
+	defer f.Close()
+	buf, err := io.ReadAll(io.LimitReader(f, int64(max)+1)) // grows with the file: a small one costs a small buffer
+	if err != nil {
+		return Preview{}, err
+	}
+	n := len(buf)
+	more := n > max
+	if more {
+		n = max
+		for n > 0 && !utf8.RuneStart(buf[n]) { // buf[n] starts the next character, or continues a cut one
+			n--
+		}
+	}
+	b := buf[:n]
+	if !utf8.Valid(b) || bytes.IndexByte(b, 0) >= 0 {
+		return Preview{}, ErrBinary
+	}
+	return Preview{Text: string(b), More: more}, nil
 }
 
 // WriteText writes atomically (temp file + fsync + rename) and returns the new mtime.
