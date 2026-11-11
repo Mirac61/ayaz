@@ -7,9 +7,13 @@ on:
 jobs:
   go:
     strategy:
+      fail-fast: false
       matrix:
-        os: [macos-latest, ubuntu-24.04]
+        os: [macos-latest, ubuntu-24.04, windows-latest]
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash # the Windows runner defaults to PowerShell
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-go@v6
@@ -20,7 +24,9 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev
       # main embeds frontend/dist, which only exists after a frontend build.
       - run: mkdir -p frontend/dist && touch frontend/dist/index.html
+      # go test already vets what it compiles; the full vet runs once, and the windows job vets GOOS=windows.
       - run: go vet ./...
+        if: runner.os == 'Linux'
       - run: go test -race ./...
       - name: Fuzz the path jail
         if: runner.os == 'Linux'
@@ -64,9 +70,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
         working-directory: frontend
@@ -75,14 +78,20 @@ jobs:
         working-directory: frontend
       - run: bun run test:browser
         working-directory: frontend
-      - run: bun run build
+      # E2E only on macOS (the target platform): on Linux it would need GTK/WebKitGTK just to link the server build.
+      - if: runner.os == 'macOS'
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - if: runner.os == 'macOS'
+        run: bun run build
         working-directory: frontend
-      # Wails 3.1.0 still links GTK/WebKitGTK in the server build on Linux.
-      - name: Linux GUI libraries
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev
-      - run: go install golang.org/x/tools/gopls@v0.24.0
-      - run: echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
-      - run: go build -tags server,production -o bin/ayaz-server .
-      - run: bun run e2e
+      - if: runner.os == 'macOS'
+        run: go install golang.org/x/tools/gopls@v0.24.0
+      - if: runner.os == 'macOS'
+        run: echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - if: runner.os == 'macOS'
+        run: go build -tags server,production -o bin/ayaz-server .
+      - if: runner.os == 'macOS'
+        run: bun run e2e
         working-directory: frontend
