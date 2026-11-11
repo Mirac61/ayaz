@@ -84,6 +84,9 @@
   "languages": {
     "go": { "tabs": true, "formatOnSave": true },
     "md": { "wrap": true },
+    "typ": { "wrap": true, "formatOnSave": true },
+    "tex": { "wrap": true },
+    "txt": { "wrap": true },
     // "ts": { "tabWidth": 2 },
   },
 }

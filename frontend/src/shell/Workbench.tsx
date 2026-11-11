@@ -8,6 +8,7 @@ import { Commands } from "../core/commands";
 import { defaultKeymap, keyName, mergeKeymap, parseUserKeymap, Sequencer, type Binding } from "../core/keymap";
 import { diff, lf } from "../core/buffers";
 import { parseProblems } from "../core/tasks";
+import { docBuild, type DocBuild } from "../core/docBuild";
 import { Quickfix } from "../core/quickfix";
 import { setLspMessages, installHint } from "../editor/lsp";
 import { diagnosticsFor } from "../editor/diagnostics";
@@ -387,6 +388,21 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       });
     };
 
+    // <Space>mp on .typ/.tex: the watcher runs as a task; the PDF opens beside the source once the first build has written it.
+    const buildDoc = async (path: string, { cmd, pdf }: DocBuild) => {
+      const from = ed.active;
+      runTask({ name: `Build ${path}`, cmd });
+      const slash = pdf.lastIndexOf("/");
+      const [dir, name] = [pdf.slice(0, Math.max(slash, 0)), pdf.slice(slash + 1)];
+      for (let i = 0; i < 40; i++) {
+        if ((await files.list(dir).catch(() => [])).some((e) => e.name === name)) {
+          return void openNext.current.set(splitPane("row", undefined, from), pdf);
+        }
+        await new Promise((r) => setTimeout(r, 500));
+      }
+      fail(`No ${pdf} after 20 s: see the build terminal (typst, tectonic installed?)`);
+    };
+
     const keysFor = (id: string) => bindingsRef.current?.find((b) => b.command === id)?.keys;
 
     const off = commands.register(
@@ -410,10 +426,12 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       },
       {
         id: "md.preview",
-        title: "Toggle Markdown preview in a split",
+        title: "Toggle Markdown preview in a split; builds Typst and LaTeX files to a PDF beside them",
         run() {
           const b = ed.current();
-          if (!b || !b.path.endsWith(".md")) return fail("The preview is for Markdown files");
+          const doc = b && docBuild(b.path);
+          if (b && doc) return void buildDoc(b.path, doc);
+          if (!b || !b.path.endsWith(".md")) return fail("The preview is for Markdown, Typst and LaTeX files");
           const open = [...previews.current].find((id) => ed.pathOf(id) === b.path);
           if (open !== undefined) return closePane(true, open);
           previewNext.current.add(splitPane("row"));

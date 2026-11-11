@@ -52,7 +52,13 @@ export const DEFAULTS: Settings = {
   tabs: false,
   wrap: false,
   formatOnSave: false,
-  languages: { go: { tabs: true, formatOnSave: true }, md: { wrap: true } },
+  languages: {
+    go: { tabs: true, formatOnSave: true },
+    md: { wrap: true },
+    typ: { wrap: true, formatOnSave: true },
+    tex: { wrap: true },
+    txt: { wrap: true },
+  },
 };
 
 const TYPES: Record<keyof FileSettings, string> = { tabWidth: "number", tabs: "boolean", wrap: "boolean", formatOnSave: "boolean" };
