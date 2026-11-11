@@ -3,9 +3,9 @@ package app
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"github.com/Mirac61/ayaz/internal/proc"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -55,10 +55,7 @@ func (s *WorkspaceService) HandleLSP(c *application.StreamConn) {
 	if !ok || err != nil {
 		return
 	}
-	shell := os.Getenv("SHELL")
-	if shell == "" {
-		shell = "/bin/sh"
-	}
+	shell := proc.Shell()
 	bin := strings.Fields(command)[0]
 	if !lsp.Available(shell, bin) {
 		emitLsp(LspStatus{WS: cfg.WS, Lang: cfg.Lang, State: "missing", Command: bin})
@@ -136,11 +133,8 @@ var cIncludeRoots = []string{
 // libraryRoots are the folders a jump may lead into outside the workspace: the Go toolchain and module cache,
 // and system headers. shortcut: asked once per process; TypeScript's lib.d.ts and jdtls' jdt:// URIs stay out.
 var libraryRoots = sync.OnceValue(func() []string {
-	shell := os.Getenv("SHELL")
-	if shell == "" {
-		shell = "/bin/sh"
-	}
-	out, _ := exec.Command(shell, "-l", "-c", "go env GOROOT GOMODCACHE").Output()
+	shell := proc.Shell()
+	out, _ := proc.Command(shell, "go env GOROOT GOMODCACHE").Output()
 	return append(strings.Fields(string(out)), cIncludeRoots...)
 })
 

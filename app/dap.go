@@ -2,8 +2,8 @@ package app
 
 import (
 	"encoding/json"
+	"github.com/Mirac61/ayaz/internal/proc"
 	"log"
-	"os"
 	"sync"
 
 	"github.com/Mirac61/ayaz/internal/dap"
@@ -31,10 +31,7 @@ func (s *WorkspaceService) HandleDAP(c *application.StreamConn) {
 	if err != nil {
 		return
 	}
-	shell := os.Getenv("SHELL")
-	if shell == "" {
-		shell = "/bin/sh"
-	}
+	shell := proc.Shell()
 	if !lsp.Available(shell, "dlv") {
 		emitLsp(LspStatus{WS: cfg.WS, Lang: "dlv", State: "missing", Command: "dlv"})
 		return

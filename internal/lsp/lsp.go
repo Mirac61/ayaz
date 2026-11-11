@@ -7,13 +7,13 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/Mirac61/ayaz/internal/proc"
 	"io"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 )
 
 const maxMessage = 64 << 20 // a server that claims more is broken; don't allocate it
@@ -64,16 +64,15 @@ type Server struct {
 
 // Available reports whether command is found by the login shell, i.e. in the user's PATH.
 func Available(shell, command string) bool {
-	return exec.Command(shell, "-l", "-c", "command -v "+command).Run() == nil
+	return proc.Available(shell, command)
 }
 
 // Start runs `shell -l -c "exec <command>"` in dir. The login shell finds servers in the user's PATH
 // (~/go/bin, Homebrew) even when a Finder-started app has a bare one.
 func Start(dir, shell, command string) (*Server, error) {
-	cmd := exec.Command(shell, "-l", "-c", "exec "+command)
+	cmd := proc.Command(shell, command)
 	cmd.Dir = dir
 	cmd.Stderr = os.Stderr
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	in, err := cmd.StdinPipe()
 	if err != nil {
 		return nil, err
@@ -101,7 +100,7 @@ func (s *Server) Recv() ([]byte, error) { return ReadMessage(s.out) }
 // Close kills the server's process group and waits. Safe to call more than once.
 func (s *Server) Close() {
 	s.close.Do(func() {
-		syscall.Kill(-s.cmd.Process.Pid, syscall.SIGTERM)
+		proc.Terminate(s.cmd)
 		s.in.Close()
 		s.cmd.Wait()
 	})

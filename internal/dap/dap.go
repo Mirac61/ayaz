@@ -7,12 +7,12 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"github.com/Mirac61/ayaz/internal/proc"
 	"net"
 	"os"
 	"os/exec"
 	"regexp"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/Mirac61/ayaz/internal/lsp"
@@ -42,10 +42,9 @@ func Start(dir, shell, command string) (*Adapter, error) {
 // StartWithOutput is Start, and passes what the adapter writes after its address line to onOut. For Delve that is the
 // debugged program's own stdout: it isn't sent as a DAP output event. onOut runs on the reader's goroutine.
 func StartWithOutput(dir, shell, command string, onOut func(string)) (*Adapter, error) {
-	cmd := exec.Command(shell, "-l", "-c", "exec "+command)
+	cmd := proc.Command(shell, command)
 	cmd.Dir = dir
 	cmd.Stderr = os.Stderr
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	out, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, err
@@ -54,7 +53,7 @@ func StartWithOutput(dir, shell, command string, onOut func(string)) (*Adapter, 
 		return nil, err
 	}
 	kill := func() {
-		syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM)
+		proc.Terminate(cmd)
 		cmd.Wait()
 	}
 	addr := make(chan string, 1)
@@ -115,7 +114,7 @@ func (a *Adapter) Recv() ([]byte, error) { return lsp.ReadMessage(a.in) }
 func (a *Adapter) Close() {
 	a.close.Do(func() {
 		a.conn.Close()
-		syscall.Kill(-a.cmd.Process.Pid, syscall.SIGTERM)
+		proc.Terminate(a.cmd)
 		a.cmd.Wait()
 	})
 }

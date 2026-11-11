@@ -2,6 +2,7 @@ package app
 
 import (
 	"encoding/json"
+	"github.com/Mirac61/ayaz/internal/proc"
 	"log"
 	"os"
 	"path/filepath"
@@ -42,10 +43,7 @@ func (s *WorkspaceService) HandleTerminal(c *application.StreamConn) {
 	if cfg.MaxBytes == 0 {
 		cfg.MaxBytes = 16 << 10
 	}
-	shell := os.Getenv("SHELL")
-	if shell == "" {
-		shell = "/bin/sh"
-	}
+	shell := proc.Shell()
 	dir, _ := os.UserHomeDir()
 	if cfg.WS != "" {
 		w, err := s.reg.Get(cfg.WS)
@@ -55,11 +53,7 @@ func (s *WorkspaceService) HandleTerminal(c *application.StreamConn) {
 		dir = w.Root
 	}
 	dir = startDir(dir, cfg.Dir)
-	args := []string{"-l"} // login shell: a Finder-started app has a bare PATH
-	if cfg.Cmd != "" {
-		args = append(args, "-c", cfg.Cmd)
-	}
-	sess, err := pty.Start(dir, cfg.Cols, cfg.Rows, shell, args...)
+	sess, err := pty.Start(dir, cfg.Cols, cfg.Rows, shell, proc.ShellArgs(cfg.Cmd)...)
 	if err != nil {
 		log.Println("pty:", err)
 		return
