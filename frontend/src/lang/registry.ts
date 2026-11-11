@@ -1,4 +1,5 @@
-import { LanguageDescription, type LanguageSupport } from "@codemirror/language";
+import { LanguageDescription, LanguageSupport, StreamLanguage, type StreamParser } from "@codemirror/language";
+import { typst } from "./typst";
 
 // Extension → highlighter package and language server, one row per language: adding one is one line here.
 // Packages load lazily so a Go file never pulls in the Java parser (ADR-0015). lsp: [LSP languageId, server name];
@@ -8,6 +9,15 @@ const cpp: Loader = () => import("@codemirror/lang-cpp").then((m) => m.cpp());
 const js = (opts: { jsx?: boolean; typescript?: boolean }): Loader => () =>
   import("@codemirror/lang-javascript").then((m) => m.javascript(opts));
 const jsPlain = js({});
+const legacy = (mode: () => Promise<StreamParser<unknown>>): Loader => async () => new LanguageSupport(StreamLanguage.define(await mode()));
+const python: Loader = () => import("@codemirror/lang-python").then((m) => m.python());
+const yaml: Loader = () => import("@codemirror/lang-yaml").then((m) => m.yaml());
+const xml: Loader = () => import("@codemirror/lang-xml").then((m) => m.xml());
+const sql: Loader = () => import("@codemirror/lang-sql").then((m) => m.sql());
+const php: Loader = () => import("@codemirror/lang-php").then((m) => m.php());
+const shell = legacy(() => import("@codemirror/legacy-modes/mode/shell").then((m) => m.shell));
+const latex = legacy(() => import("@codemirror/legacy-modes/mode/stex").then((m) => m.stex));
+const typ: Loader = async () => new LanguageSupport(typst);
 const langs: Record<string, { load: Loader; lsp?: [string, string] }> = {
   go: { load: () => import("@codemirror/lang-go").then((m) => m.go()), lsp: ["go", "gopls"] },
   c: { load: cpp, lsp: ["c", "clangd"] },
@@ -24,9 +34,27 @@ const langs: Record<string, { load: Loader; lsp?: [string, string] }> = {
   css: { load: () => import("@codemirror/lang-css").then((m) => m.css()), lsp: ["css", "css"] },
   json: { load: () => import("@codemirror/lang-json").then((m) => m.json()), lsp: ["json", "json"] },
   java: { load: () => import("@codemirror/lang-java").then((m) => m.java()), lsp: ["java", "jdtls"] },
+  py: { load: python, lsp: ["python", "pyright"] },
+  rs: { load: () => import("@codemirror/lang-rust").then((m) => m.rust()), lsp: ["rust", "rust-analyzer"] },
+  yaml: { load: yaml, lsp: ["yaml", "yaml"] },
+  yml: { load: yaml, lsp: ["yaml", "yaml"] },
+  toml: { load: legacy(() => import("@codemirror/legacy-modes/mode/toml").then((m) => m.toml)), lsp: ["toml", "taplo"] },
+  sh: { load: shell },
+  bash: { load: shell },
+  zsh: { load: shell },
+  sql: { load: sql },
+  xml: { load: xml },
+  svg: { load: xml },
+  php: { load: php },
+  lua: { load: legacy(() => import("@codemirror/legacy-modes/mode/lua").then((m) => m.lua)) },
+  dockerfile: { load: legacy(() => import("@codemirror/legacy-modes/mode/dockerfile").then((m) => m.dockerFile)) },
+  typ: { load: typ, lsp: ["typst", "tinymist"] },
+  tex: { load: latex, lsp: ["latex", "texlab"] },
   md: { load: () => import("@codemirror/lang-markdown").then((m) => m.markdown({ base: m.markdownLanguage, codeLanguages })) }, // GFM (Q7)
 };
 
+// Dockerfile has no extension: its name is the key, like an extension is.
+const keyOf = (path: string) => extOf(path) || path.slice(path.lastIndexOf("/") + 1).toLowerCase();
 export const extOf = (path: string) => {
   const name = path.slice(path.lastIndexOf("/") + 1);
   const dot = name.lastIndexOf(".");
@@ -34,11 +62,14 @@ export const extOf = (path: string) => {
 };
 
 export const loadLanguage = (path: string): Promise<LanguageSupport | null> =>
-  langs[extOf(path)]?.load() ?? Promise.resolve(null);
+  langs[keyOf(path)]?.load() ?? Promise.resolve(null);
 
-export const serverFor = (path: string): [lang: string, server: string] | undefined => langs[extOf(path)]?.lsp;
+export const serverFor = (path: string): [lang: string, server: string] | undefined => langs[keyOf(path)]?.lsp;
 
-const names: Record<string, string[]> = { go: ["golang"], js: ["javascript"], ts: ["typescript"], cpp: ["c++"], md: ["markdown"] };
+const names: Record<string, string[]> = {
+  go: ["golang"], js: ["javascript"], ts: ["typescript"], cpp: ["c++"], md: ["markdown"], py: ["python"], rs: ["rust"],
+  sh: ["shell"], yml: ["yaml"], typ: ["typst"], tex: ["latex"],
+};
 
 // Fenced code blocks in Markdown: info string → language. One entry per loader, so c/h/cc/cpp/hpp share one parser.
 const byLoader = new Map<() => Promise<LanguageSupport>, string[]>();

@@ -15,15 +15,21 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
-// Server name (from the frontend's extension table in editor/lsp.ts) → command. A missing binary just ends the stream.
+// Server name (from the frontend's extension table in lang/registry.ts) → command. A missing binary just ends the stream.
 var lspServers = map[string]string{
-	"gopls":  "gopls",
-	"clangd": "clangd",
-	"ts":     "typescript-language-server --stdio",
-	"html":   "vscode-html-language-server --stdio",
-	"css":    "vscode-css-language-server --stdio",
-	"json":   "vscode-json-language-server --stdio",
-	"jdtls":  "jdtls",
+	"gopls":         "gopls",
+	"clangd":        "clangd",
+	"ts":            "typescript-language-server --stdio",
+	"html":          "vscode-html-language-server --stdio",
+	"css":           "vscode-css-language-server --stdio",
+	"json":          "vscode-json-language-server --stdio",
+	"jdtls":         "jdtls",
+	"pyright":       "pyright-langserver --stdio",
+	"rust-analyzer": "rust-analyzer",
+	"yaml":          "yaml-language-server --stdio",
+	"taplo":         "taplo lsp stdio",
+	"tinymist":      "tinymist lsp",
+	"texlab":        "texlab",
 }
 
 type lspConfig struct {

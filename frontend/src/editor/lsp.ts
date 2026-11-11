@@ -430,6 +430,12 @@ const INSTALL: Record<string, string> = {
   css: "npm i -g vscode-langservers-extracted",
   json: "npm i -g vscode-langservers-extracted",
   jdtls: isMac ? "brew install jdtls" : "install jdtls with your package manager",
+  pyright: "npm i -g pyright",
+  "rust-analyzer": "rustup component add rust-analyzer",
+  yaml: "npm i -g yaml-language-server",
+  taplo: "cargo install taplo-cli --locked --features lsp",
+  tinymist: "brew install tinymist",
+  texlab: "brew install texlab",
   dlv: "go install github.com/go-delve/delve/cmd/dlv@latest", // the debugger, through the same "missing" status
 };
 export const installHint = (server: string) => INSTALL[server] ?? "";
