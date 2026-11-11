@@ -25,6 +25,12 @@ export function defaultKeymap(mac = isMac): Binding[] {
   const panes = { h: "pane.left", j: "pane.down", k: "pane.up", l: "pane.right" };
   return [
     n("<Space>e", "tree.focus"),
+    n("<Space>a", "harpoon.toggle"),
+    n("<Space>1", "harpoon.goto1"),
+    n("<Space>2", "harpoon.goto2"),
+    n("<Space>3", "harpoon.goto3"),
+    n("<Space>4", "harpoon.goto4"),
+    n("<Space>fa", "harpoon.menu"),
     n("<Space>ff", "find.files"),
     n("<Space>fo", "find.recent"),
     n("<Space>fb", "find.buffers"),

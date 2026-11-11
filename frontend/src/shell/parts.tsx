@@ -17,7 +17,7 @@ const COMMAND_ICONS: Record<string, string> = {
   "find.files": "\uf15b", "find.grep": "\uf002", "find.commands": "\uf0e7", "find.recent": "\uf1da", "find.buffers": "\uf0c5",
   "folder.switch": "\uf07c", "theme.switch": "\uf1fc", "lsp.symbols": "\uf1b2", "lsp.workspaceSymbols": "\uf1b3",
   "lsp.diagnostics": "\uf071", "file.history": "\uf1da", "lsp.rename": "\uf040", "lsp.codeAction": "\uf0eb",
-  "task.run": "\uf04b", "task.last": "\uf01e", "tab.close": "\uf00d",
+  "task.run": "\uf04b", "task.last": "\uf01e", "tab.close": "\uf00d", "harpoon.toggle": "\uf02e", "harpoon.menu": "\uf02e",
   "debug.toggleBreakpoint": "\uf111", "debug.start": "\uf04b", "debug.continue": "\uf051", "debug.stop": "\uf04d",
   "debug.next": "\uf050", "debug.stepIn": "\uf063", "debug.stepOut": "\uf062",
   "git.diff": "\uf440", "git.blame": "\uf007", "git.stageHunk": "\uf067", "git.unstageHunk": "\uf068", "git.resetHunk": "\uf0e2",

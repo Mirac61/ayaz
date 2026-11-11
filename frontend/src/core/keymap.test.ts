@@ -130,3 +130,13 @@ test("defaultKeymap binds Zen mode and toggle inline blame in view group", () =>
   expect(km.find((b) => b.keys === "<Space>uz")?.command).toBe("view.zen");
   expect(km.find((b) => b.keys === "<Space>ub")?.command).toBe("git.toggleInlineBlame");
 });
+
+test("defaultKeymap binds Harpoon quick keys", () => {
+  const km = defaultKeymap();
+  expect(km.find((b) => b.keys === "<Space>a")?.command).toBe("harpoon.toggle");
+  expect(km.find((b) => b.keys === "<Space>1")?.command).toBe("harpoon.goto1");
+  expect(km.find((b) => b.keys === "<Space>2")?.command).toBe("harpoon.goto2");
+  expect(km.find((b) => b.keys === "<Space>3")?.command).toBe("harpoon.goto3");
+  expect(km.find((b) => b.keys === "<Space>4")?.command).toBe("harpoon.goto4");
+  expect(km.find((b) => b.keys === "<Space>fa")?.command).toBe("harpoon.menu");
+});

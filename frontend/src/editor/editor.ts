@@ -5,7 +5,7 @@ import {
 } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { bracketMatching, codeFolding, indentOnInput, indentUnit } from "@codemirror/language";
-import { search } from "@codemirror/search";
+import { search, searchKeymap } from "@codemirror/search";
 import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import { vim } from "@replit/codemirror-vim";
 import { indentationMarkers } from "@replit/codemirror-indentation-markers";
@@ -69,7 +69,7 @@ export const editorExtensions = (): Extension[] => [
   indentOnInput(),
   closeBrackets(),
   search(),
-  keymap.of([...closeBracketsKeymap, ...defaultKeymap, ...historyKeymap, indentWithTab]),
+  keymap.of([...closeBracketsKeymap, ...searchKeymap, ...defaultKeymap, ...historyKeymap, indentWithTab]),
   cmTheme,
   stickyScroll,
   inlineBlame,

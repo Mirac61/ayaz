@@ -2,6 +2,7 @@ import { mdLinks } from "../editor/mdrender";
 import { setDropHandler } from "./dnd";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
+import { EditorView } from "@codemirror/view";
 import { backend, type Info, type OpenEvent } from "../core/backend";
 import { Commands } from "../core/commands";
 import { defaultKeymap, keyName, mergeKeymap, parseUserKeymap, Sequencer, type Binding } from "../core/keymap";
@@ -33,6 +34,7 @@ import { gitCommands } from "./commands/git";
 import { lspCommands } from "./commands/lsp";
 import { quickfixTools } from "./commands/quickfix";
 import { restoreTabs, viewCommands } from "./commands/view";
+import { harpoonCommands } from "./commands/harpoon";
 import { recentFolders } from "./folders";
 import { applyDiagText } from "./diagText";
 import { recentCommands, rememberCommand } from "./recentCommands";
@@ -374,6 +376,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
     const off = commands.register(
       ...fileCommands(c),
       ...findCommands(c, q),
+      ...harpoonCommands(c),
       ...lspCommands(c, q),
       ...gitCommands(c),
       ...debugCommands(c),
@@ -768,8 +771,28 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
   const file = (
     <span className="file" title={status.path ?? undefined}>
       {dir && <span className="dir">{dir}</span>}
-      {status.path?.slice(dir?.length) ?? "[No Name]"}
+      <span className="name">{status.path?.slice(dir?.length) ?? "[No Name]"}</span>
       {status.dirty && <span className="dirty" title="Modified" />}
+      {status.scopes?.map((s, idx) => (
+        <span key={idx} className="breadcrumb-wrap">
+          <span className="breadcrumb-sep">›</span>
+          <button
+            type="button"
+            className="breadcrumb-scope"
+            title={`Jump to ${s.text}`}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              const v = ed.activeView();
+              if (v) {
+                v.dispatch({ selection: { anchor: s.at }, effects: EditorView.scrollIntoView(s.at, { y: "center" }) });
+                v.focus();
+              }
+            }}
+          >
+            {s.text}
+          </button>
+        </span>
+      ))}
     </span>
   );
   const ft = status.path && !status.path.startsWith("term://") && !status.path.startsWith("debug://")

@@ -69,8 +69,44 @@
   justify-content: center;
 }
 .titlebar .file {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   font: var(--text-sm) var(--font-mono);
   color: var(--fg-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.breadcrumb-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.breadcrumb-sep {
+  color: var(--fg-4);
+  font-size: 11px;
+  user-select: none;
+}
+.breadcrumb-scope {
+  font: var(--text-sm) var(--font-mono);
+  color: var(--fg-2);
+  background: transparent;
+  border: 0;
+  padding: 0 4px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+  transition:
+    color var(--t-fast),
+    background-color var(--t-fast);
+}
+.breadcrumb-scope:hover {
+  color: var(--fg-1);
+  background: var(--hover);
 }
 .titlebar-tools {
   flex: none;

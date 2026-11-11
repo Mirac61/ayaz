@@ -3,6 +3,7 @@ import type { EditorView } from "@codemirror/view";
 import { EditorSelection, type SelectionRange } from "@codemirror/state";
 import { foldAll, foldCode, toggleFold, unfoldAll, unfoldCode } from "@codemirror/language";
 import { jumpToDefinition, jumpToImplementation, jumpToTypeDefinition } from "@codemirror/lsp-client";
+import { selectNextOccurrence } from "@codemirror/search";
 import { parseKeys, type Binding } from "../../core/keymap";
 import { installSurround } from "./surround";
 import { installEx } from "./ex";
@@ -27,6 +28,7 @@ const EX: [name: string, prefix: string, command: string][] = [
   ["copen", "cope", "qf.open"],
   ["Replace", "Rep", "qf.replace"],
   ["zen", "zen", "view.zen"],
+  ["harpoon", "harpoon", "harpoon.menu"],
 ];
 
 // Whether a palette line reads as a Vim ex command (":w", ":%s/a/b/", ":3,5d") rather than words to search commands by.
@@ -93,6 +95,13 @@ export function installVim(r: Run, normal: Binding[], p: Prime) {
     Vim.defineAction(keys, (cm: CodeMirror) => void cmd(cm.cm6!));
     Vim.mapCommand(keys, "action", keys, {}, { context: "normal" });
   }
+
+  // Multi-cursor next occurrence: gb in normal and visual mode (like vscode-neovim / vim-visual-multi)
+  Vim.defineAction("selectNextOccurrence", (cm: CodeMirror) => {
+    if (cm.cm6) selectNextOccurrence(cm.cm6);
+  });
+  Vim.mapCommand("gb", "action", "selectNextOccurrence", {}, { context: "normal" });
+  Vim.mapCommand("gb", "action", "selectNextOccurrence", {}, { context: "visual" });
   for (const [keys, command] of Object.entries({ gr: "lsp.references", K: "lsp.hover" })) {
     Vim.defineAction(keys, () => run(command));
     Vim.mapCommand(keys, "action", keys, {}, { context: "normal" });

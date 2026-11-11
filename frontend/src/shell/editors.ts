@@ -26,6 +26,8 @@ import { setEditorConfig } from "../core/editorconfig";
 import { countWords, selectionSize } from "../core/words";
 import { searchCount } from "../core/searchcount";
 import { blameText, clearBlame, showBlame } from "../editor/blame";
+import { scopesAt } from "../editor/vim/structure";
+import { header } from "../editor/sticky";
 import { Waits } from "./waits";
 import { UndoSteps } from "./undoSteps";
 import { HiddenTerms } from "./terminals";
@@ -45,6 +47,7 @@ export interface Status {
   search?: string; // "3/12" for Vim's last search
   selected?: string; // the selection's size, "3 lines"; absent when nothing is selected
   info?: string; // a viewer's status (zoom, size) in place of line:col
+  scopes?: { at: number; text: string }[]; // breadcrumb AST scopes
 }
 
 // A pane shows an editor (view), a terminal (term) or a viewer for images and the like (title is its file).
@@ -844,6 +847,7 @@ export class Editors {
       return this.onStatus({ pane: this.active, path: `term://${p.title}`, dirty: false, mode: p.mode, line: 1, col: 1, lines: 1 });
     }
     const st = p.view.state, head = st.selection.main.head, l = st.doc.lineAt(head), unit = st.facet(indentUnit);
+    const scopes = scopesAt(st, head).slice(-2).map((s) => ({ at: s.from, text: header(st.doc.lineAt(s.from).text) }));
     this.onStatus({
       pane: this.active,
       path: p.buf?.path ?? null,
@@ -858,6 +862,7 @@ export class Editors {
       selected: selectionSize(st.doc, st.selection.main.from, st.selection.main.to) || undefined,
       search: this.searchCount(p.view, head),
       recording: (this.recording = recordingRegister()),
+      scopes: scopes.length ? scopes : undefined,
     });
     this.scheduleBlame();
   }
