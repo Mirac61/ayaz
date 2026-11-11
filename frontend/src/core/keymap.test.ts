@@ -147,3 +147,9 @@ test("defaultKeymap binds terminal send and floating scratchpad", () => {
   expect(km.find((b) => b.keys === "<Space>tf")?.command).toBe("term.float");
   expect(km.find((b) => b.keys === "<C-CR>")?.command).toBe("term.send");
 });
+
+test("defaultKeymap binds tree revealCurrent and md outline", () => {
+  const km = defaultKeymap();
+  expect(km.find((b) => b.keys === "<Space>er")?.command).toBe("tree.revealCurrent");
+  expect(km.find((b) => b.keys === "<Space>mh")?.command).toBe("md.outline");
+});

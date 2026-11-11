@@ -99,9 +99,8 @@ test("u undoes the latest edit of the file, whichever pane made it", async ({ pa
   await expect(panes.nth(0)).toContainText("oneleftright");
 });
 
-// M63: global marks (mA) are per editor in codemirror-vim, so 'A in another file finds nothing. A known gap: when it
-// is built this test turns red and moves to the passing ones.
-test.fail("mA in one file, 'A from another jumps back", async ({ page }) => {
+// M63: global marks (mA) across files:
+test("mA in one file, 'A from another jumps back", async ({ page }) => {
   await page.goto("/");
   const tree = page.getByRole("tree", { name: "Files" });
   await tree.getByRole("treeitem", { name: "README.md" }).click();

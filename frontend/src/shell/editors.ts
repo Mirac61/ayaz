@@ -18,7 +18,7 @@ import "../viewers/pdf";
 import { backend } from "../core/backend";
 import { Jumps, type Spot } from "./jumps";
 import { browsable } from "../editor/mdlive";
-import { historyRoute } from "../editor/vim/setup";
+import { historyRoute, viewPath } from "../editor/vim/setup";
 import { breakpointLines, setLines as setBreakpointLines, toggleBreakpoint } from "../editor/breakpoints";
 import { setDebugLine } from "../editor/debugline";
 import { diffWith, headEffects, toggleDiff } from "../editor/gitgutter";
@@ -174,6 +174,7 @@ export class Editors {
       dispatchTransactions: (trs, v) => this.dispatch(id, trs, v),
     });
     historyRoute.set(view, (r) => this.historyIn(id, r));
+    viewPath.set(view, () => this.panes.get(id)?.buf?.path);
     const p: Pane = { el: parent, view, buf: null, mode: "normal" };
     this.panes.set(id, p);
     if (!this.panes.has(this.active)) this.active = id;

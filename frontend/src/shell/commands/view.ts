@@ -1,4 +1,5 @@
 // Commands for the window around the editor: tabs, back/forward, wrap, zoom, new window, settings.
+import { EditorView } from "@codemirror/view";
 import { backend } from "../../core/backend";
 import type { Command } from "../../core/commands";
 import { availableThemes, setThemeOverride, themeName, toggleGlass } from "../../core/settings";
@@ -81,6 +82,53 @@ export function viewCommands({ ed, say, fail, setPicker }: Ctx): Command[] {
       id: "md.reading",
       title: "Toggle rendered view and source (Markdown, SVG)",
       run: () => { if (!ed.toggleRendered()) fail("Rendered view is for Markdown and SVG files"); },
+    },
+    {
+      id: "md.outline",
+      title: "Document headings / outline (<Space>mh)",
+      run() {
+        const v = ed.activeView();
+        if (!v) return fail("No active editor");
+        const doc = v.state.doc;
+        const headings: { line: number; level: number; text: string; pos: number }[] = [];
+        for (let i = 1; i <= doc.lines; i++) {
+          const l = doc.line(i);
+          const m = l.text.match(/^(#{1,6})\s+(.+)$/);
+          if (m) {
+            headings.push({ line: i, level: m[1].length, text: m[2].trim(), pos: l.from });
+          }
+        }
+        if (!headings.length) return fail("No headings found in document");
+        const items = headings.map((h) => ({
+          label: `${"  ".repeat(h.level - 1)}${"#".repeat(h.level)} ${h.text}`,
+          hint: `:${h.line}`,
+          glyph: "\uf02e",
+          pos: h.pos,
+          text: h.text,
+        }));
+        setPicker({
+          title: "Outline",
+          start: 0,
+          async query(q) {
+            const trimmed = q.trim();
+            if (!trimmed) return items.map((it) => ({ label: it.label, hint: it.hint, glyph: it.glyph, positions: [] }));
+            const ms = await backend.rank(items.map((it) => it.label), trimmed, LIMIT);
+            return ms.map((m) => {
+              const it = items.find((candidate) => candidate.label === m.path) ?? items[0];
+              return { label: it.label, hint: it.hint, glyph: it.glyph, positions: m.positions ?? [] };
+            });
+          },
+          pick(it) {
+            const match = items.find((cand) => cand.label === it.label);
+            if (!match) return;
+            v.dispatch({
+              selection: { anchor: match.pos },
+              effects: EditorView.scrollIntoView(match.pos, { y: "center" }),
+            });
+            say(`Heading: ${match.text}`);
+          },
+        });
+      },
     },
     {
       id: "theme.switch",

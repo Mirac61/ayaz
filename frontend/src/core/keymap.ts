@@ -25,6 +25,7 @@ export function defaultKeymap(mac = isMac): Binding[] {
   const panes = { h: "pane.left", j: "pane.down", k: "pane.up", l: "pane.right" };
   return [
     n("<Space>e", "tree.focus"),
+    n("<Space>er", "tree.revealCurrent"),
     n("<Space>a", "harpoon.toggle"),
     n("<Space>1", "harpoon.goto1"),
     n("<Space>2", "harpoon.goto2"),
@@ -79,6 +80,7 @@ export function defaultKeymap(mac = isMac): Binding[] {
     n("<Space>mr", "md.reading"),
     n("<Space>mp", "md.preview"),
     n("<Space>ms", "md.skin"),
+    n("<Space>mh", "md.outline"),
     n("<Space>bd", "tab.close"),
     n("<Space>uw", "view.wrap"),
     n("<Space>ud", "view.diagnosticText"),

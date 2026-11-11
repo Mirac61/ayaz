@@ -13,7 +13,7 @@ const GROUP_ICONS: Record<string, string> = {
   "<Space>h": "\uf440", "<Space>m": "\uf48a", "<Space>r": "\uf04b", "<Space>u": "\uf06e", "<Space>t": "\uf120",
 };
 const COMMAND_ICONS: Record<string, string> = {
-  "tree.focus": "\uf07b", "term.panel": "\uf120", "term.split": "\uf120", "term.lazygit": "\ue702",
+  "tree.focus": "\uf07b", "tree.revealCurrent": "\uf07c", "term.panel": "\uf120", "term.split": "\uf120", "term.lazygit": "\ue702",
   "term.send": "\uf120", "term.float": "\uf120",
   "find.files": "\uf15b", "find.grep": "\uf002", "find.commands": "\uf0e7", "find.recent": "\uf1da", "find.buffers": "\uf0c5",
   "folder.switch": "\uf07c", "theme.switch": "\uf1fc", "lsp.symbols": "\uf1b2", "lsp.workspaceSymbols": "\uf1b3",
@@ -22,7 +22,7 @@ const COMMAND_ICONS: Record<string, string> = {
   "debug.toggleBreakpoint": "\uf111", "debug.start": "\uf04b", "debug.continue": "\uf051", "debug.stop": "\uf04d",
   "debug.next": "\uf050", "debug.stepIn": "\uf063", "debug.stepOut": "\uf062",
   "git.diff": "\uf440", "git.blame": "\uf007", "git.stageHunk": "\uf067", "git.unstageHunk": "\uf068", "git.resetHunk": "\uf0e2",
-  "git.previewHunk": "\uf06e", "md.reading": "\uf06e", "md.preview": "\uf06e", "md.skin": "\uf1fc",
+  "git.previewHunk": "\uf06e", "md.reading": "\uf06e", "md.preview": "\uf06e", "md.skin": "\uf1fc", "md.outline": "\uf0ca",
   "view.wrap": "\uf039", "view.diagnosticText": "\uf071", "view.zen": "\uf06e", "git.toggleInlineBlame": "\uf007",
 };
 const COLUMN_AT = 8; // more rows than this flow into two columns

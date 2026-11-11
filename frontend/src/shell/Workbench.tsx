@@ -12,7 +12,7 @@ import { Quickfix } from "../core/quickfix";
 import { setLspMessages, installHint } from "../editor/lsp";
 import { diagnosticsFor } from "../editor/diagnostics";
 import { projectTasks, type ProjectTask } from "../core/projectTasks";
-import { installPaletteKey, installVim, isEx } from "../editor/vim/setup";
+import { installMarkJump, installPaletteKey, installVim, isEx } from "../editor/vim/setup";
 import { openTerminal, type TermHandle, type TermOptions } from "../terminal/terminal";
 import { Editors, PANEL, type Status } from "./editors";
 import { borders, close, equalize, neighbor, panes, rects, resize, setBorder, split, type Dir, type Layout } from "./layout";
@@ -70,6 +70,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
     e.bps = session?.breakpoints ?? {};
     return e;
   }, [files, ws.root, ws.id]);
+  useEffect(() => installMarkJump((path, line, col) => void ed.openAt(path, line + 1, col)), [ed]);
   // null: no panel terminal; "hidden": it runs but isn't shown (Cmd+J toggles, like VS Code).
   const [panel, setPanel] = useState<"shown" | "hidden" | null>(null);
   const dockRef = useRef<Dock>("bottom");

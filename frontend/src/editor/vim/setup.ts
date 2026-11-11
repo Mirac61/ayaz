@@ -1,5 +1,5 @@
 import { CodeMirror, Vim } from "@replit/codemirror-vim";
-import type { EditorView } from "@codemirror/view";
+import { EditorView } from "@codemirror/view";
 import { EditorSelection, type SelectionRange } from "@codemirror/state";
 import { foldAll, foldCode, toggleFold, unfoldAll, unfoldCode } from "@codemirror/language";
 import { jumpToDefinition, jumpToImplementation, jumpToTypeDefinition } from "@codemirror/lsp-client";
@@ -59,6 +59,20 @@ export function installPaletteKey() {
 // true: done there. Not set (tests, a single pane): Vim's own undo in this view.
 export const historyRoute = new WeakMap<EditorView, (redo: boolean) => boolean>();
 
+// Global marks mA-mZ across files (M63):
+export interface GlobalMark {
+  path: string;
+  line: number; // 0-based
+  ch: number;   // 0-based
+}
+export const globalMarks = new Map<string, GlobalMark>();
+export const viewPath = new WeakMap<EditorView, () => string | undefined>();
+export type MarkJump = (path: string, line: number, col: number) => void;
+let markJump: MarkJump = () => {};
+export function installMarkJump(mj: MarkJump) {
+  markJump = mj;
+}
+
 let installed = false;
 let mapped: string[] = []; // keys of the bindings mapped last, unmapped before a new keymap goes in
 
@@ -112,6 +126,62 @@ export function installVim(r: Run, normal: Binding[], p: Prime) {
   for (const [keys, cmd] of Object.entries(folds)) {
     Vim.defineAction(keys, (cm: CodeMirror) => void cmd(cm.cm6!));
     Vim.mapCommand(keys, "action", keys, {}, { context: "normal" });
+  }
+
+  // Global cross-file marks mA-mZ (M63):
+  for (let code = 65; code <= 90; code++) {
+    const L = String.fromCharCode(code);
+    Vim.defineAction("setMark_" + L, (cm: CodeMirror) => {
+      const v = cm.cm6;
+      if (!v) return;
+      const path = viewPath.get(v)?.();
+      const head = v.state.selection.main.head;
+      const lineObj = v.state.doc.lineAt(head);
+      const line = lineObj.number - 1;
+      const ch = head - lineObj.from;
+      if (path) globalMarks.set(L, { path, line, ch });
+      const vim = (cm as unknown as { state?: { vim?: { marks?: Record<string, { clear(): void }> } } }).state?.vim;
+      if (vim?.marks) {
+        if (vim.marks[L]) vim.marks[L].clear();
+        vim.marks[L] = (cm as unknown as { setBookmark(p: { line: number; ch: number }): { clear(): void } }).setBookmark({ line, ch });
+      }
+    });
+    Vim.mapCommand("m" + L, "action", "setMark_" + L, {}, { context: "normal" });
+
+    Vim.defineAction("jumpMarkLine_" + L, (cm: CodeMirror) => {
+      const v = cm.cm6;
+      if (!v) return;
+      const currentPath = viewPath.get(v)?.();
+      const mark = globalMarks.get(L);
+      if (!mark) return;
+      if (currentPath && mark.path !== currentPath) {
+        markJump(mark.path, mark.line, 0);
+        return;
+      }
+      const lineNo = Math.min(Math.max(mark.line + 1, 1), v.state.doc.lines);
+      const lineObj = v.state.doc.line(lineNo);
+      const firstNonWs = lineObj.text.search(/\S|$/);
+      const pos = lineObj.from + Math.max(0, firstNonWs);
+      v.dispatch({ selection: { anchor: pos }, effects: EditorView.scrollIntoView(pos, { y: "center" }) });
+    });
+    Vim.mapCommand("'" + L, "action", "jumpMarkLine_" + L, {}, { context: "normal" });
+
+    Vim.defineAction("jumpMarkChar_" + L, (cm: CodeMirror) => {
+      const v = cm.cm6;
+      if (!v) return;
+      const currentPath = viewPath.get(v)?.();
+      const mark = globalMarks.get(L);
+      if (!mark) return;
+      if (currentPath && mark.path !== currentPath) {
+        markJump(mark.path, mark.line, mark.ch);
+        return;
+      }
+      const lineNo = Math.min(Math.max(mark.line + 1, 1), v.state.doc.lines);
+      const lineObj = v.state.doc.line(lineNo);
+      const pos = Math.min(lineObj.from + mark.ch, lineObj.to);
+      v.dispatch({ selection: { anchor: pos }, effects: EditorView.scrollIntoView(pos, { y: "center" }) });
+    });
+    Vim.mapCommand("`" + L, "action", "jumpMarkChar_" + L, {}, { context: "normal" });
   }
 
   installSurround();
