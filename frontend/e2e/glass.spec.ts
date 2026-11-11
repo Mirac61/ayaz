@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./test";
 
 // Toggle transparency works live: the surfaces turn see-through and solid again, no new window needed.
 test("transparency toggles live", async ({ page }) => {

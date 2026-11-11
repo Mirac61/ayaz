@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./test";
 
 const toggle = process.platform === "darwin" ? "Meta+j" : "Control+Shift+j";
 

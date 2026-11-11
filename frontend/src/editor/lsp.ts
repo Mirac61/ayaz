@@ -501,6 +501,9 @@ function clientFor(ws: string, root: string, server: string): LSPClient {
     extensions: [...clientExtensions(), { clientCapabilities: CAPABILITIES }],
     workspace: (c) => new Files(c, ws, root),
     notificationHandlers: diagnosticHandlers(ws, server),
+    // The default 3 s also bounds initialize, whose clock starts before Go has spawned the server: a cold
+    // clangd (xcrun) or jdtls took longer, and the reply that came after the timeout was dropped.
+    timeout: 30_000,
   });
   backend.onLspStatus(ws, (s) => s.lang === server && s.state === "missing" && missing.add(key));
   clients.set(key, client);
@@ -518,7 +521,7 @@ function clientFor(ws: string, root: string, server: string): LSPClient {
     c.initializing.then(() => {
       failures = 0;
       c.notification("workspace/didChangeConfiguration", { settings: SERVER_SETTINGS });
-    }, () => {});
+    }, () => sock.close()); // a failed initialize leaves the client dead: closing reconnects with the backoff above
   };
   connect();
   return client;

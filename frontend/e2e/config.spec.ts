@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./test";
 import { e2eConfig } from "../playwright.config";
 import { execSync } from "node:child_process";
 import { rmSync, writeFileSync } from "node:fs";

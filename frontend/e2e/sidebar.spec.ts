@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./test";
 
 // The file tree closes by dragging its edge shut, and Cmd/Ctrl+B brings it back; no lazygit row sits above the files.
 test("sidebar: drag shut, toggle back, no lazygit row", async ({ page }) => {

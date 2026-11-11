@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./test";
 import { e2eWorkspace } from "../playwright.config";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";

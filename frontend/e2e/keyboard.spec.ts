@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./test";
 
 // M2 done-when: open a file and split it by keyboard only, and the palette runs commands.
 test("find a file, split, close the split, palette", async ({ page }) => {

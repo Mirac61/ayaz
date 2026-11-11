@@ -1,12 +1,10 @@
-import { expect, test } from "@playwright/test";
-import { e2eCache, e2eWorkspace } from "../playwright.config";
-import { readFileSync, rmSync, writeFileSync } from "node:fs";
+import { expect, test } from "./test";
+import { e2eWorkspace } from "../playwright.config";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 // M49: unsaved text survives a reload (crash, killed app) and is offered back per file.
 test("hot exit: typed text comes back after a reload, or is discarded", async ({ page }) => {
-  // Other tests leave unsaved buffers behind (their swaps would be offered here too): this one starts from none.
-  rmSync(join(e2eCache, "swap"), { recursive: true, force: true });
   writeFileSync(join(e2eWorkspace, "swap-a.txt"), "alpha\n");
   writeFileSync(join(e2eWorkspace, "swap-b.txt"), "beta\n");
   await page.goto("/");

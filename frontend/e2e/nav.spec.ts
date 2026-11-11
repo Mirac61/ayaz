@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./test";
 
 // M18: Cmd+[ / Cmd+] go back and forward across files with the cursor; Cmd+Shift+T reopens a closed tab.
 test("back/forward across files and reopen a closed tab", async ({ page }) => {

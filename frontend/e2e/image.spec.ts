@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./test";
 
 // M10 done-when: all five formats open in the viewer, zoom by keyboard, and a text file brings the editor back.
 test("image viewer: formats, zoom, back to the editor", async ({ page }) => {
