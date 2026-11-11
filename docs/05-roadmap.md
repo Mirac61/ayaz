@@ -322,6 +322,14 @@ Done when: all four language groups have diagnostics, completion and navigation.
 
 - Done 2026-11-11 (unattended session, report in `docs/plans/2026-11-11-ux-report.md`): picker preview pane with the editor's colors (files, recent, buffers, search hits, symbols, quickfix), `name:line` in Find files, Cmd/Ctrl+Enter opens to the side, recent files first, folder dim with the file name kept whole, theme picker previews live; named which-key groups; tab names stay whole, middle and right click on tabs; right click menu and header buttons in the tree, draggable sidebar; `[3/12]` search count, selection size and word count in the status line; diagnostic text after the line (`<Space>ud`); color swatches; errors fade; recent files on the empty window. Fixes a picker that kept its instance (and lost the focus) when a pick opened another picker. Go: `WorkspaceService.Preview` (first bytes of a file).
 
+## M66 – More languages, Typst and LaTeX
+
+- Done 2026-11-11: Python, Rust, YAML, TOML, shell, SQL, XML, PHP, Lua, Dockerfile (found by name), Typst (own `StreamLanguage`, `lang/typst.ts`) and LaTeX (`stex`) are highlighted; servers pyright, rust-analyzer, yaml-language-server, taplo, tinymist and texlab sit in `lang/registry.ts`, `app/lsp.go` and the install hints in `editor/lsp.ts`. `<Space>mp` on `.typ`/`.tex` runs `typst watch` (or a tectonic loop that rebuilds when the file changes) as a task in a split and opens the PDF beside the source (`core/docBuild.ts`). Defaults: `typ` wraps and formats on save, `tex` and `txt` wrap. Open: problem lines reach the quickfix list only when the watcher ends; `tectonic`, `texlab`, `pyright`, `yaml-language-server`, `taplo` aren't installed here, so only highlighting and the typst build were run; the server tables are untested against real servers.
+
+## M67 – Small daily things
+
+- Done 2026-11-11: pasting an image into a Markdown buffer saves it as `assets/image-<date>-<time>.<ext>` next to the file (new `WorkspaceService.WriteNew`, never replaces a file, Go test) and inserts `![](assets/…)` (`editor/pasteImage.ts`, naming in `core/pasteImage.ts`); `<Space>fy` copies `path:line` of the cursor. Already there before this item and so not built: line ending and word count in the status line, binary guard (`ErrBinary`), SVG as code with its image beside it, dropping a file from the OS onto the window, tab drag and drop, terminal panel header. Open: the paste handler was not tried with a real clipboard in the app.
+
 ## Later
 
 | | What | Plugs into |
