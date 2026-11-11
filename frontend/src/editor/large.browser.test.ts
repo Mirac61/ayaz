@@ -2,6 +2,7 @@ import { expect, test } from "vitest";
 import { EditorView } from "@codemirror/view";
 import { createState, hasLongLine, LONG_LINE } from "./editor";
 import { setHead } from "./gitgutter";
+import { budget } from "./budget";
 
 const frame = () => new Promise<number>((r) => requestAnimationFrame(r));
 
@@ -84,6 +85,6 @@ test("long lines: the limit counts characters between newlines", () => {
 // Numbers for docs/perf-log.md come from the warnings; the gate is the per-key work.
 test("a 10 MB Go file and a 1 MB line type in under a 120 Hz frame", async () => {
   const go = goFile(), min = minified();
-  expect((await measure("10 MB .go", "big.go", go)).typing).toBeLessThan(8);
-  expect((await measure("1 MB line .js", "min.js", min)).typing).toBeLessThan(8); // opens as plain text
+  expect((await measure("10 MB .go", "big.go", go)).typing).toBeLessThan(budget(8));
+  expect((await measure("1 MB line .js", "min.js", min)).typing).toBeLessThan(budget(8)); // opens as plain text
 }, 300_000);

@@ -58,6 +58,7 @@ jobs:
   # (the LSP tests skip without one). On macOS too: that is the platform the app is for.
   browser:
     strategy:
+      fail-fast: false # one OS failing must not hide the other
       matrix:
         os: [ubuntu-24.04, macos-latest]
     runs-on: ${{ matrix.os }}

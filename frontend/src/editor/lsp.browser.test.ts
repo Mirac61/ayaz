@@ -10,6 +10,7 @@ import { diagnosticsFor } from "./diagnostics";
 import { semanticTokens } from "./semantic";
 import { documentHighlight } from "./highlight";
 import { go } from "@codemirror/lang-go";
+import { budget } from "./budget";
 
 // A fake language server: answers initialize, flags "bad" on didOpen, offers one completion.
 function fakeServer(): Transport {
@@ -276,7 +277,7 @@ test("typing in a document full of semantic tokens stays fast", async () => {
   }
   times.sort((a, b) => a - b);
   console.warn(`SEMANTIC ${lines} lines, ${lines * 2} tokens: typing p95 ${times[18].toFixed(1)} max ${times[19].toFixed(1)} ms`);
-  expect(times[18]).toBeLessThan(8);
+  expect(times[18]).toBeLessThan(budget(8));
 });
 
 // A server with documentHighlight: every `foo` in the text, the one in `foo = 1` as a write.

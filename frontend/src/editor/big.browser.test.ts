@@ -2,6 +2,7 @@ import { expect, test } from "vitest";
 import { EditorView } from "@codemirror/view";
 import { createState } from "./editor";
 import big from "../../../testdata/big.md?raw";
+import { budget } from "./budget";
 
 const frame = () => new Promise<number>((r) => requestAnimationFrame(r));
 
@@ -42,5 +43,5 @@ test("big.md opens and scrolls to the end without errors or slow frames", async 
   window.removeEventListener("unhandledrejection", onError);
   expect(errors).toEqual([]);
   expect(atEnd).toBe(true);
-  expect(worst).toBeLessThan(50);
+  expect(worst).toBeLessThan(budget(50));
 }, 60_000);
