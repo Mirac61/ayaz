@@ -1,10 +1,10 @@
 package lsp
 
 import (
-	"os"
 	"bufio"
 	"bytes"
 	"io"
+	"os"
 	"os/exec"
 	"slices"
 	"strings"

@@ -3,13 +3,13 @@ module github.com/Mirac61/ayaz
 go 1.27.3
 
 require (
+	github.com/UserExistsError/conpty v0.1.4
 	github.com/creack/pty v1.1.24
 	github.com/sgtdi/fswatcher/v2 v2.0.0
 	github.com/wailsapp/wails/v3 v3.1.0
 )
 
 require (
-	github.com/UserExistsError/conpty v0.1.4 // indirect
 	github.com/coder/websocket v1.8.14 // indirect
 	github.com/ebitengine/purego v0.11.1 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect

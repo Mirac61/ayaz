@@ -27,6 +27,11 @@ export default defineConfig({
   // pdf.spec and terminal.spec each timed out once under load and never again in 7 runs (3 with all cores busy);
   // a retry shows such a run as "flaky" instead of failing the gate.
   retries: 1,
+  // CI: the default "dot" reporter showed nothing for 10 minutes before the job was cancelled; "list" names the test that hangs.
+  reporter: process.env.CI ? "list" : "line",
+  globalTimeout: process.env.CI ? 15 * 60_000 : 0,
+  // The tests share one server: after the first failures the rest fail too, each for 30 s plus a retry. Stop early.
+  maxFailures: process.env.CI ? 3 : 0,
   use: { browserName: "webkit", baseURL: "http://127.0.0.1:34115" },
   // A saved config reaches every page of the shared server, so config.spec runs alone, after the rest.
   // swap.spec too: its unsaved files are offered back in every page that opens the folder meanwhile.

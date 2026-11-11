@@ -19,6 +19,7 @@ test("reading view hides the source under glass", async ({ page }) => {
   const tree = page.getByRole("tree", { name: "Files" });
   await expect(tree).toBeFocused();
   await tree.getByRole("treeitem", { name: "notes.md" }).click();
+  await expect(page.locator(".titlebar")).toContainText("notes.md"); // keys typed before the editor is up become text in it
   await page.keyboard.type(" fk");
   await page.keyboard.type("Toggle transparency");
   await page.keyboard.press("Enter");

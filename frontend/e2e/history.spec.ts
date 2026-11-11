@@ -14,15 +14,18 @@ test("local history: two saves, pick the older one, see its lines", async ({ pag
   await page.keyboard.type("fh");
   await expect(page.locator(".statusline")).toContainText('No earlier saves of "history.txt" yet');
 
-  await page.keyboard.type("ccsecond");
-  await page.keyboard.press("Escape");
-  await page.keyboard.type(":w");
-  await page.keyboard.press("Enter");
-  await page.keyboard.type("ccthird");
-  await page.keyboard.press("Escape");
-  await page.keyboard.type(":w");
-  await page.keyboard.press("Enter");
-  await expect(page.locator(".statusline")).toContainText("written");
+  // Each save is awaited by the tab losing its dirty dot; the picker opened early lists only the saves finished so far.
+  const dirty = page.locator(".tab.active .dirty");
+  const save = async (text: string) => {
+    await page.keyboard.type(`cc${text}`);
+    await page.keyboard.press("Escape");
+    await expect(dirty).toHaveCount(1);
+    await page.keyboard.type(":w");
+    await page.keyboard.press("Enter");
+    await expect(dirty).toHaveCount(0);
+  };
+  await save("second");
+  await save("third");
 
   await page.keyboard.press("Space");
   await page.keyboard.type("fh");

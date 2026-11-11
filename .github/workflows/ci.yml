@@ -22,7 +22,7 @@ jobs:
           go-version-file: go.mod
       - name: Linux GUI libraries (Wails links GTK4/WebKitGTK)
         if: runner.os == 'Linux'
-        run: sudo apt-get -o Acquire::Retries=3 update && sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=3 install -y --no-install-recommends libgtk-4-dev libwebkitgtk-6.0-dev
+        run: scripts/ci-apt.sh libgtk-4-dev libwebkitgtk-6.0-dev
       # main embeds frontend/dist, which only exists after a frontend build.
       - run: mkdir -p frontend/dist && touch frontend/dist/index.html
       # go test already vets what it compiles; the full vet runs once, and the windows job vets GOOS=windows.
@@ -77,6 +77,10 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
         working-directory: frontend
+      - name: apt mirror fallback
+        if: runner.os == 'Linux'
+        run: scripts/ci-apt.sh
+        working-directory: .
       - name: Playwright WebKit (Linux needs its system libraries too)
         run: bunx playwright install ${{ runner.os == 'Linux' && '--with-deps' || '' }} webkit
         working-directory: frontend
