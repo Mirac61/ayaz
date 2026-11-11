@@ -74,7 +74,7 @@ export function Shell() {
     <div className="welcome" onKeyDown={onKey}>
       <div className="titlebar">
         <button type="button" className="titlebar-project" tabIndex={-1} onClick={openRecentPicker}>
-          Open Recent Project
+          <span className="titlebar-project-name">Open Recent Project</span>
         </button>
       </div>
       <div className="welcome-card">

@@ -21,45 +21,74 @@
   white-space: nowrap;
   overflow: hidden;
 }
-/* The traffic lights sit in the top left corner on macOS. */
+/* The traffic lights sit in the top left corner on macOS (width ~68px). 80px leaves a balanced 12px gap. */
 :root[data-mac] .titlebar {
-  padding-left: 96px;
+  padding-left: 80px;
 }
 .titlebar-project {
   flex: none;
   height: 22px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 0 8px;
+  padding: 0 8px 0 7px;
   font: 500 var(--text-sm) var(--font-ui);
   color: var(--fg-2);
-  background: none;
-  border: 1px solid transparent;
-  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--fg-1) 4%, transparent);
+  border: 1px solid var(--edge);
+  border-radius: 4px;
   cursor: pointer;
+  max-width: 200px;
+  user-select: none;
   transition:
-    background-color var(--t-fast),
-    color var(--t-fast);
+    background-color var(--t-fast) var(--ease),
+    border-color var(--t-fast) var(--ease),
+    color var(--t-fast) var(--ease);
+}
+.titlebar-project-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .titlebar-project::before {
-  content: "\f07b";
-  font: var(--text-xs) var(--font-mono);
-  color: var(--accent);
+  content: "\ue5ff";
+  font: 12px var(--font-mono);
+  color: var(--fg-3);
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+  flex: none;
+  transition: color var(--t-fast) var(--ease);
 }
 .titlebar-project::after {
-  content: "\f078";
-  font: 8px var(--font-mono);
+  content: "\uea60";
+  font: 10px var(--font-mono);
   color: var(--fg-4);
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+  flex: none;
+  margin-left: 1px;
+  transition: color var(--t-fast) var(--ease);
 }
 .titlebar-project:hover {
   background: var(--hover);
   color: var(--fg-1);
-  border-color: var(--edge);
+  border-color: var(--edge-overlay);
+}
+.titlebar-project:hover::before {
+  color: var(--fg-1);
+}
+.titlebar-project:hover::after {
+  color: var(--fg-2);
+}
+.titlebar-project:active {
+  background: var(--bg-3);
 }
 .titlebar-project:focus-visible {
   color: var(--fg-1);
-  border-color: var(--edge-overlay);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
   outline: none;
 }
 .titlebar-file {
