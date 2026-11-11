@@ -73,6 +73,7 @@ export interface Files {
   // Project search over the same files as find (ADR-0016); hits arrive in batches.
   grep(query: string, opts: { regex: boolean; ignored: boolean }, onHits: (hits: Loc[]) => void): Grep;
   create(path: string, dir: boolean): Promise<void>; // missing parent folders too; rejects if path exists
+  writeNew(path: string, base64: string): Promise<void>; // a new binary file (pasted image); rejects if path exists
   rename(from: string, to: string): Promise<void>; // rejects if `to` exists
   trash(path: string): Promise<void>; // to the system trash
   reveal(path: string): Promise<void>; // in Finder / the file manager
@@ -146,6 +147,7 @@ export const backend: Backend = {
     writeText: (path, content, mtime) => WorkspaceService.WriteText(ws, path, content, mtime),
     find: async (q, limit, ignored) => (await WorkspaceService.Find(ws, q, limit, ignored)) ?? [],
     create: (path, dir) => WorkspaceService.Create(ws, path, dir),
+    writeNew: (path, data) => WorkspaceService.WriteNew(ws, path, data),
     rename: (from, to) => WorkspaceService.Rename(ws, from, to),
     trash: (path) => WorkspaceService.Trash(ws, path),
     reveal: (path) => WorkspaceService.Reveal(ws, path),

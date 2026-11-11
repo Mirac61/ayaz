@@ -18,6 +18,7 @@ import { snippetCompletion } from "./snippets";
 import { stickyScroll } from "./sticky";
 import { extOf, loadLanguage } from "../lang/registry";
 import { mdImages, mdlive } from "./mdlive";
+import { pasteImage } from "./pasteImage";
 import { mdRender } from "./mdrender";
 import { lspExtension } from "./lsp";
 import { gitGutter } from "./gitgutter";
@@ -128,5 +129,5 @@ export const isProse = (path: string) => PROSE.has(extOf(path));
 
 export async function createState(path: string | null, doc: string, ws?: string, root?: string): Promise<EditorState> {
   const lang = path && !hasLongLine(doc) ? await loadLanguage(path) : null;
-  return EditorState.create({ doc, extensions: [editorExtensions(), indenting.of(indentFor(path, doc.slice(0, INDENT_SAMPLE))), wrapping.of(wrapFor(path) ? EditorView.lineWrapping : []), lang ?? [], path && ws && root ? [lspExtension(ws, root, path), diagnosticText] : [], path?.startsWith("/") || path?.startsWith("debug://") ? EditorState.readOnly.of(true) : [], path ? snippetCompletion(extOf(path)) : [], path && PROSE.has(extOf(path)) ? EditorView.contentAttributes.of({ spellcheck: "true" }) : [], path && SWATCHED.has(extOf(path)) ? swatches : [], path && extOf(path) === "md" ? [mdlive, mdRender, ws ? mdImages.of({ ws, file: path }) : []] : []] });
+  return EditorState.create({ doc, extensions: [editorExtensions(), indenting.of(indentFor(path, doc.slice(0, INDENT_SAMPLE))), wrapping.of(wrapFor(path) ? EditorView.lineWrapping : []), lang ?? [], path && ws && root ? [lspExtension(ws, root, path), diagnosticText] : [], path?.startsWith("/") || path?.startsWith("debug://") ? EditorState.readOnly.of(true) : [], path ? snippetCompletion(extOf(path)) : [], path && PROSE.has(extOf(path)) ? EditorView.contentAttributes.of({ spellcheck: "true" }) : [], path && SWATCHED.has(extOf(path)) ? swatches : [], path && extOf(path) === "md" ? [mdlive, mdRender, ws ? [mdImages.of({ ws, file: path }), pasteImage(ws, path)] : []] : []] });
 }

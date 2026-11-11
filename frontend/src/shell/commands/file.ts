@@ -128,6 +128,16 @@ export function fileCommands({ ws, files, ed, tree, say, fail, setPicker, prompt
       },
     },
     {
+      id: "file.copyPathLine",
+      title: "Copy relative path:line of the cursor",
+      async run() {
+        const b = ed.current(), line = ed.cursorLine();
+        if (!b || line === null) return fail("No file open");
+        await backend.copy(`${b.path}:${line}`);
+        say(`Copied "${b.path}:${line}"`);
+      },
+    },
+    {
       id: "file.copyAbsPath",
       title: "Copy absolute path",
       async run() {

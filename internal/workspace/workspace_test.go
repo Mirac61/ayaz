@@ -1,6 +1,7 @@
 package workspace
 
 import (
+	"bytes"
 	"errors"
 	"io/fs"
 	"os"
@@ -221,5 +222,20 @@ func TestReadPreview(t *testing.T) {
 	}
 	if _, err := w.ReadPreview("nul.bin", 10); !errors.Is(err, ErrBinary) {
 		t.Errorf("nul.bin: got %v, want ErrBinary", err)
+	}
+}
+
+func TestWriteNew(t *testing.T) {
+	w := newTestWS(t)
+	must(t, w.WriteNew("notes/assets/p.png", []byte{0x89, 'P', 'N', 'G', 0}))
+	got, _ := os.ReadFile(filepath.Join(w.Root, "notes/assets/p.png"))
+	if !bytes.Equal(got, []byte{0x89, 'P', 'N', 'G', 0}) {
+		t.Fatalf("content = %v", got)
+	}
+	if err := w.WriteNew("notes/assets/p.png", []byte("x")); err == nil {
+		t.Fatal("an existing file must not be replaced")
+	}
+	if err := w.WriteNew("../out.png", []byte("x")); err == nil {
+		t.Fatal("a path outside the workspace must fail")
 	}
 }

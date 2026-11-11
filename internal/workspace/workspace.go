@@ -258,6 +258,22 @@ func (w *Workspace) Create(rel string, dir bool) error {
 	return f.Close()
 }
 
+// WriteNew creates a file with data, with its missing parent folders; an existing rel is an error (pasted images never replace one).
+func (w *Workspace) WriteNew(rel string, data []byte) error {
+	if err := w.Create(rel, false); err != nil {
+		return err
+	}
+	p, err := w.entry(rel)
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(p, data, 0o644); err != nil {
+		os.Remove(p)
+		return err
+	}
+	return nil
+}
+
 // Rename moves a file or folder inside the workspace; it never replaces an existing target.
 func (w *Workspace) Rename(from, to string) error {
 	src, err := w.entry(from)

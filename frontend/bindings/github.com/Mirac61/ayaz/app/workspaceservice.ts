@@ -264,6 +264,13 @@ export function WaitDone(id: number): $CancellablePromise<void> {
 }
 
 /**
+ * WriteNew saves bytes (a pasted image) as a new file; it fails if the path exists. data arrives as base64.
+ */
+export function WriteNew(ws: string, path: string, data: string | null): $CancellablePromise<void> {
+    return $Call.ByID(4090031894, ws, path, data);
+}
+
+/**
  * WriteText returns the new mtime. A stale expectedMtime fails with "file changed on disk".
  */
 export function WriteText(ws: string, path: string, content: string, expectedMtime: number): $CancellablePromise<number> {

@@ -13,6 +13,7 @@ function fakeFiles(init: Record<string, string>) {
     find: async () => [],
     grep: () => ({ done: Promise.resolve(null), cancel() {} }),
     create: async () => {},
+    writeNew: async () => {},
     rename: async () => {},
     trash: async () => {},
     reveal: async () => {},

@@ -436,6 +436,12 @@ export class Editors {
     return v ? linkAt(v.state, v.state.selection.main.head) : null;
   }
 
+  // The active editor's cursor line, 1-based.
+  cursorLine(): number | null {
+    const v = this.panes.get(this.active)?.view;
+    return v ? v.state.doc.lineAt(v.state.selection.main.head).number : null;
+  }
+
   // Markdown source and preview (the same buffer, one pane in the reading view) keep the same line at the top.
   // Only the active pane leads, so the scroll it causes in the other one doesn't come back.
   syncScroll(id: number) {

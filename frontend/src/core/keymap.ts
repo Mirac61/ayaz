@@ -38,6 +38,7 @@ export function defaultKeymap(mac = isMac): Binding[] {
     n("<Space>fk", "find.commands"),
     n("<Space>fw", "find.grep"),
     n("<Space>fp", "folder.switch"),
+    n("<Space>fy", "file.copyPathLine"),
     n("<Space>ft", "theme.switch"),
     n("<Space>fs", "lsp.symbols"),
     n("<Space>fS", "lsp.workspaceSymbols"),

@@ -397,6 +397,15 @@ func (s *WorkspaceService) Create(ws, path string, dir bool) error {
 	return w.Create(path, dir)
 }
 
+// WriteNew saves bytes (a pasted image) as a new file; it fails if the path exists. data arrives as base64.
+func (s *WorkspaceService) WriteNew(ws, path string, data []byte) error {
+	w, err := s.reg.Get(ws)
+	if err != nil {
+		return err
+	}
+	return w.WriteNew(path, data)
+}
+
 func (s *WorkspaceService) Rename(ws, from, to string) error {
 	w, err := s.reg.Get(ws)
 	if err != nil {
