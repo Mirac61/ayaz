@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os/exec"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -15,6 +16,9 @@ import (
 // fakeAdapter listens, echoes every framed message back with "echo:" in front, and returns the shell command that
 // announces its address the way Delve does (plus some noise first).
 func fakeAdapter(t *testing.T) string {
+	if runtime.GOOS == "windows" {
+		t.Skip("the fake adapter is a POSIX sh script")
+	}
 	t.Helper()
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {

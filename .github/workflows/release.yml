@@ -33,10 +33,10 @@ jobs:
         with:
           version: 3.x
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.1.0
-      - name: Linux GUI libraries (Wails links GTK4/WebKitGTK)
+      - name: Linux GUI libraries (Wails links GTK4/WebKitGTK, the wails3 CLI too)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev
+      - run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.1.0
       # PACKAGE_MANAGER defaults to bun in the Taskfile.
       - name: Build
         run: task ${{ runner.os == 'macOS' && 'package' || 'build' }}

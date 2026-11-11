@@ -25,7 +25,7 @@ func Start(ctx context.Context, root string, fn func(Batch)) error {
 	w, err := fswatcher.New(
 		fswatcher.WithPath(root),
 		fswatcher.WithHidden(), // dotfiles are files you edit
-		fswatcher.WithExcRegex(`/\.git(/|$)`, `/node_modules(/|$)`, `\.ayaz-[^/]*$`), // last: our own save temp files
+		fswatcher.WithExcRegex(`[/\\]\.git([/\\]|$)`, `[/\\]node_modules([/\\]|$)`, `\.ayaz-[^/\\]*$`), // last: our own save temp files
 		fswatcher.WithCooldown(Window),
 		fswatcher.WithReadyChannel(ready),
 		fswatcher.WithSeverity(fswatcher.SeverityNone),

@@ -36,9 +36,12 @@ func TestParseOpen(t *testing.T) {
 	}
 }
 
+// abs is an absolute path on every OS ("/x" has no drive letter on Windows, so the server would drop it).
+func abs(p string) string { return filepath.Join(os.TempDir(), filepath.FromSlash(p)) }
+
 func TestSendOpenWaitsForDone(t *testing.T) {
 	sock := filepath.Join(os.TempDir(), "ayaz-test-"+filepath.Base(t.TempDir())+".sock")
-	if SendOpen(sock, OpenRequest{Path: "/x"}) {
+	if SendOpen(sock, OpenRequest{Path: abs("x")}) {
 		t.Fatal("nobody listens yet")
 	}
 	done := make(chan struct{})
@@ -49,15 +52,15 @@ func TestSendOpenWaitsForDone(t *testing.T) {
 	}
 	defer stop()
 
-	if !SendOpen(sock, OpenRequest{Path: "/x/a.go", Line: 3}) { // no wait: returns at once
+	if !SendOpen(sock, OpenRequest{Path: abs("x/a.go"), Line: 3}) { // no wait: returns at once
 		t.Fatal("not handled")
 	}
-	if r := <-got; r.Path != "/x/a.go" || r.Line != 3 {
+	if r := <-got; r.Path != abs("x/a.go") || r.Line != 3 {
 		t.Fatalf("request = %+v", r)
 	}
 
 	returned := make(chan bool)
-	go func() { returned <- SendOpen(sock, OpenRequest{Path: "/x/COMMIT_EDITMSG", Wait: true}) }()
+	go func() { returned <- SendOpen(sock, OpenRequest{Path: abs("x/COMMIT_EDITMSG"), Wait: true}) }()
 	<-got
 	select {
 	case <-returned:
@@ -78,7 +81,7 @@ func TestServeOpenReplacesStaleSocket(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer stop()
-	if !SendOpen(sock, OpenRequest{Path: "/x"}) {
+	if !SendOpen(sock, OpenRequest{Path: abs("x")}) {
 		t.Fatal("stale socket was not replaced")
 	}
 }

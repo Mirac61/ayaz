@@ -1,12 +1,16 @@
 package pty
 
 import (
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 )
 
 func TestSessionEchoAndClose(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("needs /bin/sh; the ConPTY side is checked on a real Windows machine")
+	}
 	s, err := Start(t.TempDir(), 80, 24, "/bin/sh")
 	if err != nil {
 		t.Fatal(err)

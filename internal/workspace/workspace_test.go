@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -97,7 +98,8 @@ func TestWriteText(t *testing.T) {
 	if string(got) != "new" {
 		t.Fatalf("content = %q", got)
 	}
-	if st, _ := os.Stat(filepath.Join(w.Root, "a.txt")); st.Mode().Perm() != 0o600 {
+	// Windows has no Unix permission bits: files always report 0666.
+	if st, _ := os.Stat(filepath.Join(w.Root, "a.txt")); runtime.GOOS != "windows" && st.Mode().Perm() != 0o600 {
 		t.Fatalf("perm = %v, want 0600 kept", st.Mode().Perm())
 	}
 	if ents, _ := os.ReadDir(w.Root); len(ents) != 4 {
