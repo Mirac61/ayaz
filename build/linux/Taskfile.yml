@@ -178,6 +178,14 @@ tasks:
       CATEGORIES: 'Development;'
       OUTPUTFILE: '{{.ROOT_DIR}}/build/linux/{{.APP_NAME}}.desktop'
 
+  install:
+    summary: Installs the binary to ~/.local/bin and the launcher entry to ~/.local/share/applications
+    deps:
+      - task: build
+    cmds:
+      - install -Dm755 "{{.BIN_DIR}}/{{.APP_NAME}}" "$HOME/.local/bin/ayaz"
+      - install -Dm644 build/linux/ayaz.desktop "$HOME/.local/share/applications/ayaz.desktop"
+
   run:
     cmds:
       - '{{.BIN_DIR}}/{{.APP_NAME}}'

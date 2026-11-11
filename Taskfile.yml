@@ -14,6 +14,7 @@ includes:
   common: ./build/Taskfile.yml
   darwin: ./build/darwin/Taskfile.yml
   linux: ./build/linux/Taskfile.yml
+  windows: ./build/windows/Taskfile.yml
 
 tasks:
   build:
@@ -25,6 +26,11 @@ tasks:
     summary: Packages a production build of the application
     cmds:
       - task: "{{.GOOS}}:package"
+
+  install:
+    summary: Builds Ayaz and installs it for the current user (macOS, Linux, Windows)
+    cmds:
+      - task: "{{.GOOS}}:install"
 
   run:
     summary: Runs the application

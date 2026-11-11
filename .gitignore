@@ -7,3 +7,5 @@ frontend/test-results
 frontend/playwright-report
 frontend/.vitest-attachments
 frontend/src/**/__screenshots__
+.DS_Store
+frontend/test-results/

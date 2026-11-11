@@ -26,6 +26,21 @@ jobs:
         if: runner.os == 'Linux'
         run: go test -run='^$' -fuzz=FuzzResolve -fuzztime=30s ./internal/workspace
 
+  # Windows is built from Linux: this catches code that only compiles on Unix (syscall.Kill, creack/pty) without a Windows runner.
+  windows:
+    runs-on: ubuntu-24.04
+    env:
+      GOOS: windows
+      CGO_ENABLED: "0"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - run: mkdir -p frontend/dist && touch frontend/dist/index.html
+      - run: go vet ./...
+      - run: go build -ldflags "-H windowsgui" -o ayaz.exe .
+
   frontend:
     runs-on: ubuntu-24.04
     defaults:
@@ -36,6 +51,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - run: bun run typecheck
+      - run: bun run lint
       - run: bun run test
 
   # Vitest browser mode and Playwright E2E, both in WebKit. E2E runs against the server build, with a real gopls
