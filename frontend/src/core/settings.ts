@@ -21,7 +21,9 @@ export interface Settings extends FileSettings {
   stickyScroll: boolean; // the functions and classes that scrolled out of view stay on top
   sidebar: "left" | "right"; // the file tree's side of the window
   statusline: "top" | "bottom"; // mode, messages and meta in the title bar, or in their own line under the code
+  markdownSkin: "github" | "kairo"; // the look of the rendered Markdown view (<Space>um cycles it)
   glass?: boolean; // optional translucent chrome/overlays; solid is the default
+  glassOpacity: number; // 0.3 (see-through) to 1: how much of the glass surfaces' colour is left
   theme: string; // a built-in theme (see theme/themes.ts) or one of "themes"
   themes: Record<string, ThemeSpec>; // your own, each on top of another ("extends"), by name
   statusColors: Partial<Record<StatusColor, string>>; // hex colors over tokens.css --status-*
@@ -40,6 +42,8 @@ export const DEFAULTS: Settings = {
   stickyScroll: true,
   sidebar: "left",
   statusline: "top",
+  markdownSkin: "github",
+  glassOpacity: 1,
   theme: DEFAULT_THEME,
   themes: {},
   statusColors: {},
@@ -102,18 +106,24 @@ export function parseSettings(json: string): Settings {
   if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("settings.json: expected an object");
   const {
     font, fontSize, terminalFontSize, inlayHints, semanticTokens, stickyScroll,
-    sidebar, statusline, glass, theme, themes, statusColors, tasks, languages, ...file
+    sidebar, statusline, markdownSkin, glass, glassOpacity, theme, themes, statusColors, tasks, languages, ...file
   } = data as Record<string, unknown>;
   if (font !== undefined && typeof font !== "string") throw new Error('settings.json: "font" must be a string');
   if (inlayHints !== undefined && typeof inlayHints !== "boolean") throw new Error('settings.json: "inlayHints" must be a boolean');
   for (const [name, v] of Object.entries({ semanticTokens, stickyScroll, glass })) {
     if (v !== undefined && typeof v !== "boolean") throw new Error(`settings.json: "${name}" must be a boolean`);
   }
+  if (glassOpacity !== undefined && (typeof glassOpacity !== "number" || glassOpacity < 0.3 || glassOpacity > 1)) {
+    throw new Error('settings.json: "glassOpacity" must be a number from 0.3 to 1');
+  }
   if (sidebar !== undefined && sidebar !== "left" && sidebar !== "right") {
     throw new Error('settings.json: "sidebar" must be "left" or "right"');
   }
   if (statusline !== undefined && statusline !== "top" && statusline !== "bottom") {
     throw new Error('settings.json: "statusline" must be "top" or "bottom"');
+  }
+  if (markdownSkin !== undefined && markdownSkin !== "github" && markdownSkin !== "kairo") {
+    throw new Error('settings.json: "markdownSkin" must be "github" or "kairo"');
   }
   if (theme !== undefined && typeof theme !== "string") throw new Error('settings.json: "theme" must be a theme name');
   const specs = themes === undefined ? {} : parseThemeSpecs(themes);
@@ -163,7 +173,9 @@ export function parseSettings(json: string): Settings {
     ...(stickyScroll !== undefined && { stickyScroll: stickyScroll as boolean }),
     ...(sidebar !== undefined && { sidebar }),
     ...(statusline !== undefined && { statusline }),
+    ...(markdownSkin !== undefined && { markdownSkin }),
     ...(glass !== undefined && { glass: glass as boolean }),
+    ...(glassOpacity !== undefined && { glassOpacity: glassOpacity as number }),
     ...(theme !== undefined && { theme: theme as string }), // checked above
     themes: specs,
     ...(statusColors !== undefined && { statusColors: statusColors as Settings["statusColors"] }), // checked above
@@ -174,22 +186,33 @@ export function parseSettings(json: string): Settings {
 
 let current = DEFAULTS;
 let problem = "";
+let glassOverride: boolean | null = null; // the transparency command
 let override = ""; // a theme picked with the theme command: kept until settings.json names another one
 let fileTheme = DEFAULTS.theme;
 
 export const settings = () => current;
 export const settingsError = () => problem; // why settings.json was ignored, "" if it wasn't
 export const themeName = () => override || current.theme;
+// Glass is on when the command said so, else as settings.json has it.
+export const glassOn = () => glassOverride ?? !!current.glass;
 export const availableThemes = () => themeNames(current.themes);
 
 // Puts the theme on the page, then the colors of "statusColors" over it.
 function paintTheme() {
-  applyTheme(resolveTheme(themeName(), current.themes), !!current.glass);
+  applyTheme(resolveTheme(themeName(), current.themes), glassOn());
+  document.documentElement.toggleAttribute("data-glass", glassOn());
   const root = document.documentElement.style;
   for (const k of STATUS_COLORS) {
     const c = current.statusColors[k];
     if (c) root.setProperty(`--status-${k}`, c);
   }
+}
+
+// The transparency command: on or off until settings.json is read again. Returns the new state.
+export function toggleGlass(): boolean {
+  glassOverride = !glassOn();
+  paintTheme();
+  return glassOverride;
 }
 
 // The theme command: this theme until settings.json names another one. Returns false for an unknown name.
@@ -215,7 +238,8 @@ export function loadSettings(text: string) {
     problem = e instanceof Error ? e.message : String(e);
   }
   const root = document.documentElement.style;
-  document.documentElement.toggleAttribute("data-glass", !!current.glass);
+  glassOverride = null;
+  root.setProperty("--glass", String(current.glassOpacity));
   root.setProperty("--editor-font-size", `${current.fontSize}px`);
   root.removeProperty("--font-mono"); // back to the stylesheet's stack, so a reload doesn't stack fonts
   const mono = getComputedStyle(document.documentElement).getPropertyValue("--font-mono");

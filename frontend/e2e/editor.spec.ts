@@ -16,18 +16,18 @@ test("open, edit, save, and conflict on external change", async ({ page }) => {
   await page.keyboard.press("Enter");
   const content = page.locator(".cm-content");
   await expect(content).toContainText("# E2E workspace");
-  await expect(page.locator(".statusline")).toContainText("README.md");
+  await expect(page.locator(".titlebar")).toContainText("README.md");
 
   await page.keyboard.type("Onew line");
   await page.keyboard.press("Escape");
-  await expect(page.locator(".statusline .dirty")).toBeVisible();
+  await expect(page.locator(".titlebar .dirty")).toBeVisible();
   await page.keyboard.type(":w");
   await page.keyboard.press("Enter");
   await expect(page.locator(".statusline")).toContainText('"README.md" written');
   expect(readFileSync(readme, "utf8")).toMatch(/^new line\n# E2E workspace/);
 
   await page.keyboard.type("x"); // dirty, so the watcher must not reload over it
-  await expect(page.locator(".statusline .dirty")).toBeVisible();
+  await expect(page.locator(".titlebar .dirty")).toBeVisible();
   writeFileSync(readme, "theirs\n");
   await expect(page.locator(".statusline .msg.error")).toContainText("changed on disk");
   await page.keyboard.type(":w");
@@ -53,7 +53,7 @@ test("external changes reach tree and clean buffers", async ({ page }) => {
   writeFileSync(file, "zero\none\ntwo\nthree\n");
   await expect(page.locator(".cm-content")).toContainText("zero");
   await expect(page.locator(".statusline")).toContainText("4:1");
-  await expect(page.locator(".statusline .dirty")).toHaveCount(0);
+  await expect(page.locator(".titlebar .dirty")).toHaveCount(0);
 });
 
 // M22: :w trims line ends and extra blank lines at the end; u brings them back (unsaved).
@@ -67,7 +67,7 @@ test(":w cleans up, u undoes it", async ({ page }) => {
   await expect(page.locator(".statusline")).toContainText('"cleanup.txt" written');
   expect(readFileSync(file, "utf8")).toBe("a\nb\n");
   await page.keyboard.type("u");
-  await expect(page.locator(".statusline .dirty")).toBeVisible();
+  await expect(page.locator(".titlebar .dirty")).toBeVisible();
   await expect(page.locator(".statusline")).toContainText("1:");
   expect(await page.locator(".cm-line").first().textContent()).toBe("a  ");
 });
@@ -109,9 +109,9 @@ test.fail("mA in one file, 'A from another jumps back", async ({ page }) => {
   await page.keyboard.type("jmA");
   await page.keyboard.type(":e notes.md");
   await page.keyboard.press("Enter");
-  await expect(page.locator(".statusline")).toContainText("notes.md");
+  await expect(page.locator(".titlebar")).toContainText("notes.md");
   await page.keyboard.type("'A");
-  await expect(page.locator(".statusline")).toContainText("README.md", { timeout: 2000 });
+  await expect(page.locator(".titlebar")).toContainText("README.md", { timeout: 2000 });
 });
 
 test("Cmd+W closes the tab and shows the next one", async ({ page }) => {

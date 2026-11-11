@@ -70,3 +70,48 @@ test("hide and show the file tree", async ({ page }) => {
   await page.reload();
   await expect(tree).toBeVisible();
 });
+
+// Chromium 158+ returns a Promise from scrollIntoView; the palette's effect handed it to React as a cleanup and the
+// whole UI unmounted when a pick closed the palette and split at once.
+test("palette: picking a split keeps the UI alive", async ({ page }) => {
+  await page.goto("/?renderer=dom");
+  await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: "README.md" }).click();
+  await expect(page.locator(".titlebar")).toContainText("README.md");
+  await page.locator(".cm-content").click();
+  await page.keyboard.type(":vsplit");
+  await page.keyboard.press("Enter");
+  await expect(page.locator("[data-pane]")).toHaveCount(2);
+});
+
+// No file open: the keys to start with show over the empty buffer and go with the first typed character.
+test("empty window shows the first keys", async ({ page }) => {
+  await page.goto("/?renderer=dom");
+  const hints = page.locator(".pane-empty");
+  await expect(hints).toContainText("Command palette");
+  await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: "README.md" }).click();
+  await expect(page.locator(".titlebar")).toContainText("README.md");
+  await expect(hints).toHaveCount(0);
+});
+
+test("terminal panel docks right and top, a split pane closes with its x", async ({ page }) => {
+  await page.goto("/?renderer=dom");
+  await expect(page.getByRole("tree", { name: "Files" })).toBeFocused();
+  await page.keyboard.press("Control+l");
+  await page.keyboard.press("Control+w");
+  await page.keyboard.press("v");
+  const panes = page.locator(".panes > .pane");
+  await expect(panes).toHaveCount(2);
+    await page.waitForTimeout(300); // the editor's own tab bar logic must leave the ghost alone
+  await expect(panes.last().locator(".ghost")).toBeVisible();
+  await panes.last().locator(".ghost .tab-close").click();
+  await expect(panes).toHaveCount(1);
+
+  await page.keyboard.type(" t");
+  const panel = page.locator(".panel");
+  await expect(panel).toBeVisible();
+  const dock = panel.getByRole("button", { name: "Move terminal panel" });
+  await dock.click();
+  await expect.poll(async () => (await box(panel)).x).toBeGreaterThan((await box(page.locator(".panes"))).x);
+  await dock.click();
+  await expect.poll(async () => (await box(panel)).y).toBeLessThan((await box(page.locator(".panes"))).y);
+});

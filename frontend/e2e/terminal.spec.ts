@@ -44,7 +44,8 @@ test("leader hints", async ({ page }) => {
   await expect(page.getByRole("tree", { name: "Files" })).toBeFocused();
   await page.keyboard.press("Space");
   await expect(hints).toContainText("Toggle terminal panel");
-  await expect(hints).toContainText("+11 keymaps"); // f leads to ff, fo, fb, fk, fw, fp, fs, fS, fd, fh, ft
+  await expect(hints).toContainText("+find"); // a named group: f leads to ff, fo, fb, fk, fw, fp, fs, fS, fd, fh, ft
+  await expect(hints).toContainText("+debug");
   await page.keyboard.press("Escape");
   await expect(hints).toBeHidden();
 
@@ -66,6 +67,7 @@ test("hidden terminals come back from the buffer list", async ({ page }) => {
   await page.keyboard.type(":terminal\n");
   const term = page.locator(".panes [data-term] .xterm-rows");
   await expect(term).toHaveCount(1);
+  await expect(page.locator(".panes .xterm-helper-textarea")).toBeFocused(); // the palette closes first
   await page.keyboard.type("echo kept-$((40+2))\n");
   await expect(term).toContainText("kept-42", { timeout: 10_000 });
 
@@ -106,4 +108,71 @@ test("terminal zoom is its own", async ({ page }) => {
   expect(await page.evaluate(() => localStorage.getItem("ayaz.zoom"))).toBeNull(); // no page zoom
   await page.keyboard.press(`${mod}+0`);
   await expect.poll(size).toBe(before);
+});
+
+// A terminal is a tab beside the files: switching hides the shell, it runs on; closing the tab ends it.
+test("terminal tab: shell next to the files, kept when switching, ended when closed", async ({ page }) => {
+  await page.goto("/?renderer=dom");
+  await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: "README.md" }).click();
+  await page.locator(".cm-content").click();
+  await page.keyboard.type(":Terminal in a tab\n");
+  const term = page.locator(".panes [data-term] .xterm-rows");
+  const tabs = page.locator(".panes .tabbar .tab");
+  await expect(tabs).toHaveCount(2);
+  await expect(tabs.nth(1)).toHaveClass(/active/);
+  await expect(term).toHaveCount(1);
+  await expect(page.locator(".panes .xterm-helper-textarea")).toBeFocused();
+  await page.keyboard.type("echo tabbed-$((40+2))\n");
+  await expect(term).toContainText("tabbed-42", { timeout: 10_000 });
+
+  await tabs.nth(0).dispatchEvent("mousedown"); // back to the file: the shell hides
+  await expect(page.locator(".cm-content")).toBeVisible();
+  await expect(page.locator(".panes [data-term]")).toHaveCount(0);
+  await tabs.nth(1).dispatchEvent("mousedown");
+  await expect(term).toContainText("tabbed-42"); // the same shell
+
+  await tabs.nth(1).locator(".tab-close").dispatchEvent("mousedown");
+  await expect(tabs).toHaveCount(1);
+  await expect(page.locator(".cm-content")).toBeVisible();
+});
+
+// The palette runs ex lines and the project's Makefile targets.
+test("palette: ':' runs ex lines and lists tasks", async ({ page }) => {
+  await page.goto("/?renderer=dom");
+  await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: "README.md" }).click();
+  await page.locator(".cm-content").click();
+  await page.keyboard.type(":");
+  const palette = page.getByRole("dialog", { name: "Commands" });
+  await expect(palette).toBeVisible();
+  await page.keyboard.type("split");
+  await expect(palette.getByRole("option").first()).toContainText("plit");
+  await page.keyboard.press("Escape");
+});
+
+// The + at the end of the tab bar: New terminal adds a terminal tab next to the file's.
+test("tab bar +: New terminal opens a second tab", async ({ page }) => {
+  await page.goto("/?renderer=dom");
+  await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: "README.md" }).click();
+  await expect(page.locator(".cm-content")).toBeVisible();
+  const tabs = page.locator(".panes .tabbar .tab");
+  await expect(tabs).toHaveCount(1);
+  await page.locator(".panes .tabbar .tab-plus").dispatchEvent("mousedown");
+  await page.getByRole("menuitem", { name: "New terminal" }).dispatchEvent("mousedown");
+  await expect(tabs).toHaveCount(2);
+  await expect(tabs.nth(1)).toHaveClass(/active/);
+  await expect(page.locator(".panes .xterm-helper-textarea")).toBeFocused();
+});
+
+// The title bar's buttons: palette and sidebar; the file's path sits in its middle.
+test("title bar: palette and sidebar buttons, the path of the open file", async ({ page }) => {
+  await page.goto("/?renderer=dom");
+  await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: "README.md" }).click();
+  await expect(page.locator(".titlebar")).toContainText("README.md");
+  await page.getByRole("button", { name: "Command palette" }).dispatchEvent("mousedown");
+  await expect(page.getByRole("dialog", { name: "Commands" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  const sidebar = page.locator(".sidebar");
+  await expect(sidebar).toBeVisible();
+  await page.getByRole("button", { name: "Sidebar" }).dispatchEvent("mousedown");
+  await expect(sidebar).toBeHidden();
 });

@@ -105,7 +105,7 @@ test("clicking a checkbox flips the x, undo brings it back", async () => {
 test("a reading view does not toggle checkboxes", async () => {
   await mount("- [ ] one\nend");
   toggleReading(view!);
-  await userEvent.click(view!.contentDOM.querySelector(".cm-md-check")!);
+  await userEvent.click(view!.dom.querySelector(".md-render li.task")!); // the rendered view lies over the text
   expect(view!.state.doc.toString()).toBe("- [ ] one\nend");
 });
 

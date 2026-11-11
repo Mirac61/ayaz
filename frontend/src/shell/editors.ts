@@ -1,15 +1,18 @@
+import { startDrag } from "./dnd";
 import { EditorState, Transaction, Annotation, Text } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { redo, undo, undoDepth } from "@codemirror/commands";
-import { getCM } from "@replit/codemirror-vim";
+import { indentUnit } from "@codemirror/language";
+import { getCM, Vim } from "@replit/codemirror-vim";
 import type { Files } from "../core/backend";
 import { Buffers, diff, isDirty, isVirtual, type Buffer } from "../core/buffers";
 import { setLspHost, formatBeforeSave, fileOps, toChanges, type WorkspaceEdit } from "../editor/lsp";
-import { createState, editorExtensions, isWrapped, setWrap, settingsEffects } from "../editor/editor";
+import { createState, editorExtensions, isProse, isWrapped, setWrap, settingsEffects } from "../editor/editor";
 import { cleanupChanges } from "../editor/cleanup";
 import { isReading, linkAt, toggleReading } from "../editor/mdlive";
 import { openTerminal, setTermZoom, termFontSize, termZoom, type TermHandle, type TermOptions } from "../terminal/terminal";
-import { fsUrl, viewerFor, type ViewHandle } from "../core/viewers";
+import { BROWSER, fsUrl, viewerFor, type ViewHandle } from "../core/viewers";
+import "../viewers/browser";
 import "../viewers/image";
 import "../viewers/pdf";
 import { backend } from "../core/backend";
@@ -20,6 +23,8 @@ import { breakpointLines, setLines as setBreakpointLines, toggleBreakpoint } fro
 import { setDebugLine } from "../editor/debugline";
 import { diffWith, headEffects, toggleDiff } from "../editor/gitgutter";
 import { setEditorConfig } from "../core/editorconfig";
+import { countWords, selectionSize } from "../core/words";
+import { searchCount } from "../core/searchcount";
 import { Waits } from "./waits";
 import { UndoSteps } from "./undoSteps";
 import { HiddenTerms } from "./terminals";
@@ -32,7 +37,12 @@ export interface Status {
   line: number;
   col: number;
   lines: number;
-  eol?: "LF" | "CRLF"; // shown only for CRLF, the unusual one
+  eol?: "LF" | "CRLF";
+  indent?: string; // "Tabs" or "Spaces 4"
+  words?: number; // prose files only (Markdown, text, Typst, LaTeX)
+  recording?: string; // the register of the macro being recorded ("q" for qq)
+  search?: string; // "3/12" for Vim's last search
+  selected?: string; // the selection's size, "3 lines"; absent when nothing is selected
   info?: string; // a viewer's status (zoom, size) in place of line:col
 }
 
@@ -46,6 +56,13 @@ interface Pane {
 // Marks changes copied from another pane showing the same buffer, so they aren't copied back.
 const synced = Annotation.define<boolean>();
 const RECENT_MAX = 100;
+// The register a macro is being recorded into (qq … q), undefined when none.
+const recordingRegister = () => {
+  const m = Vim.getVimGlobalState_().macroModeState;
+  return m.isRecording ? m.latestRegister ?? "" : undefined;
+};
+const TERM = "term://"; // a terminal's tab, next to the files'
+const isTermTab = (t: string) => t.startsWith(TERM);
 
 // The panes of one workspace (editors and terminals) and the buffers they show. Layout (where panes sit) is the workbench's job.
 // The debugger's output: a buffer without a file (core/buffers `virtual`), opened like any path.
@@ -58,6 +75,7 @@ export class Editors {
   private recentKey: string;
   private lastEditor = 0; // where files open while a terminal pane is active
   private tabs = new Map<number, string[]>(); // per pane: files shown in it, in the order first shown
+  private recording: string | undefined; // what the last status said about macro recording
   private dirtyTabs = ""; // the dirty buffers' paths when the tabs were last drawn
   tabsOn = true; // set through setTabs
   cursors: Record<string, number> = {}; // from the session: where the cursor was when a file loads again
@@ -68,7 +86,9 @@ export class Editors {
   private waits = new Waits(); // `ayaz --wait`: files somebody waits to see closed
   private hidden = new HiddenTerms();
   private terms = 0; // numbers the terminals: "shell 1", "lazygit 2"
-  onTermExit: (id: number) => void = () => {}; // the shell in split pane id ended (the panel passes its own onExit)
+  onTermExit: (id: number) => void = () => {}; // the shell in split pane id ended, or its last tab closed: the pane closes (the panel passes its own onExit)
+  onPlus: (at: DOMRect, id: number) => void = () => {}; // the + in pane id's tab bar, at the button
+  onTabMenu: (at: { x: number; y: number }, path: string, id: number) => void = () => {}; // right click on a tab
   private steps = new UndoSteps(); // see there: u runs in the pane that made the latest step
   active = 0;
 
@@ -124,18 +144,19 @@ export class Editors {
   }
 
   // closing: the pane goes away for good (not just swapping its content), so its tabs go too.
-  detach(id: number, closing = false) {
+  // keepShell: the pane shows something else now, its terminal's shell runs on hidden (its tab brings it back).
+  detach(id: number, closing = false, keepShell = false) {
     const p = this.panes.get(id);
     if (p?.buf) this.steps.forget(id, p.buf);
     p?.view?.destroy();
-    if (p?.term && closing && id > 0) this.hide(p);
+    if (p?.term && (closing || keepShell) && id > 0) this.hide(p);
     else p?.term?.dispose();
     p?.viewer?.dispose();
     p?.el.querySelector(":scope > .pane-body")?.remove();
     p?.el.querySelector(":scope > .pane-term")?.remove(); // an ended terminal's box (a hidden one has moved out)
     this.panes.delete(id);
     if (closing) {
-      this.pushClosed(...(this.tabs.get(id) ?? []));
+      this.pushClosed(...(this.tabs.get(id) ?? []).filter((t) => !isTermTab(t)));
       this.tabs.delete(id);
       this.jumps.delete(id);
     }
@@ -192,26 +213,37 @@ export class Editors {
   }
 
   async tabMove(d: number) {
-    const list = this.tabs.get(this.active) ?? [], cur = this.panes.get(this.active)?.buf?.path ?? this.panes.get(this.active)?.title;
+    const list = this.tabs.get(this.active) ?? [], cur = this.currentTab(this.active);
     if (list.length < 2) return;
     const i = list.indexOf(cur ?? "");
     await this.open(list[(i + d + list.length) % list.length]);
   }
 
+  tabPaths(id: number): string[] { return [...(this.tabs.get(id) ?? [])]; }
+
   // Drops a file (default: the current one) from the pane's tabs and shows its neighbor. The buffer itself stays
   // loaded, so nothing is lost.
   async tabClose(path?: string, id = this.active) {
-    const p = this.panes.get(id);
-    const cur = p?.buf?.path ?? (p?.viewer ? p.title : undefined);
+    const cur = this.currentTab(id);
     const list = this.tabs.get(id), target = path ?? cur;
     if (!target || !list || !list.includes(target)) return;
     const i = list.indexOf(target);
     list.splice(i, 1);
-    this.pushClosed(target);
+    if (isTermTab(target)) {
+      // A terminal's tab ends its shell: the shown one with its pane's content, a hidden one with its box.
+      if (target === cur) this.replace(id);
+      else this.hidden.kill(target.slice(TERM.length));
+    } else this.pushClosed(target);
     if (target !== cur) return this.renderTabs(id);
     const next = list[Math.min(i, list.length - 1)];
     if (next) await this.open(next, id);
-    else { this.replace(id); this.renderTabs(id); }
+    else { this.onTermExit(id); this.renderTabs(id); } // the last tab closes its pane, unless it is the only one
+  }
+
+  // The tab the pane shows: a file, a viewer's file or "term://title".
+  private currentTab(id: number): string | undefined {
+    const p = this.panes.get(id);
+    return p?.buf?.path ?? (p?.viewer ? p.title : p?.term ? `${TERM}${p.title}` : undefined);
   }
 
   private addTab(id: number, path: string) {
@@ -221,21 +253,55 @@ export class Editors {
     this.renderTabs(id);
   }
 
+  // The button at the top right of a Markdown or SVG pane: rendered view and source.
+  private renderToggle(id: number, p: Pane) {
+    const path = this.currentTab(id) ?? "";
+    let btn = p.el.querySelector<HTMLElement>(":scope > .render-toggle");
+    if (!/\.(md|svg)$/.test(path)) return void btn?.remove();
+    if (btn) return;
+    btn = Object.assign(document.createElement("button"), {
+      type: "button", className: "render-toggle", title: "Rendered view / source",
+    });
+    btn.setAttribute("aria-label", "Toggle rendered view and source");
+    btn.tabIndex = -1;
+    btn.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      this.setActive(id);
+      this.toggleRendered();
+    });
+    p.el.append(btn);
+  }
+
   private renderTabs(id: number) {
     const p = this.panes.get(id);
     if (!p) return;
+    this.renderToggle(id, p);
     const list = this.tabs.get(id) ?? [];
-    let bar = p.el.querySelector<HTMLElement>(":scope > .tabbar");
-    if (!this.tabsOn || p.term || !list.length) return void bar?.remove();
+    let bar = p.el.querySelector<HTMLElement>(":scope > .tabbar:not(.ghost)");
+    if (!this.tabsOn || !list.length) return void bar?.remove();
     if (!bar) {
       bar = document.createElement("div");
       bar.className = "tabbar";
       bar.setAttribute("role", "tablist");
+      // A mouse wheel turns the strip sideways when the tabs overflow (a trackpad already does).
+      bar.addEventListener("wheel", (e) => {
+        if (Math.abs(e.deltaY) <= Math.abs(e.deltaX) || bar!.scrollWidth <= bar!.clientWidth) return;
+        bar!.scrollLeft += e.deltaY;
+        e.preventDefault();
+      }, { passive: false });
       p.el.prepend(bar);
     }
-    const cur = p.buf?.path ?? (p.viewer ? p.title : undefined);
+    const cur = this.currentTab(id);
+    const plus = Object.assign(document.createElement("button"), {
+      type: "button", className: "tab-plus", title: "New file, folder or terminal", textContent: "+",
+    });
+    plus.setAttribute("aria-label", "New");
+    plus.tabIndex = -1;
+    plus.addEventListener("mousedown", (e) => { e.preventDefault(); this.onPlus(plus.getBoundingClientRect(), id); });
     bar.replaceChildren(...list.map((path) => {
-      const active = path === cur, slash = path.lastIndexOf("/");
+      const term = isTermTab(path);
+      const web = path.startsWith(BROWSER);
+      const active = path === cur, slash = term || web ? -1 : path.lastIndexOf("/");
       const t = document.createElement("button");
       t.type = "button";
       t.className = active ? "tab active" : "tab";
@@ -247,10 +313,12 @@ export class Editors {
         const dir = document.createElement("span");
         dir.className = "dir";
         dir.textContent = path.slice(0, slash + 1);
-        name.append(dir, path.slice(slash + 1));
+        const base = Object.assign(document.createElement("span"), { className: "base", textContent: path.slice(slash + 1) });
+        name.append(dir, base);
       } else {
-        name.textContent = path.slice(slash + 1);
+        name.textContent = term ? path.slice(TERM.length) : web ? path.slice(BROWSER.length) : path.slice(slash + 1);
       }
+      if (term) t.classList.add("term");
       t.append(name);
       const b = this.buffers.get(path);
       if (b && isDirty(b)) t.append(Object.assign(document.createElement("span"), { className: "dirty", title: "Modified" }));
@@ -258,9 +326,15 @@ export class Editors {
       x.addEventListener("mousedown", (e) => { e.preventDefault(); e.stopPropagation(); void this.tabClose(path, id); });
       t.append(x);
       t.tabIndex = -1;
-      t.addEventListener("mousedown", (e) => { e.preventDefault(); void this.open(path, id); });
+      t.addEventListener("contextmenu", (e) => { e.preventDefault(); this.onTabMenu({ x: e.clientX, y: e.clientY }, path, id); });
+      // Middle click closes, like in a browser.
+      t.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        if (!term) startDrag(e, path);
+        void (e.button === 1 ? this.tabClose(path, id) : this.open(path, id));
+      });
       return t;
-    }));
+    }), plus);
     const scrollOpts = { inline: "nearest", block: "nearest", container: "nearest" } as ScrollIntoViewOptions;
     bar.querySelector(".active")?.scrollIntoView(scrollOpts);
   }
@@ -275,17 +349,24 @@ export class Editors {
 
   // The folder the terminal in pane id reported with OSC 7, "" if it isn't one or hasn't said.
   termCwd(id = this.active) { return this.panes.get(id)?.term?.cwd() ?? ""; }
+  // The terminal whose title starts with `name`: in a pane (pane set) or hidden (a tab of some pane).
+  termTitled(name: string): { title: string; pane?: number } | null {
+    for (const [pane, p] of this.panes) if (p.term && p.title?.startsWith(name)) return { title: p.title, pane };
+    const title = this.hidden.titles().find((t) => t.startsWith(name));
+    return title ? { title } : null;
+  }
+  termTitle(id: number) { return this.panes.get(id)?.title ?? ""; }
   isTerm(id = this.active) { return !!this.panes.get(id)?.term; }
 
   // An editor pane with no file: a new terminal takes it over instead of splitting.
   isEmpty(id = this.active) { const p = this.panes.get(id); return !!p?.view && !p.buf; }
 
   // Swaps what pane id shows: a terminal, or an empty editor without term.
-  replace(id: number, term?: TermOptions) {
+  replace(id: number, term?: TermOptions, keepShell = false) {
     const p = this.panes.get(id);
     if (!p) return;
     const wasActive = id === this.active;
-    this.detach(id);
+    this.detach(id, false, keepShell);
     this.attach(id, p.el, undefined, term);
     if (wasActive) this.focus(id);
   }
@@ -295,6 +376,12 @@ export class Editors {
     const v = this.panes.get(id)?.view;
     const vim = v && (getCM(v)?.state.vim as { insertMode?: boolean; visualMode?: boolean; inputState?: { keyBuffer: string[]; operator: unknown } } | undefined);
     return !!vim && !vim.insertMode && !vim.visualMode && !vim.inputState?.keyBuffer.length && !vim.inputState?.operator;
+  }
+
+  // Runs a line like "w" or "%s/a/b/" in the active editor, as Vim's command line would.
+  ex(line: string) {
+    const v = this.panes.get(this.active)?.view, cm = v && getCM(v);
+    if (cm) Vim.handleEx(cm as never, line);
   }
 
   // Ctrl-\ Ctrl-n in the active terminal.
@@ -321,20 +408,32 @@ export class Editors {
     return !!v && toggleReading(v) !== null;
   }
 
+  // Rendered view and source: Markdown's reading view, or an SVG's image viewer and its text. False for other files.
+  toggleRendered(): boolean {
+    const p = this.panes.get(this.active), path = this.currentTab(this.active);
+    if (!path?.endsWith(".svg")) return this.toggleReading();
+    if (p?.viewer) void this.open(path, this.active, true);
+    else this.showViewer(this.active, path); // shows the file on disk, unsaved edits stay in the buffer
+    return true;
+  }
+
   current(): Buffer | null { return this.panes.get(this.active)?.buf ?? null; }
 
   // From a terminal pane, the file opens in the editor pane used last. Images and the like open in a viewer.
-  async open(path: string, id = this.active): Promise<number> {
+  async open(path: string, id = this.active, source = false): Promise<number> {
     if (path.startsWith("term://")) return this.unhide(path.slice("term://".length), id);
     const usable = (p?: Pane) => !!(p?.view || p?.viewer);
-    if (this.isTerm(id)) id = usable(this.panes.get(this.lastEditor)) ? this.lastEditor : [...this.panes].find(([, p]) => usable(p))?.[0] ?? -1;
-    if (!usable(this.panes.get(id))) throw new Error("No editor pane, split one off with :vsplit");
+    // A terminal in a pane with file tabs gives way to the file; one in a pane of its own sends it to the editor used last.
+    const keepsFiles = (this.tabs.get(id) ?? []).some((t) => !isTermTab(t));
+    // With no editor pane at all, the file opens beside the terminal, as a tab of its pane.
+    if (this.isTerm(id) && !keepsFiles) id = usable(this.panes.get(this.lastEditor)) ? this.lastEditor : [...this.panes].find(([, p]) => usable(p))?.[0] ?? id;
+    if (!usable(this.panes.get(id)) && !this.isTerm(id)) throw new Error("No editor pane, split one off with :vsplit");
     const from = this.spot(id);
     if (from && from.path !== path && !this.navigating) {
       if (!this.jumps.has(id)) this.jumps.set(id, new Jumps());
       this.jumps.get(id)!.push(from);
     }
-    if (viewerFor(path)) {
+    if (!source && viewerFor(path)) {
       this.showViewer(id, path);
       return id;
     }
@@ -345,7 +444,7 @@ export class Editors {
       const lines = this.bps[path];
       if (lines?.length) b.state = b.state.update({ effects: setBreakpointLines.of(lines) }).state;
     }
-    if (this.panes.get(id)!.viewer) this.replace(id); // back to an editor
+    if (this.panes.get(id)!.viewer || this.isTerm(id)) this.replace(id, undefined, true); // back to an editor
     this.show(id, b);
     const at = this.cursors[path], v = this.panes.get(id)!.view!;
     if (fresh && at !== undefined) {
@@ -357,7 +456,7 @@ export class Editors {
 
   private showViewer(id: number, path: string) {
     const el = this.panes.get(id)!.el;
-    this.detach(id);
+    this.detach(id, false, this.isTerm(id));
     const p: Pane = { el, buf: null, mode: "view", title: path };
     this.panes.set(id, p);
     // Viewers fill a body box, so the tab bar can sit above them.
@@ -365,12 +464,12 @@ export class Editors {
     body.className = "pane-body";
     el.append(body);
     p.viewer = viewerFor(path)!.mount(body, {
-      url: fsUrl(this.wsId, path),
+      url: path.startsWith(BROWSER) ? path.slice(BROWSER.length) : fsUrl(this.wsId, path),
       onStatus: () => id === this.active && this.emit(),
       openURL: (u) => browsable(u) && void backend.openURL(u),
     });
     el.addEventListener("focusin", () => this.setActive(id));
-    this.touch(path);
+    if (!path.startsWith(BROWSER)) this.touch(path); // an address isn't a recent file
     this.addTab(id, path);
     this.focus(id);
   }
@@ -449,7 +548,7 @@ export class Editors {
       cursors[b.path] = b.state.selection.main.head;
       breakpoints[b.path] = breakpointLines(b.state);
     }
-    return { panes, terms, tabs: Object.fromEntries(this.tabs), active: this.active, cursors, breakpoints };
+    return { panes, terms, tabs: Object.fromEntries([...this.tabs].map(([id, l]) => [id, l.filter((t) => !isTermTab(t))])), active: this.active, cursors, breakpoints };
   }
 
   // Session restore: the pane's tabs before its file opens (which adds to them).
@@ -708,7 +807,7 @@ export class Editors {
     if (!p.view) {
       return this.onStatus({ pane: this.active, path: `term://${p.title}`, dirty: false, mode: p.mode, line: 1, col: 1, lines: 1 });
     }
-    const st = p.view.state, head = st.selection.main.head, l = st.doc.lineAt(head);
+    const st = p.view.state, head = st.selection.main.head, l = st.doc.lineAt(head), unit = st.facet(indentUnit);
     this.onStatus({
       pane: this.active,
       path: p.buf?.path ?? null,
@@ -717,8 +816,21 @@ export class Editors {
       line: l.number,
       col: head - l.from + 1,
       lines: st.doc.lines,
-      eol: p.buf?.eol === "\r\n" ? "CRLF" : undefined,
+      eol: p.buf ? (p.buf.eol === "\r\n" ? "CRLF" : "LF") : undefined,
+      indent: unit.includes("\t") ? "Tabs" : `Spaces ${unit.length}`,
+      words: (p.buf && isProse(p.buf.path) ? countWords(st.doc) : null) ?? undefined,
+      selected: selectionSize(st.doc, st.selection.main.from, st.selection.main.to) || undefined,
+      search: this.searchCount(p.view, head),
+      recording: (this.recording = recordingRegister()),
     });
+  }
+
+  // The "3/12" for Vim's last search; undefined before the first one. :noh clears the highlight but not the query, so
+  // the count stays (the overlay is set a moment after the search and no cursor move follows, so it can't be the signal).
+  private searchCount(view: EditorView, head: number): string | undefined {
+    const vim = getCM(view)?.state.vim as { searchState_?: { getQuery(): RegExp | null } } | undefined;
+    const query = vim?.searchState_?.getQuery();
+    return (query?.source && searchCount(view.state.doc, query, head)) || undefined;
   }
 
   // Terminal zoom: d px more for every terminal (shown or hidden), 0 back to the size from settings.json.
@@ -748,7 +860,8 @@ export class Editors {
     el.append(h.box);
     const mode = h.box.dataset.mode ?? "terminal";
     this.panes.set(id, { el, term: h.term, buf: null, mode, title: h.title, cmd: h.cmd });
-    this.renderTabs(id);
+    if (id > 0) this.addTab(id, `${TERM}${h.title}`); // the panel has no tabs
+    else this.renderTabs(id);
     el.addEventListener("focusin", () => this.panes.get(id)?.term === h.term && this.setActive(id));
     this.focus(id);
   }
@@ -761,10 +874,11 @@ export class Editors {
   // Shows hidden terminal `title` in pane id, in place of what it showed (a terminal there is hidden in turn).
   private unhide(title: string, id: number): number {
     const p = this.panes.get(id);
+    if (p?.term && p.title === title) { this.focus(id); return id; } // its own tab
     if (!this.hidden.has(title)) throw new Error(`No terminal "${title}"`);
     if (!p) throw new Error("No pane to show it in");
     const h = this.hidden.take(title)!;
-    this.detach(id, !!p.term);
+    this.detach(id, false, !!p.term);
     this.showTerm(id, p.el, h);
     return id;
   }
@@ -780,10 +894,22 @@ export class Editors {
 
   // A shell ended: a hidden one leaves the list; a shown one closes its pane (or the panel, through its own onExit).
   private termExited(t: TermHandle, onExit?: () => void) {
-    if (this.hidden.end(t)) return;
+    const gone = this.hidden.end(t);
+    if (gone) return this.dropTermTab(gone);
     if (onExit) return onExit();
     const id = [...this.panes].find(([, p]) => p.term === t)?.[0];
-    if (id !== undefined) this.onTermExit(id);
+    if (id === undefined) return;
+    // With other tabs in its pane, only its tab closes; alone, the pane does.
+    if ((this.tabs.get(id) ?? []).length > 1) void this.tabClose(this.currentTab(id), id);
+    else this.onTermExit(id);
+  }
+
+  // A hidden shell ended: its tab goes from every pane.
+  private dropTermTab(title: string) {
+    for (const [id, list] of this.tabs) {
+      const i = list.indexOf(`${TERM}${title}`);
+      if (i >= 0) { list.splice(i, 1); this.renderTabs(id); }
+    }
   }
 
   private setActive(id: number) {
@@ -807,9 +933,14 @@ export class Editors {
 
   private watchMode(id: number) {
     const p = this.panes.get(id)!;
-    getCM(p.view!)?.on("vim-mode-change", (e: { mode: string }) => {
+    const cm = getCM(p.view!);
+    cm?.on("vim-mode-change", (e: { mode: string }) => {
       p.mode = e.mode;
       if (id === this.active) this.emit();
+    });
+    // qq and q change no text and no mode, so the status line hears about a macro starting or ending here.
+    cm?.on("vim-command-done", () => {
+      if (id === this.active && recordingRegister() !== this.recording) this.emit();
     });
   }
 

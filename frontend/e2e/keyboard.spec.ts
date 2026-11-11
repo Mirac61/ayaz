@@ -12,7 +12,7 @@ test("find a file, split, close the split, palette", async ({ page }) => {
   await expect(picker.getByRole("option", { selected: true })).toHaveText(/src\/main\.go/);
   await page.keyboard.press("Enter");
   await expect(picker).toBeHidden();
-  await expect(page.locator(".statusline")).toContainText("src/main.go");
+  await expect(page.locator(".titlebar")).toContainText("src/main.go");
   await expect(page.locator(".pane .cm-content")).toContainText("package main");
 
   await page.keyboard.press("Control+w");

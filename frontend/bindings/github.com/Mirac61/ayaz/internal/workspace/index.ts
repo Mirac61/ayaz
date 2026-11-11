@@ -3,6 +3,7 @@
 
 export type {
     Entry,
+    Preview,
     Registry,
     TextFile
 } from "./models.js";

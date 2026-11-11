@@ -112,7 +112,7 @@ export const synVar = (k: keyof SyntaxColors) => `--syn-${kebab(k)}`;
 
 const KANAGAWA_SYNTAX: SyntaxColors = {
   fg: "#dcd7ba",
-  comment: "#727169",
+  comment: "#8a8980",
   keyword: "#957fb8",
   fn: "#7e9cd8",
   string: "#98bb6c",
@@ -457,12 +457,93 @@ const gruvboxDark: Theme = {
 };
 
 export const DEFAULT_THEME = "graphite";
+// A light theme: white paper with Kanagawa Lotus hues, darkened so code keeps 4.5:1 on the page.
+const paper: Theme = {
+  ui: {
+    bg0: "#eeeef0",
+    bgSidebar: "#f3f3f5",
+    bgTabs: "#eaeaec",
+    tab: "transparent",
+    tabActive: "#ffffff",
+    bg1: "#fafafb",
+    bg2: "#ffffff",
+    bg3: "#cfcfd6",
+    hover: "#e3e3e8",
+    overlay: "#ffffff",
+    edge: "rgb(0 0 0 / 0.1)",
+    edgeSplit: "rgb(0 0 0 / 0.1)",
+    edgeOverlay: "rgb(0 0 0 / 0.16)",
+    fg1: "#1d1d21",
+    fg2: "#41414a",
+    fg3: "#585862",
+    fg4: "#6a6a75",
+    accent: "#2b5fb8",
+    insert: "#3a7a28",
+    visual: "#7a3fa8",
+    error: "#c62828",
+    warning: "#b85600",
+    gitAdd: "#3a7a28",
+    gitMod: "#2b5fb8",
+    gitDel: "#c62828",
+    statusNormal: "#2b5fb8",
+    statusInsert: "#3a7a28",
+    statusVisual: "#7a3fa8",
+    statusReplace: "#c0344f",
+    statusTerminal: "#8a6a00",
+    statusRead: "#1f7a72",
+    statusView: "#55586a",
+    statusError: "#c62828",
+    statusWarning: "#b85600",
+  },
+  syntax: {
+    fg: "#2b2b33",
+    comment: "#6f6f7a",
+    keyword: "#7a3fa8",
+    fn: "#2b5fb8",
+    string: "#3a7a28",
+    number: "#b03a63",
+    type: "#1f7a72",
+    constant: "#b85600",
+    operator: "#8a6a00",
+    punct: "#55586a",
+    special: "#8a6a14",
+    field: "#7d6317",
+    param: "#5a4c8a",
+    error: "#c62828",
+    cursor: "#1d1d21",
+    selection: "rgb(43 95 184 / 0.18)",
+    lineHighlight: "rgb(0 0 0 / 0.045)",
+  },
+  terminal: {
+    foreground: "#2b2b33",
+    cursor: "#2b2b33",
+    selectionBackground: "#2b5fb82e",
+    black: "#2b2b33",
+    red: "#c62828",
+    green: "#3a7a28",
+    yellow: "#8a6a00",
+    blue: "#2b5fb8",
+    magenta: "#7a3fa8",
+    cyan: "#1f7a72",
+    white: "#a0a0aa",
+    brightBlack: "#6f6f7a",
+    brightRed: "#e03a3a",
+    brightGreen: "#4f9a38",
+    brightYellow: "#a78500",
+    brightBlue: "#4a7fd8",
+    brightMagenta: "#9a5cc8",
+    brightCyan: "#2f9a90",
+    brightWhite: "#75757f",
+  },
+};
+
 export const BUILTIN_THEMES: Record<string, Theme> = {
   graphite,
   kanagawa,
   "tokyo-night": tokyoNight,
   "catppuccin-mocha": catppuccinMocha,
   "gruvbox-dark": gruvboxDark,
+  paper,
 };
 
 const COLOR = /^(#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})|(rgb|hsl)a?\([^()]*\)|transparent)$/i;
@@ -528,6 +609,12 @@ let terminal: ITheme = BUILTIN_THEMES[DEFAULT_THEME].terminal;
 // The xterm theme of the applied theme.
 export const terminalTheme = (): ITheme => terminal;
 
+// Whether a #rrggbb page color is light (perceived brightness over half); any other notation counts as dark.
+const isLight = (hex: string) => {
+  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.exec(hex);
+  return !!m && (0.299 * parseInt(m[1], 16) + 0.587 * parseInt(m[2], 16) + 0.114 * parseInt(m[3], 16)) / 255 > 0.5;
+};
+
 // Puts a theme on the page: chrome and syntax colors as variables on :root, the terminal's colors for new and open
 // terminals (they ask terminalTheme again). With glass on, the stylesheet keeps the translucent surfaces.
 export function applyTheme(theme: Theme, glass = false, root = document.documentElement.style) {
@@ -537,4 +624,6 @@ export function applyTheme(theme: Theme, glass = false, root = document.document
   }
   for (const k of SYNTAX_KEYS) root.setProperty(synVar(k), theme.syntax[k]);
   terminal = { ...theme.terminal, background: theme.terminal.background ?? theme.ui.bg1 };
+  root.setProperty("color-scheme", isLight(theme.ui.bg1) ? "light" : "dark"); // scrollbars and native controls
+  root.setProperty("--term-bg", terminal.background!); // the pane around xterm's cells, so no strip of another color shows
 }

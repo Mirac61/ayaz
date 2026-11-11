@@ -33,6 +33,18 @@ export class Quickfix {
 
 export const label = (l: Loc) => `${l.path}:${l.line}:${l.col + 1}: ${l.text.trim()}`;
 
+// Code point positions of the match inside label(l), for the picker to mark: the label is "path:line:col: " and the
+// line's text without the whitespace around it. Empty when there is no match length (diagnostics) or it sits in that whitespace.
+export function hitPositions(l: Loc): number[] {
+  const lead = l.text.length - l.text.trimStart().length;
+  if (!l.len || l.col < lead) return [];
+  const trimmed = Array.from(l.text.trim()).length;
+  const start = Array.from(label(l)).length - trimmed + Array.from(l.text.slice(lead, l.col)).length;
+  const n = Array.from(l.text.slice(l.col, l.col + l.len)).length;
+  const end = Math.min(start + n, Array.from(label(l)).length);
+  return Array.from({ length: Math.max(end - start, 0) }, (_, i) => start + i);
+}
+
 // The text a location points at, from its line, or null if the line was cut short.
 export const matchText = (l: Loc) => (l.col + l.len <= l.text.length ? l.text.slice(l.col, l.col + l.len) : null);
 

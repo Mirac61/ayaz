@@ -87,12 +87,26 @@ const theme = EditorView.theme(
       background: "none", border: "none", outline: "none",
     },
     ".cm-lintRange-error": { backgroundImage: "none", textDecoration: "underline wavy var(--error, #e82424)", textUnderlineOffset: "4px" },
+    // The worst diagnostic after its line (editor/diagtext.ts); shell.css hides them with html[data-diag-text="off"].
+    ".cm-diag-text": {
+      display: "inline-block", maxWidth: "70ch", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+      margin: "0 0 0 3ch", verticalAlign: "bottom", fontSize: "0.9em", opacity: 0.85, pointerEvents: "none",
+    },
+    ".cm-diag-text.error": { color: "var(--status-error, #e46876)" },
+    ".cm-diag-text.warning": { color: "var(--status-warning, #dca561)" },
+    ".cm-diag-text.info, .cm-diag-text.hint": { color: "var(--fg-3, #c8c093)" },
+    ".cm-swatch": {
+      display: "inline-block", width: "0.8em", height: "0.8em", margin: "0 0.4em 0 0", verticalAlign: "-0.05em",
+      border: "1px solid var(--edge-overlay, #54546d)", borderRadius: "2px", boxSizing: "border-box",
+      position: "relative", cursor: "pointer",
+    },
+    ".cm-swatch input": { position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, pointerEvents: "none" },
     ".cm-lintRange-warning": { backgroundImage: "none", textDecoration: "underline wavy var(--warning, #ff9e3b)", textUnderlineOffset: "4px" },
   },
   { dark: true },
 );
 
-const highlight = HighlightStyle.define([
+export const highlightStyle = HighlightStyle.define([
   { tag: t.comment, color: c.comment, fontStyle: "italic" },
   { tag: [t.keyword, t.controlKeyword, t.moduleKeyword, t.definitionKeyword], color: c.keyword },
   { tag: [t.function(t.variableName), t.function(t.propertyName), t.macroName], color: c.fn },
@@ -112,4 +126,4 @@ const highlight = HighlightStyle.define([
 ]);
 
 export { c as palette }; // the semantic token colours (editor/semantic.ts) come from the same table
-export const cmTheme = [theme, syntaxHighlighting(highlight)];
+export const cmTheme = [theme, syntaxHighlighting(highlightStyle)];

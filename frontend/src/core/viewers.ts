@@ -18,12 +18,15 @@ export interface ViewContext {
 export interface ViewProvider {
   id: string;
   exts: string[];
+  scheme?: string; // tab paths starting with it, "browser://" for the browser; the url is what follows
   mount(el: HTMLElement, ctx: ViewContext): ViewHandle;
 }
 
 const providers: ViewProvider[] = [];
 export const registerViewer = (p: ViewProvider) => void providers.push(p);
-export const viewerFor = (path: string) => providers.find((p) => p.exts.includes(extOf(path)));
+export const BROWSER = "browser://"; // a browser tab's path: browser://localhost:3000
+export const viewerFor = (path: string) =>
+  providers.find((p) => (p.scheme ? path.startsWith(p.scheme) : p.exts.includes(extOf(path))));
 
 // /fs/<ws>/<path>, each segment encoded.
 export const fsUrl = (ws: string, path: string) => `/fs/${encodeURIComponent(ws)}/${path.split("/").map(encodeURIComponent).join("/")}`;

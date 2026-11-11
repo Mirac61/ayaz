@@ -19,7 +19,7 @@ test("CRLF survives :w, binary is refused", async ({ page }) => {
   writeFileSync(join(dir, "blob.dat"), Buffer.from([0x61, 0, 0xe4, 0x62]));
   await page.goto("/");
   await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: "README.md" }).click(); 
-  await expect(page.locator(".statusline")).toContainText("README.md");
+  await expect(page.locator(".titlebar")).toContainText("README.md");
   await page.keyboard.type(":e eolspec/crlf.txt");
   await page.keyboard.press("Enter");
   await expect(page.locator(".statusline")).toContainText("CRLF");
@@ -44,10 +44,10 @@ test(".editorconfig sets the indent", async ({ page }) => {
   writeFileSync(join(dir, "ec.txt"), "x\n");
   await page.goto("/");
   await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: "README.md" }).click();
-  await expect(page.locator(".statusline")).toContainText("README.md");
+  await expect(page.locator(".titlebar")).toContainText("README.md");
   await page.keyboard.type(":e eolspec/ec.txt");
   await page.keyboard.press("Enter");
-  await expect(page.locator(".statusline")).toContainText("eolspec/ec.txt");
+  await expect(page.locator(".titlebar")).toContainText("eolspec/ec.txt");
   await page.keyboard.type("i");
   await page.keyboard.press("Control+t"); // vim insert mode: indent the line by one level
   await expect(page.locator(".cm-line").first()).toHaveText("   x");

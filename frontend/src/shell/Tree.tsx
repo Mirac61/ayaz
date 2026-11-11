@@ -1,9 +1,13 @@
+import { startDrag } from "./dnd";
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import type { Entry, Files } from "../core/backend";
 import { fileIcon, folderIcon } from "../theme/icons";
+import { ContextMenu, type MenuItem } from "../ui/ui";
 
 interface Row { path: string; name: string; dir: boolean; depth: number }
 const ROW = 28; // px, fixed so we can window the rows by scrollTop
+const OVERSCAN = 20; // rows drawn beyond the viewport on each side, so a fast scroll finds rows already there
 
 export interface TreeHandle {
   focus(): void;
@@ -11,6 +15,7 @@ export interface TreeHandle {
   refresh(paths: string[] | null): void;
   selected(): { path: string; dir: boolean } | null; // the row under the cursor
   reveal(path: string): Promise<void>; // opens its folders and puts the cursor on it
+  collapseAll(): void;
 }
 
 const parent = (p: string) => p.slice(0, Math.max(p.lastIndexOf("/"), 0));
@@ -45,7 +50,7 @@ interface Props {
   files: Files;
   onOpen(path: string): void;
   onLeave(): void; // Esc: back to the editor
-  onCommand(id: string): void; // file keys: a new, r rename, d trash, y/Y copy path, s reveal in Finder
+  onCommand(id: string, arg?: string): void; // file keys: a new, r rename, d trash, y/Y copy path, s reveal in Finder
   git(path: string): string | undefined; // git state for the name's color (gitstatus.ts)
 }
 
@@ -71,6 +76,7 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
   const answer = useRef({ q: "", paths: [] as string[] });
   const early = useRef(false); // Enter came before the answer: go to the first file once it's there
   const input = useRef<HTMLInputElement>(null);
+  const [menu, setMenu] = useState<{ x: number; y: number; items: MenuItem[] } | null>(null);
 
   const loaded = useRef(children);
   loaded.current = children;
@@ -89,6 +95,7 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
       const dirs = paths ? new Set(paths.flatMap((p) => [p, parent(p)])) : null;
       for (const d of loaded.current.keys()) if (!dirs || dirs.has(d)) load(d);
     },
+    collapseAll: () => setExpanded(new Set()),
     selected: () => (current.current ? { path: current.current.path, dir: current.current.dir } : null),
     async reveal(path) {
       const dirs = path.split("/").slice(0, -1).map((_, i, a) => a.slice(0, i + 1).join("/"));
@@ -193,8 +200,32 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
     e.preventDefault();
   };
 
-  const first = Math.floor(scrollTop / ROW);
-  const visible = rows.slice(first, first + Math.ceil(height / ROW) + 1);
+  // Right click: the row under the pointer becomes the cursor, the menu lists what the keys a, r, d, y, Y and s do to it.
+  const openMenu = (e: React.MouseEvent, i: number) => {
+    e.preventDefault();
+    const r = rows[i];
+    setCursor(i);
+    el.current?.focus(); // the file commands act on the tree's cursor row while the tree has the focus
+    const cmd = (label: string, id: string, hint?: string, arg?: string): MenuItem =>
+      ({ label, hint, run: () => onCommand(id, arg) });
+    setMenu({
+      x: e.clientX,
+      y: e.clientY,
+      items: [
+        ...(r.dir ? [] : [{ label: "Open", hint: "Enter", run: () => onOpen(r.path) }]),
+        cmd("New file…", "file.new", "a"),
+        cmd("New folder…", "file.new", undefined, "dir"),
+        cmd("Rename…", "file.rename", "r"),
+        cmd("Copy relative path", "file.copyPath", "y"),
+        cmd("Copy absolute path", "file.copyAbsPath", "Y"),
+        cmd("Reveal in Finder", "file.reveal", "s"),
+        cmd("Move to trash…", "file.trash", "d"),
+      ],
+    });
+  };
+
+  const first = Math.max(0, Math.floor(scrollTop / ROW) - OVERSCAN);
+  const visible = rows.slice(first, first + Math.ceil(height / ROW) + 2 * OVERSCAN);
 
   // In the box: Enter and the arrows go to the rows, Esc ends the filter.
   const onFilterKey = (e: React.KeyboardEvent) => {
@@ -229,7 +260,12 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
         role="tree"
         aria-label="Files"
         onKeyDown={onKeyDown}
-        onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
+        onScroll={(e) => {
+          // The window of rows moves only after a few rows of scrolling, and at once (before the frame is drawn): an
+          // update React schedules for later would show an empty stretch while the scroll runs ahead of it.
+          const top = e.currentTarget.scrollTop;
+          if (Math.abs(top - scrollTop) >= (OVERSCAN / 2) * ROW) flushSync(() => setScrollTop(top));
+        }}
       >
         <div style={{ height: rows.length * ROW, position: "relative" }}>
           {visible.map((r, k) => {
@@ -244,16 +280,19 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
                 aria-expanded={r.dir ? open : undefined}
                 className={i === cur ? "tree-row cursor" : "tree-row"}
                 style={{ top: i * ROW, height: ROW, paddingLeft: 8 + r.depth * 16, ...{ "--depth": r.depth } }}
+                onMouseDown={r.dir ? undefined : (e) => startDrag(e, r.path)}
                 onClick={() => { setCursor(i); activate(i, true); }}
+                onContextMenu={(e) => openMenu(e, i)}
               >
                 <span className="tree-chevron" aria-hidden>{r.dir ? (open ? "\uf47c" : "\uf460") : ""}</span>
-                <Glyph icon={r.dir ? folderIcon(open) : fileIcon(r.name)} />
+                <Glyph icon={r.dir ? folderIcon(open, r.name) : fileIcon(r.name)} />
                 <span className={name}>{r.name}</span>
               </div>
             );
           })}
         </div>
       </div>
+      {menu && <ContextMenu at={menu} items={menu.items} onClose={() => setMenu(null)} />}
     </>
   );
 });

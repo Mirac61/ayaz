@@ -29,6 +29,21 @@
   --git-del: #c34043;
 
   --bar: 30px; /* standard compact titlebar height (30 px across platforms) */
+
+  /* One scale for the chrome (the editor's own size is --editor-font-size): sizes, row heights, corners, motion. */
+  --text-xs: 11px; /* meta: footers, keycaps, counts */
+  --text-sm: 12px; /* statusline, menus, hints */
+  --text-md: 13px; /* tabs, tree, lists */
+  --text-lg: 14px; /* the picker's input, large glyphs */
+  --row-sm: 24px; /* icon buttons, statusline fields: 4 px steps */
+  --row: 28px; /* menu rows, the statusline */
+  --row-lg: 32px; /* picker rows */
+  --head: 36px; /* tab strips and the sidebar header */
+  --radius: 0; /* structure: tabs, rows, panes, panels */
+  --radius-sm: 2px; /* small controls and floating boxes: keycaps, fields, menus, the picker */
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --t-fast: 80ms; /* hover and press */
+  --t: 120ms; /* something that enters */
   /* The mode name and counts in the status line: Kanagawa's softer hues, settings.json "statusColors" overrides them */
   --status-normal: #7e9cd8;
   --status-insert: #98bb6c;
@@ -49,13 +64,14 @@
 
 /* Optional glass mode ("glass": true in settings.json); solid is the default. */
 :root[data-glass] {
-  --bg-0: rgb(17 18 22 / 0.78);
-  --bg-sidebar: rgb(20 21 26 / 0.8);
-  --bg-tabs: rgb(17 18 22 / 0.8);
-  --tab: rgb(21 22 28 / 0.82);
-  --tab-active: rgb(35 37 48 / 0.9);
-  --bg-1: rgb(22 23 29 / 0.82);
-  --bg-2: rgb(25 26 33 / 0.86);
+  /* --glass (settings.json "glassOpacity", 0.3 to 1) scales how much of each colour is left. */
+  --bg-0: rgb(17 18 22 / calc(0.78 * var(--glass, 1)));
+  --bg-sidebar: rgb(20 21 26 / calc(0.8 * var(--glass, 1)));
+  --bg-tabs: rgb(17 18 22 / calc(0.8 * var(--glass, 1)));
+  --tab: rgb(21 22 28 / calc(0.82 * var(--glass, 1)));
+  --tab-active: rgb(35 37 48 / calc(0.9 * var(--glass, 1)));
+  --bg-1: rgb(22 23 29 / calc(0.82 * var(--glass, 1)));
+  --bg-2: rgb(25 26 33 / calc(0.86 * var(--glass, 1)));
   --overlay: rgb(24 25 32 / 0.9);
 }
 
@@ -73,11 +89,18 @@ body,
   font: 13px/18px var(--font-ui);
   -webkit-font-smoothing: antialiased;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --t-fast: 0ms;
+    --t: 0ms;
+  }
+}
 /* Keycap: crisp rectangular key badge */
 kbd {
-  font: 11px/18px var(--font-mono);
+  font: var(--text-xs) / 18px var(--font-mono);
   padding: 0 6px;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   background: var(--bg-3);
   color: var(--fg-1);
   border: 1px solid var(--edge);

@@ -24,7 +24,19 @@ const byName: Record<string, Icon> = {
 };
 
 const file: Icon = ["\uf15b", "#6d8086"];
-export const folderIcon = (open: boolean): Icon => [open ? "\ue5fe" : "\ue5ff", "#85858b"];
+// Well-known folder names get their own glyph in the neutral folder gray (only .git keeps a hue), so the tree stays calm.
+// A named folder keeps its glyph open and closed; the chevron shows the state.
+const folderByName: Record<string, Icon> = {
+  src: ["\uf121", "#85858b"], app: ["\uf2d0", "#85858b"], internal: ["\uf023", "#85858b"], cmd: ["\uf120", "#85858b"],
+  pkg: ["\uf187", "#85858b"], lib: ["\uf02d", "#85858b"],
+  frontend: ["\uf108", "#85858b"], components: ["\uf12e", "#85858b"], public: ["\uf0ac", "#85858b"],
+  docs: ["\uf02d", "#85858b"], doc: ["\uf02d", "#85858b"],
+  test: ["\uf0c3", "#85858b"], tests: ["\uf0c3", "#85858b"], testdata: ["\uf1c0", "#85858b"], e2e: ["\uf0c3", "#85858b"],
+  scripts: ["\uf120", "#85858b"], build: ["\uf0ad", "#85858b"], bin: ["\uf013", "#85858b"],
+  ".github": ["\uf09b", "#85858b"], ".git": ["\ue702", "#e46876"],
+};
+export const folderIcon = (open: boolean, name = ""): Icon =>
+  folderByName[name] ?? [open ? "\ue5fe" : "\ue5ff", "#85858b"];
 
 export function fileIcon(name: string): Icon {
   const lower = name.toLowerCase();

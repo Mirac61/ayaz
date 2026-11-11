@@ -1,0 +1,87 @@
+/* Shared pieces of the chrome (ui.tsx). Sizes, rows, corners and motion come from the tokens in theme/tokens.css. */
+
+/* The one small heading style: sidebar header, picker title, which-key title, empty-window groups. */
+.label {
+  font: 500 var(--text-xs) / 16px var(--font-ui);
+  color: var(--fg-4);
+}
+
+.ui-icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--row);
+  height: var(--row-sm);
+  color: var(--fg-3);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition:
+    background-color var(--t-fast),
+    color var(--t-fast);
+}
+.ui-icon::before {
+  content: attr(data-glyph);
+  font: var(--text-md) var(--font-mono);
+}
+.ui-icon:hover {
+  color: var(--fg-1);
+  background: var(--hover);
+}
+.ui-icon:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.ui-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+}
+/* The box itself shares the floating-surface rule in shell.css with the picker and the which-key hints. */
+.ui-menu {
+  position: fixed;
+  z-index: 41;
+  min-width: 220px;
+  margin: 0;
+  padding: 4px 0;
+  display: flex;
+  flex-direction: column;
+}
+.ui-menu button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  width: 100%;
+  height: var(--row);
+  padding: 0 12px;
+  font: var(--text-sm) var(--font-ui);
+  color: var(--fg-1);
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  transition: background-color var(--t-fast);
+}
+.ui-menu button.sel {
+  background: var(--hover);
+}
+.ui-menu kbd {
+  font: var(--text-xs) var(--font-mono);
+  color: var(--fg-4);
+}
+.ui-menu-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ui-menu-label[data-glyph]::before {
+  content: attr(data-glyph);
+  width: 16px;
+  text-align: center;
+  font: var(--text-md) var(--font-mono);
+  color: var(--fg-3);
+}

@@ -1,3 +1,5 @@
+import { mdLinks } from "../editor/mdrender";
+import { setDropHandler } from "./dnd";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { backend, type Info, type OpenEvent } from "../core/backend";
@@ -8,7 +10,8 @@ import { parseProblems } from "../core/tasks";
 import { Quickfix } from "../core/quickfix";
 import { setLspMessages, installHint } from "../editor/lsp";
 import { diagnosticsFor } from "../editor/diagnostics";
-import { installVim } from "../editor/vim/setup";
+import { projectTasks, type ProjectTask } from "../core/projectTasks";
+import { installPaletteKey, installVim, isEx } from "../editor/vim/setup";
 import type { TermOptions } from "../terminal/terminal";
 import { Editors, type Status } from "./editors";
 import { borders, close, equalize, neighbor, panes, rects, resize, setBorder, split, type Dir, type Layout } from "./layout";
@@ -18,7 +21,7 @@ import { Picker, type Item, type PickerSource } from "./Picker";
 import { Tree, type TreeHandle } from "./Tree";
 import { gitMarks, single } from "./gitstatus";
 import { loadSession, mergeBreakpoints, mergeCursors, saveSession, type Session } from "./session";
-import { extOf } from "../lang/registry";
+import { extOf, serverFor } from "../lang/registry";
 import { commandIcon, folderIcon } from "../theme/icons";
 import { bang, errText, inTree, LIMIT, type Ctx } from "./commands/context";
 import { fileCommands } from "./commands/file";
@@ -31,12 +34,22 @@ import { lspCommands } from "./commands/lsp";
 import { quickfixTools } from "./commands/quickfix";
 import { restoreTabs, viewCommands } from "./commands/view";
 import { recentFolders } from "./folders";
+import { applyDiagText } from "./diagText";
+import { recentCommands, rememberCommand } from "./recentCommands";
 import { Handle, Hints, Pane } from "./parts";
+import { ContextMenu, IconButton, Seg, type MenuItem } from "../ui/ui";
 import "./shell.css";
 
 const STEP = 0.05; // <C-w>+/-/</>: share of the parent split (or of the window for the panel)
 
 const clampPanel = (h: number) => Math.min(0.9, Math.max(0.1, h));
+const ERROR_MS = 12_000; // how long an error stays in the status line
+const SIDEBAR_W = 248; // px; the width the file tree starts with and returns to on a double click
+const SIDEBAR_KEY = "ayaz.sidebarWidth";
+const SIDEBAR_CLOSE = 100; // dragging the edge below this width closes the tree
+const clampSidebar = (w: number) => Math.round(Math.min(640, Math.max(160, w)));
+type Dock = "bottom" | "right" | "top";
+const DOCKS: Dock[] = ["bottom", "right", "top"]; // term.dock cycles them
 const PANEL = -1; // pane id of the bottom panel; split panes count up from 1
 
 // One workspace: tree on the left, editor panes in splits, status line. Every action is a command (ADR-0010).
@@ -58,24 +71,26 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
   }, [files, ws.root, ws.id]);
   // null: no panel terminal; "hidden": it runs but isn't shown (Cmd+J toggles, like VS Code).
   const [panel, setPanel] = useState<"shown" | "hidden" | null>(null);
+  const dockRef = useRef<Dock>("bottom");
   const panelRef = useRef(panel);
   panelRef.current = panel;
   // Panel height as a share of the window, kept per folder like recent files.
   const sizeKey = `ayaz.layout:${ws.root}`;
-  const [panelH, setPanelH] = useState(() => {
-    try {
-      const h = JSON.parse(localStorage.getItem(sizeKey) ?? "{}")?.panel;
-      return typeof h === "number" ? clampPanel(h) : 0.35;
-    } catch {
-      return 0.35; // storage blocked or corrupt
-    }
-  });
+  const saved = (() => {
+    try { return JSON.parse(localStorage.getItem(sizeKey) ?? "{}") ?? {}; } catch { return {}; } // storage blocked or corrupt
+  })();
+  const [panelH, setPanelH] = useState(() => (typeof saved.panel === "number" ? clampPanel(saved.panel) : 0.35));
+  const [dock, setDock] = useState<Dock>(() => (DOCKS.includes(saved.dock) ? saved.dock : "bottom"));
+  dockRef.current = dock;
   useEffect(() => {
-    try { localStorage.setItem(sizeKey, JSON.stringify({ panel: panelH })); } catch { /* a convenience */ }
-  }, [panelH]);
+    try { localStorage.setItem(sizeKey, JSON.stringify({ panel: panelH, dock })); } catch { /* a convenience */ }
+  }, [panelH, dock]);
+  const [tabMenu, setTabMenu] = useState<{ x: number; y: number; items: MenuItem[] } | null>(null); // right click on a tab
+  const [plus, setPlus] = useState<{ x: number; y: number; id: number } | null>(null); // the + menu under a tab bar's button
   const [max, setMax] = useState(false); // the panel fills the editor area
   const panesEl = useRef<HTMLDivElement>(null);
   const panelEl = useRef<HTMLDivElement>(null);
+  const [panelTitle, setPanelTitle] = useState("");
   const termFor = useRef(new Map<number, TermOptions>()); // new pane → the terminal it runs
   const seq = useRef<Sequencer | null>(null);
   const [hints, setHints] = useState<{ keys: string[]; next: Binding[] } | null>(null);
@@ -93,10 +108,13 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
   const [msg, setMsg] = useState<{ text: string; error?: boolean; warning?: boolean } | null>(null);
   const [branch, setBranch] = useState("");
   const [diag, setDiag] = useState({ errors: 0, warnings: 0 });
+  const [changes, setChanges] = useState(0); // paths git reports as changed, untracked or conflicted
+  const [lspMissing, setLspMissing] = useState<ReadonlySet<string>>(new Set()); // servers not found in PATH
   const [picker, setPicker] = useState<PickerSource | null>(null);
   const [bindings, setBindings] = useState<Binding[] | null>(null);
   const tree = useRef<TreeHandle>(null);
   const splitFrom = useRef(new Map<number, number>()); // new pane → the pane it was split from
+  const openNext = useRef(new Map<number, string>()); // new panes → the file they show once mounted (open to the side)
   const previewNext = useRef(new Set<number>()); // new panes that turn into a Markdown preview once mounted
   const previews = useRef(new Set<number>()); // panes showing a preview
   const sidebarKey = "ayaz.sidebar";
@@ -104,6 +122,12 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
     try { return localStorage.getItem(sidebarKey) !== "off"; } catch { return true; }
   });
   const [side, setSide] = useState(() => settings().sidebar);
+  const [sidebarW, setSidebarW] = useState(() => {
+    try { return clampSidebar(Number(localStorage.getItem(SIDEBAR_KEY)) || SIDEBAR_W); } catch { return SIDEBAR_W; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(SIDEBAR_KEY, String(sidebarW)); } catch { /* a convenience */ }
+  }, [sidebarW]);
   const [bar, setBar] = useState(() => settings().statusline);
   const sidebarOn = useRef(sidebar);
   sidebarOn.current = sidebar;
@@ -113,6 +137,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
     try { localStorage.setItem(sidebarKey, on ? "on" : "off"); } catch { /* a convenience */ }
   };
   useEffect(() => restoreTabs(ed), [ed]);
+  useEffect(applyDiagText, []);
   const lay = useRef(layout);
   lay.current = layout;
 
@@ -180,9 +205,12 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       msgTimer.current = setTimeout(() => setMsg(null), 3000);
     }
   };
-  const fail = (text: string) => {
+  // An error fades, so a later one is not read as an old one; sticky ones (a broken config, unsaved text that is not backed
+  // up) stay until another message replaces them.
+  const fail = (text: string, sticky = false) => {
     clearTimeout(msgTimer.current);
     setMsg({ text, error: true });
+    if (!sticky) msgTimer.current = setTimeout(() => setMsg(null), ERROR_MS);
   };
   const say = (text: string) => setTransientMsg({ text });
   // The debugger (M48): one session per window, its stops shown in the editors, its state in the status line.
@@ -227,23 +255,57 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
     };
 
     // Split panes only; from the panel, the split pane used last is split.
-    const splitPane = (dir: "row" | "col", term?: TermOptions) => {
-      const from = ed.active === PANEL ? lastSplit.current : ed.active;
+    const splitPane = (dir: "row" | "col", term?: TermOptions, at?: number, before = false) => {
+      const from = at ?? (ed.active === PANEL ? lastSplit.current : ed.active);
       const nid = Math.max(...panes(lay.current)) + 1;
       if (term) termFor.current.set(nid, term);
       else splitFrom.current.set(nid, from);
-      setLayout(split(lay.current, from, dir, nid));
+      setLayout(split(lay.current, from, dir, nid, before));
       return nid;
     };
 
     // A shell that exits closes its pane (Editors finds the pane, it may have moved); the last pane turns back into an editor.
-    ed.onTermExit = (id) => (panes(lay.current).length > 1 ? void closePane(true, id) : ed.replace(id));
+    mdLinks.open = (p) => run("file.open", p);
+  setDropHandler((path, id, zone) => {
+    if (zone !== "center") {
+      openNext.current.set(splitPane(zone === "left" || zone === "right" ? "row" : "col", undefined, id, zone === "left" || zone === "top"), path);
+      return;
+    }
+    ed.focus(id);
+    ed.open(path, id).then(() => ed.focus(id), (e) => fail(errText(e)));
+  });
+  ed.onTermExit = (id) => (panes(lay.current).length > 1 ? void closePane(true, id) : ed.replace(id));
+    ed.onTabMenu = (at, path, id) => {
+      const items: MenuItem[] = [{ label: "Close", run: () => void ed.tabClose(path, id) }];
+      // A terminal's tab has no file to keep or copy, and closing its tab ends its shell: the rest is for files.
+      if (!path.startsWith("term://")) {
+        items.push(
+          {
+            label: "Close others",
+            run: async () => {
+              await ed.open(path, id); // the kept tab is the shown one, so closing the others never moves the view
+              for (const p of ed.tabPaths(id)) if (p !== path && !p.startsWith("term://")) await ed.tabClose(p, id);
+            },
+          },
+          { label: "Copy relative path", run: () => void backend.copy(path).then(() => say(`Copied "${path}"`)) },
+          { label: "Reveal in Finder", run: () => void files.reveal(path).catch((e) => fail(errText(e))) },
+        );
+      }
+      setTabMenu({ ...at, items });
+    };
+    ed.onPlus = (at, id) => setPlus((p) => (p?.id === id ? null : { x: at.right, y: at.bottom, id }));
     // An empty editor pane (no file) is taken over, otherwise the terminal splits off to the right.
     const termSplit = (cmd?: string, more?: Partial<TermOptions>) => {
       const target = ed.active === PANEL ? lastSplit.current : ed.active;
       const dir = cmd ? undefined : ed.termCwd(ed.active) || undefined; // a shell opens where the one in focus is (OSC 7)
       if (ed.isEmpty(target)) return ed.replace(target, { ws: ws.id, cmd, dir, ...more });
       splitPane("row", { ws: ws.id, cmd, dir, ...more });
+    };
+
+    // A terminal as a tab of the active pane, beside its files; the panel and unusual panes get a split instead.
+    const termTab = (cmd?: string) => {
+      if (ed.active <= 0) return termSplit(cmd);
+      ed.replace(ed.active, { ws: ws.id, cmd, dir: cmd ? undefined : ed.termCwd(ed.active) || undefined }, true);
     };
 
     const togglePanel = () => {
@@ -268,7 +330,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
 
     // <C-w>+/-/</>; on the panel only the height changes.
     const grow = (dir: "row" | "col", d: number) => {
-      if (ed.active === PANEL) return dir === "col" && setPanelH((h) => clampPanel(h + d));
+      if (ed.active === PANEL) return dir === (dockRef.current === "right" ? "row" : "col") && setPanelH((h) => clampPanel(h + d));
       setLayout(resize(lay.current, ed.active, dir, d));
     };
 
@@ -291,11 +353,10 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
     const q = quickfixTools(c);
 
     // M52: a task runs in a split that stays open when it ends; file:line lines it printed go to the quickfix list.
-    let lastTask: string | null = null;
-    const runTask = (name: string) => {
-      const cmd = settings().tasks[name];
-      if (cmd === undefined) return fail(`No task "${name}" in settings.json`);
-      lastTask = name;
+    let lastTask: ProjectTask | null = null;
+    const loadTasks = () => projectTasks(() => files.list(""), async (n) => (await files.readText(n)).content, settings().tasks);
+    const runTask = ({ name, cmd }: ProjectTask) => {
+      lastTask = { name, cmd };
       say(`Task "${name}": ${cmd}`);
       termSplit(cmd, {
         onExit: () => {}, // keep the pane and its output
@@ -325,6 +386,14 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
           const open = [...previews.current].find((id) => ed.pathOf(id) === b.path);
           if (open !== undefined) return closePane(true, open);
           previewNext.current.add(splitPane("row"));
+        },
+      },
+      {
+        id: "file.openSide",
+        title: "Open file in a split on the right (Cmd/Ctrl+Enter in the file pickers)",
+        run(a) {
+          if (!a) return fail("Pick a file with Cmd+Enter (Ctrl+Enter) in Find files, Recent files or Buffers");
+          openNext.current.set(splitPane("row"), a.replace(/^\.\//, ""));
         },
       },
       {
@@ -375,20 +444,32 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
           tree.current?.focus();
         },
       },
+      { id: "term.dock", title: "Move terminal panel (bottom, right, top)", run: () => setDock((d) => DOCKS[(DOCKS.indexOf(d) + 1) % DOCKS.length]) },
       { id: "term.panel", title: "Toggle terminal panel", run: togglePanel },
+      { id: "term.tab", title: "Terminal in a tab", run: termTab },
       { id: "term.split", title: "Terminal in a split (:terminal)", run: () => termSplit() },
-      { id: "term.lazygit", title: "lazygit", run: () => termSplit("lazygit") },
+      {
+        id: "term.lazygit",
+        title: "lazygit",
+        // One lazygit: it is shown again if running. A new one is a tab of the active pane; files open beside it, drag them to a side.
+        run() {
+          const lg = ed.termTitled("lazygit");
+          if (lg?.pane !== undefined) return ed.focus(lg.pane);
+          if (lg) return void ed.open(`term://${lg.title}`, ed.active > 0 ? ed.active : lastSplit.current).catch((e) => fail(errText(e)));
+          termTab("lazygit");
+        },
+      },
       {
         id: "task.run",
-        title: "Run a task (settings.json)",
-        run() {
-          const tasks = settings().tasks, names = Object.keys(tasks);
-          if (!names.length) return fail('No tasks yet: add "tasks" to settings.json (Cmd+,)');
+        title: "Run a task (settings.json, Makefile, Taskfile)",
+        async run() {
+          const tasks = await loadTasks();
+          if (!tasks.length) return fail('No tasks yet: add "tasks" to settings.json (Cmd+,) or a Makefile or Taskfile.yml');
           setPicker({
             title: "Run task",
-            query: async (q) => names.filter((n) => n.toLowerCase().includes(q.toLowerCase()))
-              .map((n) => ({ label: n, hint: tasks[n] })),
-            pick: (it) => runTask(it.label),
+            query: async (q) => tasks.filter((t) => t.name.toLowerCase().includes(q.toLowerCase()))
+              .map((t) => ({ label: t.name, hint: t.cmd })),
+            pick: (it) => runTask(tasks.find((t) => t.name === it.label)!),
           });
         },
       },
@@ -397,26 +478,68 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       {
         id: "find.commands",
         title: "Command palette (:keymap)",
-        run: () => setPicker({
+        run: (a) => {
+          const taskList = loadTasks();
+          setPicker({
           title: "Commands",
+          initial: a,
           async query(q) {
             const cs = commands.list();
             const byTitle = new Map(cs.map((c) => [c.title, c]));
-            const ms = q.trim() ? await backend.rank([...byTitle.keys()], q, LIMIT) : cs.map((c) => ({ path: c.title, positions: [] }));
-            return ms.map((m): Item => {
+            // The project's tasks sit among the commands as "Task: name".
+            const tasks = new Map((await taskList).map((t) => [`Task: ${t.name}`, t]));
+            const titles = [...byTitle.keys(), ...tasks.keys()];
+            // Nothing typed: the commands you used last come first.
+            const recent = recentCommands().filter((t) => titles.includes(t));
+            const ms = q.trim()
+              ? await backend.rank(titles, q, LIMIT)
+              : [...recent, ...titles.filter((t) => !recent.includes(t))].map((path) => ({ path, positions: [] }));
+            const found = ms.map((m): Item => {
+              const t = tasks.get(m.path);
+              if (t) return { label: m.path, positions: m.positions ?? [], icon: commandIcon("task.run"), hint: t.cmd };
               const cmd = byTitle.get(m.path)!;
               return { label: m.path, positions: m.positions ?? [], icon: commandIcon(cmd.id), hint: keysFor(cmd.id) };
             });
+            // A line that reads as an ex command ("w", "%s/a/b/") runs as one: first when it looks like one, else last.
+            if (!q.trim()) return found;
+            const ex: Item = { label: `:${q.trim()}`, hint: "ex" };
+            return isEx(q.trim()) ? [ex, ...found] : [...found, ex];
           },
           pick: (it) => {
+            if (it.hint === "ex") return ed.ex(it.label.slice(1));
+            rememberCommand(it.label);
+            const t = it.label.startsWith("Task: ") && taskList.then((l) => l.find((x) => `Task: ${x.name}` === it.label));
+            if (t) return void t.then((x) => x && runTask(x));
             const c = commands.list().find((x) => x.title === it.label);
             if (c) run(c.id);
           },
-        }),
+          });
+        },
+      },
+      {
+        id: "keymap.show",
+        title: "Show all key bindings (:keymap)",
+        run: () => {
+          const bs = bindingsRef.current ?? [];
+          const title = (id: string) => commands.list().find((c) => c.id === id)?.title ?? id;
+          const row = (b: Binding) => `${b.keys}  ${title(b.command)}`;
+          setPicker({
+            title: "Keys",
+            async query(q) {
+              const rows = bs.map(row);
+              const ms = q.trim() ? await backend.rank(rows, q, LIMIT) : rows.map((path) => ({ path, positions: [] }));
+              return ms.map((m) => ({ label: m.path, positions: m.positions ?? [] }));
+            },
+            pick: (it) => {
+              const b = bs.find((x) => row(x) === it.label);
+              if (b) run(b.command, b.arg);
+            },
+          });
+        },
       },
     );
 
-    if (settingsError()) fail(settingsError());
+    if (settingsError()) fail(settingsError(), true);
 
     // The user's keymap.json goes on top of the defaults; a broken file keeps the defaults and says why.
     // Read again whenever it is saved, like settings.json.
@@ -425,16 +548,18 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       try {
         if (text.trim()) user = parseUserKeymap(text, (id) => commands.has(id));
       } catch (e) {
-        fail(errText(e));
+        fail(errText(e), true);
       }
       const all = mergeKeymap(defaultKeymap(), user);
       const normal = all.filter((b) => b.context === "normal");
       installVim(run, normal, (keys) => seq.current?.prime(keys, normal));
+      installPaletteKey();
       setBindings(all);
     }, (e) => {
-      fail(errText(e));
+      fail(errText(e), true);
       const normal = defaultKeymap().filter((b) => b.context === "normal");
       installVim(run, normal, (keys) => seq.current?.prime(keys, normal));
+      installPaletteKey();
       setBindings(defaultKeymap());
     });
     void loadKeymap();
@@ -442,11 +567,11 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       if (file === "keymap.json") return void loadKeymap();
       if (file === "snippets.json") {
         loadSnippets(await backend.snippets().catch(() => ""));
-        if (snippetsError()) fail(snippetsError());
+        if (snippetsError()) fail(snippetsError(), true);
         return;
       }
       loadSettings(await backend.settings().catch(() => ""));
-      if (settingsError()) fail(settingsError());
+      if (settingsError()) fail(settingsError(), true);
       setSide(settings().sidebar);
       setBar(settings().statusline);
       ed.settingsChanged();
@@ -459,7 +584,10 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
 
   // The tree's colors; asked again on every change on disk and in the repository, one `git status` at a time.
   const [git, setGit] = useState(() => gitMarks({}));
-  const loadGit = useMemo(() => single(() => files.gitStatus().then((s) => setGit(() => gitMarks(s)))), [files]);
+  const loadGit = useMemo(() => single(() => files.gitStatus().then((s) => {
+    setGit(() => gitMarks(s));
+    setChanges(Object.values(s).filter((c) => c !== "!").length);
+  })), [files]);
 
   // Changes on disk (git checkout, codegen, our own saves) reach the tree and the open buffers.
   useEffect(() => backend.onFsChanged(ws.id, async (c) => {
@@ -494,7 +622,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
   useEffect(() => {
     let failed = "";
     const t = setInterval(() => void ed.buffers.syncSwaps().then(() => { failed = ""; }, (e) => {
-      if (errText(e) !== failed) fail(`Unsaved changes not backed up: ${(failed = errText(e))}`);
+      if (errText(e) !== failed) fail(`Unsaved changes not backed up: ${(failed = errText(e))}`, true);
     }), 2000);
     return () => clearInterval(t);
   }, [ed]);
@@ -525,7 +653,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
         });
       };
       next();
-    }, (e) => fail(`Unsaved changes from last time: ${errText(e)}`));
+    }, (e) => fail(`Unsaved changes from last time: ${errText(e)}`, true));
     return () => { live = false; };
   }, [ed]);
 
@@ -547,9 +675,9 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
   useEffect(() => backend.onOpen(ws.id, (e) => void openFile(e)), [ed]);
 
   // The window's close button: refuse while something is unsaved, like :qa.
-  useEffect(() => backend.onCloseRequest(() => {
+  useEffect(() => backend.onCloseRequest(ws.id, () => {
     const d = ed.buffers.dirty();
-    if (d.length) fail(`Unsaved changes in "${d[0].path}": :w to save, :qa! to close anyway`);
+    if (d.length) fail(`Unsaved changes in "${d[0].path}": :w to save, :qa! to close anyway`, true);
     else {
       saveNow();
       void backend.closeWindow();
@@ -558,6 +686,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
 
   useEffect(() => backend.onLspStatus(ws.id, (s) => {
     if (s.state === "missing") {
+      setLspMissing((m) => new Set(m).add(s.lang));
       fail(`${s.command} not found in PATH, no language features from it. Install: ${installHint(s.lang)}`);
     }
     if (s.state === "nocdb") setMsg({ text: "clangd: no compile_commands.json, flags are guessed (cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON, or bear -- make)" });
@@ -604,8 +733,25 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
   if (!bindings) return null;
 
   const rs = rects(layout);
-  const mode = <span className={`mode ${status.mode}`}>{status.mode}</span>;
-  const branchEl = branch ? <span className="branch" title="Git branch">{branch}</span> : null;
+  const mode = (
+    <>
+      <span className={`mode ${status.mode}`}>{status.mode}</span>
+      {status.recording !== undefined && (
+        <span className="recording" title="Recording a macro: q stops it">recording @{status.recording}</span>
+      )}
+    </>
+  );
+  const click = (id: string, arg?: string) => (e: React.MouseEvent) => { e.preventDefault(); run(id, arg); };
+  const tip = (text: string, id: string) => {
+    const keys = bindings.find((b) => b.command === id)?.keys;
+    return keys ? `${text} (${keys})` : text;
+  };
+  const go = (id: string, arg?: string) => () => run(id, arg);
+  const branchEl = branch && (
+    <Seg className="branch" title={tip("Git branch: open lazygit", "term.lazygit")} onPress={go("term.lazygit")}>
+      {branch}{changes > 0 && <span className="changes" title={`${changes} changed paths`}>±{changes}</span>}
+    </Seg>
+  );
   const dir = status.path?.slice(0, status.path.lastIndexOf("/") + 1);
   const file = (
     <span className="file" title={status.path ?? undefined}>
@@ -617,29 +763,54 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
   const ft = status.path && !status.path.startsWith("term://") && !status.path.startsWith("debug://")
     ? extOf(status.path)
     : "";
+  const server = status.path && serverFor(status.path)?.[1];
+  const missing = !!server && lspMissing.has(server);
   const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
-  // Messages, then the counts that are not zero, the filetype and the position: all plain text.
+  const palette = go("find.commands");
+  const tool = (id: string, label: string, glyph: string) => (
+    <IconButton key={id} glyph={glyph} label={label} tip={tip(label, id)} onPress={go(id)} />
+  );
+  // The tree's own buttons: the file commands act on the tree's cursor row while the tree has the focus.
+  const sideTool = (label: string, id: string, glyph: string, arg?: string) => (
+    <IconButton glyph={glyph} label={label} onPress={() => { tree.current?.focus(); run(id, arg); }} />
+  );
+  const diagnostics = (
+    <Seg className="diag" onPress={go("lsp.diagnostics")}
+      title={tip(`${plural(diag.errors, "error")}, ${plural(diag.warnings, "warning")}`, "lsp.diagnostics")}>
+      <span className={diag.errors ? "e" : "e zero"}>{diag.errors}</span>
+      <span className={diag.warnings ? "w" : "w zero"}>{diag.warnings}</span>
+    </Seg>
+  );
+  // Left: mode, branch and diagnostics; then the message; right: language server, indent, line ending, filetype, position.
   const line = (
     <>
+      {mode}
+      {branchEl}
+      {diagnostics}
       <span role="status" className={msg?.error ? "msg error" : msg?.warning ? "msg warning" : "msg"}>{msg?.text}</span>
       <span className="meta">
-        {(diag.errors > 0 || diag.warnings > 0) && (
-          <button className="diag" title="Diagnostics (<Space>fd)" tabIndex={-1}
-            onMouseDown={(e) => { e.preventDefault(); run("lsp.diagnostics"); }}>
-            {diag.errors > 0 && <span className="e">{plural(diag.errors, "error")}</span>}
-            {diag.warnings > 0 && <span className="w">{plural(diag.warnings, "warning")}</span>}
-          </button>
-        )}
         {debug !== "idle" && <span className="debug" title="Debugger: <Space>dq stops it">DEBUG {debug}</span>}
-        {status.eol && <span className="filetype" title="Line endings of this file are kept on save">{status.eol}</span>}
-        {ft && <span className="filetype">{ft}</span>}
-        <span className="location">{status.info ?? `${status.line}:${status.col}`}</span>
+        {server && (
+          <Seg className={missing ? "lsp missing" : "lsp"} onPress={palette}
+            title={missing ? `${server} not found in PATH` : `Language server: ${server}`}>{server}</Seg>
+        )}
+        {status.search && (
+          <Seg className="search" title="Match under the cursor / all matches of the last search">[{status.search}]</Seg>
+        )}
+        {status.selected && <Seg className="selected" title="Selection">{status.selected}</Seg>}
+        {status.words !== undefined && <Seg title="Words in this file">{plural(status.words, "word")}</Seg>}
+        {status.indent && <Seg onPress={palette} title="Indentation of this file">{status.indent}</Seg>}
+        {status.eol && <Seg onPress={palette} title="Line endings of this file are kept on save">{status.eol}</Seg>}
+        {ft && <span className="filetype" title="Language">{ft}</span>}
+        <Seg className="location" onPress={go("find.commands", ":")} title="Go to a line (:)">
+          {status.info ?? `${status.line}:${status.col}`}
+        </Seg>
       </span>
     </>
   );
   return (
-    <div className={`workbench${max && panel === "shown" ? " max" : ""}${sidebar ? ` sidebar-${side}` : " nosidebar"} bar-${bar}`}
-      data-ws={ws.id}>
+    <div className={`workbench${max && panel === "shown" ? " max" : ` dock-${dock}`}${sidebar ? ` sidebar-${side}` : " nosidebar"} bar-${bar}`}
+      style={{ "--sidebar-w": `${sidebarW}px` } as React.CSSProperties} data-ws={ws.id}>
       {/* Title bar across the full width; the Neovim laststatus=3 statusline sits under the code (shell.css). */}
       <header className="titlebar">
         <button
@@ -651,19 +822,37 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
         >
           {ws.name}
         </button>
-        {file}
+        <span className="titlebar-file">{file}</span>
+        <span className="titlebar-tools">
+          {tool("find.commands", "Command palette", "\uf11c")}
+          {tool("term.panel", "Terminal panel", "\uf120")}
+          {tool("view.sidebar", "Sidebar", "\uf0c9")}
+          {tool("settings.open", "Settings", "\uf013")}
+        </span>
       </header>
-      {bar === "top" && (
-        <header className="statusline">
-          {mode}
-          {branchEl}
-          {file}
-          {line}
-        </header>
-      )}
+      {bar === "top" && <header className="statusline">{line}</header>}
       <aside className="sidebar" hidden={!sidebar}>
+        <div className="sidebar-edge" onDoubleClick={() => setSidebarW(SIDEBAR_W)}>
+          <Handle
+            dir="row"
+            style={side === "right" ? { left: 0, top: 0, bottom: 0 } : { right: -3, top: 0, bottom: 0 }}
+            onDrag={(e) => {
+              if (!sidebarOn.current) return; // closed by this drag already
+              const box = (e.currentTarget as HTMLElement).closest(".workbench")!.getBoundingClientRect();
+              const w = side === "right" ? box.right - e.clientX : e.clientX - box.left;
+              if (w >= SIDEBAR_CLOSE) return setSidebarW(clampSidebar(w));
+              if (document.activeElement?.closest(".sidebar")) ed.focus(ed.active);
+              showSidebar(false); // dragged shut, like Cmd+B; the width stays for next time
+            }}
+          />
+        </div>
         <div className="sidebar-title">
-          <span className="sidebar-tab active">files</span>
+          <span className="sidebar-tab label active">Files</span>
+          <span className="sidebar-tools">
+            {sideTool("New file", "file.new", "\uea7f")}
+            {sideTool("New folder", "file.new", "\uea80", "dir")}
+            <IconButton glyph={"\ueac5"} label="Collapse all folders" onPress={() => tree.current?.collapseAll()} />
+          </span>
         </div>
         <Tree
           ref={tree}
@@ -671,7 +860,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
           onOpen={(p) => run("file.open", p)}
           git={git}
           onLeave={() => ed.focus(ed.active)}
-          onCommand={(id) => run(id)}
+          onCommand={run}
         />
       </aside>
       <div className="panes" ref={panesEl}>
@@ -682,6 +871,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
             active={id === status.pane}
             style={{ left: `${r.x * 100}%`, top: `${r.y * 100}%`, width: `${r.w * 100}%`, height: `${r.h * 100}%` }}
             edge={{ left: r.x > 0, top: r.y > 0 }}
+            onClose={rs.size > 1 ? () => { ed.focus(id); run("pane.close"); } : undefined}
             mount={(el) => {
               const from = splitFrom.current.get(id);
               const cmd = unrestored.current.has(id) ? session?.terms[id] : undefined; // a terminal from the session
@@ -694,6 +884,9 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
                 previews.current.add(id);
                 if (from !== undefined) { ed.focus(from); ed.syncScroll(from); }
               }
+              const side = openNext.current.get(id);
+              openNext.current.delete(id);
+              if (side) void ed.open(side, id).then(() => ed.focus(id), (e) => fail(errText(e)));
               let ready: Promise<unknown> = Promise.resolve();
               if (id === 1 && initial) ready = restore(id).then(() => ed.open(initial, 1)).catch(() => {});
               else if (session) ready = restore(id);
@@ -704,6 +897,24 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
             }}
           />
         ))}
+        {status.path === null && status.lines === 1 && status.col === 1 && panes(layout).length === 1 && (
+          <div className="pane-empty" aria-hidden>
+            <div className="pane-empty-name">{ws.name}</div>
+            {([["find.files", "Go to file"], ["find.grep", "Search in files"], ["find.commands", "Command palette"],
+              ["term.panel", "Terminal"], ["tree.focus", "File tree"]] as const).map(([id, what]) => (
+              <div key={id} className="pane-empty-row">
+                <span>{what}</span>
+                <kbd>{bindings.find((b) => b.command === id)?.keys}</kbd>
+              </div>
+            ))}
+            {ed.recent().slice(0, 5).map((p, i) => (
+              <button key={p} type="button" className={i ? "pane-empty-file" : "pane-empty-file first"} tabIndex={-1} title={p}
+                onMouseDown={(e) => { e.preventDefault(); run("file.open", p); }}>
+                <span className="dir">{p.slice(0, p.lastIndexOf("/") + 1)}</span>{p.slice(p.lastIndexOf("/") + 1)}
+              </button>
+            ))}
+          </div>
+        )}
         {borders(layout).map((b) => (
           <Handle
             key={`${b.path.join(".")}:${b.i}`}
@@ -720,15 +931,34 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
         ))}
       </div>
       {panel && (
-        <div className="panel" ref={panelEl} hidden={panel === "hidden"} style={{ height: `${panelH * 100}vh` }}>
-          <Handle dir="col" style={{ top: 0, left: 0, right: 0 }} onDrag={(e) => {
-            setMax(false);
-            setPanelH(clampPanel((panelEl.current!.getBoundingClientRect().bottom - e.clientY) / window.innerHeight));
-          }} />
+        <div className="panel" ref={panelEl} hidden={panel === "hidden"} 
+          style={dock === "right" ? { width: `${panelH * 100}vw` } : { height: `${panelH * 100}vh` }}>
+          <Handle
+            dir={dock === "right" ? "row" : "col"}
+            style={dock === "right" ? { top: 0, bottom: 0, left: 0 } : dock === "top" ? { bottom: 0, left: 0, right: 0 } : { top: 0, left: 0, right: 0 }}
+            onDrag={(e) => {
+              setMax(false);
+              const r = panelEl.current!.getBoundingClientRect();
+              setPanelH(clampPanel(dock === "right" ? (r.right - e.clientX) / window.innerWidth
+                : dock === "top" ? (e.clientY - r.top) / window.innerHeight : (r.bottom - e.clientY) / window.innerHeight));
+            }}
+          />
+          <header className="tabbar panel-head">
+            <button type="button" className="tab active term" tabIndex={-1}>
+              <span className="tab-name">{panelTitle}</span>
+              <span className="tab-close" title="Hide terminal panel" onMouseDown={click("term.panel")} />
+            </button>
+            <span className="panel-tools">
+              <IconButton glyph={dock === "bottom" ? "\uf061" : dock === "right" ? "\uf062" : "\uf063"} label="Move terminal panel"
+                tip="Move terminal panel (bottom, right, top)" onPress={go("term.dock")} />
+              <IconButton glyph={max ? "\uf066" : "\uf065"} label="Maximize terminal panel" tip={tip("Maximize terminal panel", "term.maximize")}
+                onPress={go("term.maximize")} />
+            </span>
+          </header>
           <Pane
             id={PANEL}
             active={status.pane === PANEL}
-            style={{ inset: 0 }}
+            style={{ inset: "var(--head) 0 0 0" }}
             edge={{ left: false, top: false }}
             mount={(el) => {
               ed.attach(PANEL, el, undefined, { ws: ws.id, onExit: () => {
@@ -736,12 +966,19 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
                 setPanel(null);
                 if (focused) ed.focus(lastSplit.current);
               } });
+              setPanelTitle(ed.termTitle(PANEL));
               return () => ed.detach(PANEL);
             }}
           />
         </div>
       )}
-      {bar === "bottom" && <footer className="statusline bottom">{mode}{branchEl}{file}{line}</footer>}
+      {bar === "bottom" && <footer className="statusline bottom">{line}</footer>}
+      {plus && (
+        <ContextMenu at={{ x: plus.x - 220, y: plus.y }} onClose={() => setPlus(null)}
+          items={([["New file", "file.new", undefined, "\uea7f"], ["New folder", "file.new", "dir", "\uea80"], ["New terminal", "term.tab", undefined, "\uf120"]] as const)
+            .map(([label, id, arg, glyph]) => ({ label, glyph, run: () => { ed.focus(plus.id); run(id, arg); } }))} />
+      )}
+      {tabMenu && <ContextMenu at={tabMenu} items={tabMenu.items} onClose={() => setTabMenu(null)} />}
       {hints && <Hints keys={hints.keys} next={hints.next} title={(id) => commands.list().find((c) => c.id === id)?.title ?? id} />}
       {picker && <Picker source={picker} onClose={() => { setPicker(null); if (!document.activeElement?.closest(".sidebar")) ed.focus(ed.active); }} />}
     </div>

@@ -25,14 +25,23 @@ export class HiddenTerms {
     return i < 0 ? undefined : this.list.splice(i, 1)[0];
   }
 
-  // A shell ended: if it was a hidden one, it leaves the list with its box. false: it wasn't hidden.
-  end(t: TermHandle): boolean {
+  // A shell ended: if it was a hidden one, it leaves the list with its box. Returns its title, null if it wasn't hidden.
+  end(t: TermHandle): string | null {
     const i = this.list.findIndex((h) => h.term === t);
-    if (i < 0) return false;
+    return i < 0 ? null : this.drop(i);
+  }
+
+  // Ends the hidden shell titled `title` (its tab was closed).
+  kill(title: string) {
+    const i = this.list.findIndex((h) => h.title === title);
+    if (i >= 0) this.drop(i);
+  }
+
+  private drop(i: number): string {
     const [gone] = this.list.splice(i, 1);
     gone.term.dispose();
     gone.box.remove();
-    return true;
+    return gone.title;
   }
 
   titles(): string[] { return this.list.map((h) => h.title); }

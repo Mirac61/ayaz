@@ -15,5 +15,6 @@ test("clangd: hint, diagnostic, gd into a system header", async ({ page }) => {
   await page.locator(".cm-content").click();
   await page.keyboard.type("gg3j^"); // line 4: printf
   await page.keyboard.type("gd");
-  await expect(status).toContainText(/\/include\/.*printf.*\.h|stdio\.h/, { timeout: 30_000 }); // macOS SDKs declare it in _printf.h
+  // macOS SDKs declare it in _printf.h
+  await expect(page.locator(".titlebar")).toContainText(/\/include\/.*printf.*\.h|stdio\.h/, { timeout: 30_000 });
 });

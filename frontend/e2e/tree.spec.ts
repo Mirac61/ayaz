@@ -17,7 +17,7 @@ test("tree: new file, rename with the open buffer, trash prompt cancels", async 
   await expect(picker).toHaveValue("src/");
   await page.keyboard.type("notes/todo.txt");
   await page.keyboard.press("Enter");
-  await expect(page.locator(".statusline")).toContainText("src/notes/todo.txt");
+  await expect(page.locator(".titlebar")).toContainText("src/notes/todo.txt");
   expect(existsSync(join(ws, "src", "notes", "todo.txt"))).toBe(true);
   await expect(tree.getByRole("treeitem", { name: "todo.txt" })).toHaveAttribute("aria-selected", "true");
 
@@ -34,7 +34,7 @@ test("tree: new file, rename with the open buffer, trash prompt cancels", async 
   await expect(picker).toHaveValue("src/notes/todo.txt");
   await picker.fill("src/done.txt");
   await page.keyboard.press("Enter");
-  await expect(page.locator(".statusline")).toContainText("src/done.txt");
+  await expect(page.locator(".titlebar")).toContainText("src/done.txt");
   await expect(page.locator(".cm-content")).toContainText("hello");
   expect(readFileSync(join(ws, "src", "done.txt"), "utf8")).toBe("hello\n"); // :w adds the final newline (M22)
   expect(existsSync(join(ws, "src", "notes", "todo.txt"))).toBe(false);
@@ -74,7 +74,7 @@ test("tree filter", async ({ page }) => {
   await expect(tree.getByRole("treeitem", { name: "greet.go" })).toBeVisible(); // results come async
   await page.keyboard.press("Enter");
   await page.keyboard.press("Enter"); // opens the file
-  await expect(page.locator(".statusline")).toContainText("src/greet.go");
+  await expect(page.locator(".titlebar")).toContainText("src/greet.go");
 
   // M35: Enter typed before the results arrive waits for them, then lands on the first file
   // (not on the row where the previous query's first file was).

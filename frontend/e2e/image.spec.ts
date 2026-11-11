@@ -7,7 +7,7 @@ test("image viewer: formats, zoom, back to the editor", async ({ page }) => {
   const status = page.locator(".statusline");
   for (const f of ["pic.png", "pic.jpg", "anim.gif", "pic.webp", "logo.svg"]) {
     await tree.getByRole("treeitem", { name: f }).click();
-    await expect(status).toContainText(f);
+    await expect(page.locator(".titlebar")).toContainText(f);
     await expect(status).toContainText("100% fit  64×32");
   }
   expect(await page.evaluate(() => (window as { pwned?: number }).pwned)).toBeUndefined(); // SVG scripts don't run

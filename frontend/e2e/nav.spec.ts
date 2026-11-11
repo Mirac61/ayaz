@@ -10,18 +10,18 @@ test("back/forward across files and reopen a closed tab", async ({ page }) => {
   await page.keyboard.type("jj");
   await expect(status).toContainText("3:1");
   await tree.getByRole("treeitem", { name: "go.mod" }).click();
-  await expect(status).toContainText("go.mod");
+  await expect(page.locator(".titlebar")).toContainText("go.mod");
 
   await page.keyboard.press("Meta+BracketLeft");
-  await expect(status).toContainText("hello.go");
+  await expect(page.locator(".titlebar")).toContainText("hello.go");
   await expect(status).toContainText("3:1");
   await page.keyboard.press("Meta+BracketLeft");
   await expect(status).toContainText("At the start");
   await page.keyboard.press("Meta+BracketRight");
-  await expect(status).toContainText("go.mod");
+  await expect(page.locator(".titlebar")).toContainText("go.mod");
 
   await page.keyboard.type(" bd"); // close go.mod's tab: hello.go shows
-  await expect(status).toContainText("hello.go");
+  await expect(page.locator(".titlebar")).toContainText("hello.go");
   await page.keyboard.press("Meta+Shift+KeyT");
-  await expect(status).toContainText("go.mod");
+  await expect(page.locator(".titlebar")).toContainText("go.mod");
 });

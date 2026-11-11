@@ -31,7 +31,7 @@ test("git gutter, hunk keys, branch and a commit from outside", async ({ page })
   await expect(page.locator(".cm-git-preview")).toContainText("-three");
   await page.keyboard.type(" hr");
   await expect(page.locator(".cm-git-mod")).toHaveCount(0);
-  await expect(status.locator(".dirty")).toHaveCount(0);
+  await expect(page.locator(".titlebar .dirty")).toHaveCount(0);
 
   writeFileSync(join(e2eWorkspace, file), "one\ntwo\nthree\nfour\nfive\n"); // the clean buffer reloads
   await expect(page.locator(".cm-git-add")).toHaveCount(1);

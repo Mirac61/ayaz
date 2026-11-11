@@ -2,25 +2,47 @@
 import type { Command } from "../../core/commands";
 import { backend, type Grep } from "../../core/backend";
 import { isDirty } from "../../core/buffers";
+import { fileTarget } from "../../core/fileTarget";
 import { replacement, type Loc } from "../../core/quickfix";
 import { fileIcon } from "../../theme/icons";
-import type { PickerSource } from "../Picker";
+import type { Item, PickerSource } from "../Picker";
+import { previewFile } from "../preview";
 import { LIMIT, SHOWN, type Ctx } from "./context";
 import type { QuickfixTools } from "./quickfix";
+
+const FILE_KEYS = "Enter open · Cmd/Ctrl+Enter in a split · Ctrl+D / Ctrl+U scroll the preview";
+const RECENT_SHOWN = 8; // recent files at the top of Find files before anything is typed
+
+// A file row: the folder quiet and first to be cut, the name bright.
+const fileItem = (path: string, positions: number[] | null | undefined, hint?: string): Item => ({
+  label: path,
+  positions: positions ?? [],
+  icon: fileIcon(path),
+  hint,
+  dim: Array.from(path.slice(0, path.lastIndexOf("/") + 1)).length,
+  dir: true,
+});
 
 export function findCommands(c: Ctx, q: QuickfixTools): Command[] {
   const { files, ed, qf, run, say, fail, setPicker } = c;
   let showIgnored = false;
   let grepRegex = false;
+  // Cmd/Ctrl+Enter opens a file next to the current one; a terminal in the buffer list just comes back.
+  const openIn = (it: Item, side?: boolean) => (side && !it.label.includes("://") ? "file.openSide" : "file.open");
+  // Buffers can also be terminals ("term://…"): no file, no preview.
+  const filePreview = (it: Item) => (it.label.includes("://") ? Promise.resolve(null) : previewFile(files, it.label));
 
   const filePicker = (title: string, list: () => string[], hint?: (p: string) => string | undefined): PickerSource => ({
     title,
     async query(query) {
       const all = list();
       const ms = query.trim() ? await backend.rank(all, query, LIMIT) : all.slice(0, LIMIT).map((path) => ({ path, positions: [] }));
-      return ms.map((m) => ({ label: m.path, positions: m.positions ?? [], icon: fileIcon(m.path), hint: hint?.(m.path) }));
+      return ms.map((m) => fileItem(m.path, m.positions, hint?.(m.path)));
     },
-    pick: (it) => run("file.open", it.label),
+    pick: (it, _i, side) => run(openIn(it, side), it.label),
+    preview: filePreview,
+    footer: FILE_KEYS,
+    limit: LIMIT,
   });
 
   const grepPicker = (): PickerSource => {
@@ -41,6 +63,10 @@ export function findCommands(c: Ctx, q: QuickfixTools): Command[] {
         return Promise.resolve([]);
       },
       pick: (_, i) => void (hits[i] && q.jump(hits[i])),
+      preview: async (_, i) => (hits[i] ? previewFile(files, hits[i].path, hits[i].line) : null),
+      placeholder: "Text to find",
+      limit: SHOWN,
+      footer: "Enter open · Ctrl+Q quickfix list · Ctrl+D / Ctrl+U scroll the preview",
       all: () => q.set(`Search "${text}"`, hits, regex),
       close: () => g?.cancel(),
     };
@@ -50,14 +76,32 @@ export function findCommands(c: Ctx, q: QuickfixTools): Command[] {
     {
       id: "find.files",
       title: "Find files",
-      run: () => setPicker({
-        title: showIgnored ? "Files (incl. ignored)" : "Files",
-        async query(query) {
-          const ms = await files.find(query, LIMIT, showIgnored);
-          return ms.map((m) => ({ label: m.path, positions: m.positions ?? [], icon: fileIcon(m.path) }));
-        },
-        pick: (it) => run("file.open", it.label),
-      }),
+      run: () => {
+        // "name:42" finds the name and opens it at line 42; typed, or pasted from a stack trace.
+        let at: { line?: number; col?: number } = {};
+        setPicker({
+          title: showIgnored ? "Files (incl. ignored)" : "Files",
+          async query(query) {
+            const target = fileTarget(query);
+            at = target;
+            const ms = await files.find(target.text, LIMIT, showIgnored);
+            const found = ms.map((m) => fileItem(m.path, m.positions, target.line ? `line ${target.line}` : undefined));
+            if (query.trim()) return found;
+            // Nothing typed yet: the files you were just in come first, so <Space>ff Enter is "back to where I was".
+            const here = ed.current()?.path;
+            const recent = ed.recent().filter((p) => p !== here).slice(0, RECENT_SHOWN);
+            return [...recent.map((p) => fileItem(p, [], "recent")), ...found.filter((it) => !recent.includes(it.label))];
+          },
+          pick(it, _i, side) {
+            if (at.line && !side) void ed.openAt(it.label, at.line, (at.col ?? 1) - 1);
+            else run(openIn(it, side), it.label);
+          },
+          preview: (it) => (it.label.includes("://") ? Promise.resolve(null) : previewFile(files, it.label, at.line)),
+          footer: FILE_KEYS,
+          limit: LIMIT,
+          placeholder: "File name, or name:line",
+        });
+      },
     },
     {
       id: "find.toggleIgnored",

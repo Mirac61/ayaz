@@ -3,11 +3,11 @@ import { Application, Browser, Clipboard, Events, Stream, Window } from "@wailsi
 import { ConfigService, PingService, WorkspaceService } from "../../bindings/github.com/Mirac61/ayaz/app";
 import type { HeadFile, Info, Match, OpenEvent, Swap, Version } from "../../bindings/github.com/Mirac61/ayaz/app";
 import type { Blame } from "../../bindings/github.com/Mirac61/ayaz/internal/git";
-import type { Entry, TextFile } from "../../bindings/github.com/Mirac61/ayaz/internal/workspace";
+import type { Entry, Preview, TextFile } from "../../bindings/github.com/Mirac61/ayaz/internal/workspace";
 import type { Match as FileMatch } from "../../bindings/github.com/Mirac61/ayaz/internal/index";
 import type { Loc } from "./quickfix";
 
-export type { Blame, Entry, FileMatch, HeadFile, Info, Match, OpenEvent, Swap, TextFile, Version };
+export type { Blame, Entry, FileMatch, HeadFile, Info, Match, OpenEvent, Preview, Swap, TextFile, Version };
 
 // A batch of changes on disk. Paths are workspace-relative, files or folders; rescan: events were lost, check everything.
 // A file in the config folder the app watches.
@@ -33,7 +33,7 @@ export interface Backend {
   closeWindow(): Promise<void>; // this window; a no-op in the server build
   newWindow(): Promise<void>;
   // The user asked to close this window; the frontend decides (unsaved buffers) and calls closeWindow.
-  onCloseRequest(fn: () => void): () => void;
+  onCloseRequest(ws: string, fn: () => void): () => void;
   // `ayaz file:line` from a terminal: the file this window was started for (once), and files sent to a running window.
   // The shown file's close answers a waiting call (`--wait`) through waitDone(event.wait).
   takeOpen(): Promise<OpenEvent | null>;
@@ -65,6 +65,7 @@ export interface Grep { done: Promise<string | null>; cancel(): void }
 export interface Files {
   list(dir: string): Promise<Entry[]>;
   readText(path: string): Promise<TextFile>;
+  preview(path: string, maxBytes: number): Promise<Preview>; // the start of a text file; rejects for binary ones
   // Resolves to the new mtime. Rejects with "file changed on disk" if the file moved past expectedMtime.
   writeText(path: string, content: string, expectedMtime: number): Promise<number>;
   // Fuzzy file search, best first; positions index into the path's code points. ignored: include Git-ignored files.
@@ -112,7 +113,10 @@ export const backend: Backend = {
       if (e.data.ws === ws) fn(e.data);
     }),
   waitDone: (id) => WorkspaceService.WaitDone(id),
-  onCloseRequest: (fn) => Events.On("app:close-request", () => fn()),
+  onCloseRequest: (ws, fn) =>
+    Events.On("app:close-request", (e: { data: string }) => {
+      if (e.data === ws) fn();
+    }),
   keymap: () => ConfigService.Keymap(),
   settings: () => ConfigService.Settings(),
   snippets: () => ConfigService.Snippets(),
@@ -138,6 +142,7 @@ export const backend: Backend = {
   files: (ws) => ({
     list: async (dir) => (await WorkspaceService.List(ws, dir)) ?? [],
     readText: (path) => WorkspaceService.ReadText(ws, path),
+    preview: (path, max) => WorkspaceService.Preview(ws, path, max),
     writeText: (path, content, mtime) => WorkspaceService.WriteText(ws, path, content, mtime),
     find: async (q, limit, ignored) => (await WorkspaceService.Find(ws, q, limit, ignored)) ?? [],
     create: (path, dir) => WorkspaceService.Create(ws, path, dir),

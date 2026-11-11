@@ -8,19 +8,19 @@ export type Dir = "left" | "down" | "up" | "right";
 
 export const panes = (l: Layout): number[] => ("pane" in l ? [l.pane] : l.children.flatMap(panes));
 
-// Puts pane `nid` right after `id` (splitright/splitbelow from my nvim config).
-export function split(l: Layout, id: number, dir: "row" | "col", nid: number): Layout {
-  if ("pane" in l) return l.pane === id ? { dir, children: [l, { pane: nid }] } : l;
+// Puts pane `nid` right after `id` (splitright/splitbelow from my nvim config), before it for a drop on the left or top edge.
+export function split(l: Layout, id: number, dir: "row" | "col", nid: number, before = false): Layout {
+  if ("pane" in l) return l.pane === id ? { dir, children: before ? [{ pane: nid }, l] : [l, { pane: nid }] } : l;
   const i = l.children.findIndex((c) => "pane" in c && c.pane === id);
   if (i >= 0 && l.dir === dir) {
     const s = sizesOf(l); // like Vim, the new pane takes half of the one it splits
     return {
       dir,
-      children: [...l.children.slice(0, i + 1), { pane: nid }, ...l.children.slice(i + 1)],
+      children: [...l.children.slice(0, i + +!before), { pane: nid }, ...l.children.slice(i + +!before)],
       ...(l.sizes && { sizes: [...s.slice(0, i), s[i] / 2, s[i] / 2, ...s.slice(i + 1)] }),
     };
   }
-  return { ...l, children: l.children.map((c) => split(c, id, dir, nid)) };
+  return { ...l, children: l.children.map((c) => split(c, id, dir, nid, before)) };
 }
 
 // Removes a pane; a node left with one child is replaced by it. null when the last pane closes.

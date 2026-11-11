@@ -76,39 +76,42 @@ export function Shell() {
         <button type="button" className="titlebar-project" tabIndex={-1} onClick={openRecentPicker}>
           Open Recent Project
         </button>
-        Ayaz
       </div>
       <div className="welcome-card">
         <div className="welcome-list">
           <div>
-            <div className="welcome-title">No folder open</div>
-            <div className="welcome-sub">Open a folder or pick one of the recent ones.</div>
+            <div className="welcome-title">ayaz</div>
+            <div className="welcome-sub">A keyboard-first editor. Open a folder to start.</div>
           </div>
-          {recent.length > 0 && (
-            <nav aria-label="Recent folders">
-              <div className="welcome-label">Recent</div>
-              {recent.map((f, i) => (
-                <button key={f.root} onClick={() => pick(f.root)} title={f.root} autoFocus={i === 0}>
-                  <kbd aria-hidden>{i + 1}</kbd>
-                  <span className="welcome-name">{f.name}</span>
-                  <span className="welcome-path">{f.root}</span>
-                </button>
-              ))}
+          <div className="welcome-cols">
+            <div className="welcome-col">
+            {recent.length > 0 && (
+              <nav aria-label="Recent folders">
+                <div className="welcome-label label">Recent</div>
+                {recent.map((f, i) => (
+                  <button key={f.root} onClick={() => pick(f.root)} title={f.root} autoFocus={i === 0}>
+                    <kbd aria-hidden>{i + 1}</kbd>
+                    <span className="welcome-name">{f.name}</span>
+                    <span className="welcome-path">{f.root}</span>
+                  </button>
+                ))}
+              </nav>
+            )}
+            <nav aria-label="Start">
+              <div className="welcome-label label">Start</div>
+              <button className="primary" autoFocus={!recent.length} onClick={() => pick(null)}>Open folder…</button>
             </nav>
-          )}
-          <nav aria-label="Start">
-            <div className="welcome-label">Start</div>
-            <button autoFocus={!recent.length} onClick={() => pick(null)}>Open folder…</button>
-          </nav>
-          <section aria-label="Keys">
-            <div className="welcome-label">Keys</div>
-            {FIRST_KEYS.map(([keys, what]) => (
-              <div key={what} className="welcome-key">
-                <span className="welcome-chips">{keys.map((k) => <kbd key={k}>{k}</kbd>)}</span>
-                <span>{what}</span>
-              </div>
-            ))}
-          </section>
+            </div>
+            <section aria-label="Keys">
+              <div className="welcome-label label">Keys</div>
+              {FIRST_KEYS.map(([keys, what]) => (
+                <div key={what} className="welcome-key">
+                  <span className="welcome-chips">{keys.map((k) => <kbd key={k}>{k}</kbd>)}</span>
+                  <span>{what}</span>
+                </div>
+              ))}
+            </section>
+          </div>
           {err && <div className="welcome-err">{err}</div>}
         </div>
       </div>

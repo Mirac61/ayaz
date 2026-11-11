@@ -114,7 +114,7 @@ test("task: go vet on broken.go fills the quickfix list, <Space>rl runs it again
   await expect(page.getByRole("dialog", { name: "Run task" })).toContainText("go vet ./broken.go");
   await page.keyboard.press("Enter");
   // The quickfix list jumps to the first entry; its message may give way to gopls' own on opening broken.go.
-  await expect(status).toContainText("broken.go", { timeout: 15_000 });
+  await expect(page.locator(".titlebar")).toContainText("broken.go", { timeout: 15_000 });
   await expect(status).toContainText("4:2");
   await expect(page.locator("[data-term]")).toContainText("[process exited]"); // the pane stays with the output
 

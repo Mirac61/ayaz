@@ -1,13 +1,19 @@
 // The quickfix list as the shell uses it: jump, pick, fill from a search or the LSP, replace across files.
 import { Text } from "@codemirror/state";
 import { isDirty, lf } from "../../core/buffers";
-import { label, replaceEdits, type Loc } from "../../core/quickfix";
+import { hitPositions, label, replaceEdits, type Loc } from "../../core/quickfix";
 import { fileIcon } from "../../theme/icons";
 import type { Item, PickerSource } from "../Picker";
+import { previewFile } from "../preview";
 import type { Ctx } from "./context";
 
 export function quickfixTools({ ed, files, qf, say, fail }: Ctx) {
-  const locItem = (l: Loc): Item => ({ label: label(l), icon: fileIcon(l.path) });
+  // "path:line:col: " is quiet, the line's text is not.
+  const locItem = (l: Loc): Item => {
+    const text = label(l);
+    const dim = Array.from(text.slice(0, text.length - l.text.trim().length)).length;
+    return { label: text, positions: hitPositions(l), icon: fileIcon(l.path), dim };
+  };
 
   const jump = async (l: Loc) => {
     await ed.openAt(l.path, l.line, l.col);
@@ -28,6 +34,10 @@ export function quickfixTools({ ed, files, qf, say, fail }: Ctx) {
       if (i >= 0) void jump(qf.select(i));
     },
     start: Math.max(qf.index, 0),
+    preview: async (it) => {
+      const l = qf.items.find((l) => label(l) === it.label);
+      return l ? previewFile(files, l.path, l.line) : null;
+    },
   });
 
   const set = (title: string, locs: Loc[], regex = false, sort = true) => {

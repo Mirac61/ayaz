@@ -21,11 +21,36 @@ const EX: [name: string, prefix: string, command: string][] = [
   ["split", "sp", "pane.splitDown"],
   ["vsplit", "vs", "pane.splitRight"],
   ["terminal", "ter", "term.split"],
+  ["browse", "br", "browser.open"],
   ["cnext", "cn", "qf.next"],
   ["cprevious", "cp", "qf.prev"],
   ["copen", "cope", "qf.open"],
   ["Replace", "Rep", "qf.replace"],
 ];
+
+// Whether a palette line reads as a Vim ex command (":w", ":%s/a/b/", ":3,5d") rather than words to search commands by.
+const EX_WORDS = new Set([
+  ...EX.flatMap(([name, prefix]) => [name, prefix]),
+  "x", "wa", "qa", "qall", "wqa", "xa", "s", "g", "v", "d", "y", "m", "t", "co", "noh", "nohlsearch", "set", "sort",
+  "norm", "normal", "reg", "marks", "h", "help", "j", "join", "k", "pu", "put", "r", "read",
+]);
+export function isEx(q: string): boolean {
+  if (/^[\d%.,$'<>+-]/.test(q) || /[!/]/.test(q)) return true;
+  const [word, ...rest] = q.trim().split(/\s+/);
+  // "split down" is a search for a command; "e file" and "set nu" are lines, so only short ex words take arguments.
+  // User commands start uppercase (":Replace $2 $1") and always take arguments.
+  return EX_WORDS.has(word) && (!rest.length || word.length <= 3 || /^[A-Z]/.test(word));
+}
+
+// ":" in normal mode opens the command palette, which also runs ex lines; visual mode keeps Vim's line for '<,'>.
+// Only the workbench asks for it: the Vim tests in the browser type ex lines into Vim's own line.
+let paletteKey = false;
+export function installPaletteKey() {
+  if (paletteKey) return;
+  paletteKey = true;
+  Vim.defineAction("ayazPalette", () => run("find.commands"));
+  Vim.mapCommand(":", "action", "ayazPalette", {}, { context: "normal" });
+}
 
 // u and <C-r> ask here first: the workbench runs them in the pane that made the buffer's latest change (M41).
 // true: done there. Not set (tests, a single pane): Vim's own undo in this view.
@@ -47,6 +72,7 @@ export function installVim(r: Run, normal: Binding[], p: Prime) {
   installed = true;
   Vim.map("jk", "<Esc>", "insert");
   Vim.map(";", ":", "normal");
+
   for (const [name, prefix, command] of EX) Vim.defineEx(name, prefix, (_cm, p) => run(command, (p.argString ?? "").trim()));
 
   // Space is the leader, like most nvim setups; by default it is a synonym for l.

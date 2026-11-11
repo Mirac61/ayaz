@@ -51,6 +51,8 @@ test("terminalFontSize: optional, same range as fontSize", () => {
 test("the file tree goes left or right", () => {
   expect(parseSettings('{"sidebar": "right"}').sidebar).toBe("right");
   expect(() => parseSettings('{"sidebar": "top"}')).toThrow('"sidebar" must be "left" or "right"');
+  expect(parseSettings('{"glassOpacity": 0.5}').glassOpacity).toBe(0.5);
+  expect(() => parseSettings('{"glassOpacity": 0.1}')).toThrow('"glassOpacity" must be a number from 0.3 to 1');
 });
 
 test("the status line goes top or bottom, its colors are hex per key", () => {

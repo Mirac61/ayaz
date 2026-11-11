@@ -64,11 +64,13 @@ export function fileCommands({ ws, files, ed, tree, say, fail, setPicker, prompt
     {
       id: "file.new",
       title: "New file or folder",
-      run() {
+      // arg "dir" (the + menu's "New folder"): the name is a folder without the trailing /.
+      run(arg) {
         const t = target();
         const dir = t ? (t.dir ? t.path : dirOf(t.path)) : "";
         const at = dir ? `${dir}/` : "";
-        prompt(`New in ${at || "./"} · end with / for a folder`, at, async (path) => {
+        prompt(`New ${arg === "dir" ? "folder" : "file"} in ${at || "./"}${arg === "dir" ? "" : " · end with / for a folder"}`, at, async (path) => {
+          if (arg === "dir" && !path.endsWith("/")) path += "/";
           const isDir = path.endsWith("/");
           const p = path.replace(/\/+$/, "").replace(/^\.\//, "");
           await files.create(p, isDir);

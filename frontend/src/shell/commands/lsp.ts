@@ -11,6 +11,7 @@ import {
 } from "../../editor/lsp";
 import { symbolIcon } from "../../theme/icons";
 import type { Item, PickerSource } from "../Picker";
+import { previewFile } from "../preview";
 import { errText, LIMIT, onView, SHOWN, type Ctx } from "./context";
 import type { QuickfixTools } from "./quickfix";
 
@@ -22,7 +23,7 @@ const toDiagnostic = (cmd: (v: EditorView) => boolean) => (v: EditorView) => {
 };
 
 export function lspCommands(c: Ctx, q: QuickfixTools): Command[] {
-  const { ws, ed, say, fail, setPicker, prompt } = c;
+  const { ws, ed, files, say, fail, setPicker, prompt } = c;
 
   // Symbols in a picker. rank: fuzzy-rank by name here (a file's symbols); else the server already matched (project).
   // Items map to their symbol, so two symbols with one name (two `init`) both stay pickable.
@@ -46,6 +47,10 @@ export function lspCommands(c: Ctx, q: QuickfixTools): Command[] {
       pick: (it) => {
         const s = sym.get(it);
         if (s) void ed.openAt(s.path, s.line, s.col);
+      },
+      preview: async (it) => {
+        const s = sym.get(it);
+        return s ? previewFile(files, s.path, s.line) : null;
       },
     };
   };

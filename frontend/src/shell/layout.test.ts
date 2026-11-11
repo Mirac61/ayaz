@@ -72,3 +72,8 @@ test("neighbor still finds panes after resizing", () => {
   expect(neighbor(l2, 1, "right")).toBe(3); // 3 now overlaps 1 most
   expect(neighbor(l2, 2, "down")).toBe(3);
 });
+
+test("split before puts the new pane in front, in a leaf and next to siblings", () => {
+  expect(split({ pane: 1 }, 1, "row", 2, true)).toEqual({ dir: "row", children: [{ pane: 2 }, { pane: 1 }] });
+  expect(split(three, 2, "row", 4, true)).toEqual({ dir: "row", children: [{ pane: 1 }, { pane: 4 }, { pane: 2 }, { pane: 3 }] });
+});

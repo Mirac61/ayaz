@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import { Text } from "@codemirror/state";
-import { Quickfix, replaceEdits, type Loc } from "./quickfix";
+import { hitPositions, label, Quickfix, replaceEdits, type Loc } from "./quickfix";
 
 const loc = (path: string, line: number, col = 0, len = 1, text = "x"): Loc => ({ path, line, col, len, text });
 
@@ -34,4 +34,12 @@ test("replaceEdits expands $1, $2 after a regex search, a literal one stays lite
   const l: Loc = { path: "a", line: 1, col: 4, len: 7, text: "var foo = 1", groups: ["foo", "1"] };
   expect(replaceEdits([l], doc, "$2 = $1 $$ $0 $3", true).changes[0].insert).toBe("1 = foo $ foo = 1 ");
   expect(replaceEdits([l], doc, "$2 = $1 $$", false).changes[0].insert).toBe("$2 = $1 $$");
+});
+
+test("hitPositions marks the match inside the picker label", () => {
+  const l = { path: "a.go", line: 3, col: 7, len: 4, text: "  x := beta()" }; // label: "a.go:3:8: x := beta()"
+  const text = label(l);
+  expect(hitPositions(l).map((i) => Array.from(text)[i]).join("")).toBe("beta");
+  expect(hitPositions({ ...l, len: 0 })).toEqual([]);
+  expect(hitPositions({ ...l, col: 0, len: 1 })).toEqual([]); // inside the leading whitespace
 });

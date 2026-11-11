@@ -25,10 +25,10 @@ test("gd into the Go stdlib opens a read-only buffer", async ({ page }) => {
   await page.locator(".cm-content").click();
   await page.keyboard.type("gg5j"); // line 6: fmt.Println("hi")
   await page.keyboard.type("^4lgd"); // ^ then onto Println
-  await expect(page.locator(".statusline")).toContainText("fmt/print.go", { timeout: 30_000 });
+  await expect(page.locator(".titlebar")).toContainText("fmt/print.go", { timeout: 30_000 });
   await page.keyboard.type("x");
   await page.waitForTimeout(200);
-  await expect(page.locator(".statusline .dirty")).toHaveCount(0);
+  await expect(page.locator(".titlebar .dirty")).toHaveCount(0);
 });
 
 // gr fills the quickfix list from gopls.
@@ -64,7 +64,7 @@ test("symbol pickers find hello and jump to it", async ({ page }) => {
   await page.keyboard.type("main");
   await expect(project.getByRole("option").filter({ hasText: "broken.go" })).toHaveCount(1, { timeout: 30_000 });
   await project.getByRole("option").filter({ hasText: "broken.go" }).click();
-  await expect(status).toContainText("broken.go");
+  await expect(page.locator(".titlebar")).toContainText("broken.go");
 });
 
 // M21: E/W counts in the status line, the list as quickfix (errors first), ]d to the next one in the file.
@@ -74,7 +74,7 @@ test("diagnostics: counts, list and ]d", async ({ page }) => {
   await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: "broken.go" }).click();
   const status = page.locator(".statusline");
   // undefinedThing, and hello.c in the package for broken.go and hello.go (not open: the store still has it)
-  await expect(status.locator(".diag .e")).toContainText("3 errors", { timeout: 30_000 });
+  await expect(status.locator(".diag .e")).toHaveText("3", { timeout: 30_000 });
   await page.keyboard.type("gg]d");
   await expect(status).toContainText("4:2");
   await status.locator(".diag").click();

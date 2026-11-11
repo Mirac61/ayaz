@@ -32,7 +32,7 @@ test("markdown preview scrolls with the source and back", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: "long.md" }).click();
   const status = page.locator(".statusline");
-  await expect(status).toContainText("long.md");
+  await expect(page.locator(".titlebar")).toContainText("long.md");
   const source = page.locator(".cm-editor:not(.cm-reading)"), preview = page.locator(".cm-editor.cm-reading");
   const scroll = (ed: Locator, y: number) => ed.locator(".cm-scroller").evaluate((e, y) => { e.scrollTop = y; }, y);
   const top = (ed: Locator) => ed.evaluate((e) => {
@@ -79,7 +79,7 @@ test("tab bar: toggle, gt, close", async ({ page }) => {
 
   await page.locator(".cm-content").click();
   await page.keyboard.type("ggx"); // an unsaved change marks the tab, undoing it clears the mark
-  await expect(page.locator(".statusline .dirty")).toBeVisible();
+  await expect(page.locator(".titlebar .dirty")).toBeVisible();
   await expect(page.getByRole("tab", { selected: true }).locator(".dirty")).toBeVisible();
   await page.keyboard.type("u");
   await expect(page.getByRole("tab", { selected: true })).toHaveText("search.txt");
@@ -87,7 +87,7 @@ test("tab bar: toggle, gt, close", async ({ page }) => {
   await expect(page.getByRole("tab", { selected: true })).toHaveText("hello.go");
   await page.keyboard.type(" bd");
   await expect(tabs).toHaveText(["search.txt"]);
-  await expect(page.locator(".statusline")).toContainText("search.txt");
+  await expect(page.locator(".titlebar")).toContainText("search.txt");
 
   await palette("Toggle tab bar");
   await expect(page.locator(".tabbar")).toHaveCount(0);

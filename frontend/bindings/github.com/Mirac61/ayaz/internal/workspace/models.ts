@@ -7,6 +7,14 @@ export interface Entry {
 }
 
 /**
+ * Preview is the start of a text file for a picker's preview pane: at most max bytes, More when the file goes on.
+ */
+export interface Preview {
+    "text": string;
+    "more": boolean;
+}
+
+/**
  * Registry maps workspace IDs to workspaces. IDs are checked on every call, a window only knows its own.
  */
 export interface Registry {

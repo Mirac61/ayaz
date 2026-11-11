@@ -20,21 +20,21 @@ test("session: splits, files, active pane and cursor survive a reload", async ({
   await page.keyboard.press("Enter");
   await page.keyboard.type(":e README.md");
   await page.keyboard.press("Enter");
-  await expect(status).toContainText("README.md");
+  await expect(page.locator(".titlebar")).toContainText("README.md");
   await page.waitForTimeout(800); // the session saves 500 ms after the last change
 
   await page.reload();
   await expect(page.locator("[data-pane]")).toHaveCount(2);
-  await expect(status).toContainText("README.md");
+  await expect(page.locator(".titlebar")).toContainText("README.md");
   await page.keyboard.press("Control+h");
-  await expect(status).toContainText("session.txt");
+  await expect(page.locator(".titlebar")).toContainText("session.txt");
   await expect(status).toContainText("2:6");
   // A split made after the restore keeps the focus (the restore doesn't pull it back to the session's pane).
   await page.keyboard.type(":vsplit");
   await page.keyboard.press("Enter");
   await expect(page.locator("[data-pane]")).toHaveCount(3);
   await page.waitForTimeout(100);
-  await expect(status).toContainText("session.txt");
+  await expect(page.locator(".titlebar")).toContainText("session.txt");
 });
 
 // M38: a Markdown preview comes back as a preview, a terminal as a new shell in the folder.

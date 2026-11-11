@@ -177,6 +177,13 @@ export function OpenDialog(): $CancellablePromise<$models.Info | null> {
 }
 
 /**
+ * Preview reads the start of a workspace file for a picker's preview pane, at most max bytes.
+ */
+export function Preview(ws: string, path: string, max: number): $CancellablePromise<workspace$0.Preview> {
+    return $Call.ByID(938760747, ws, path, max);
+}
+
+/**
  * Rank fuzzy-matches a short list from the frontend (recent files, buffers, commands) with the same matcher.
  */
 export function Rank(items: string[] | null, query: string, limit: number): $CancellablePromise<index$0.Match[] | null> {
