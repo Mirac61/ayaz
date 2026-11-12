@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/Mirac61/ayaz/internal/proc"
 )
 
 // run runs git in dir. A non-zero exit (not a repo, no such path) is ok=false; a missing git binary is an error.
@@ -22,6 +24,7 @@ func run(dir string, args ...string) (out []byte, ok bool, err error) {
 // runStdin is run with text on git's standard input.
 func runStdin(dir, stdin string, args ...string) (out []byte, ok bool, err error) {
 	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+	proc.SetHideWindow(cmd)
 	var stdout bytes.Buffer
 	cmd.Stdout = &stdout
 	if stdin != "" {
@@ -61,10 +64,18 @@ const Poll = time.Second
 func Watch(ctx context.Context, root string, fn func()) {
 	gitDir := func() string {
 		out, ok, _ := run(root, "rev-parse", "--absolute-git-dir")
-		if !ok {
-			return ""
+		if ok {
+			d := strings.TrimSpace(string(out))
+			if d != "" {
+				return filepath.Clean(d)
+			}
 		}
-		return strings.TrimSpace(string(out))
+		// Fallback: standard repository folder if rev-parse failed (e.g. dubious ownership).
+		d := filepath.Join(root, ".git")
+		if fi, err := os.Stat(d); err == nil && fi.IsDir() {
+			return d
+		}
+		return ""
 	}
 	dir := gitDir()
 	files := []string{"HEAD", "index", filepath.Join("logs", "HEAD")}

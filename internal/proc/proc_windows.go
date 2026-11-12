@@ -1,3 +1,5 @@
+//go:build windows
+
 // Package proc starts helper programs (language servers, debug adapters, terminals) the way each OS needs.
 package proc
 
@@ -26,7 +28,11 @@ func ShellArgs(cmd string) []string {
 
 // Command runs command through cmd.exe; the shell argument is unused. shortcut: no process group, Terminate kills
 // the tree with taskkill; upgrade to a job object if that proves flaky.
-func Command(_, command string) *exec.Cmd { return exec.Command("cmd.exe", "/C", command) }
+func Command(_, command string) *exec.Cmd {
+	cmd := exec.Command("cmd.exe", "/C", command)
+	SetHideWindow(cmd)
+	return cmd
+}
 
 // Available reports whether the program of command is on PATH.
 func Available(_, command string) bool {
@@ -40,7 +46,9 @@ func Available(_, command string) bool {
 
 // Terminate ends the command and the programs it started.
 func Terminate(cmd *exec.Cmd) {
-	if exec.Command("taskkill", "/T", "/F", "/PID", strconv.Itoa(cmd.Process.Pid)).Run() != nil {
+	kill := exec.Command("taskkill", "/T", "/F", "/PID", strconv.Itoa(cmd.Process.Pid))
+	SetHideWindow(kill)
+	if kill.Run() != nil {
 		cmd.Process.Kill()
 	}
 }

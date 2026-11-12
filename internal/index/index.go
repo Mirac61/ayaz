@@ -9,6 +9,8 @@ import (
 	"sort"
 	"strings"
 	"unicode"
+
+	"github.com/Mirac61/ayaz/internal/proc"
 )
 
 // Skipped when walking outside Git, or with all=true (then only .git) (Q26).
@@ -55,7 +57,9 @@ func (ix *Index) Paths() []string { return ix.paths }
 // gitFiles returns nil if root is not inside a Git work tree or git is missing.
 // Tracked files deleted from disk still show up until the next commit; opening one gives an empty buffer.
 func gitFiles(root string) []string {
-	out, err := exec.Command("git", "-C", root, "ls-files", "-z", "--cached", "--others", "--exclude-standard").Output()
+	cmd := exec.Command("git", "-C", root, "ls-files", "-z", "--cached", "--others", "--exclude-standard")
+	proc.SetHideWindow(cmd)
+	out, err := cmd.Output()
 	if err != nil {
 		return nil
 	}

@@ -11,6 +11,7 @@ import (
 
 	"github.com/Mirac61/ayaz/internal/git"
 	"github.com/Mirac61/ayaz/internal/index"
+	"github.com/Mirac61/ayaz/internal/proc"
 	"github.com/Mirac61/ayaz/internal/pty"
 	"github.com/Mirac61/ayaz/internal/watch"
 	"github.com/Mirac61/ayaz/internal/workspace"
@@ -422,7 +423,7 @@ func (s *WorkspaceService) Trash(ws, path string) error {
 	return w.Trash(path)
 }
 
-// Reveal shows the file in Finder (selected), on Linux opens its folder.
+// Reveal shows the file in Finder (selected), on Windows in File Explorer, on Linux opens its folder.
 func (s *WorkspaceService) Reveal(ws, path string) error {
 	w, err := s.reg.Get(ws)
 	if err != nil {
@@ -432,10 +433,16 @@ func (s *WorkspaceService) Reveal(ws, path string) error {
 	if err != nil {
 		return err
 	}
-	if runtime.GOOS == "darwin" {
+	switch runtime.GOOS {
+	case "darwin":
 		return exec.Command("open", "-R", p).Run()
+	case "windows":
+		cmd := exec.Command("explorer.exe", "/select,"+p)
+		proc.SetHideWindow(cmd)
+		return cmd.Start()
+	default:
+		return exec.Command("xdg-open", filepath.Dir(p)).Start()
 	}
-	return exec.Command("xdg-open", filepath.Dir(p)).Start()
 }
 
 func (s *WorkspaceService) Find(ws, query string, limit int, ignored bool) ([]index.Match, error) {

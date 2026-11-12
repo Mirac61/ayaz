@@ -7,6 +7,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/Mirac61/ayaz/internal/proc"
 )
 
 // Index is the file's text in the index (what is staged), tracked=false when it isn't in the index.
@@ -30,6 +32,7 @@ func ApplyHunk(root, rel, hunk string, reverse bool) error {
 		args = append(args, "--reverse")
 	}
 	cmd := exec.Command("git", append(args, "-")...)
+	proc.SetHideWindow(cmd)
 	cmd.Stdin = strings.NewReader(patch)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
