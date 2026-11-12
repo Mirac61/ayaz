@@ -155,4 +155,4 @@ Bug reports and ideas go into [issues](https://github.com/Mirac61/ayaz/issues). 
 
 Daily-usable on macOS and Arch Linux/Hyprland. Windows builds come with every release but haven't been tested much on real machines yet.
 
-No license has been chosen yet, so all rights are reserved until one is added.
+Copyright © 2026 Mirac. All rights reserved. The source code is publicly viewable for reference, but no permission is granted to copy, fork, modify, or redistribute it without explicit prior written permission. See [LICENSE](LICENSE) for details.
