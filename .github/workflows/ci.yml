@@ -37,3 +37,48 @@ jobs:
           bun install --frozen-lockfile
           bun run typecheck
           bun run test
+
+  build-check:
+    name: Multi-Platform Build Validation
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: package
+          - os: windows-latest
+            target: build
+          - os: ubuntu-24.04
+            target: build
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Setup Task
+        uses: arduino/setup-task@v2
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Linux GUI libraries (GTK4 / WebKitGTK for Wails)
+        if: runner.os == 'Linux'
+        run: scripts/ci-apt.sh libgtk-4-dev libwebkitgtk-6.0-dev
+
+      - name: Install Wails3 CLI
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.1.0
+
+      - name: Build (${{ matrix.target }})
+        run: task ${{ matrix.target }}

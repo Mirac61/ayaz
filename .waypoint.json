@@ -1,26 +1,26 @@
 {
-  "objective": "Public launch and green CI workflow",
+  "objective": "Full CI/CD Pipeline and v0.3.0 Release",
   "tasks": [
     {
       "id": "1",
-      "title": "Initialize repository, branding and license",
+      "title": "Audit and optimize CI workflow with multi-platform build matrix",
       "status": "DONE"
     },
     {
       "id": "2",
-      "title": "In-app git commit and diffsplit",
+      "title": "Optimize Release workflow (test pre-check, robust packaging & notes)",
       "status": "DONE"
     },
     {
       "id": "3",
-      "title": "Fix Linux GUI deps and git author config for CI",
-      "status": "DONE"
+      "title": "Verify CI build & push to main",
+      "status": "IN_PROGRESS"
     },
     {
       "id": "4",
-      "title": "Verify green CI workflow run on GitHub",
-      "status": "DONE"
+      "title": "Tag v0.3.0 and verify release build on GitHub Actions",
+      "status": "TODO"
     }
   ],
-  "updated_at": "2026-11-12T20:59:50Z"
+  "updated_at": "2026-11-12T21:30:45Z"
 }
