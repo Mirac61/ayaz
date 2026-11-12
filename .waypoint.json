@@ -1,0 +1,26 @@
+{
+  "objective": "Public launch and green CI workflow",
+  "tasks": [
+    {
+      "id": "1",
+      "title": "Initialize repository, branding and license",
+      "status": "DONE"
+    },
+    {
+      "id": "2",
+      "title": "In-app git commit and diffsplit",
+      "status": "DONE"
+    },
+    {
+      "id": "3",
+      "title": "Fix Linux GUI deps and git author config for CI",
+      "status": "IN_PROGRESS"
+    },
+    {
+      "id": "4",
+      "title": "Verify green CI workflow run on GitHub",
+      "status": "TODO"
+    }
+  ],
+  "updated_at": "2026-11-12T20:57:00Z"
+}

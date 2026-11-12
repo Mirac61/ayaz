@@ -19,8 +19,10 @@ func repo(t *testing.T) string {
 	write(t, filepath.Join(root, "a.txt"), "a\n")
 	write(t, filepath.Join(root, "sub", "b.txt"), "b\n")
 	gitIn(t, root, "init", "-q", "-b", "main")
+	gitIn(t, root, "config", "user.name", "t")
+	gitIn(t, root, "config", "user.email", "t@t")
 	gitIn(t, root, "add", ".")
-	gitIn(t, root, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "init")
+	gitIn(t, root, "commit", "-q", "-m", "init")
 	return root
 }
 

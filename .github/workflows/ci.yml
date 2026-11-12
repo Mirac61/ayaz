@@ -9,7 +9,7 @@ jobs:
   test:
     name: Lightweight Unit Tests (Go & Frontend)
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
 
@@ -20,6 +20,9 @@ jobs:
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
+
+      - name: Linux GUI libraries (GTK4 / WebKitGTK for Wails)
+        run: scripts/ci-apt.sh libgtk-4-dev libwebkitgtk-6.0-dev
 
       # Embed placeholder so main package can compile without full frontend dist
       - name: Dist placeholder
