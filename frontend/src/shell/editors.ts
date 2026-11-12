@@ -386,7 +386,7 @@ export class Editors {
       // Middle click closes, like in a browser.
       t.addEventListener("mousedown", (e) => {
         e.preventDefault();
-        startDrag(e, path);
+        startDrag(e, path, id, term ? path.slice(TERM.length) : undefined);
         void (e.button === 1 ? this.tabClose(path, id) : this.open(path, id));
       });
       return t;
@@ -977,6 +977,44 @@ export class Editors {
 
   // Hidden terminals by name, for the buffer list.
   hiddenTerms() { return this.hidden.titles().map((t) => `term://${t}`); }
+
+  // Moves an existing running terminal from fromId to toId without restarting its shell process.
+  moveTerminal(fromId: number, toId: number, title?: string): boolean {
+    const to = this.panes.get(toId);
+    if (!to) return false;
+
+    const from = this.panes.get(fromId);
+    let h: { term: TermHandle; box: HTMLElement; title: string; cmd: string } | null = null;
+
+    if (from?.term && (!title || from.title === title)) {
+      const box = from.el.querySelector<HTMLElement>(":scope > .pane-term");
+      if (box) {
+        box.remove();
+        h = { term: from.term, box, title: from.title ?? "shell", cmd: from.cmd ?? "" };
+        from.term = undefined;
+        from.title = undefined;
+        if (fromId > 0) {
+          this.dropTermTab(h.title);
+          const remaining = this.tabs.get(fromId) ?? [];
+          const next = remaining[remaining.length - 1];
+          if (next) void this.open(next, fromId);
+          else this.replace(fromId);
+        }
+      }
+    } else if (title && this.hidden.has(title)) {
+      h = this.hidden.take(title) ?? null;
+      if (fromId > 0 && h) {
+        this.dropTermTab(h.title);
+      }
+    }
+
+    if (!h) return false;
+
+    const toIsTerm = !!to.term;
+    this.detach(toId, false, toIsTerm);
+    this.showTerm(toId, to.el, h);
+    return true;
+  }
 
   // :q! on a terminal: the shell ends instead of hiding.
   killTerm(id: number) {

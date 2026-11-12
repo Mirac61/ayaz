@@ -165,6 +165,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
   const tree = useRef<TreeHandle>(null);
   const splitFrom = useRef(new Map<number, number>()); // new pane → the pane it was split from
   const openNext = useRef(new Map<number, string>()); // new panes → the file they show once mounted (open to the side)
+  const moveTermNext = useRef(new Map<number, { fromId: number; title?: string }>());
   const previewNext = useRef(new Set<number>()); // new panes that turn into a Markdown preview once mounted
   const previews = useRef(new Set<number>()); // panes showing a preview
   const sidebarKey = "ayaz.sidebar";
@@ -323,27 +324,32 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
 
     // A shell that exits closes its pane (Editors finds the pane, it may have moved); the last pane turns back into an editor.
     mdLinks.open = (p) => run("file.open", p);
-  setDropHandler((path, id, zone) => {
-    if (path === "__panel_term__") {
-      const cwd = ed.termCwd(PANEL) || undefined;
-      setPanel("hidden");
-      setMax(false);
+  setDropHandler((path, id, zone, fromPane) => {
+    const isPanel = path === "__panel_term__" || fromPane === PANEL;
+    const isTerm = isPanel || path.startsWith("term://");
+    const termTitle = isPanel ? undefined : path.slice(7);
+
+    if (isTerm) {
+      const fromId = isPanel ? PANEL : fromPane;
       if (zone !== "center") {
         const newPane = splitPane(zone === "left" || zone === "right" ? "row" : "col", undefined, id, zone === "left" || zone === "top");
-        ed.replace(newPane, { ws: ws.id, dir: cwd }, true);
-        ed.focus(newPane);
+        moveTermNext.current.set(newPane, { fromId, title: termTitle });
+        if (isPanel) {
+          setPanel("hidden");
+          setMax(false);
+        }
       } else {
-        ed.replace(id, { ws: ws.id, dir: cwd }, true);
+        ed.moveTerminal(fromId, id, termTitle);
+        if (isPanel) {
+          setPanel("hidden");
+          setMax(false);
+        }
         ed.focus(id);
+        say("Moved terminal to editor tab");
       }
-      say("Moved terminal to editor tab");
       return;
     }
-    if (path.startsWith("term://")) {
-      ed.focus(id);
-      ed.open(path, id).then(() => ed.focus(id), (e) => fail(errText(e)));
-      return;
-    }
+
     if (zone !== "center") {
       openNext.current.set(splitPane(zone === "left" || zone === "right" ? "row" : "col", undefined, id, zone === "left" || zone === "top"), path);
       return;
@@ -1263,6 +1269,13 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
                 previews.current.add(id);
                 if (from !== undefined) { ed.focus(from); ed.syncScroll(from); }
               }
+              const termMove = moveTermNext.current.get(id);
+              moveTermNext.current.delete(id);
+              if (termMove) {
+                ed.moveTerminal(termMove.fromId, id, termMove.title);
+                ed.focus(id);
+                say("Moved terminal to editor tab");
+              }
               const side = openNext.current.get(id);
               openNext.current.delete(id);
               if (side) void ed.open(side, id).then(() => { ed.focus(id); ed.syncScroll(id); }, (e) => fail(errText(e)));
@@ -1329,7 +1342,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
               className="tab active term"
               tabIndex={-1}
               onMouseDown={(e) => {
-                if (e.button === 0) startDrag(e, "__panel_term__");
+                if (e.button === 0) startDrag(e, "__panel_term__", PANEL, panelTitle);
               }}
             >
               <span className="tab-name">{panelTitle}</span>
