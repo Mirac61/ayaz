@@ -44,7 +44,7 @@ func next(t *testing.T, ch <-chan Batch, path string) Batch {
 				return b
 			}
 		case <-deadline:
-			t.Fatalf("no event for %q within 500 ms", path)
+			t.Fatalf("no event for %q within timeout", path)
 		}
 	}
 }
@@ -58,6 +58,7 @@ func TestCreateChangeRemoveRename(t *testing.T) {
 	os.WriteFile(p("a.txt"), []byte("changed"), 0o644)
 	next(t, ch, "a.txt")
 	os.Mkdir(p("dir"), 0o755)
+	next(t, ch, "dir")
 	os.WriteFile(p("dir/.hidden"), []byte("x"), 0o644)
 	next(t, ch, "dir/.hidden")
 	os.Rename(p("new.txt"), p("dir/moved.txt"))
