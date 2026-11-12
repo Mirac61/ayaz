@@ -3,7 +3,7 @@
 export type Zone = "center" | "left" | "right" | "top" | "bottom";
 type Drop = (path: string, pane: number, zone: Zone, fromPane: number) => void;
 
-const EDGE = 0.25; // share of the pane's width or height that counts as its edge
+const EDGE = 0.15; // share of the pane's width or height that counts as its edge (15% split threshold)
 const THRESHOLD = 6; // px the pointer moves before a press becomes a drag, so plain clicks still click
 
 let onDrop: Drop = () => {};
@@ -60,7 +60,7 @@ export function startDrag(
     const el = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>("[data-pane]");
     if (el) {
       const paneId = Number(el.dataset.pane);
-      const isTabbar = !!document.elementFromPoint(e.clientX, e.clientY)?.closest(".tabbar");
+      const isTabbar = !!document.elementFromPoint(e.clientX, e.clientY)?.closest(".tabbar, .panel-head");
       const r = el.getBoundingClientRect();
       const effectiveRect = { left: r.left, top: r.top, width: r.width, height: r.height };
 
@@ -68,7 +68,7 @@ export function startDrag(
       // so expand the preview rectangle to show the full final layout of the pane.
       if (fromPane === -1 || path === "__panel_term__") {
         const panelEl = document.querySelector(".panel:not([hidden])") as HTMLElement | null;
-        if (panelEl) {
+        if (panelEl && paneId !== -1) {
           const pr = panelEl.getBoundingClientRect();
           if (pr.top >= r.bottom - 8) {
             effectiveRect.height = pr.bottom - r.top;

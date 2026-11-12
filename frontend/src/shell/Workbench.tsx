@@ -339,25 +339,49 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
   setDropHandler((path, id, zone, fromPane) => {
     const isPanel = path === "__panel_term__" || fromPane === PANEL;
     const isTerm = isPanel || path.startsWith("term://");
-    const termTitle = isPanel ? undefined : path.slice(7);
+    const termTitle = isPanel ? (ed.termTitle(PANEL) || panelTitle || "shell") : path.slice(7);
+
+    if (fromPane === id && zone === "center") {
+      ed.focus(id);
+      return;
+    }
 
     if (isTerm) {
       const fromId = isPanel ? PANEL : fromPane;
+      if (isPanel && !ed.isTerm(PANEL)) {
+        return;
+      }
+
+      if (id === PANEL) {
+        const ok = ed.moveTerminal(fromId, PANEL, termTitle);
+        if (ok) {
+          setPanel("shown");
+          setPanelTitle(termTitle);
+          ed.focus(PANEL);
+          say("Moved terminal to bottom panel");
+        }
+        return;
+      }
+
       if (zone !== "center") {
         const newPane = splitPane(zone === "left" || zone === "right" ? "row" : "col", undefined, id, zone === "left" || zone === "top");
         moveTermNext.current.set(newPane, { fromId, title: termTitle });
         if (isPanel) {
-          setPanel("hidden");
+          setPanel(null);
           setMax(false);
+          setPanelTitle("");
         }
       } else {
-        ed.moveTerminal(fromId, id, termTitle);
-        if (isPanel) {
-          setPanel("hidden");
-          setMax(false);
+        const ok = ed.moveTerminal(fromId, id, termTitle);
+        if (ok) {
+          if (isPanel) {
+            setPanel(null);
+            setMax(false);
+            setPanelTitle("");
+          }
+          ed.focus(id);
+          say("Moved terminal to editor tab");
         }
-        ed.focus(id);
-        say("Moved terminal to editor tab");
       }
       return;
     }
@@ -376,12 +400,18 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
         items.push({
           label: "Move to bottom panel",
           run: () => {
+            const title = path.slice(7);
             const cwd = ed.termCwd(id) || undefined;
-            void ed.tabClose(path, id);
             setPanel("shown");
-            ed.replace(PANEL, { ws: ws.id, dir: cwd });
-            ed.focus(PANEL);
-            say("Moved terminal to bottom panel");
+            requestAnimationFrame(() => {
+              const moved = ed.moveTerminal(id, PANEL, title);
+              if (!moved) {
+                ed.replace(PANEL, { ws: ws.id, dir: cwd });
+              }
+              setPanelTitle(title);
+              ed.focus(PANEL);
+              say("Moved terminal to bottom panel");
+            });
           },
         });
       } else {
@@ -1079,8 +1109,15 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       {branch}{changes > 0 && <span className="changes" title={`${changes} changed paths`}>±{changes}</span>}
     </Seg>
   );
-  const dir = status.path?.slice(0, status.path.lastIndexOf("/") + 1);
-  const file = (
+  const isTerm = status.path?.startsWith("term://") ?? false;
+  const termName = isTerm && status.path ? status.path.slice(7) : null;
+  const dir = isTerm ? "" : status.path?.slice(0, status.path.lastIndexOf("/") + 1);
+  const file = isTerm ? (
+    <span className="file" title={status.path ?? undefined}>
+      <span className="dir">terminal</span>
+      <span className="name">{termName || "shell"}</span>
+    </span>
+  ) : (
     <span className="file" title={status.path ?? undefined}>
       {dir && <span className="dir">{dir}</span>}
       <span className="name">{status.path?.slice(dir?.length) ?? "[No Name]"}</span>
@@ -1324,6 +1361,19 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
             edge={{ left: r.x > 0, top: r.y > 0 }}
             onClose={rs.size > 1 ? () => { ed.focus(id); run("pane.close"); } : undefined}
             mount={(el) => {
+              const termMove = moveTermNext.current.get(id);
+              moveTermNext.current.delete(id);
+
+              if (termMove) {
+                splitFrom.current.delete(id);
+                termFor.current.delete(id);
+                ed.attach(id, el);
+                ed.moveTerminal(termMove.fromId, id, termMove.title);
+                ed.focus(id);
+                say("Moved terminal to editor tab");
+                return () => { previews.current.delete(id); ed.detach(id, true); };
+              }
+
               const from = splitFrom.current.get(id);
               const cmd = unrestored.current.has(id) ? session?.terms[id] : undefined; // a terminal from the session
               ed.attach(id, el, from, termFor.current.get(id)
@@ -1334,13 +1384,6 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
                 ed.toggleReading(); // the new pane is active; keep typing in the source
                 previews.current.add(id);
                 if (from !== undefined) { ed.focus(from); ed.syncScroll(from); }
-              }
-              const termMove = moveTermNext.current.get(id);
-              moveTermNext.current.delete(id);
-              if (termMove) {
-                ed.moveTerminal(termMove.fromId, id, termMove.title);
-                ed.focus(id);
-                say("Moved terminal to editor tab");
               }
               const side = openNext.current.get(id);
               openNext.current.delete(id);

@@ -919,8 +919,12 @@ export class Editors {
     if (p.viewer) {
       return this.onStatus({ pane: this.active, path: p.title!, dirty: false, mode: p.mode, line: 1, col: 1, lines: 1, info: p.viewer.status() });
     }
+    if (p.term) {
+      const title = p.title || "shell";
+      return this.onStatus({ pane: this.active, path: `${TERM}${title}`, dirty: false, mode: p.mode, line: 1, col: 1, lines: 1 });
+    }
     if (!p.view) {
-      return this.onStatus({ pane: this.active, path: `term://${p.title}`, dirty: false, mode: p.mode, line: 1, col: 1, lines: 1 });
+      return this.onStatus({ pane: this.active, path: p.title ? p.title : null, dirty: false, mode: p.mode, line: 1, col: 1, lines: 1 });
     }
     const st = p.view.state, head = st.selection.main.head, l = st.doc.lineAt(head), unit = st.facet(indentUnit);
     const scopes = scopesAt(st, head).slice(-2).map((s) => ({ at: s.from, text: header(st.doc.lineAt(s.from).text) }));
@@ -999,20 +1003,29 @@ export class Editors {
           const next = remaining[remaining.length - 1];
           if (next) void this.open(next, fromId);
           else this.replace(fromId);
+        } else if (fromId === PANEL) {
+          this.panes.delete(PANEL);
+          this.tabs.delete(PANEL);
         }
       }
     } else if (title && this.hidden.has(title)) {
       h = this.hidden.take(title) ?? null;
-      if (fromId > 0 && h) {
+      if (h) {
         this.dropTermTab(h.title);
       }
     }
 
     if (!h) return false;
 
+    // Remove tab from any previous pane to prevent duplicate tabs
+    this.dropTermTab(h.title);
+
     const toIsTerm = !!to.term;
     this.detach(toId, false, toIsTerm);
     this.showTerm(toId, to.el, h);
+    if (this.active === fromId) {
+      this.setActive(toId);
+    }
     return true;
   }
 
