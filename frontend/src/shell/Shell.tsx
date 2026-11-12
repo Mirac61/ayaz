@@ -8,6 +8,7 @@ import { Picker, type PickerSource } from "./Picker";
 import { folderIcon } from "../theme/icons";
 import { setZoom, zoomLevel } from "./zoom";
 import { Workbench } from "./Workbench";
+import { AyazLogo } from "./AyazLogo";
 
 // The keys to know first, for the welcome page; from the default keymap (the user's keymap.json is read later).
 const keysOf = (...ids: string[]) => defaultKeymap().filter((b) => ids.includes(b.command)).map((b) => b.keys);
@@ -79,9 +80,12 @@ export function Shell() {
       </div>
       <div className="welcome-card">
         <div className="welcome-list">
-          <div>
-            <div className="welcome-title">ayaz</div>
-            <div className="welcome-sub">A keyboard-first editor. Open a folder to start.</div>
+          <div className="welcome-brand">
+            <AyazLogo size={56} className="welcome-logo" />
+            <div className="welcome-brand-text">
+              <div className="welcome-title">ayaz</div>
+              <div className="welcome-sub">A keyboard-first editor. Open a folder to start.</div>
+            </div>
           </div>
           <div className="welcome-cols">
             <div className="welcome-col">

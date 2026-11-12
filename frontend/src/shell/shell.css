@@ -1098,15 +1098,31 @@
   flex-direction: column;
   gap: 40px;
 }
-.welcome-title {
+.welcome-brand {
+  display: flex;
+  align-items: center;
+  gap: 18px;
   padding: 0 10px;
+}
+.welcome-logo {
+  flex-shrink: 0;
+  filter: drop-shadow(0 6px 16px rgba(112, 214, 255, 0.25));
+  transition: transform var(--t) var(--ease);
+}
+.welcome-logo:hover {
+  transform: scale(1.06);
+}
+.welcome-brand-text {
+  display: flex;
+  flex-direction: column;
+}
+.welcome-title {
   font: 600 44px/48px var(--font-mono);
   letter-spacing: -0.02em;
   color: var(--accent);
 }
 .welcome-sub {
-  padding: 0 10px;
-  margin-top: 6px;
+  margin-top: 4px;
   font-size: var(--text-lg);
   color: var(--fg-3);
 }
