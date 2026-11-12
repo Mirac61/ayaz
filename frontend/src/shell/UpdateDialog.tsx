@@ -56,7 +56,7 @@ export function UpdateDialog({ onClose }: { onClose(): void }) {
   };
 
   const latest = info?.latestVersion || "unknown";
-  const current = info?.currentVersion || "0.3.1";
+  const current = info?.currentVersion || "0.3.2";
 
   return (
     <div className="picker-backdrop update-dialog-backdrop" onClick={state !== "downloading" ? onClose : undefined}>
