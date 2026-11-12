@@ -6,6 +6,7 @@ import { e2eWorkspace } from "../playwright.config";
 
 const hasDlv = (() => { try { execSync("command -v dlv", { shell: "/bin/sh" }); return true; } catch { return false; } })();
 const hasDebugpy = (() => { try { execSync("python3 -m debugpy --version", { shell: "/bin/sh" }); return true; } catch { return false; } })();
+const hasLldbDap = (() => { try { execSync("command -v lldb-dap || xcrun -f lldb-dap", { shell: "/bin/sh" }); return true; } catch { return false; } })();
 
 // M48 D6: a real Delve, on a small program the test writes into the workspace (a folder of its own in testdata would
 // change the tree: other tests count on src/ being the only folder). Runs in its own project, after the others. Opt-in (AYAZ_DEBUG_E2E=1): on macOS the first debugging session asks for developer tools access
@@ -182,6 +183,47 @@ print("total", total)
 
   // Breakpoint at total += i (line 3)
   await page.keyboard.type("gg2j db");
+
+  await page.keyboard.type(" dd");
+  const status = page.locator(".statusline");
+  await expect(status).toContainText("DEBUG paused", { timeout: 30_000 });
+
+  await page.keyboard.type(" dv");
+  const picker = page.getByRole("dialog", { name: /Variables/ });
+  await expect(picker.getByRole("option", { name: /i = 1/ })).toBeVisible({ timeout: 15_000 });
+  await page.keyboard.press("Escape");
+
+  await page.keyboard.press("F5");
+  await expect(status).not.toContainText("DEBUG", { timeout: 30_000 });
+});
+
+test("debug a C program with lldb-dap: breakpoint, stop, variables, continue", async ({ page }) => {
+  test.skip(!hasLldbDap, "lldb-dap not installed");
+  test.skip(process.env.AYAZ_DEBUG_E2E !== "1", "set AYAZ_DEBUG_E2E=1 to run it");
+  test.setTimeout(120_000);
+  mkdirSync(join(e2eWorkspace, "zcdebug"), { recursive: true });
+  writeFileSync(join(e2eWorkspace, "zcdebug", "main.c"), `#include <stdio.h>
+
+int main() {
+    int total = 0;
+    for (int i = 1; i <= 3; i++) {
+        total += i;
+    }
+    printf("total %d\\n", total);
+    return 0;
+}
+`);
+  execSync("clang -g -O0 main.c -o main", { cwd: join(e2eWorkspace, "zcdebug"), shell: "/bin/sh" });
+
+  await page.goto("/");
+  const tree = page.getByRole("tree", { name: "Files" });
+  await tree.getByRole("treeitem", { name: "zcdebug" }).click();
+  await tree.getByRole("treeitem", { name: "main.c" }).click();
+  const code = page.locator(".cm-content");
+  await expect(code).toContainText("total += i;");
+
+  // Breakpoint at total += i (line 6)
+  await page.keyboard.type("gg5j db");
 
   await page.keyboard.type(" dd");
   const status = page.locator(".statusline");

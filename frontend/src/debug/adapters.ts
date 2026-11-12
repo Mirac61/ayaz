@@ -1,3 +1,4 @@
+import { settings } from "../core/settings";
 import { extOf } from "../lang/registry";
 
 // One row per debuggable language, like lang/registry.ts: adding one is a row here and the command in app/dap.go.
@@ -27,9 +28,31 @@ export const pythonAdapter: DebugAdapter = {
   launch: (program, root) => ({ request: "launch", program, cwd: root, console: "integratedTerminal" }),
 };
 
+export const lldbAdapter: DebugAdapter = {
+  id: "lldb",
+  binary: "lldb-dap",
+  adapterId: "lldb-dap",
+  target: (path) => {
+    const s = settings().debugProgram;
+    if (s) return s;
+    if (extOf(path) === "rs") return "target/debug";
+    const base = path.includes("/") ? path.slice(path.lastIndexOf("/") + 1) : path;
+    return base.includes(".") ? base.slice(0, base.lastIndexOf(".")) : base;
+  },
+  launch: (program, root) => ({ request: "launch", program, cwd: root, console: "integratedTerminal" }),
+};
+
 const byExt: Record<string, DebugAdapter> = {
   go: goAdapter,
   py: pythonAdapter,
+  rs: lldbAdapter,
+  c: lldbAdapter,
+  h: lldbAdapter,
+  cpp: lldbAdapter,
+  cc: lldbAdapter,
+  cxx: lldbAdapter,
+  hpp: lldbAdapter,
+  hxx: lldbAdapter,
 };
 
 // The adapter for the active file, and what it debugs (workspace-relative). Any other file (or none) debugs the folder's

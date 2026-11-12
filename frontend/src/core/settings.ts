@@ -28,6 +28,7 @@ export interface Settings extends FileSettings {
   themes: Record<string, ThemeSpec>; // your own, each on top of another ("extends"), by name
   statusColors: Partial<Record<StatusColor, string>>; // hex colors over tokens.css --status-*
   tasks: Record<string, string>; // name → shell command, run with <Space>rr in the folder
+  debugProgram?: string; // custom binary path for debugging (e.g. for lldb-dap)
   languages: Record<string, Partial<FileSettings>>;
 }
 

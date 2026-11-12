@@ -5,6 +5,7 @@ import (
 	"github.com/Mirac61/ayaz/internal/proc"
 	"log"
 	"os/exec"
+	"runtime"
 	"sync"
 
 	"github.com/Mirac61/ayaz/internal/dap"
@@ -20,9 +21,20 @@ type dapAdapter struct {
 	stdio   bool
 }
 
+func lldbAdapterSpec() dapAdapter {
+	cmd := "lldb-dap"
+	check := "lldb-dap --version 2>/dev/null"
+	if runtime.GOOS == "darwin" {
+		check = "lldb-dap --version 2>/dev/null || xcrun -f lldb-dap 2>/dev/null"
+		cmd = "sh -c 'if command -v lldb-dap >/dev/null 2>&1; then exec lldb-dap; else exec xcrun lldb-dap; fi'"
+	}
+	return dapAdapter{binary: "lldb-dap", command: cmd, check: check, stdio: true}
+}
+
 var dapAdapters = map[string]dapAdapter{
 	"go":     {binary: "dlv", command: "dlv dap --listen=127.0.0.1:0", stdio: false},
 	"python": {binary: "debugpy", command: "python3 -m debugpy.adapter", check: "python3 -m debugpy --version", stdio: true},
+	"lldb":   lldbAdapterSpec(),
 }
 
 type dapConfig struct {

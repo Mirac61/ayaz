@@ -438,6 +438,7 @@ const INSTALL: Record<string, string> = {
   texlab: "brew install texlab",
   dlv: "go install github.com/go-delve/delve/cmd/dlv@latest", // the debugger, through the same "missing" status
   debugpy: "pip install debugpy",
+  "lldb-dap": isMac ? "xcode-select --install or brew install llvm" : "install lldb-dap with your package manager",
 };
 export const installHint = (server: string) => INSTALL[server] ?? "";
 

@@ -185,6 +185,34 @@ test("start picks python adapter for .py files with file path as target", async 
   await dbg.stop();
 });
 
+test("start picks lldb adapter for .rs files", async () => {
+  let passedAdapter = "";
+  const f = fakeAdapter();
+  const nothing = async () => {};
+  const ed: DebugEditor = {
+    breakpoints: () => ({}),
+    activePath: () => "src/main.rs",
+    openAt: nothing,
+    setDebugLine: () => {},
+    appendOutput: nothing,
+  };
+  const dbg = new Debugger(
+    "/p",
+    ed,
+    (adapter) => {
+      passedAdapter = adapter;
+      return f.transport;
+    },
+    () => {},
+    () => {},
+  );
+  await dbg.start();
+  expect(passedAdapter).toBe("lldb");
+  const launchReq = f.requests.find((r) => r.command === "launch");
+  expect(launchReq?.arguments).toEqual({ request: "launch", program: "/p/target/debug", cwd: "/p", console: "integratedTerminal" });
+  await dbg.stop();
+});
+
 test("watch expressions evaluate in the frame and prepend a Watch scope to variables", async () => {
   const { f, dbg } = setup();
   dbg.addWatch("i + 1");

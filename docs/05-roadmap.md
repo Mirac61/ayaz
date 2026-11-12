@@ -354,6 +354,10 @@ Done when: all four language groups have diagnostics, completion and navigation.
 
 - Done 2026-11-12: Python debugging adapter via `python3 -m debugpy.adapter` over stdio (`adapters.ts`, `app/dap.go`); target resolves to the active Python file (`target(path): path`); missing adapter reports install hint `pip install debugpy` (`lsp.ts`, `commands/debug.ts`); unit tests in `adapters.test.ts` and `debugger.test.ts`, opt-in E2E in `debug.spec.ts`.
 
+## M74 – Debugger: Rust, C, C++ with lldb-dap
+
+- Done 2026-11-12: Rust, C, and C++ debugging with `lldb-dap` over stdio (`adapters.ts`, `app/dap.go`); auto-detects `xcrun lldb-dap` on macOS; binary path defaults to `target/debug` for Cargo and file basename for C/C++, overridable via `debugProgram` in `settings.json`; unit tests in `adapters.test.ts` and `debugger.test.ts`, opt-in E2E in `debug.spec.ts`.
+
 ## Later
 
 | | What | Plugs into |
