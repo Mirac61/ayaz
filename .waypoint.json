@@ -1,31 +1,36 @@
 {
-  "objective": "Terminal Live Migration & Drag-Drop Bugfixes",
+  "objective": "Roadmap: LSP Discovery, Extended Languages & Live Previews",
   "tasks": [
     {
       "id": "1",
-      "title": "Fix moveTerminal: clean up PANEL on move, setPanel(null) to unmount ghost panel, prevent duplicate tabs",
-      "status": "DONE"
+      "title": "LSP Discovery: detect PATH from .zshrc, Mason (~/.local/share/nvim/mason/bin), mise, nvm and brew",
+      "status": "TODO"
     },
     {
       "id": "2",
-      "title": "Fix titlebar display: eliminate 'term:// undefined', format terminal tabs cleanly",
-      "status": "DONE"
+      "title": "Extended Languages: add syntax highlighting & LSP for Python, Rust, YAML, TOML, Lua, Dockerfile",
+      "status": "TODO"
     },
     {
       "id": "3",
-      "title": "Fix drag-and-drop: 15% edge split threshold, tabbar snapping, clean terminal split mount",
-      "status": "DONE"
+      "title": "Typst & LaTeX live preview: watch & compile to PDF in side split (<Space>mp) with quickfix problem matcher",
+      "status": "TODO"
     },
     {
       "id": "4",
-      "title": "Unit tests: dnd.test.ts, editors terminal migration and status tests",
-      "status": "DONE"
+      "title": "Generalized Previews: live SVG code/image split toggle, HTML preview iframe",
+      "status": "TODO"
     },
     {
       "id": "5",
-      "title": "Verification & packaging: typecheck, vitest tests, build & install to /Applications/Ayaz.app",
-      "status": "DONE"
+      "title": "Workflow Polish: paste image into Markdown (saved to assets/), prose spellcheck, word count in statusline",
+      "status": "TODO"
+    },
+    {
+      "id": "6",
+      "title": "DAP Debugger: visual breakpoints in gutter, step controls, variables inspector & callstack",
+      "status": "TODO"
     }
   ],
-  "updated_at": "2026-11-13T00:10:45Z"
+  "updated_at": "2026-11-13T00:15:00Z"
 }
