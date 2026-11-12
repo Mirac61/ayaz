@@ -163,6 +163,8 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
   const [picker, setPicker] = useState<PickerSource | null>(null);
   const [bindings, setBindings] = useState<Binding[] | null>(null);
   const tree = useRef<TreeHandle>(null);
+  const quitRef = useRef<(force: boolean) => Promise<unknown>>(() => Promise.resolve());
+  const lastCloseAttempt = useRef<number>(0);
   const splitFrom = useRef(new Map<number, number>()); // new pane → the pane it was split from
   const openNext = useRef(new Map<number, string>()); // new panes → the file they show once mounted (open to the side)
   const moveTermNext = useRef(new Map<number, { fromId: number; title?: string }>());
@@ -292,11 +294,21 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
     // Closes the window (ADR-0014: one workspace per window); the app quits after the last one.
     const quit = async (force: boolean) => {
       const d = ed.buffers.dirty();
-      if (d.length && !force) return fail(`No write since last change for "${d[0].path}" (add ! to override)`);
+      if (d.length && !force) {
+        return notify.fail(
+          `Unsaved changes in "${d[0].path}": click close again or :qa! to discard`,
+          5500,
+          {
+            label: "Discard & Close",
+            run: () => void quit(true),
+          }
+        );
+      }
       if (force) await ed.buffers.discardSwaps().catch(() => {}); // thrown away on purpose: nothing to restore
       saveNow();
       await backend.closeWindow();
     };
+    quitRef.current = quit;
 
     const closePane = async (force: boolean, id = ed.active) => {
       if (id === PANEL) {
@@ -578,6 +590,43 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
         },
       },
       { id: "app.quit", title: "Close window (:qa)", run: (a) => quit(bang(a).force) },
+      {
+        id: "app.quitAllSave",
+        title: "Save all and close window (:wqa)",
+        run: async (a) => {
+          const force = bang(a).force;
+          try {
+            for (const b of ed.buffers.dirty()) {
+              await ed.buffers.save(b, force);
+              say(`"${b.path}" written`);
+            }
+            ed.emit();
+          } catch (e) {
+            return fail(errText(e));
+          }
+          saveNow();
+          await backend.closeWindow();
+        },
+      },
+      {
+        id: "file.saveAll",
+        title: "Save all files (:wa)",
+        run: async (a) => {
+          const force = bang(a).force;
+          try {
+            let count = 0;
+            for (const b of ed.buffers.dirty()) {
+              await ed.buffers.save(b, force);
+              say(`"${b.path}" written`);
+              count++;
+            }
+            if (count > 0) ed.emit();
+            else say("All files saved");
+          } catch (e) {
+            fail(errText(e));
+          }
+        },
+      },
       {
         id: "folder.switch",
         title: "Switch folder",
@@ -931,11 +980,28 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
   // The window's close button: refuse while something is unsaved, like :qa.
   useEffect(() => backend.onCloseRequest(ws.id, () => {
     const d = ed.buffers.dirty();
-    if (d.length) fail(`Unsaved changes in "${d[0].path}": :w to save, :qa! to close anyway`, true);
-    else {
+    if (!d.length) {
       saveNow();
       void backend.closeWindow();
+      return;
     }
+
+    const now = Date.now();
+    // Double close attempt within 4 seconds forces close!
+    if (now - lastCloseAttempt.current < 4000) {
+      void quitRef.current(true);
+      return;
+    }
+    lastCloseAttempt.current = now;
+
+    notify.fail(
+      `Unsaved changes in "${d[0].path}": click close again or :qa! to discard`,
+      5500,
+      {
+        label: "Discard & Close",
+        run: () => void quitRef.current(true),
+      }
+    );
   }), [ed]);
 
   useEffect(() => backend.onLspStatus(ws.id, (s) => {

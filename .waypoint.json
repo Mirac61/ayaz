@@ -1,31 +1,26 @@
 {
-  "objective": "Floating Cmdline (noice-style) & Terminal Tab Drag-and-Drop",
+  "objective": "Safe Window Closing & Ex Command Fix (:qa!, :wqa, double-close bypass)",
   "tasks": [
     {
       "id": "1",
-      "title": "Remove broken '\\uf062' button and preserve panel dock/maximize tools",
+      "title": "Register Ex commands: qa, qall, quitall, wqa, wqall, xa, xall, wa",
       "status": "DONE"
     },
     {
       "id": "2",
-      "title": "Floating Cmdline (noice-style): popup input for ':' and '/' with backdrop",
+      "title": "Interactive Discard & Close button on toast notifications",
       "status": "DONE"
     },
     {
       "id": "3",
-      "title": "Floating Messages: toast notifications for say/fail/Vim messages with smooth fade-out",
+      "title": "Double-close window bypass (within 4s) to force close even when files are dirty",
       "status": "DONE"
     },
     {
       "id": "4",
-      "title": "Terminal Tab Drag-and-Drop: drag terminal tab from bottom panel into editor tabs and vice-versa",
-      "status": "DONE"
-    },
-    {
-      "id": "5",
-      "title": "Verification: run tests, typecheck, package and install to /Applications/Ayaz.app",
+      "title": "Verification: typecheck, vitest tests, build & install to /Applications/Ayaz.app",
       "status": "DONE"
     }
   ],
-  "updated_at": "2026-11-12T23:40:00Z"
+  "updated_at": "2026-11-13T00:00:30Z"
 }

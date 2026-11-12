@@ -41,4 +41,19 @@ describe("notify store", () => {
     expect(notify.toasts[0].kind).toBe("error");
     expect(notify.toasts[1].kind).toBe("warning");
   });
+
+  it("attaches interactive action to toast", () => {
+    let triggered = false;
+    notify.fail("Unsaved changes", 0, {
+      label: "Discard & Close",
+      run: () => {
+        triggered = true;
+      },
+    });
+
+    expect(notify.toasts.length).toBe(1);
+    expect(notify.toasts[0].action?.label).toBe("Discard & Close");
+    notify.toasts[0].action?.run();
+    expect(triggered).toBe(true);
+  });
 });

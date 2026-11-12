@@ -78,6 +78,26 @@
   word-break: break-word;
 }
 
+.toast-action {
+  flex: none;
+  background: var(--bg-hover, rgba(255, 255, 255, 0.12));
+  color: var(--fg-0, #c8c093);
+  border: 1px solid var(--border, #54546d);
+  border-radius: var(--radius-sm, 4px);
+  padding: 3px 8px;
+  font: 11px/1.3 var(--font-ui, sans-serif);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.toast-action:hover {
+  background: var(--error, #e46876);
+  border-color: var(--error, #e46876);
+  color: #fff;
+}
+
 .toast-close {
   flex: none;
   background: none;

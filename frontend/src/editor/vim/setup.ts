@@ -16,8 +16,18 @@ let run: Run = () => {};
 // Ex commands are thin aliases for commands (ADR-0010); the arg is the rest of the line (":w!" → "!", ":e! a" → "! a").
 const EX: [name: string, prefix: string, command: string][] = [
   ["write", "w", "file.save"],
+  ["wall", "wa", "file.saveAll"],
+  ["wa", "wa", "file.saveAll"],
   ["quit", "q", "pane.close"],
+  ["qa", "qa", "app.quit"],
+  ["qall", "qall", "app.quit"],
+  ["quitall", "quitall", "app.quit"],
   ["wq", "wq", "file.saveClose"],
+  ["wqa", "wqa", "app.quitAllSave"],
+  ["wqall", "wqall", "app.quitAllSave"],
+  ["x", "x", "file.saveClose"],
+  ["xa", "xa", "app.quitAllSave"],
+  ["xall", "xall", "app.quitAllSave"],
   ["edit", "e", "file.open"],
   ["split", "sp", "pane.splitDown"],
   ["vsplit", "vs", "pane.splitRight"],

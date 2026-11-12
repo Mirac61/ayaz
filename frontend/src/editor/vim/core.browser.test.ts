@@ -254,6 +254,7 @@ describe("viewport", () => {
 describe("ex commands and leader keys run commands", () => {
   test.each([
     [":w<CR>", "file.save()"], [":w!<CR>", "file.save(!)"], [":q<CR>", "pane.close()"], [":q!<CR>", "pane.close(!)"],
+    [":qa<CR>", "app.quit()"], [":qa!<CR>", "app.quit(!)"],
     [":wq<CR>", "file.saveClose()"], [":e src/a.go<CR>", "file.open(src/a.go)"], [":e!<CR>", "file.open(!)"],
     [":sp<CR>", "pane.splitDown()"], [":vs<CR>", "pane.splitRight()"], [";w<CR>", "file.save()"],
     [" e", "prime(<Space>e)"], [" ff", "find.files()"], [" fk", "find.commands()"],

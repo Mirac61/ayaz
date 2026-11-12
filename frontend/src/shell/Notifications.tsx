@@ -32,6 +32,19 @@ export function Notifications() {
         >
           <span className="toast-icon">{ICONS[t.kind] || ICONS.info}</span>
           <span className="toast-body">{t.text}</span>
+          {t.action && (
+            <button
+              type="button"
+              className="toast-action"
+              onClick={(e) => {
+                e.stopPropagation();
+                notify.dismiss(t.id);
+                t.action?.run();
+              }}
+            >
+              {t.action.label}
+            </button>
+          )}
           <button
             type="button"
             className="toast-close"
