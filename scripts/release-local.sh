@@ -50,7 +50,11 @@ if [[ "$confirm" =~ ^[Yy]$ ]]; then
   git push origin "$TAG" || true
 
   echo "==> Publishing GitHub release..."
-  gh release create "$TAG" dist/* --repo Mirac61/ayaz --title "$TAG" --generate-notes
+  if gh release view "$TAG" --repo Mirac61/ayaz >/dev/null 2>&1; then
+    gh release upload "$TAG" dist/* --repo Mirac61/ayaz --clobber
+  else
+    gh release create "$TAG" dist/* --repo Mirac61/ayaz --title "$TAG" --generate-notes
+  fi
   echo "==> Release $TAG published successfully!"
 else
   echo "==> Skipping upload. Artifacts are ready in dist/."
