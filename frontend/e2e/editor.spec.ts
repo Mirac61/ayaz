@@ -34,6 +34,7 @@ test("open, edit, save, and conflict on external change", async ({ page }) => {
   await page.keyboard.press("Enter");
   await expect(page.locator(".statusline .msg.error")).toContainText("changed on disk");
   expect(readFileSync(readme, "utf8")).toBe("theirs\n");
+  writeFileSync(readme, "# E2E workspace\n\nUsed by frontend/e2e.\n");
 });
 
 // M3: a file made outside shows up in the tree; a clean buffer follows disk, the cursor stays on its line.
@@ -101,6 +102,7 @@ test("u undoes the latest edit of the file, whichever pane made it", async ({ pa
 
 // M63: global marks (mA) across files:
 test("mA in one file, 'A from another jumps back", async ({ page }) => {
+  writeFileSync(readme, "# E2E workspace\n\nUsed by frontend/e2e.\n");
   await page.goto("/");
   const tree = page.getByRole("tree", { name: "Files" });
   await tree.getByRole("treeitem", { name: "README.md" }).click();
