@@ -128,5 +128,44 @@ export function gitCommands(c: Ctx): Command[] {
         }
       },
     },
+    {
+      id: "git.commit",
+      title: "Git commit (<Space>gc, :Gcommit)",
+      run: (arg) => {
+        const doCommit = async (msg: string) => {
+          const trimmed = msg.trim();
+          if (!trimmed) return c.fail("Commit message cannot be empty");
+          try {
+            await c.files.gitCommit(trimmed);
+            c.ed.gitChanged();
+            c.say(`Committed: ${trimmed.split("\n")[0]}`);
+          } catch (e) {
+            c.fail(errText(e));
+          }
+        };
+        const raw = arg?.trim();
+        if (raw) {
+          const msg = raw.startsWith("-m ") ? raw.slice(3).replace(/^["']|["']$/g, "") : raw;
+          void doCommit(msg);
+        } else {
+          c.prompt("Git commit message", "", doCommit);
+        }
+      },
+    },
+    {
+      id: "git.diffSplit",
+      title: "Diff split against HEAD (<Space>gD, :Gvdiffsplit)",
+      run: async () => {
+        const buf = c.ed.current();
+        if (!buf) return c.fail("No file open");
+        const path = buf.path.startsWith("head://") ? buf.path.slice("head://".length) : buf.path;
+        if (path.startsWith("/")) return c.fail("Cannot diff absolute paths");
+        try {
+          await c.ed.diffSplit(path);
+        } catch (e) {
+          c.fail(errText(e));
+        }
+      },
+    },
   ];
 }

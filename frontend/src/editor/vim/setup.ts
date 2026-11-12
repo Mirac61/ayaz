@@ -31,6 +31,9 @@ const EX: [name: string, prefix: string, command: string][] = [
   ["harpoon", "harpoon", "harpoon.menu"],
   ["Gwrite", "Gw", "git.stageFile"],
   ["Gread", "Gr", "git.discardFile"],
+  ["Gcommit", "Gc", "git.commit"],
+  ["Gvdiffsplit", "Gvd", "git.diffSplit"],
+  ["Gdiffsplit", "Gd", "git.diffSplit"],
   ["checkupdate", "checkupdate", "ayaz.checkForUpdates"],
 ];
 

@@ -599,6 +599,67 @@
   opacity: 0.8;
   flex: none;
 }
+.git-commit-box {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--edge);
+  background: var(--bg-1);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: none;
+}
+.git-commit-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--bg-2);
+  color: var(--fg-1);
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  line-height: 1.4;
+  resize: vertical;
+  min-height: 48px;
+  outline: none;
+}
+.git-commit-input:focus {
+  border-color: var(--accent);
+}
+.git-commit-input::placeholder {
+  color: var(--fg-4);
+}
+.git-commit-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.git-commit-meta {
+  font-size: 10px;
+  color: var(--fg-3);
+  font-family: var(--font-mono);
+}
+.git-commit-btn {
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 3px;
+  border: 1px solid var(--edge);
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  transition: opacity 0.15s, filter 0.15s;
+}
+.git-commit-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: var(--bg-3);
+  color: var(--fg-3);
+  border-color: transparent;
+}
+.git-commit-btn:not(:disabled):hover {
+  filter: brightness(1.1);
+}
 .git-changes-empty {
   flex: 1;
   display: flex;
@@ -1601,6 +1662,19 @@
 }
 .tabbar .tab .base {
   flex: none;
+}
+.tabbar .tab .tab-head-badge {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: var(--git-mod);
+  color: var(--bg-1);
+  margin-right: 5px;
+  letter-spacing: 0.5px;
+  display: inline-block;
+  vertical-align: middle;
 }
 .tabbar .dirty {
   display: inline-block;

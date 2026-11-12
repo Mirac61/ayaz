@@ -354,6 +354,25 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       return { processId: 1000 };
     };
 
+    ed.onDiffSplit = async (path: string) => {
+      const headPath = `head://${path}`;
+      const existing = ed.findPaneWithPath(headPath);
+      if (existing !== null && panes(lay.current).includes(existing)) {
+        if (panes(lay.current).length > 1) {
+          await closePane(true, existing);
+          return;
+        }
+      }
+      try {
+        await files.gitHead(path);
+      } catch (e) {
+        fail(`HEAD version not available for ${path}: ${errText(e)}`);
+        return;
+      }
+      const nid = splitPane("row", undefined, ed.active, true);
+      openNext.current.set(nid, headPath);
+    };
+
     // A terminal as a tab of the active pane, beside its files; the panel and unusual panes get a split instead.
     const termTab = (cmd?: string) => {
       if (ed.active <= 0) return termSplit(cmd);
@@ -1089,6 +1108,20 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
               await run("file.open", p);
               run("git.diff");
             }}
+            onDiffSplit={async (p) => {
+              await run("file.open", p);
+              run("git.diffSplit");
+            }}
+            onCommit={async (msg) => {
+              try {
+                await files.gitCommit(msg);
+                loadGit();
+                say(`Committed: ${msg.split("\n")[0]}`);
+              } catch (e) {
+                fail(errText(e));
+                throw e;
+              }
+            }}
             onLeave={() => ed.focus(ed.active)}
             onLazygit={() => run("term.lazygit")}
             onStageFile={async (p) => {
@@ -1157,7 +1190,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
               }
               const side = openNext.current.get(id);
               openNext.current.delete(id);
-              if (side) void ed.open(side, id).then(() => ed.focus(id), (e) => fail(errText(e)));
+              if (side) void ed.open(side, id).then(() => { ed.focus(id); ed.syncScroll(id); }, (e) => fail(errText(e)));
               let ready: Promise<unknown> = Promise.resolve();
               if (id === 1 && initial) ready = restore(id).then(() => ed.open(initial, 1)).catch(() => {});
               else if (session) ready = restore(id);

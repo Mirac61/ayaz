@@ -130,4 +130,21 @@ func TestActions(t *testing.T) {
 	if string(content) != "a\n" {
 		t.Errorf("a.txt not restored, got %q", string(content))
 	}
+
+	// 9. Commit
+	write(t, filepath.Join(root, "c.txt"), "hello commit\n")
+	if err := StageFile(root, "c.txt"); err != nil {
+		t.Fatalf("StageFile c.txt: %v", err)
+	}
+	if err := Commit(root, "test commit message"); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	st, _ = StatusDetailed(root)
+	if len(st) != 0 {
+		t.Errorf("expected clean repo after commit, got %+v", st)
+	}
+	// Empty message should fail
+	if err := Commit(root, "   "); err == nil {
+		t.Errorf("expected error for empty commit message")
+	}
 }

@@ -100,6 +100,7 @@ export interface Files {
   gitDiscardFile(path: string): Promise<void>;
   gitStageAll(): Promise<void>;
   gitUnstageAll(): Promise<void>;
+  gitCommit(msg: string): Promise<void>;
   // Hot exit: unsaved text kept in the user cache, outside the project.
   swapWrite(path: string, text: string): Promise<void>;
   swapRemove(path: string): Promise<void>;
@@ -196,6 +197,7 @@ export const backend: Backend = {
     gitDiscardFile: (path) => WorkspaceService.GitDiscardFile(ws, path),
     gitStageAll: () => WorkspaceService.GitStageAll(ws),
     gitUnstageAll: () => WorkspaceService.GitUnstageAll(ws),
+    gitCommit: (msg) => WorkspaceService.GitCommit(ws, msg),
     swapWrite: (path, text) => WorkspaceService.SwapWrite(ws, path, text),
     swapRemove: (path) => WorkspaceService.SwapRemove(ws, path),
     swaps: async () => (await WorkspaceService.Swaps(ws)) ?? [],

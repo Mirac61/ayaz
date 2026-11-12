@@ -78,6 +78,13 @@ export function GitBranch(ws: string): $CancellablePromise<string> {
 }
 
 /**
+ * GitCommit creates a new git commit with message from staged changes.
+ */
+export function GitCommit(ws: string, msg: string): $CancellablePromise<void> {
+    return $Call.ByID(1858349014, ws, msg);
+}
+
+/**
  * GitDetailedStatus returns detailed info for each changed file.
  */
 export function GitDetailedStatus(ws: string): $CancellablePromise<git$0.FileStatus[] | null> {

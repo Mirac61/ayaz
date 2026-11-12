@@ -82,6 +82,8 @@ export function defaultKeymap(mac = isMac): Binding[] {
     n("<Space>gA", "git.stageAll"),
     n("<Space>gU", "git.unstageAll"),
     n("<Space>gd", "git.diff"),
+    n("<Space>gD", "git.diffSplit"),
+    n("<Space>gc", "git.commit"),
     n("<Space>gb", "git.blame"),
     n("<Space>gs", "git.status"),
     ...Object.entries(panes).flatMap(([k, cmd]) => [n(`<C-${k}>`, cmd), n(`<C-w>${k}`, cmd), t(`<C-${k}>`, cmd)]),

@@ -165,3 +165,19 @@ func UnstageAll(root string) error {
 	}
 	return nil
 }
+
+// Commit creates a new git commit with message from staged changes.
+func Commit(root, msg string) error {
+	m := strings.TrimSpace(msg)
+	if m == "" {
+		return fmt.Errorf("commit message cannot be empty")
+	}
+	out, ok, err := run(root, "commit", "-m", m)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return fmt.Errorf("git commit failed: %s", strings.TrimSpace(string(out)))
+	}
+	return nil
+}
