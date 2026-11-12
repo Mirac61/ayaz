@@ -11,5 +11,5 @@ if ! timeout 60 sudo apt-get $APT update; then
   timeout 90 sudo apt-get $APT update
 fi
 if [ "$#" -gt 0 ]; then
-  timeout 300 sudo DEBIAN_FRONTEND=noninteractive apt-get $APT install -y "$@"
+  timeout 600 sudo DEBIAN_FRONTEND=noninteractive apt-get $APT install -y "$@"
 fi
