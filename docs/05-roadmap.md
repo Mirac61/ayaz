@@ -342,6 +342,10 @@ Done when: all four language groups have diagnostics, completion and navigation.
 
 - Done 2026-11-12: conditional breakpoints, logpoints and hit counts via `<Space>dB` and prompt parser (`breakpoints.ts`, `debug/dap.ts`); gutter markers distinguish solid red dot (unconditional), hollow red dot (condition or hit count), and red diamond (logpoint); session format migrates seamlessly from legacy `number[]` to `Breakpoint[]`; unit tests in `breakpoints.test.ts`, `session.test.ts`, `dap.test.ts`, and `debugger.test.ts`.
 
+## M71 – Debugger: watch expressions
+
+- Done 2026-11-12: watch expressions via `<Space>dw` prompt and evaluate in the frame of the stopped thread (`session.ts`, `debugger.ts`); displayed as "Watch" scope above Locals in the variables picker (`<Space>dv`, `debug/variables.ts`), selecting a watch expression removes it; `<Space>de` evaluates the word or selection at the cursor; unit tests in `variables.test.ts` and `debugger.test.ts`.
+
 ## Later
 
 | | What | Plugs into |

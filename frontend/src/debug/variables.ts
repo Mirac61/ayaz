@@ -10,6 +10,8 @@ export interface Row {
   ref: number; // 0: nothing below
   open: boolean;
   children?: Row[]; // loaded when opened for the first time
+  isWatch?: boolean;
+  isWatchScope?: boolean;
 }
 
 export const rowOf = (v: Variable): Row => (
@@ -22,7 +24,8 @@ export interface Line { label: string; hint: string; row: Row; depth: number }
 // The visible lines: every open row's children follow it, indented. ▾ open, ▸ closed with something below.
 export function lines(rows: Row[], depth = 0): Line[] {
   return rows.flatMap((row) => {
-    const mark = row.ref > 0 ? (row.open ? "▾" : "▸") : " ";
+    const hasChildren = row.ref > 0 || (row.children && row.children.length > 0);
+    const mark = hasChildren ? (row.open ? "▾" : "▸") : " ";
     const value = row.value ? ` = ${row.value}` : "";
     const own: Line = { label: `${"  ".repeat(depth)}${mark} ${row.name}${value}`, hint: row.type ?? "", row, depth };
     return row.open && row.children ? [own, ...lines(row.children, depth + 1)] : [own];

@@ -59,12 +59,25 @@ export class DebugSession {
   async scopes(): Promise<Scope[]> {
     const frame = this.frames[0];
     if (this.state !== "paused" || !frame) return [];
-    return (await this.client.request<{ scopes: Scope[] }>("scopes", { frameId: frame.id })).scopes;
+    const res = await this.client.request<{ scopes?: Scope[] }>("scopes", { frameId: frame.id });
+    return res.scopes ?? [];
   }
 
   // The children of a scope or variable.
   async variables(ref: number): Promise<Variable[]> {
     return (await this.client.request<{ variables: Variable[] }>("variables", { variablesReference: ref })).variables;
+  }
+
+  // Evaluates expr in the context of the innermost frame (or without a frame if none).
+  async evaluate(expression: string, context: "watch" | "hover" | "repl" = "watch"): Promise<{ result: string; type?: string; variablesReference: number }> {
+    const frame = this.frames[0];
+    const args: { expression: string; context: string; frameId?: number } = { expression, context };
+    if (frame) args.frameId = frame.id;
+    return this.client.request<{ result: string; type?: string; variablesReference: number }>("evaluate", args);
+  }
+
+  watch(expression: string) {
+    return this.evaluate(expression, "watch");
   }
 
   // New breakpoints for one file while the program runs or is stopped.

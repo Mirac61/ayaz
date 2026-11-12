@@ -12,7 +12,10 @@ export function debugCommands(c: Ctx): Command[] {
   const variables = (rows: Row[], start = 0): PickerSource => {
     const shown = lines(rows), byItem = new WeakMap<Item, Row>();
     const items = shown.map((l): Item => {
-      const item = { label: l.label, hint: l.hint };
+      const hint = l.row.isWatch
+        ? (l.row.ref > 0 ? `${l.hint} · Enter to open` : `${l.hint} · Enter to remove`)
+        : l.hint;
+      const item = { label: l.label, hint };
       byItem.set(item, l.row);
       return item;
     });
@@ -23,6 +26,16 @@ export function debugCommands(c: Ctx): Command[] {
       pick(item) {
         const row = byItem.get(item);
         if (!row) return;
+        if (row.isWatchScope) return;
+        if (row.isWatch && row.ref <= 0) {
+          c.dbg.removeWatch(row.name);
+          c.say(`Removed watch: ${row.name}`);
+          void c.dbg.variables().then(
+            (newRows) => (newRows ? c.setPicker(variables(newRows)) : null),
+            (e) => c.fail(errText(e)),
+          );
+          return;
+        }
         if (row.ref <= 0) return c.say(`${row.name} = ${row.value}`);
         void c.dbg.toggleRow(row).then(
           () => c.setPicker(variables(rows, shown.findIndex((l) => l.row === row))),
@@ -85,6 +98,48 @@ export function debugCommands(c: Ctx): Command[] {
       title: "Debug: variables of the stopped program (<Space>dv)",
       run: () => void c.dbg.variables().then((rows) => (rows ? c.setPicker(variables(rows)) : c.say("The program isn't stopped")),
         (e) => c.fail(errText(e))),
+    },
+    {
+      id: "debug.addWatch",
+      title: "Debug: add watch expression (<Space>dw)",
+      run() {
+        c.prompt("Add watch expression", "", async (expr) => {
+          const trimmed = expr.trim();
+          if (!trimmed) return;
+          c.dbg.addWatch(trimmed);
+          c.say(`Watch expression added: ${trimmed}`);
+          if (c.dbg.status === "paused") {
+            void c.dbg.variables().then(
+              (rows) => (rows ? c.setPicker(variables(rows)) : null),
+              (e) => c.fail(errText(e)),
+            );
+          }
+        });
+      },
+    },
+    {
+      id: "debug.evaluate",
+      title: "Debug: evaluate expression at cursor (<Space>de)",
+      run() {
+        const cur = c.ed.current();
+        if (!cur) return c.fail("No editor here to evaluate");
+        const v = c.ed.activeView();
+        let word = "";
+        if (v) {
+          const sel = v.state.selection.main;
+          if (!sel.empty) word = v.state.sliceDoc(sel.from, sel.to);
+          else {
+            const w = v.state.wordAt(sel.head);
+            if (w) word = v.state.sliceDoc(w.from, w.to);
+          }
+        }
+        word = word.trim();
+        if (!word) return c.say("No word under cursor to evaluate");
+        void c.dbg.evaluate(word, "hover").then(
+          (res) => c.say(`${word} = ${res.result}`),
+          (e) => c.fail(errText(e)),
+        );
+      },
     },
     { id: "debug.stop", title: "Debug: stop (<Space>dq)", run: () => void c.dbg.stop() },
     { id: "debug.output", title: "Debug: show the program's output (<Space>dl)", run: () => void c.ed.showOutput() },

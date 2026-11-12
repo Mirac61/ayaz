@@ -36,3 +36,24 @@ test("a variable with nothing below doesn't toggle", async () => {
   await toggle(row, async () => { throw new Error("must not load"); });
   expect(row.open).toBe(false);
 });
+
+test("Watch scope with evaluated expressions displays open with children", () => {
+  const watchItems = [
+    { name: "i + 1", value: "3", type: "int (watch)", ref: 0, open: false, isWatch: true },
+    { name: "total", value: "6", type: "int (watch)", ref: 0, open: false, isWatch: true },
+  ];
+  const watchScope = {
+    name: "Watch",
+    value: "",
+    ref: 0,
+    open: true,
+    children: watchItems,
+    isWatchScope: true,
+  };
+  const shown = lines([watchScope]).map((l) => [l.label, l.hint]);
+  expect(shown).toEqual([
+    ["▾ Watch", ""],
+    ["    i + 1 = 3", "int (watch)"],
+    ["    total = 6", "int (watch)"],
+  ]);
+});

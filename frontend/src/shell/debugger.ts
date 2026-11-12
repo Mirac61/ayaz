@@ -19,6 +19,7 @@ export type DebugStatus = "idle" | DebugState;
 
 export class Debugger {
   private session: DebugSession | null = null;
+  private watches: string[] = [];
 
   constructor(
     private root: string,
@@ -30,6 +31,22 @@ export class Debugger {
 
   get status(): DebugStatus { return this.session?.state ?? "idle"; }
   get frames() { return this.session?.frames ?? []; }
+  get watchesList(): string[] { return [...this.watches]; }
+
+  addWatch(expr: string) {
+    const trimmed = expr.trim();
+    if (trimmed && !this.watches.includes(trimmed)) this.watches.push(trimmed);
+  }
+
+  removeWatch(expr: string) {
+    this.watches = this.watches.filter((w) => w !== expr);
+  }
+
+  async evaluate(expr: string, context: "watch" | "hover" | "repl" = "watch") {
+    const s = this.session;
+    if (!s || s.state !== "paused") throw new Error("The program isn't stopped");
+    return s.evaluate(expr, context);
+  }
 
   // Starts debugging what the active file's adapter debugs (a Go file: its package) with the breakpoints of every loaded
   // buffer.
@@ -65,7 +82,7 @@ export class Debugger {
     await s.resume(kind);
   }
 
-  // The stopped program's scopes as rows to open: Locals and Arguments come open, the expensive ones (Globals) closed.
+  // The stopped program's scopes as rows to open: Watch (if any) and Locals/Arguments come open, Globals closed.
   // null: nothing is stopped.
   async variables(): Promise<Row[] | null> {
     const s = this.session;
@@ -74,6 +91,39 @@ export class Debugger {
     const rows = scopes.map(scopeRow);
     for (let i = 0; i < rows.length; i++) {
       if (!scopes[i].expensive) await toggle(rows[i], (ref) => s.variables(ref));
+    }
+    if (this.watches.length) {
+      const children: Row[] = [];
+      for (const expr of this.watches) {
+        try {
+          const res = await s.evaluate(expr, "watch");
+          children.push({
+            name: expr,
+            value: res.result,
+            type: res.type ? `${res.type} (watch)` : "watch",
+            ref: res.variablesReference ?? 0,
+            open: false,
+            isWatch: true,
+          });
+        } catch (e) {
+          children.push({
+            name: expr,
+            value: e instanceof Error ? e.message : String(e),
+            type: "error",
+            ref: 0,
+            open: false,
+            isWatch: true,
+          });
+        }
+      }
+      rows.unshift({
+        name: "Watch",
+        value: "",
+        ref: 0,
+        open: true,
+        children,
+        isWatchScope: true,
+      });
     }
     return rows;
   }

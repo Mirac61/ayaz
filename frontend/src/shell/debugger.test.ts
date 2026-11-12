@@ -156,3 +156,33 @@ test("start picks the adapter for the active file and passes its id to connect",
   expect(launchReq?.arguments).toEqual({ mode: "debug", program: "/p/internal/foo", cwd: "/p" });
   await dbg.stop();
 });
+
+test("watch expressions evaluate in the frame and prepend a Watch scope to variables", async () => {
+  const { f, dbg } = setup();
+  dbg.addWatch("i + 1");
+  dbg.addWatch("total");
+  expect(dbg.watchesList).toEqual(["i + 1", "total"]);
+  await dbg.start();
+  f.push({ type: "event", event: "stopped", body: { reason: "breakpoint", threadId: 1 } });
+  await tick();
+
+  const rows = await dbg.variables();
+  expect(rows?.[0].name).toBe("Watch");
+  expect(rows?.[0].children?.map((c) => [c.name, c.value])).toEqual([
+    ["i + 1", "val(i + 1)"],
+    ["total", "val(total)"],
+  ]);
+
+  dbg.removeWatch("i + 1");
+  expect(dbg.watchesList).toEqual(["total"]);
+});
+
+test("evaluate calls evaluate request on the active session frame", async () => {
+  const { f, dbg } = setup();
+  await dbg.start();
+  f.push({ type: "event", event: "stopped", body: { reason: "breakpoint", threadId: 1 } });
+  await tick();
+
+  const res = await dbg.evaluate("myVar");
+  expect(res.result).toBe("val(myVar)");
+});

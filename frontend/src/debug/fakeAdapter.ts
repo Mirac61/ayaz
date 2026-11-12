@@ -40,6 +40,10 @@ export function fakeAdapter(opts: FakeOptions = {}) {
       } else if (m.command === "disconnect") {
         respond(m);
         if (opts.closeOnDisconnect) queueMicrotask(() => closed());
+      } else if (m.command === "evaluate") {
+        respond(m, special ?? { result: `val(${m.arguments?.expression})`, type: "int", variablesReference: 0 });
+      } else if (m.command === "scopes") {
+        respond(m, special ?? { scopes: [] });
       } else respond(m, special ?? {});
     },
     onMessage: (fn) => { toClient = fn; },
