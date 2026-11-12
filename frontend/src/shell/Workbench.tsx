@@ -1,5 +1,6 @@
 import { mdLinks } from "../editor/mdrender";
 import { setDropHandler } from "./dnd";
+import { AyazLogo } from "./AyazLogo";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { EditorView } from "@codemirror/view";
@@ -1241,6 +1242,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
         ))}
         {status.path === null && status.lines === 1 && status.col === 1 && panes(layout).length === 1 && (
           <div className="pane-empty" aria-hidden>
+            <AyazLogo size={48} className="pane-empty-logo" />
             <div className="pane-empty-name">{ws.name}</div>
             {([["find.files", "Go to file"], ["find.grep", "Search in files"], ["find.commands", "Command palette"],
               ["term.panel", "Terminal"], ["tree.focus", "File tree"]] as const).map(([id, what]) => (

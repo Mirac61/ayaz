@@ -382,6 +382,10 @@
   gap: 6px;
   pointer-events: none;
 }
+.pane-empty-logo {
+  margin-bottom: 4px;
+  filter: drop-shadow(0 0 16px rgba(112, 214, 255, 0.4));
+}
 .pane-empty-name {
   margin-bottom: 14px;
   font: 600 20px var(--font-ui);
