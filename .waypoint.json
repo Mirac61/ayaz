@@ -14,13 +14,13 @@
     {
       "id": "3",
       "title": "Fix Linux GUI deps and git author config for CI",
-      "status": "IN_PROGRESS"
+      "status": "DONE"
     },
     {
       "id": "4",
       "title": "Verify green CI workflow run on GitHub",
-      "status": "TODO"
+      "status": "DONE"
     }
   ],
-  "updated_at": "2026-11-12T20:57:00Z"
+  "updated_at": "2026-11-12T20:59:50Z"
 }
