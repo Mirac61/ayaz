@@ -153,7 +153,7 @@ test("start picks the adapter for the active file and passes its id to connect",
   await dbg.start();
   expect(passedAdapter).toBe("go");
   const launchReq = f.requests.find((r) => r.command === "launch");
-  expect(launchReq?.arguments).toEqual({ mode: "debug", program: "/p/internal/foo", cwd: "/p" });
+  expect(launchReq?.arguments).toEqual({ mode: "debug", program: "/p/internal/foo", cwd: "/p", console: "integratedTerminal" });
   await dbg.stop();
 });
 
@@ -185,4 +185,27 @@ test("evaluate calls evaluate request on the active session frame", async () => 
 
   const res = await dbg.evaluate("myVar");
   expect(res.result).toBe("val(myVar)");
+});
+
+test("runInTerminal forwards adapter request to editor", async () => {
+  let terminalLaunched: any = null;
+  const f = fakeAdapter();
+  const nothing = async () => {};
+  const ed: DebugEditor = {
+    breakpoints: () => ({}),
+    activePath: () => null,
+    openAt: nothing,
+    setDebugLine: () => {},
+    appendOutput: nothing,
+    runInTerminal: async (args) => {
+      terminalLaunched = args;
+      return { processId: 999 };
+    },
+  };
+  const dbg = new Debugger("/p", ed, () => f.transport, () => {}, () => {});
+  await dbg.start();
+  f.push({ type: "request", seq: 15, command: "runInTerminal", arguments: { args: ["./main"], cwd: "/p" } });
+  await tick();
+  expect(terminalLaunched).toEqual({ args: ["./main"], cwd: "/p" });
+  expect(f.got).toContain("response:runInTerminal:true");
 });

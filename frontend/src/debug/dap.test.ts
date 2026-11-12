@@ -17,7 +17,7 @@ test("the breakpoints go out as absolute paths with their lines", async () => {
   await launch(new DapClient(f.transport), { root: "/p", breakpoints: { "main.go": [5, 9] } });
   const bp = sent.find((m) => m.command === "setBreakpoints");
   expect(bp.arguments).toEqual({ source: { path: "/p/main.go" }, breakpoints: [{ line: 5 }, { line: 9 }] });
-  expect(sent.find((m) => m.command === "launch").arguments).toEqual({ mode: "debug", program: "/p", cwd: "/p" });
+  expect(sent.find((m) => m.command === "launch").arguments).toEqual({ mode: "debug", program: "/p", cwd: "/p", console: "integratedTerminal" });
 });
 
 test("conditional breakpoints, logpoints and hitCondition are forwarded in setBreakpoints", async () => {
@@ -89,4 +89,18 @@ test("a request from the adapter gets an answer saying no", async () => {
   f.push({ type: "request", seq: 7, command: "runInTerminal", arguments: {} });
   await new Promise((r) => setTimeout(r, 10));
   expect(f.got).toEqual(["response:runInTerminal:false"]);
+});
+
+test("a runInTerminal request from the adapter is handled when onRunInTerminal is set", async () => {
+  const f = fake();
+  const client = new DapClient(f.transport);
+  let handledArgs: any = null;
+  client.onRunInTerminal = async (args) => {
+    handledArgs = args;
+    return { processId: 4321 };
+  };
+  f.push({ type: "request", seq: 8, command: "runInTerminal", arguments: { args: ["./prog"], cwd: "/p" } });
+  await new Promise((r) => setTimeout(r, 10));
+  expect(handledArgs).toEqual({ args: ["./prog"], cwd: "/p" });
+  expect(f.got).toEqual(["response:runInTerminal:true"]);
 });

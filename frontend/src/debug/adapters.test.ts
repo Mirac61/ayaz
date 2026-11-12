@@ -25,5 +25,6 @@ test("goAdapter launch generates correct arguments", () => {
     mode: "debug",
     program: "/root/pkg/server",
     cwd: "/root",
+    console: "integratedTerminal",
   });
 });

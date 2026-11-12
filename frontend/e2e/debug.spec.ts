@@ -109,3 +109,55 @@ func main() {
   await page.keyboard.press("F5");
   await expect(status).not.toContainText("DEBUG", { timeout: 30_000 });
 });
+
+test("debug a program that reads stdin via runInTerminal", async ({ page }) => {
+  test.skip(!hasDlv, "dlv not in PATH");
+  test.skip(process.env.AYAZ_DEBUG_E2E !== "1", "set AYAZ_DEBUG_E2E=1 to run it (needs developer tools access on macOS)");
+  test.setTimeout(120_000);
+  mkdirSync(join(e2eWorkspace, "zstdin"), { recursive: true });
+  writeFileSync(join(e2eWorkspace, "zstdin", "main.go"), `package main
+
+import (
+	"bufio"
+	"fmt"
+	"os"
+)
+
+func main() {
+	scanner := bufio.NewScanner(os.Stdin)
+	if scanner.Scan() {
+		text := scanner.Text()
+		fmt.Println("got", text)
+	}
+}
+`);
+  await page.goto("/");
+  const tree = page.getByRole("tree", { name: "Files" });
+  await tree.getByRole("treeitem", { name: "zstdin" }).click();
+  await tree.getByRole("treeitem", { name: "main.go" }).click();
+  const code = page.locator(".cm-content");
+  await expect(code).toContainText("scanner.Scan()");
+
+  // Breakpoint at fmt.Println("got", text) (line 13)
+  await page.keyboard.type("gg12j db");
+
+  await page.keyboard.type(" dd");
+  // Terminal split should open from runInTerminal
+  const term = page.locator(".pane-term");
+  await expect(term).toBeVisible({ timeout: 90_000 });
+
+  // Type input into the terminal
+  await term.click();
+  await page.keyboard.type("hello-ayaz\n");
+
+  const status = page.locator(".statusline");
+  await expect(status).toContainText("DEBUG paused", { timeout: 30_000 });
+
+  await page.keyboard.type(" dv");
+  const picker = page.getByRole("dialog", { name: /Variables/ });
+  await expect(picker.getByRole("option", { name: /text = "hello-ayaz"/ })).toBeVisible({ timeout: 15_000 });
+  await page.keyboard.press("Escape");
+
+  await page.keyboard.press("F5");
+  await expect(status).not.toContainText("DEBUG", { timeout: 30_000 });
+});

@@ -24,11 +24,21 @@ interface Message {
 
 type Listener = (body: any) => void;
 
+export interface RunInTerminalArgs {
+  kind?: "integrated" | "external";
+  title?: string;
+  cwd?: string;
+  args: string[];
+  env?: Record<string, string>;
+  argsCanBeMultivalued?: boolean;
+}
+
 export class DapClient {
   private seq = 1;
   private pending = new Map<number, { resolve(body: unknown): void; reject(e: Error): void; command: string }>();
   private listeners = new Map<string, Set<Listener>>();
   private done = false;
+  onRunInTerminal?: (args: RunInTerminalArgs) => Promise<{ processId?: number; shellProcessId?: number } | void>;
 
   constructor(private t: Transport) {
     t.onMessage((raw) => this.handle(JSON.parse(raw) as Message));
@@ -86,10 +96,22 @@ export class DapClient {
     } else if (m.type === "event") {
       this.emit(m.event ?? "", m.body);
     } else if (m.type === "request") {
-      // A request from the adapter (runInTerminal): nothing here can do it, say so instead of leaving it waiting.
       const seq = this.seq++;
-      const refusal = { seq, type: "response", request_seq: m.seq, command: m.command, success: false, message: "not supported" };
-      this.t.send(JSON.stringify(refusal));
+      if (m.command === "runInTerminal" && this.onRunInTerminal) {
+        this.onRunInTerminal(m.arguments as RunInTerminalArgs).then(
+          (body) => {
+            const resp = { seq, type: "response", request_seq: m.seq, command: m.command, success: true, body: body ?? {} };
+            this.t.send(JSON.stringify(resp));
+          },
+          (err) => {
+            const resp = { seq, type: "response", request_seq: m.seq, command: m.command, success: false, message: err instanceof Error ? err.message : String(err) };
+            this.t.send(JSON.stringify(resp));
+          },
+        );
+      } else {
+        const refusal = { seq, type: "response", request_seq: m.seq, command: m.command, success: false, message: "not supported" };
+        this.t.send(JSON.stringify(refusal));
+      }
     }
   }
 
@@ -128,6 +150,7 @@ export async function launch(client: DapClient, opts: LaunchOptions): Promise<vo
   await client.request("initialize", {
     clientID: "ayaz", clientName: "Ayaz", adapterID: adapter.adapterId, linesStartAt1: true, columnsStartAt1: true, pathFormat: "path",
     supportsVariableType: true,
+    supportsRunInTerminalRequest: true,
   });
   const initialized = client.next("initialized");
   const launched = client.request("launch", adapter.launch(opts.program ?? opts.root, opts.root));

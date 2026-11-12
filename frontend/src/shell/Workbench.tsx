@@ -322,6 +322,13 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       splitPane("row", { ws: ws.id, cmd, dir, ...more });
     };
 
+    ed.onRunInTerminal = async (args) => {
+      const quote = (a: string) => (/^[a-zA-Z0-9_\-\.\/]+$/.test(a) ? a : JSON.stringify(a));
+      const cmd = args.args.map(quote).join(" ");
+      termSplit(cmd, { dir: args.cwd });
+      return { processId: 1000 };
+    };
+
     // A terminal as a tab of the active pane, beside its files; the panel and unusual panes get a split instead.
     const termTab = (cmd?: string) => {
       if (ed.active <= 0) return termSplit(cmd);

@@ -1,6 +1,7 @@
 import type { DebugAdapter } from "./adapters";
 import {
-  DapClient, launch, setBreakpoints, type Breakpoint, type OutputEvent, type Scope, type StackFrame, type StoppedEvent, type Variable,
+  DapClient, launch, setBreakpoints, type Breakpoint, type OutputEvent, type RunInTerminalArgs,
+  type Scope, type StackFrame, type StoppedEvent, type Variable,
 } from "./dap";
 
 // One debugging session: starting, the program stopping and running again, stepping, ending. The editor side
@@ -14,6 +15,7 @@ export interface DebugHooks {
   stopped(at: { path: string; line: number } | null, reason: string): void;
   output(text: string, category: string): void;
   ended(): void;
+  runInTerminal?(args: RunInTerminalArgs): Promise<{ processId?: number; shellProcessId?: number } | void>;
 }
 
 export type Step = "continue" | "next" | "stepIn" | "stepOut";
@@ -34,6 +36,9 @@ export class DebugSession {
     client.on("terminated", () => this.end());
     client.on("exited", () => this.end());
     client.on("closed", () => this.end());
+    if (hooks.runInTerminal) {
+      client.onRunInTerminal = (args) => hooks.runInTerminal!(args);
+    }
   }
 
   // Launches program (an absolute path, the root's own by default) with these breakpoints (workspace-relative path

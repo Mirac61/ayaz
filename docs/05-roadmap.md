@@ -346,6 +346,10 @@ Done when: all four language groups have diagnostics, completion and navigation.
 
 - Done 2026-11-12: watch expressions via `<Space>dw` prompt and evaluate in the frame of the stopped thread (`session.ts`, `debugger.ts`); displayed as "Watch" scope above Locals in the variables picker (`<Space>dv`, `debug/variables.ts`), selecting a watch expression removes it; `<Space>de` evaluates the word or selection at the cursor; unit tests in `variables.test.ts` and `debugger.test.ts`.
 
+## M72 – Debugger: program stdin and runInTerminal
+
+- Done 2026-11-12: program stdin via DAP `runInTerminal` reverse request support (`supportsRunInTerminalRequest` in `dap.ts`, `"console": "integratedTerminal"` in `adapters.ts`); `runInTerminal` request opens an integrated terminal split in `Workbench.tsx` via `ed.runInTerminal` and returns process ID; unit tests in `dap.test.ts` and `debugger.test.ts`, opt-in E2E in `debug.spec.ts`.
+
 ## Later
 
 | | What | Plugs into |

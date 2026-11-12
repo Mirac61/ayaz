@@ -1,6 +1,6 @@
 import type { Breakpoint } from "../editor/breakpoints";
 import { pickAdapter } from "../debug/adapters";
-import { DapClient, type Transport } from "../debug/dap";
+import { DapClient, type RunInTerminalArgs, type Transport } from "../debug/dap";
 import { DebugSession, type DebugState, type Step } from "../debug/session";
 import { scopeRow, toggle, type Row } from "../debug/variables";
 
@@ -13,6 +13,7 @@ export interface DebugEditor {
   openAt(path: string, line: number, col: number): Promise<void>;
   setDebugLine(path: string | null, line?: number): void;
   appendOutput(text: string): Promise<void>;
+  runInTerminal?(args: RunInTerminalArgs): Promise<{ processId?: number; shellProcessId?: number } | void>;
 }
 
 export type DebugStatus = "idle" | DebugState;
@@ -66,6 +67,7 @@ export class Debugger {
         if (this.session === session) this.session = null;
         this.onStatus("idle");
       },
+      runInTerminal: this.ed.runInTerminal ? (args) => this.ed.runInTerminal!(args) : undefined,
     }));
     try {
       await session.start(this.ed.breakpoints(), target ? `${this.root}/${target}` : undefined, adapter);

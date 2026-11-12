@@ -651,6 +651,12 @@ export class Editors {
     return v ? getBreakpointOf(v) : null;
   }
 
+  onRunInTerminal?: (args: { args: string[]; cwd?: string; env?: Record<string, string>; title?: string }) => Promise<{ processId?: number; shellProcessId?: number } | void>;
+
+  runInTerminal(args: { args: string[]; cwd?: string; env?: Record<string, string>; title?: string }) {
+    return this.onRunInTerminal ? this.onRunInTerminal(args) : Promise.resolve();
+  }
+
   // Marks the line the debugger stopped on in path (and nowhere else); null clears it everywhere.
   setDebugLine(path: string | null, line = 0) {
     for (const b of this.buffers.list()) {

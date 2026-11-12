@@ -16,7 +16,7 @@ export const goAdapter: DebugAdapter = {
   binary: "dlv",
   adapterId: "go",
   target: (path) => (path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : ""), // Delve debugs a package: the file's folder
-  launch: (program, root) => ({ mode: "debug", program, cwd: root }),
+  launch: (program, root) => ({ mode: "debug", program, cwd: root, console: "integratedTerminal" }),
 };
 
 const byExt: Record<string, DebugAdapter> = { go: goAdapter };
