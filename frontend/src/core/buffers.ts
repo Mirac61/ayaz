@@ -15,8 +15,8 @@ export type Eol = "\n" | "\r\n";
 export const eolOf = (text: string): Eol => (/\r\n/.test(text.slice(0, text.indexOf("\n") + 1)) ? "\r\n" : "\n");
 export const lf = (text: string) => text.replace(/\r\n/g, "\n");
 
-// Buffers with no file: the debugger's output.
-export const isVirtual = (path: string) => path.startsWith("debug://");
+// Buffers with no file: the debugger's output, or git HEAD snapshots.
+export const isVirtual = (path: string) => path.startsWith("debug://") || path.startsWith("head://");
 
 export const isDirty = (b: Buffer) => !b.state.doc.eq(b.saved);
 
@@ -51,7 +51,18 @@ export class Buffers {
 
   // Returns the loaded buffer, or reads the file. A missing file gives an empty new buffer (like `:e new.txt`).
   async open(path: string): Promise<Buffer> {
-    return this.m.get(path) ?? this.load(path);
+    const have = this.m.get(path);
+    if (have) return have;
+    if (path.startsWith("head://")) {
+      const real = path.slice("head://".length);
+      const head = await this.files.gitHead(real);
+      const content = head.tracked ? head.text : "";
+      const state = await this.makeState(real, lf(content));
+      const b: Buffer = { path, state, mtime: 0, saved: state.doc, eol: "\n" };
+      this.m.set(path, b);
+      return b;
+    }
+    return this.load(path);
   }
 
   // A buffer with no file behind it (the debugger's output): read-only, never dirty, never read from disk or swapped.
@@ -133,6 +144,7 @@ export class Buffers {
 
   // Writes the buffer. Without force, a file changed on disk since reading rejects ("file changed on disk").
   async save(b: Buffer, force = false): Promise<void> {
+    if (isVirtual(b.path)) throw new Error(`Cannot save virtual buffer: ${b.path}`);
     const doc = b.state.doc;
     let expected = b.mtime;
     if (force) expected = await this.files.readText(b.path).then((f) => f.mtime, (e) => (notFound(e) ? 0 : Promise.reject(e)));

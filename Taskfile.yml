@@ -31,8 +31,8 @@ tasks:
     summary: Runs all Go and frontend unit tests
     cmds:
       - go test ./...
-      - '{{.PACKAGE_MANAGER}} --cwd frontend run typecheck'
-      - '{{.PACKAGE_MANAGER}} --cwd frontend run test'
+      - '{{.PACKAGE_MANAGER}} run --cwd frontend typecheck'
+      - '{{.PACKAGE_MANAGER}} run --cwd frontend test'
 
   release:local:
     summary: Builds and publishes a release locally without using GitHub Actions minutes

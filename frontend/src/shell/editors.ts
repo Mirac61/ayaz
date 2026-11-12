@@ -356,7 +356,16 @@ export class Editors {
       t.setAttribute("aria-selected", String(active));
       t.title = path;
       const name = Object.assign(document.createElement("span"), { className: "tab-name" });
-      if (active && slash >= 0) {
+      const isHead = path.startsWith("head://");
+      const real = isHead ? path.slice("head://".length) : path;
+      const headSlash = isHead ? real.lastIndexOf("/") : slash;
+      if (isHead) {
+        const badge = document.createElement("span");
+        badge.className = "tab-head-badge";
+        badge.textContent = "HEAD";
+        const base = Object.assign(document.createElement("span"), { className: "base", textContent: real.slice(headSlash + 1) });
+        name.append(badge, base);
+      } else if (active && slash >= 0) {
         const dir = document.createElement("span");
         dir.className = "dir";
         dir.textContent = path.slice(0, slash + 1);
@@ -405,6 +414,26 @@ export class Editors {
   termTitle(id: number) { return this.panes.get(id)?.title ?? ""; }
   isTerm(id = this.active) { return !!this.panes.get(id)?.term; }
 
+  // Returns the pane showing path, or having it as a tab, or null if not open.
+  findPaneWithPath(path: string): number | null {
+    for (const [id, p] of this.panes) {
+      if (p.buf?.path === path || (this.tabs.get(id) ?? []).includes(path)) return id;
+    }
+    return null;
+  }
+
+  viewOf(id: number): EditorView | null {
+    return this.panes.get(id)?.view ?? null;
+  }
+
+  allPanes(): { id: number; path: string | null }[] {
+    const res: { id: number; path: string | null }[] = [];
+    for (const [id, p] of this.panes) {
+      res.push({ id, path: p.buf?.path ?? null });
+    }
+    return res;
+  }
+
   // An editor pane with no file: a new terminal takes it over instead of splitting.
   isEmpty(id = this.active) { const p = this.panes.get(id); return !!p?.view && !p.buf; }
 
@@ -447,12 +476,20 @@ export class Editors {
   }
 
   // Markdown source and preview (the same buffer, one pane in the reading view) keep the same line at the top.
+  // Diff split pairs (head://<path> and <path>) stay synchronized.
   // Only the active pane leads, so the scroll it causes in the other one doesn't come back.
   syncScroll(id: number) {
     const v = this.panes.get(id)?.view, b = this.panes.get(id)?.buf;
     if (!v || !b) return;
-    for (const o of this.panes.values())
-      if (o.buf === b && o.view !== v && isReading(o.view!.state) !== isReading(v.state)) o.view!.dispatch({ effects: v.scrollSnapshot() });
+    for (const o of this.panes.values()) {
+      if (!o.view || o.view === v) continue;
+      if (o.buf === b && isReading(o.view.state) !== isReading(v.state)) {
+        o.view.dispatch({ effects: v.scrollSnapshot() });
+      } else if (o.buf && (b.path === `head://${o.buf.path}` || o.buf.path === `head://${b.path}`)) {
+        o.view.scrollDOM.scrollTop = v.scrollDOM.scrollTop;
+        o.view.scrollDOM.scrollLeft = v.scrollDOM.scrollLeft;
+      }
+    }
   }
 
   // Reading view in the active editor; false if it isn't a Markdown file.
@@ -655,6 +692,12 @@ export class Editors {
 
   runInTerminal(args: { args: string[]; cwd?: string; env?: Record<string, string>; title?: string }) {
     return this.onRunInTerminal ? this.onRunInTerminal(args) : Promise.resolve();
+  }
+
+  onDiffSplit?: (path: string) => Promise<void>;
+
+  diffSplit(path: string): Promise<void> {
+    return this.onDiffSplit ? this.onDiffSplit(path) : Promise.resolve();
   }
 
   // Marks the line the debugger stopped on in path (and nowhere else); null clears it everywhere.

@@ -29,6 +29,7 @@ function fakeFiles(init: Record<string, string>) {
     gitDiscardFile: async () => {},
     gitStageAll: async () => {},
     gitUnstageAll: async () => {},
+    gitCommit: async () => {},
     swapWrite: async (path, text) => void swaps.set(path, text),
     swapRemove: async (path) => void swaps.delete(path),
     swaps: async () => [...swaps].map(([path, text]) => ({ path, text })),
@@ -195,4 +196,17 @@ test("diff replaces only the changed middle", () => {
   expect(diff("aaa", "aa")).toEqual({ from: 2, to: 3, insert: "" });
   expect(diff("", "new")).toEqual({ from: 0, to: 0, insert: "new" });
   expect(diff("same", "same")).toEqual({ from: 4, to: 4, insert: "" });
+});
+
+test("head:// virtual buffer loads text from gitHead and is marked virtual", async () => {
+  const { bufs, files } = make({ "hello.go": "world" });
+  files.gitHead = async (p: string) => {
+    if (p === "hello.go") return { text: "hello original", tracked: true };
+    return { text: "", tracked: false };
+  };
+  const b = await bufs.open("head://hello.go");
+  expect(b.path).toBe("head://hello.go");
+  expect(b.state.doc.toString()).toBe("hello original");
+  // Cannot be saved
+  await expect(bufs.save(b)).rejects.toThrow();
 });

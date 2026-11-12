@@ -17,6 +17,7 @@ interface Props {
   branch: string;
   onOpen(path: string): void;
   onDiff(path: string): void;
+  onDiffSplit?(path: string): void;
   onLeave(): void;
   onLazygit(): void;
   onStageFile?(path: string): Promise<void>;
@@ -24,6 +25,7 @@ interface Props {
   onDiscardFile?(path: string): Promise<void>;
   onStageAll?(): Promise<void>;
   onUnstageAll?(): Promise<void>;
+  onCommit?(msg: string): Promise<void>;
 }
 
 const GIT_BADGE: Record<string, string> = {
@@ -50,6 +52,7 @@ export const GitChanges: React.FC<Props> = ({
   branch,
   onOpen,
   onDiff,
+  onDiffSplit,
   onLeave,
   onLazygit,
   onStageFile,
@@ -57,11 +60,15 @@ export const GitChanges: React.FC<Props> = ({
   onDiscardFile,
   onStageAll,
   onUnstageAll,
+  onCommit,
 }) => {
   const el = useRef<HTMLDivElement>(null);
   const [cursor, setCursor] = useState(0);
   const [menu, setMenu] = useState<{ x: number; y: number; items: MenuItem[] } | null>(null);
   const [confirmDiscard, setConfirmDiscard] = useState<string | null>(null);
+  const [commitMsg, setCommitMsg] = useState("");
+  const [committing, setCommitting] = useState(false);
+  const commitInputRef = useRef<HTMLTextAreaElement>(null);
 
   // Group items into Staged and Unstaged
   let stagedItems: GitItem[] = [];
@@ -107,6 +114,26 @@ export const GitChanges: React.FC<Props> = ({
     onDiff(path);
   };
 
+  const diffSplitItem = (path: string) => {
+    if (onDiffSplit) onDiffSplit(path);
+    else onDiff(path);
+  };
+
+  const handleCommit = async () => {
+    const trimmed = commitMsg.trim();
+    if (!trimmed || committing || stagedItems.length === 0) return;
+    setCommitting(true);
+    try {
+      await onCommit?.(trimmed);
+      setCommitMsg("");
+      el.current?.focus();
+    } catch {
+      // Handled by caller
+    } finally {
+      setCommitting(false);
+    }
+  };
+
   const handleStageToggle = (item: GitItem) => {
     if (item.isStaged) {
       onUnstageFile?.(item.path);
@@ -148,8 +175,15 @@ export const GitChanges: React.FC<Props> = ({
       case "o":
         if (allItems[cur]) openItem(allItems[cur].path);
         break;
+      case "c":
+        e.preventDefault();
+        commitInputRef.current?.focus();
+        break;
       case "d":
         if (allItems[cur]) diffItem(allItems[cur].path);
+        break;
+      case "D":
+        if (allItems[cur]) diffSplitItem(allItems[cur].path);
         break;
       case "s":
         if (allItems[cur]) handleStageToggle(allItems[cur]);
@@ -193,7 +227,8 @@ export const GitChanges: React.FC<Props> = ({
         ? { label: "Unstage file", hint: "u", run: () => void onUnstageFile?.(item.path) }
         : { label: "Stage file", hint: "s", run: () => void onStageFile?.(item.path) },
       { label: "Discard changes...", hint: "x", run: () => setConfirmDiscard(item.path) },
-      { label: "Diff against HEAD", hint: "d", run: () => diffItem(item.path) },
+      { label: "Diff split against HEAD", hint: "D", run: () => diffSplitItem(item.path) },
+      { label: "Inline diff against HEAD", hint: "d", run: () => diffItem(item.path) },
       { label: "Open file", hint: "Enter", run: () => openItem(item.path) },
       { label: "Open Lazygit", hint: "<Space>gg", run: onLazygit },
     ];
@@ -340,6 +375,50 @@ export const GitChanges: React.FC<Props> = ({
           </span>
         )}
       </div>
+
+      {onCommit && (
+        <div className="git-commit-box">
+          <textarea
+            ref={commitInputRef}
+            className="git-commit-input"
+            placeholder={
+              stagedItems.length > 0
+                ? "Commit message (Ctrl+Enter to commit)..."
+                : "Commit message (stage changes first)..."
+            }
+            value={commitMsg}
+            onChange={(e) => setCommitMsg(e.target.value)}
+            onKeyDown={(e) => {
+              if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+                e.preventDefault();
+                void handleCommit();
+              } else if (e.key === "Escape") {
+                e.preventDefault();
+                el.current?.focus();
+              }
+            }}
+            rows={2}
+          />
+          <div className="git-commit-actions">
+            <span className="git-commit-meta">
+              {stagedItems.length} {stagedItems.length === 1 ? "staged change" : "staged changes"}
+            </span>
+            <button
+              type="button"
+              className="git-commit-btn"
+              disabled={committing || !commitMsg.trim() || stagedItems.length === 0}
+              onClick={() => void handleCommit()}
+              title={
+                stagedItems.length === 0
+                  ? "Stage changes first to commit"
+                  : "Commit staged changes (Ctrl+Enter)"
+              }
+            >
+              {committing ? "Committing..." : "Commit"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {confirmDiscard && (
         <div className="git-confirm-discard">

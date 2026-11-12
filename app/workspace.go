@@ -368,6 +368,19 @@ func (s *WorkspaceService) GitUnstageAll(ws string) error {
 	return nil
 }
 
+// GitCommit creates a new git commit with message from staged changes.
+func (s *WorkspaceService) GitCommit(ws, msg string) error {
+	w, err := s.reg.Get(ws)
+	if err != nil {
+		return err
+	}
+	if err := git.Commit(w.Root, msg); err != nil {
+		return err
+	}
+	s.emit("git:changed", GitChange{WS: ws})
+	return nil
+}
+
 // HeadFile is a file's text at HEAD; Tracked is false for new files and outside a repository.
 type HeadFile struct {
 	Text    string `json:"text"`
