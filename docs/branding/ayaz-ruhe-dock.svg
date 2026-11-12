@@ -1,0 +1,32 @@
+<svg viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="sq-bg-ruhe" x1="256" y1="36" x2="256" y2="476" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#161722"/>
+      <stop offset="100%" stop-color="#07080c"/>
+    </linearGradient>
+    <linearGradient id="sq-rim-ruhe" x1="256" y1="36" x2="256" y2="476" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.22"/>
+      <stop offset="50%" stop-color="#ffffff" stop-opacity="0.04"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.7"/>
+    </linearGradient>
+    <linearGradient id="dock-halo-ruhe" x1="140" y1="140" x2="372" y2="372" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="35%" stop-color="#70d6ff"/>
+      <stop offset="80%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+  </defs>
+  <!-- macOS Squircle -->
+  <rect x="36" y="36" width="440" height="440" rx="100" fill="url(#sq-bg-ruhe)"/>
+  <rect x="36" y="36" width="440" height="440" rx="100" stroke="url(#sq-rim-ruhe)" stroke-width="2"/>
+  <rect x="38" y="38" width="436" height="180" rx="98" fill="white" fill-opacity="0.03"/>
+  
+  <!-- Blue Space Aura -->
+  <circle cx="256" cy="256" r="140" fill="#38bdf8" opacity="0.22" filter="blur(26px)"/>
+  <circle cx="256" cy="256" r="136" stroke="rgba(255,255,255,0.08)" stroke-width="2"/>
+
+  <!-- Radiant Eclipse Ring -->
+  <circle cx="256" cy="256" r="106" stroke="url(#dock-halo-ruhe)" stroke-width="8" filter="drop-shadow(0 0 14px #70d6ff)"/>
+  <circle cx="256" cy="256" r="102" fill="#0d0e14"/>
+  <circle cx="256" cy="150" r="5" fill="#ffffff" filter="drop-shadow(0 0 8px #ffffff)"/>
+</svg>

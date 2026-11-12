@@ -1,0 +1,38 @@
+<svg viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="sq-bg-frost" x1="256" y1="36" x2="256" y2="476" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#181a24"/>
+      <stop offset="100%" stop-color="#08090d"/>
+    </linearGradient>
+    <linearGradient id="sq-rim-frost" x1="256" y1="36" x2="256" y2="476" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.25"/>
+      <stop offset="50%" stop-color="#ffffff" stop-opacity="0.04"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.7"/>
+    </linearGradient>
+  </defs>
+  <!-- macOS Squircle -->
+  <rect x="36" y="36" width="440" height="440" rx="100" fill="url(#sq-bg-frost)"/>
+  <rect x="36" y="36" width="440" height="440" rx="100" stroke="url(#sq-rim-frost)" stroke-width="2"/>
+  <rect x="38" y="38" width="436" height="180" rx="98" fill="white" fill-opacity="0.03"/>
+  
+  <!-- Cyan Atmosphere -->
+  <circle cx="256" cy="256" r="140" fill="#70d6ff" opacity="0.18" filter="blur(26px)"/>
+
+  <!-- Centered Faceted Crystal -->
+  <polygon points="256,98 274,236 256,256 256,98" fill="#ffffff"/>
+  <polygon points="256,98 256,256 238,236 256,98" fill="#cbe6ff"/>
+  <polygon points="256,414 274,276 256,256 256,414" fill="#38bdf8"/>
+  <polygon points="256,414 256,256 238,276 256,414" fill="#0284c7"/>
+
+  <polygon points="98,256 236,238 256,256 98,256" fill="#70d6ff"/>
+  <polygon points="98,256 256,256 236,274 98,256" fill="#0284c7"/>
+  <polygon points="414,256 276,238 256,256 414,256" fill="#ffffff"/>
+  <polygon points="414,256 256,256 276,274 414,256" fill="#cbe6ff"/>
+
+  <polygon points="368,144 276,236 256,256" fill="#e0f2fe"/>
+  <polygon points="368,368 276,276 256,256" fill="#0369a1"/>
+  <polygon points="144,144 236,236 256,256" fill="#bae6fd"/>
+  <polygon points="144,368 236,276 256,256" fill="#0284c7"/>
+
+  <polygon points="256,224 288,256 256,288 224,256" fill="#ffffff" filter="drop-shadow(0 0 10px #ffffff)"/>
+</svg>
