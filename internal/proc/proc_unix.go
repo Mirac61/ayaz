@@ -6,8 +6,41 @@ package proc
 import (
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"syscall"
 )
+
+func init() {
+	// Ensure common developer bin directories are in PATH even when launched from macOS Finder or Launchpad
+	home, _ := os.UserHomeDir()
+	var extraPaths []string
+	if home != "" {
+		extraPaths = []string{
+			filepath.Join(home, "go", "bin"),
+			filepath.Join(home, ".cargo", "bin"),
+			filepath.Join(home, ".bun", "bin"),
+			filepath.Join(home, ".local", "bin"),
+			filepath.Join(home, "bin"),
+		}
+	}
+	extraPaths = append(extraPaths,
+		"/opt/homebrew/bin",
+		"/opt/homebrew/sbin",
+		"/usr/local/bin",
+	)
+
+	curPath := os.Getenv("PATH")
+	var toAdd []string
+	for _, p := range extraPaths {
+		if !strings.Contains(curPath, p) {
+			toAdd = append(toAdd, p)
+		}
+	}
+	if len(toAdd) > 0 {
+		_ = os.Setenv("PATH", strings.Join(toAdd, ":")+":"+curPath)
+	}
+}
 
 // Shell is the user's shell.
 func Shell() string {

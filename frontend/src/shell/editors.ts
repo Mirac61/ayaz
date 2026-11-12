@@ -288,7 +288,7 @@ export class Editors {
   }
 
   // The tab the pane shows: a file, a viewer's file or "term://title".
-  private currentTab(id: number): string | undefined {
+  currentTab(id: number): string | undefined {
     const p = this.panes.get(id);
     return p?.buf?.path ?? (p?.viewer ? p.title : p?.term ? `${TERM}${p.title}` : undefined);
   }

@@ -322,8 +322,19 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
   ed.onTermExit = (id) => (panes(lay.current).length > 1 ? void closePane(true, id) : ed.replace(id));
     ed.onTabMenu = (at, path, id) => {
       const items: MenuItem[] = [{ label: "Close", run: () => void ed.tabClose(path, id) }];
-      // A terminal's tab has no file to keep or copy, and closing its tab ends its shell: the rest is for files.
-      if (!path.startsWith("term://")) {
+      if (path.startsWith("term://")) {
+        items.push({
+          label: "Move to bottom panel",
+          run: () => {
+            const cwd = ed.termCwd(id) || undefined;
+            void ed.tabClose(path, id);
+            setPanel("shown");
+            ed.replace(PANEL, { ws: ws.id, dir: cwd });
+            ed.focus(PANEL);
+            say("Moved terminal to bottom panel");
+          },
+        });
+      } else {
         items.push(
           {
             label: "Close others",
@@ -607,8 +618,35 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
           say("Sent to terminal");
         },
       },
-      { id: "term.tab", title: "Terminal in a tab", run: termTab },
+      { id: "term.tab", title: "Terminal in a tab (<Space>tt)", run: termTab },
       { id: "term.split", title: "Terminal in a split (:terminal)", run: () => termSplit() },
+      {
+        id: "term.moveToEditor",
+        title: "Move panel terminal to editor tab (<Space>to)",
+        run() {
+          const cwd = ed.termCwd(PANEL) || undefined;
+          const target = lastSplit.current > 0 ? lastSplit.current : 1;
+          setPanel("hidden");
+          setMax(false);
+          ed.replace(target, { ws: ws.id, dir: cwd }, true);
+          ed.focus(target);
+          say("Moved terminal to editor tab");
+        },
+      },
+      {
+        id: "term.moveToPanel",
+        title: "Move terminal to bottom panel",
+        run() {
+          if (ed.active <= 0 || !ed.isTerm(ed.active)) return fail("Active tab is not a terminal");
+          const cwd = ed.termCwd(ed.active) || undefined;
+          const cur = ed.currentTab(ed.active);
+          if (cur) void ed.tabClose(cur, ed.active);
+          setPanel("shown");
+          ed.replace(PANEL, { ws: ws.id, dir: cwd });
+          ed.focus(PANEL);
+          say("Moved terminal to bottom panel");
+        },
+      },
       {
         id: "term.lazygit",
         title: "lazygit",
@@ -1253,6 +1291,8 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
               <span className="tab-close" title="Hide terminal panel" onMouseDown={click("term.panel")} />
             </button>
             <span className="panel-tools">
+              <IconButton glyph="\uf062" label="Move terminal to editor tab" tip={tip("Move terminal to editor tab", "term.moveToEditor")}
+                onPress={go("term.moveToEditor")} />
               <IconButton glyph={dock === "bottom" ? "\uf061" : dock === "right" ? "\uf062" : "\uf063"} label="Move terminal panel"
                 tip="Move terminal panel (bottom, right, top)" onPress={go("term.dock")} />
               <IconButton glyph={max ? "\uf066" : "\uf065"} label="Maximize terminal panel" tip={tip("Maximize terminal panel", "term.maximize")}

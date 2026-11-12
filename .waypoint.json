@@ -1,26 +1,26 @@
 {
-  "objective": "Full CI/CD Pipeline and v0.3.0 Release",
+  "objective": "Fix LSP PATH detection and add terminal move-to-editor features",
   "tasks": [
     {
       "id": "1",
-      "title": "Audit and optimize CI workflow with multi-platform build matrix",
+      "title": "Fix LSP detection on macOS/Linux by enriching PATH with developer bin directories",
       "status": "DONE"
     },
     {
       "id": "2",
-      "title": "Optimize Release workflow (test pre-check, robust packaging & notes)",
+      "title": "Add move terminal to editor tab feature (button, command, keymap)",
       "status": "DONE"
     },
     {
       "id": "3",
-      "title": "Verify CI build & push to main",
+      "title": "Add move editor terminal to bottom panel feature",
       "status": "DONE"
     },
     {
       "id": "4",
-      "title": "Tag v0.3.0 and verify release build on GitHub Actions",
+      "title": "Verify all unit tests and typechecks pass",
       "status": "DONE"
     }
   ],
-  "updated_at": "2026-11-12T21:48:40Z"
+  "updated_at": "2026-11-12T22:06:00Z"
 }

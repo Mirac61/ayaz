@@ -148,9 +148,11 @@ test("defaultKeymap binds Harpoon quick keys", () => {
   expect(km.find((b) => b.keys === "<Space>fa")?.command).toBe("harpoon.menu");
 });
 
-test("defaultKeymap binds terminal send and floating scratchpad", () => {
+test("defaultKeymap binds terminal send, tab, move to editor and floating scratchpad", () => {
   const km = defaultKeymap();
   expect(km.find((b) => b.keys === "<Space>ts")?.command).toBe("term.send");
+  expect(km.find((b) => b.keys === "<Space>tt")?.command).toBe("term.tab");
+  expect(km.find((b) => b.keys === "<Space>to")?.command).toBe("term.moveToEditor");
   expect(km.find((b) => b.keys === "<Space>tf")?.command).toBe("term.float");
   expect(km.find((b) => b.keys === "<C-CR>")?.command).toBe("term.send");
 });
