@@ -386,7 +386,7 @@ export class Editors {
       // Middle click closes, like in a browser.
       t.addEventListener("mousedown", (e) => {
         e.preventDefault();
-        if (!term) startDrag(e, path);
+        startDrag(e, path);
         void (e.button === 1 ? this.tabClose(path, id) : this.open(path, id));
       });
       return t;

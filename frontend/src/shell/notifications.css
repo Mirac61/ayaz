@@ -1,0 +1,114 @@
+/* Floating notifications / toasts container (noice.nvim style) */
+.notifications-container {
+  position: fixed;
+  top: 48px;
+  right: 20px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 420px;
+  pointer-events: none;
+}
+
+.notification-toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm, 6px);
+  background: var(--overlay, rgba(24, 25, 32, 0.95));
+  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+  border: 1px solid var(--edge-overlay, #363646);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  font: 13px/1.4 var(--font-ui, sans-serif);
+  color: var(--fg-1, #dcd7ba);
+  animation: toast-in 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  cursor: pointer;
+  user-select: none;
+}
+
+.notification-toast:hover {
+  border-color: var(--border-focus, #7e9cd8);
+}
+
+.notification-toast.toast-success {
+  border-left: 3px solid var(--accent, #76946a);
+}
+.notification-toast.toast-info {
+  border-left: 3px solid var(--info, #7e9cd8);
+}
+.notification-toast.toast-warning {
+  border-left: 3px solid var(--warning, #dca561);
+}
+.notification-toast.toast-error {
+  border-left: 3px solid var(--error, #e46876);
+}
+
+.toast-icon {
+  flex: none;
+  font-family: var(--font-mono, monospace);
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+}
+
+.toast-success .toast-icon {
+  color: var(--accent, #76946a);
+}
+.toast-info .toast-icon {
+  color: var(--info, #7e9cd8);
+}
+.toast-warning .toast-icon {
+  color: var(--warning, #dca561);
+}
+.toast-error .toast-icon {
+  color: var(--error, #e46876);
+}
+
+.toast-body {
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.toast-close {
+  flex: none;
+  background: none;
+  border: none;
+  color: var(--fg-4, #727169);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  opacity: 0.6;
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+.notification-toast:hover .toast-close {
+  opacity: 1;
+}
+
+.toast-close:hover {
+  color: var(--fg-1, #dcd7ba);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(20px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}

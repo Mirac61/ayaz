@@ -73,18 +73,24 @@ const theme = EditorView.theme(
     ".cm-dialog button": { font: "12.5px var(--font-ui)", color: "var(--fg-1)", background: "none", border: "none", padding: "0 4px" },
     ".cm-dialog .cm-dialog-close": { background: "none", color: "var(--fg-3)", top: "50%", transform: "translateY(-50%)", right: "8px" },
     ".cm-tooltip-autocomplete > ul > li[aria-selected]": { backgroundColor: "var(--bg-3)", color: "var(--fg-1)" },
-    // Vim ":" and "/" command bar floats as a Spotlight overlay over the pane.
+    // Vim search "/" and prompt bar floats as a Noice-style overlay over the window.
     ".cm-panels": { backgroundColor: "transparent", color: c.fg, border: "none" },
     ".cm-panels-bottom": {
-      position: "fixed", top: "58px", bottom: "auto", left: "50%", transform: "translateX(-50%)",
-      width: "min(520px, calc(100% - 32px))", backgroundColor: "var(--overlay, #181920)",
-      border: "1px solid var(--edge-overlay)", borderRadius: "2px",
-      boxShadow: "0 16px 40px rgb(0 0 0 / 0.45)", zIndex: 10, overflow: "hidden",
+      position: "fixed", top: "18%", bottom: "auto", left: "50%", transform: "translateX(-50%)",
+      width: "min(580px, calc(100% - 32px))", backgroundColor: "var(--overlay, #181920)",
+      backdropFilter: "blur(20px) saturate(1.25)", WebkitBackdropFilter: "blur(20px) saturate(1.25)",
+      border: "1px solid var(--edge-overlay)", borderRadius: "var(--radius, 8px)",
+      boxShadow: "0 20px 48px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.04)",
+      zIndex: 900, overflow: "hidden",
     },
-    ".cm-vim-panel": { padding: "10px 16px", fontFamily: "var(--font-mono)", fontSize: "14px" },
+    ".cm-vim-panel": {
+      display: "flex", alignItems: "center", gap: "10px", padding: "10px 14px",
+      fontFamily: "var(--font-mono)", fontSize: "14px",
+    },
     ".cm-vim-panel input": {
       color: c.fg, fontFamily: "var(--font-mono)", fontSize: "14px",
-      background: "none", border: "none", outline: "none",
+      background: "none", border: "none", outline: "none", flex: "1",
+      caretColor: "var(--accent, #7e9cd8)",
     },
     ".cm-lintRange-error": { backgroundImage: "none", textDecoration: "underline wavy var(--error, #e82424)", textUnderlineOffset: "4px" },
     // The worst diagnostic after its line (editor/diagtext.ts); shell.css hides them with html[data-diag-text="off"].

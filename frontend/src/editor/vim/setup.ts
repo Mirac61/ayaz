@@ -51,14 +51,14 @@ export function isEx(q: string): boolean {
   return EX_WORDS.has(word) && (!rest.length || word.length <= 3 || /^[A-Z]/.test(word));
 }
 
-// ":" in normal mode opens the command palette, which also runs ex lines; visual mode keeps Vim's line for '<,'>.
+// ":" in normal mode opens the floating Noice-style cmdline; visual mode keeps Vim's line for '<,'>.
 // Only the workbench asks for it: the Vim tests in the browser type ex lines into Vim's own line.
 let paletteKey = false;
 export function installPaletteKey() {
   if (paletteKey) return;
   paletteKey = true;
-  Vim.defineAction("ayazPalette", () => run("find.commands"));
-  Vim.mapCommand(":", "action", "ayazPalette", {}, { context: "normal" });
+  Vim.defineAction("ayazCmdline", () => run("view.cmdline"));
+  Vim.mapCommand(":", "action", "ayazCmdline", {}, { context: "normal" });
 }
 
 // u and <C-r> ask here first: the workbench runs them in the pane that made the buffer's latest change (M41).

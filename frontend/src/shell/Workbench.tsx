@@ -43,6 +43,10 @@ import { updaterStore, type UpdateProgress, type UpdateState } from "../core/upd
 import { UpdateDialog } from "./UpdateDialog";
 import { applyDiagText } from "./diagText";
 import { recentCommands, rememberCommand } from "./recentCommands";
+import { startDrag } from "./dnd";
+import { notify } from "../core/notifications";
+import { Notifications } from "./Notifications";
+import { Cmdline } from "./Cmdline";
 import { Handle, Hints, Pane } from "./parts";
 import { ContextMenu, IconButton, Seg, type MenuItem } from "../ui/ui";
 import "./shell.css";
@@ -137,6 +141,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
   const [sideTab, setSideTab] = useState<"files" | "git">("files");
   const [lspMissing, setLspMissing] = useState<ReadonlySet<string>>(new Set()); // servers not found in PATH
   const [showUpdateDialog, setShowUpdateDialog] = useState(false);
+  const [showCmdline, setShowCmdline] = useState(false);
   const [updateState, setUpdateState] = useState<UpdateState>(() => updaterStore.state);
   const [updateInfo, setUpdateInfo] = useState(() => updaterStore.info);
   const [updateProgress, setUpdateProgress] = useState<UpdateProgress | null>(() => updaterStore.progress);
@@ -256,9 +261,13 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
   const fail = (text: string, sticky = false) => {
     clearTimeout(msgTimer.current);
     setMsg({ text, error: true });
+    notify.fail(text, sticky ? 0 : 5500);
     if (!sticky) msgTimer.current = setTimeout(() => setMsg(null), ERROR_MS);
   };
-  const say = (text: string) => setTransientMsg({ text });
+  const say = (text: string) => {
+    notify.say(text);
+    setTransientMsg({ text });
+  };
   // The debugger (M48): one session per window, its stops shown in the editors, its state in the status line.
   const [debug, setDebug] = useState<DebugStatus>("idle");
   const sayRef = useRef(say);
@@ -271,6 +280,8 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
   useEffect(() => setLspMessages(ws.id, (text, level) => {
     if (level === "error" || level === "warning") {
       setMsg({ text, error: level === "error", warning: level === "warning" });
+      if (level === "error") notify.fail(text);
+      else notify.warn(text);
     }
   }), [ws.id]);
   const run = (id: string, arg?: string) =>
@@ -313,6 +324,26 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
     // A shell that exits closes its pane (Editors finds the pane, it may have moved); the last pane turns back into an editor.
     mdLinks.open = (p) => run("file.open", p);
   setDropHandler((path, id, zone) => {
+    if (path === "__panel_term__") {
+      const cwd = ed.termCwd(PANEL) || undefined;
+      setPanel("hidden");
+      setMax(false);
+      if (zone !== "center") {
+        const newPane = splitPane(zone === "left" || zone === "right" ? "row" : "col", undefined, id, zone === "left" || zone === "top");
+        ed.replace(newPane, { ws: ws.id, dir: cwd }, true);
+        ed.focus(newPane);
+      } else {
+        ed.replace(id, { ws: ws.id, dir: cwd }, true);
+        ed.focus(id);
+      }
+      say("Moved terminal to editor tab");
+      return;
+    }
+    if (path.startsWith("term://")) {
+      ed.focus(id);
+      ed.open(path, id).then(() => ed.focus(id), (e) => fail(errText(e)));
+      return;
+    }
     if (zone !== "center") {
       openNext.current.set(splitPane(zone === "left" || zone === "right" ? "row" : "col", undefined, id, zone === "left" || zone === "top"), path);
       return;
@@ -493,6 +524,11 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
             fail(`Update check failed: ${e instanceof Error ? e.message : String(e)}`);
           }
         },
+      },
+      {
+        id: "view.cmdline",
+        title: "Open command line (:)",
+        run: () => setShowCmdline(true),
       },
       {
         id: "view.zen",
@@ -1054,7 +1090,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
           </Seg>
         ) : null}
         {ft && <span className="filetype" title="Language">{ft}</span>}
-        <Seg className="location" onPress={go("find.commands", ":")} title="Go to a line (:)">
+        <Seg className="location" onPress={go("view.cmdline")} title="Command line (:)">
           {status.info ?? `${status.line}:${status.col}`}
         </Seg>
       </span>
@@ -1288,13 +1324,18 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
             }}
           />
           <header className="tabbar panel-head">
-            <button type="button" className="tab active term" tabIndex={-1}>
+            <button
+              type="button"
+              className="tab active term"
+              tabIndex={-1}
+              onMouseDown={(e) => {
+                if (e.button === 0) startDrag(e, "__panel_term__");
+              }}
+            >
               <span className="tab-name">{panelTitle}</span>
               <span className="tab-close" title="Hide terminal panel" onMouseDown={click("term.panel")} />
             </button>
             <span className="panel-tools">
-              <IconButton glyph="\uf062" label="Move terminal to editor tab" tip={tip("Move terminal to editor tab", "term.moveToEditor")}
-                onPress={go("term.moveToEditor")} />
               <IconButton glyph={dock === "bottom" ? "\uf061" : dock === "right" ? "\uf062" : "\uf063"} label="Move terminal panel"
                 tip="Move terminal panel (bottom, right, top)" onPress={go("term.dock")} />
               <IconButton glyph={max ? "\uf066" : "\uf065"} label="Maximize terminal panel" tip={tip("Maximize terminal panel", "term.maximize")}
@@ -1367,6 +1408,19 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
             />
           </div>
         </div>
+      )}
+      <Notifications />
+      {showCmdline && (
+        <Cmdline
+          mode="ex"
+          commands={commands.list()}
+          onExecuteEx={(cmd) => ed.ex(cmd)}
+          onExecuteCommand={(id) => run(id)}
+          onClose={() => {
+            setShowCmdline(false);
+            ed.focus(ed.active);
+          }}
+        />
       )}
       {showUpdateDialog && <UpdateDialog onClose={() => setShowUpdateDialog(false)} />}
     </div>

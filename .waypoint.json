@@ -1,26 +1,31 @@
 {
-  "objective": "Fix LSP PATH detection and add terminal move-to-editor features",
+  "objective": "Floating Cmdline (noice-style) & Terminal Tab Drag-and-Drop",
   "tasks": [
     {
       "id": "1",
-      "title": "Fix LSP detection on macOS/Linux by enriching PATH with developer bin directories",
+      "title": "Remove broken '\\uf062' button and preserve panel dock/maximize tools",
       "status": "DONE"
     },
     {
       "id": "2",
-      "title": "Add move terminal to editor tab feature (button, command, keymap)",
+      "title": "Floating Cmdline (noice-style): popup input for ':' and '/' with backdrop",
       "status": "DONE"
     },
     {
       "id": "3",
-      "title": "Add move editor terminal to bottom panel feature",
+      "title": "Floating Messages: toast notifications for say/fail/Vim messages with smooth fade-out",
       "status": "DONE"
     },
     {
       "id": "4",
-      "title": "Verify all unit tests and typechecks pass",
+      "title": "Terminal Tab Drag-and-Drop: drag terminal tab from bottom panel into editor tabs and vice-versa",
+      "status": "DONE"
+    },
+    {
+      "id": "5",
+      "title": "Verification: run tests, typecheck, package and install to /Applications/Ayaz.app",
       "status": "DONE"
     }
   ],
-  "updated_at": "2026-11-12T22:06:00Z"
+  "updated_at": "2026-11-12T23:40:00Z"
 }

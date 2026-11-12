@@ -37,7 +37,12 @@ export function startDrag(down: { clientX: number; clientY: number; button: numb
   const move = (e: MouseEvent) => {
     if (!ghost) {
       if (Math.hypot(e.clientX - down.clientX, e.clientY - down.clientY) < THRESHOLD) return;
-      ghost = Object.assign(document.createElement("div"), { className: "drag-ghost", textContent: path.slice(path.lastIndexOf("/") + 1) });
+      const title = path.startsWith("term://")
+        ? path.slice(7)
+        : path === "__panel_term__"
+        ? "terminal"
+        : path.slice(path.lastIndexOf("/") + 1);
+      ghost = Object.assign(document.createElement("div"), { className: "drag-ghost", textContent: title });
       mark = Object.assign(document.createElement("div"), { className: "drop-zone" });
       document.body.append(ghost, mark);
       document.body.classList.add("dragging");
