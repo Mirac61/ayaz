@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/Mirac61/ayaz/internal/proc"
 	"log"
+	"os/exec"
 	"sync"
 
 	"github.com/Mirac61/ayaz/internal/dap"
@@ -15,11 +16,13 @@ import (
 type dapAdapter struct {
 	binary  string
 	command string
+	check   string
 	stdio   bool
 }
 
 var dapAdapters = map[string]dapAdapter{
-	"go": {binary: "dlv", command: "dlv dap --listen=127.0.0.1:0", stdio: false},
+	"go":     {binary: "dlv", command: "dlv dap --listen=127.0.0.1:0", stdio: false},
+	"python": {binary: "debugpy", command: "python3 -m debugpy.adapter", check: "python3 -m debugpy --version", stdio: true},
 }
 
 type dapConfig struct {
@@ -49,7 +52,13 @@ func (s *WorkspaceService) HandleDAP(c *application.StreamConn) {
 		return
 	}
 	shell := proc.Shell()
-	if !lsp.Available(shell, spec.binary) {
+	available := false
+	if spec.check != "" {
+		available = exec.Command(shell, "-l", "-c", spec.check).Run() == nil
+	} else {
+		available = lsp.Available(shell, spec.binary)
+	}
+	if !available {
 		emitLsp(LspStatus{WS: cfg.WS, Lang: spec.binary, State: "missing", Command: spec.binary})
 		return
 	}

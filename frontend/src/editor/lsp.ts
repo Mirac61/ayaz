@@ -437,6 +437,7 @@ const INSTALL: Record<string, string> = {
   tinymist: "brew install tinymist",
   texlab: "brew install texlab",
   dlv: "go install github.com/go-delve/delve/cmd/dlv@latest", // the debugger, through the same "missing" status
+  debugpy: "pip install debugpy",
 };
 export const installHint = (server: string) => INSTALL[server] ?? "";
 

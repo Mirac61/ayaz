@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { goAdapter, pickAdapter } from "./adapters";
+import { goAdapter, pickAdapter, pythonAdapter } from "./adapters";
 
 test("pickAdapter returns goAdapter for .go files with package directory as target", () => {
   const root = pickAdapter("main.go");
@@ -24,6 +24,27 @@ test("goAdapter launch generates correct arguments", () => {
   expect(goAdapter.launch("/root/pkg/server", "/root")).toEqual({
     mode: "debug",
     program: "/root/pkg/server",
+    cwd: "/root",
+    console: "integratedTerminal",
+  });
+});
+
+test("pickAdapter returns pythonAdapter for .py files with exact file as target", () => {
+  const file = pickAdapter("script.py");
+  expect(file.adapter.id).toBe("python");
+  expect(file.adapter.binary).toBe("debugpy");
+  expect(file.adapter.adapterId).toBe("python");
+  expect(file.target).toBe("script.py");
+
+  const nested = pickAdapter("src/app/main.py");
+  expect(nested.adapter.id).toBe("python");
+  expect(nested.target).toBe("src/app/main.py");
+});
+
+test("pythonAdapter launch generates correct arguments", () => {
+  expect(pythonAdapter.launch("/root/script.py", "/root")).toEqual({
+    request: "launch",
+    program: "/root/script.py",
     cwd: "/root",
     console: "integratedTerminal",
   });

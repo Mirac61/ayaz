@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { e2eWorkspace } from "../playwright.config";
 
 const hasDlv = (() => { try { execSync("command -v dlv", { shell: "/bin/sh" }); return true; } catch { return false; } })();
+const hasDebugpy = (() => { try { execSync("python3 -m debugpy --version", { shell: "/bin/sh" }); return true; } catch { return false; } })();
 
 // M48 D6: a real Delve, on a small program the test writes into the workspace (a folder of its own in testdata would
 // change the tree: other tests count on src/ being the only folder). Runs in its own project, after the others. Opt-in (AYAZ_DEBUG_E2E=1): on macOS the first debugging session asks for developer tools access
@@ -156,6 +157,39 @@ func main() {
   await page.keyboard.type(" dv");
   const picker = page.getByRole("dialog", { name: /Variables/ });
   await expect(picker.getByRole("option", { name: /text = "hello-ayaz"/ })).toBeVisible({ timeout: 15_000 });
+  await page.keyboard.press("Escape");
+
+  await page.keyboard.press("F5");
+  await expect(status).not.toContainText("DEBUG", { timeout: 30_000 });
+});
+
+test("debug a Python program with debugpy: breakpoint, stop, variables, continue", async ({ page }) => {
+  test.skip(!hasDebugpy, "debugpy not installed");
+  test.skip(process.env.AYAZ_DEBUG_E2E !== "1", "set AYAZ_DEBUG_E2E=1 to run it");
+  test.setTimeout(120_000);
+  mkdirSync(join(e2eWorkspace, "zpydebug"), { recursive: true });
+  writeFileSync(join(e2eWorkspace, "zpydebug", "app.py"), `total = 0
+for i in range(1, 4):
+    total += i
+print("total", total)
+`);
+  await page.goto("/");
+  const tree = page.getByRole("tree", { name: "Files" });
+  await tree.getByRole("treeitem", { name: "zpydebug" }).click();
+  await tree.getByRole("treeitem", { name: "app.py" }).click();
+  const code = page.locator(".cm-content");
+  await expect(code).toContainText("total += i");
+
+  // Breakpoint at total += i (line 3)
+  await page.keyboard.type("gg2j db");
+
+  await page.keyboard.type(" dd");
+  const status = page.locator(".statusline");
+  await expect(status).toContainText("DEBUG paused", { timeout: 30_000 });
+
+  await page.keyboard.type(" dv");
+  const picker = page.getByRole("dialog", { name: /Variables/ });
+  await expect(picker.getByRole("option", { name: /i = 1/ })).toBeVisible({ timeout: 15_000 });
   await page.keyboard.press("Escape");
 
   await page.keyboard.press("F5");

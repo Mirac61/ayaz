@@ -1,5 +1,6 @@
 // The debugger (M48, M70): breakpoints, starting, stepping, stopping and the variables of the stopped program.
 import type { Command } from "../../core/commands";
+import { pickAdapter } from "../../debug/adapters";
 import { formatBreakpointPrompt, parseBreakpointPrompt } from "../../editor/breakpoints";
 import { lines, type Row } from "../../debug/variables";
 import { installHint } from "../../editor/lsp";
@@ -45,10 +46,10 @@ export function debugCommands(c: Ctx): Command[] {
     };
   };
 
-  // The adapter ending before it launched usually means Delve isn't installed; the stream's "missing" status said so too.
-  const startFailed = (e: unknown) => {
+  // The adapter ending before it launched usually means the debugger isn't installed; the stream's "missing" status said so too.
+  const startFailed = (e: unknown, binary = "dlv") => {
     const text = errText(e);
-    c.fail(text.includes("ended") ? `${text}. Is dlv installed? ${installHint("dlv")}` : text);
+    c.fail(text.includes("ended") ? `${text}. Is ${binary} installed? ${installHint(binary)}` : text);
   };
 
   return [
@@ -82,13 +83,22 @@ export function debugCommands(c: Ctx): Command[] {
     },
     {
       id: "debug.start",
-      title: "Debug the folder's Go package (<Space>dd)",
-      run: () => c.dbg.start().catch(startFailed),
+      title: "Debug the active file or Go package (<Space>dd)",
+      run: () => {
+        const { adapter } = pickAdapter(c.ed.activePath());
+        return c.dbg.start().catch((e) => startFailed(e, adapter.binary));
+      },
     },
     {
       id: "debug.continue",
       title: "Debug: continue, or start (F5, <Space>dc)",
-      run: () => (c.dbg.status === "idle" ? c.dbg.start().catch(startFailed) : c.dbg.step("continue")),
+      run: () => {
+        if (c.dbg.status === "idle") {
+          const { adapter } = pickAdapter(c.ed.activePath());
+          return c.dbg.start().catch((e) => startFailed(e, adapter.binary));
+        }
+        return c.dbg.step("continue");
+      },
     },
     { id: "debug.next", title: "Debug: step over (F10, <Space>dn)", run: () => void c.dbg.step("next") },
     { id: "debug.stepIn", title: "Debug: step into (F11, <Space>ds)", run: () => void c.dbg.step("stepIn") },

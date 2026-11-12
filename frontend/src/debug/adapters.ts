@@ -19,7 +19,18 @@ export const goAdapter: DebugAdapter = {
   launch: (program, root) => ({ mode: "debug", program, cwd: root, console: "integratedTerminal" }),
 };
 
-const byExt: Record<string, DebugAdapter> = { go: goAdapter };
+export const pythonAdapter: DebugAdapter = {
+  id: "python",
+  binary: "debugpy",
+  adapterId: "python",
+  target: (path) => path,
+  launch: (program, root) => ({ request: "launch", program, cwd: root, console: "integratedTerminal" }),
+};
+
+const byExt: Record<string, DebugAdapter> = {
+  go: goAdapter,
+  py: pythonAdapter,
+};
 
 // The adapter for the active file, and what it debugs (workspace-relative). Any other file (or none) debugs the folder's
 // Go package, as before there was a table.
