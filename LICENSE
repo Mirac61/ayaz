@@ -1,17 +1,18 @@
 Copyright (c) 2026 Mirac. All Rights Reserved.
 
-This software and its source code (the "Software") are the proprietary property of Mirac.
+This software, including its source code, compiled binaries, documentation, and design assets (the "Software"), is the proprietary property of Mirac.
 
 TERMS AND CONDITIONS:
 
 1. Permitted Use:
-   You may view and inspect the source code of this Software for personal reference, security auditing, and educational purposes.
+   a. You are granted a personal, revocable, non-exclusive, non-transferable license to download, install, build from source, and USE the Software free of charge for personal, educational, and professional software development activities (including writing, reading, and editing code).
+   b. You may view and inspect the source code for reference, evaluation, and security auditing purposes.
 
 2. Prohibited Uses:
    Without prior explicit written permission from the copyright holder, you may NOT:
-   a. Copy, duplicate, reproduce, redistribute, republish, sublicense, or sell the Software or any portion thereof;
-   b. Fork, modify, adapt, translate, or create derivative works based upon the Software or its branding;
-   c. Use the Software, its code, or its design assets for commercial purposes or in any other application;
-   d. Remove, alter, or obscure any copyright notices, trademarks, or proprietary markings.
+   a. Fork, modify, alter, adapt, translate, or create derivative works based upon the Software, its source code, or its branding;
+   b. Copy, duplicate, or extract code portions, designs, or assets for use in other projects, applications, or libraries;
+   c. Redistribute, re-host, mirror, re-upload, sublicense, lease, or sell the Software, its source code, or its compiled binaries, whether in original or modified form;
+   d. Remove, alter, or obscure any copyright notices, trademarks, or proprietary marks from the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

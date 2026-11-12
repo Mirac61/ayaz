@@ -155,4 +155,6 @@ Bug reports and ideas go into [issues](https://github.com/Mirac61/ayaz/issues). 
 
 Daily-usable on macOS and Arch Linux/Hyprland. Windows builds come with every release but haven't been tested much on real machines yet.
 
-Copyright © 2026 Mirac. All rights reserved. The source code is publicly viewable for reference, but no permission is granted to copy, fork, modify, or redistribute it without explicit prior written permission. See [LICENSE](LICENSE) for details.
+Copyright © 2026 Mirac. All rights reserved.
+
+Ayaz is free to download, build from source, and use for personal and professional software development. However, the software and source code are proprietary: **forking, modifying, copying, or redistributing the software or its code is strictly prohibited** without prior written permission. See [LICENSE](LICENSE) for details.
