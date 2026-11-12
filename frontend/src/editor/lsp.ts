@@ -421,32 +421,132 @@ export async function formatBeforeSave(view: EditorView): Promise<void> {
 
 const missing = new Set<string>(); // "ws:server" whose server isn't installed or whose workspace closed: don't retry
 
-// How to get each server, for the message when it is missing.
-const INSTALL: Record<string, string> = {
-  gopls: "go install golang.org/x/tools/gopls@latest",
-  clangd: isMac ? "xcode-select --install, or brew install llvm" : "install clangd with your package manager",
-  ts: "npm i -g typescript-language-server typescript",
-  html: "npm i -g vscode-langservers-extracted",
-  css: "npm i -g vscode-langservers-extracted",
-  json: "npm i -g vscode-langservers-extracted",
-  jdtls: isMac ? "brew install jdtls" : "install jdtls with your package manager",
-  pyright: "npm i -g pyright",
-  "rust-analyzer": "rustup component add rust-analyzer",
-  yaml: "npm i -g yaml-language-server",
-  taplo: "cargo install taplo-cli --locked --features lsp",
-  tinymist: "brew install tinymist",
-  texlab: "brew install texlab",
-  dlv: "go install github.com/go-delve/delve/cmd/dlv@latest", // the debugger, through the same "missing" status
-  debugpy: "pip install debugpy",
-  "lldb-dap": isMac ? "xcode-select --install or brew install llvm" : "install lldb-dap with your package manager",
+export type PlatformId = "darwin" | "windows" | "linux-arch" | "linux-debian" | "linux-fedora" | "linux";
+
+export function detectFrontendPlatform(): PlatformId {
+  if (typeof navigator === "undefined") return isMac ? "darwin" : "linux";
+  if (/Win/i.test(navigator.platform) || /Windows/i.test(navigator.userAgent)) return "windows";
+  if (/Mac/i.test(navigator.platform) || /Macintosh/i.test(navigator.userAgent)) return "darwin";
+  return "linux";
+}
+
+let activePlatform: PlatformId = detectFrontendPlatform();
+
+export function setPlatform(p: string) {
+  if (p === "darwin" || p === "windows" || p === "linux-arch" || p === "linux-debian" || p === "linux-fedora" || p === "linux") {
+    activePlatform = p;
+  } else if (p.startsWith("linux")) {
+    activePlatform = "linux";
+  }
+}
+
+export function currentPlatform(): PlatformId {
+  return activePlatform;
+}
+
+type PlatformMap = {
+  darwin?: string;
+  windows?: string;
+  "linux-arch"?: string;
+  "linux-debian"?: string;
+  "linux-fedora"?: string;
+  linux?: string;
+  all?: string;
 };
-export const installHint = (server: string) => INSTALL[server] ?? "";
+
+// How to get each server, for the message when it is missing, tailored to macOS, Windows, and Linux distros.
+const INSTALL_TABLE: Record<string, PlatformMap> = {
+  gopls: { all: "go install golang.org/x/tools/gopls@latest" },
+  dlv: { all: "go install github.com/go-delve/delve/cmd/dlv@latest" },
+  ts: { all: "npm i -g typescript-language-server typescript" },
+  html: { all: "npm i -g vscode-langservers-extracted" },
+  css: { all: "npm i -g vscode-langservers-extracted" },
+  json: { all: "npm i -g vscode-langservers-extracted" },
+  yaml: { all: "npm i -g yaml-language-server" },
+  pyright: { all: "npm i -g pyright" },
+  debugpy: { all: "pip install debugpy" },
+  "rust-analyzer": { all: "rustup component add rust-analyzer" },
+
+  tinymist: {
+    darwin: "brew install tinymist",
+    windows: "winget install tinymist",
+    "linux-arch": "sudo pacman -S tinymist",
+    "linux-fedora": "sudo dnf install tinymist",
+    "linux-debian": "cargo install --locked tinymist, or brew install tinymist",
+    linux: "cargo install --locked tinymist",
+  },
+  typst: {
+    darwin: "brew install typst",
+    windows: "winget install typst",
+    "linux-arch": "sudo pacman -S typst",
+    "linux-fedora": "sudo dnf install typst",
+    "linux-debian": "sudo apt install typst",
+    linux: "cargo install --locked typst-cli",
+  },
+  texlab: {
+    darwin: "brew install texlab",
+    windows: "winget install texlab",
+    "linux-arch": "sudo pacman -S texlab",
+    "linux-fedora": "sudo dnf install texlab",
+    "linux-debian": "sudo apt install texlab",
+    linux: "cargo install --locked --git https://github.com/latex-lsp/texlab.git",
+  },
+  tectonic: {
+    darwin: "brew install tectonic",
+    windows: "winget install tectonic",
+    "linux-arch": "sudo pacman -S tectonic",
+    "linux-fedora": "sudo dnf install tectonic",
+    "linux-debian": "sudo apt install tectonic",
+    linux: "cargo install --locked tectonic",
+  },
+  clangd: {
+    darwin: "xcode-select --install, or brew install llvm",
+    windows: "winget install LLVM.LLVM",
+    "linux-arch": "sudo pacman -S clang",
+    "linux-fedora": "sudo dnf install clang-tools-extra",
+    "linux-debian": "sudo apt install clangd",
+    linux: "install clangd with your package manager",
+  },
+  jdtls: {
+    darwin: "brew install jdtls",
+    windows: "winget install EclipseAdoptium.Temurin.21.JDK or scoop install jdtls",
+    "linux-arch": "sudo pacman -S jdtls",
+    "linux-fedora": "sudo dnf install jdtls",
+    "linux-debian": "sudo apt install jdtls",
+    linux: "install jdtls with your package manager",
+  },
+  taplo: {
+    darwin: "brew install taplo",
+    windows: "winget install taplo",
+    "linux-arch": "sudo pacman -S taplo-cli",
+    "linux-fedora": "sudo dnf install taplo",
+    "linux-debian": "cargo install taplo-cli --locked --features lsp",
+    linux: "cargo install taplo-cli --locked --features lsp",
+  },
+  "lldb-dap": {
+    darwin: "xcode-select --install or brew install llvm",
+    windows: "winget install LLVM.LLVM",
+    "linux-arch": "sudo pacman -S lldb",
+    "linux-fedora": "sudo dnf install lldb",
+    "linux-debian": "sudo apt install lldb",
+    linux: "install lldb with your package manager",
+  },
+};
+
+export function installHint(server: string, platform: PlatformId = activePlatform): string {
+  const entry = INSTALL_TABLE[server];
+  if (!entry) return "";
+  if (entry.all) return entry.all;
+  if (entry[platform]) return entry[platform]!;
+  if (platform.startsWith("linux-") && entry.linux) return entry.linux;
+  return entry.linux ?? entry.darwin ?? entry.windows ?? "";
+}
 
 // Why a file has no language features, for the status line.
 export function noServer(ws: string, path: string | undefined): string {
   const server = path && serverFor(path)?.[1];
   if (!server) return "No language server for this file type";
-  if (missing.has(`${ws}:${server}`)) return `${server} is not installed: ${INSTALL[server]}`;
+  if (missing.has(`${ws}:${server}`)) return `${server} is not installed: ${installHint(server)}`;
   return `${server} is still starting`;
 }
 const sockets = new Map<string, WebSocket>();

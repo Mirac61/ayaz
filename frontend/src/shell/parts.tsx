@@ -21,7 +21,7 @@ const COMMAND_ICONS: Record<string, string> = {
   "task.run": "\uf04b", "task.last": "\uf01e", "tab.close": "\uf00d", "harpoon.toggle": "\uf02e", "harpoon.menu": "\uf02e",
   "debug.toggleBreakpoint": "\uf111", "debug.start": "\uf04b", "debug.continue": "\uf051", "debug.stop": "\uf04d",
   "debug.next": "\uf050", "debug.stepIn": "\uf063", "debug.stepOut": "\uf062",
-  "git.diff": "\uf440", "git.blame": "\uf007", "git.stageHunk": "\uf067", "git.unstageHunk": "\uf068", "git.resetHunk": "\uf0e2",
+  "git.diff": "\uf440", "git.blame": "\uf007", "git.status": "\ue725", "git.stageHunk": "\uf067", "git.unstageHunk": "\uf068", "git.resetHunk": "\uf0e2",
   "git.previewHunk": "\uf06e", "md.reading": "\uf06e", "md.preview": "\uf06e", "md.skin": "\uf1fc", "md.outline": "\uf0ca",
   "view.wrap": "\uf039", "view.diagnosticText": "\uf071", "view.zen": "\uf06e", "git.toggleInlineBlame": "\uf007",
 };

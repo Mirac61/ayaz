@@ -142,7 +142,7 @@ export function openTerminal(el: HTMLElement, opts: TermOptions = {}): TermHandl
   const half = () => Math.max(1, Math.floor(term.rows / 2));
   term.attachCustomKeyEventHandler((e) => {
     if (mode === "terminal") return true;
-    if (e.metaKey) return true; // Cmd+C/V stay with the browser
+    if (e.metaKey || (e.ctrlKey && e.shiftKey && (e.key === "C" || e.key === "V" || e.key === "c" || e.key === "v"))) return true; // Cmd+C/V on macOS, Ctrl+Shift+C/V on Windows/Linux
     if (e.type !== "keydown") return false;
     const k = e.ctrlKey ? `C-${e.key}` : e.key;
     switch (k) {

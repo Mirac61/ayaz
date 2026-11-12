@@ -18,3 +18,28 @@ export interface Blame {
     "summary": string;
     "committed": boolean;
 }
+
+/**
+ * FileStatus describes the status of a single file in the repository.
+ */
+export interface FileStatus {
+    /**
+     * relative to workspace root with "/"
+     */
+    "path": string;
+
+    /**
+     * "M", "A", "D", "?", "U", "R"
+     */
+    "status": string;
+
+    /**
+     * true if changes are staged in the index
+     */
+    "staged": boolean;
+
+    /**
+     * true if working tree has changes or is untracked
+     */
+    "unstaged": boolean;
+}

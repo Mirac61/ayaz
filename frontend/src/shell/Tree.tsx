@@ -54,8 +54,8 @@ interface Props {
   git(path: string): string | undefined; // git state for the name's color (gitstatus.ts)
 }
 
-const GIT_CLASS: Record<string, string> = { M: " git-mod", A: " git-add", "?": " git-add", U: " git-conflict", "!": " git-ignored" };
-export const GIT_BADGE: Record<string, string> = { M: "M", A: "A", "?": "U", U: "C" };
+const GIT_CLASS: Record<string, string> = { M: " git-mod", A: " git-add", "?": " git-add", U: " git-conflict", "!": " git-ignored", D: " git-del" };
+export const GIT_BADGE: Record<string, string> = { M: "M", A: "A", D: "D", R: "R", "?": "U", U: "C" };
 
 const KEYS: Record<string, string> = {
   a: "file.new", r: "file.rename", d: "file.trash", y: "file.copyPath", Y: "file.copyAbsPath", s: "file.reveal",
@@ -86,7 +86,7 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
   // A folder that can't be listed (deleted) is forgotten, so it reloads fresh if it comes back.
   const load = (dir: string) =>
     files.list(dir).then(
-      (es) => setChildren((m) => new Map(m).set(dir, es)),
+      (es) => setChildren((m) => new Map(m).set(dir, es.filter((e) => dir !== "" || e.name !== ".git"))),
       () => setChildren((m) => { const n = new Map(m); n.delete(dir); return n; }),
     );
 
@@ -273,7 +273,7 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
             const i = first + k;
             const gitMark = git(r.path);
             const name = (r.dir ? "tree-name dir" : "tree-name") + (GIT_CLASS[gitMark ?? ""] ?? "");
-            const badge = gitMark ? GIT_BADGE[gitMark] : undefined;
+            const badge = !r.dir && gitMark ? GIT_BADGE[gitMark] : undefined;
             const open = r.dir && (filter !== null || expanded.has(r.path));
             return (
               <div

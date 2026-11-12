@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { Text } from "@codemirror/state";
-import { fileOps, fileUri, streamTransport, toChanges, uriPath } from "./lsp";
+import { fileOps, fileUri, installHint, setPlatform, streamTransport, toChanges, uriPath } from "./lsp";
 import { serverFor } from "../lang/registry";
 
 const dec = new TextDecoder();
@@ -129,4 +129,37 @@ test("toChanges: sorted offsets, clamped to the line and the doc", () => {
   expect(toChanges(doc, [
     { range: r(1, 0, 1, 1), newText: "C" }, { range: r(0, 0, 0, 9), newText: "A" }, { range: r(5, 0, 5, 0), newText: "!" },
   ])).toEqual([{ from: 0, to: 2, insert: "A" }, { from: 3, to: 4, insert: "C" }, { from: 5, to: 5, insert: "!" }]);
+});
+
+test("installHint: platform-specific installation commands for Windows, macOS, and Linux distros", () => {
+  // Typst LSP (tinymist)
+  expect(installHint("tinymist", "darwin")).toBe("brew install tinymist");
+  expect(installHint("tinymist", "windows")).toBe("winget install tinymist");
+  expect(installHint("tinymist", "linux-arch")).toBe("sudo pacman -S tinymist");
+  expect(installHint("tinymist", "linux-fedora")).toBe("sudo dnf install tinymist");
+  expect(installHint("tinymist", "linux-debian")).toBe("cargo install --locked tinymist, or brew install tinymist");
+  expect(installHint("tinymist", "linux")).toBe("cargo install --locked tinymist");
+
+  // Typst compiler
+  expect(installHint("typst", "darwin")).toBe("brew install typst");
+  expect(installHint("typst", "windows")).toBe("winget install typst");
+  expect(installHint("typst", "linux-debian")).toBe("sudo apt install typst");
+
+  // clangd
+  expect(installHint("clangd", "darwin")).toBe("xcode-select --install, or brew install llvm");
+  expect(installHint("clangd", "windows")).toBe("winget install LLVM.LLVM");
+  expect(installHint("clangd", "linux-debian")).toBe("sudo apt install clangd");
+  expect(installHint("clangd", "linux-arch")).toBe("sudo pacman -S clang");
+  expect(installHint("clangd", "linux-fedora")).toBe("sudo dnf install clang-tools-extra");
+
+  // Cross-platform package managers (same everywhere)
+  expect(installHint("gopls", "windows")).toBe("go install golang.org/x/tools/gopls@latest");
+  expect(installHint("ts", "windows")).toBe("npm i -g typescript-language-server typescript");
+  expect(installHint("pyright", "windows")).toBe("npm i -g pyright");
+
+  // setPlatform affects the default
+  setPlatform("windows");
+  expect(installHint("tinymist")).toBe("winget install tinymist");
+  setPlatform("darwin");
+  expect(installHint("tinymist")).toBe("brew install tinymist");
 });

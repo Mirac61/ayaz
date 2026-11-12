@@ -285,6 +285,89 @@ func (s *WorkspaceService) GitStatus(ws string) (map[string]string, error) {
 	return git.Status(w.Root)
 }
 
+// GitDetailedStatus returns detailed info for each changed file.
+func (s *WorkspaceService) GitDetailedStatus(ws string) ([]git.FileStatus, error) {
+	w, err := s.reg.Get(ws)
+	if err != nil {
+		return nil, err
+	}
+	return git.StatusDetailed(w.Root)
+}
+
+// GitStageFile stages a single file in the index.
+func (s *WorkspaceService) GitStageFile(ws, path string) error {
+	w, err := s.reg.Get(ws)
+	if err != nil {
+		return err
+	}
+	if _, err := w.Resolve(path); err != nil {
+		return err
+	}
+	if err := git.StageFile(w.Root, path); err != nil {
+		return err
+	}
+	s.emit("git:changed", GitChange{WS: ws})
+	return nil
+}
+
+// GitUnstageFile unstages a single file from the index.
+func (s *WorkspaceService) GitUnstageFile(ws, path string) error {
+	w, err := s.reg.Get(ws)
+	if err != nil {
+		return err
+	}
+	if _, err := w.Resolve(path); err != nil {
+		return err
+	}
+	if err := git.UnstageFile(w.Root, path); err != nil {
+		return err
+	}
+	s.emit("git:changed", GitChange{WS: ws})
+	return nil
+}
+
+// GitDiscardFile discards changes to a file (reverts to HEAD or removes if untracked).
+func (s *WorkspaceService) GitDiscardFile(ws, path string) error {
+	w, err := s.reg.Get(ws)
+	if err != nil {
+		return err
+	}
+	if _, err := w.Resolve(path); err != nil {
+		return err
+	}
+	if err := git.DiscardFile(w.Root, path); err != nil {
+		return err
+	}
+	s.emit("git:changed", GitChange{WS: ws})
+	return nil
+}
+
+// GitStageAll stages all changes in the repository.
+func (s *WorkspaceService) GitStageAll(ws string) error {
+	w, err := s.reg.Get(ws)
+	if err != nil {
+		return err
+	}
+	if err := git.StageAll(w.Root); err != nil {
+		return err
+	}
+	s.emit("git:changed", GitChange{WS: ws})
+	return nil
+}
+
+// GitUnstageAll unstages all staged changes in the repository.
+func (s *WorkspaceService) GitUnstageAll(ws string) error {
+	w, err := s.reg.Get(ws)
+	if err != nil {
+		return err
+	}
+	if err := git.UnstageAll(w.Root); err != nil {
+		return err
+	}
+	s.emit("git:changed", GitChange{WS: ws})
+	return nil
+}
+
 // HeadFile is a file's text at HEAD; Tracked is false for new files and outside a repository.
 type HeadFile struct {
 	Text    string `json:"text"`

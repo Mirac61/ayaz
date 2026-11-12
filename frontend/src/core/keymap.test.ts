@@ -20,6 +20,13 @@ test("keyName matches parseKeys", () => {
   expect(keyName(ev("p", { metaKey: true }, "KeyP"))).toBe("<D-p>");
   expect(keyName(ev("Shift", { shiftKey: true }))).toBe("");
   expect(keyName(ev("F1"))).toBe("<F1>");
+  // AltGr on Windows/Linux (e.g. typing { } [ ] \ @ ~ |) should be ignored as shortcut
+  const altGrEv = {
+    ...ev("{", { ctrlKey: true, altKey: true }, "Digit7"),
+    getModifierState: (m: string) => m === "AltGraph",
+  };
+  expect(keyName(altGrEv)).toBe("");
+  expect(keyName(ev("}", { ctrlKey: true, altKey: true }, "Digit0"))).toBe("");
 });
 
 test("user bindings replace or remove defaults per context and keys", () => {

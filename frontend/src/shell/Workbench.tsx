@@ -3,7 +3,7 @@ import { setDropHandler } from "./dnd";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { EditorView } from "@codemirror/view";
-import { backend, type Info, type OpenEvent } from "../core/backend";
+import { backend, type FileStatus, type Info, type OpenEvent } from "../core/backend";
 import { Commands } from "../core/commands";
 import { defaultKeymap, keyName, mergeKeymap, parseUserKeymap, Sequencer, type Binding } from "../core/keymap";
 import { diff, lf } from "../core/buffers";
@@ -21,6 +21,7 @@ import { loadSettings, settings, settingsError } from "../core/settings";
 import { loadSnippets, snippetsError } from "../core/snippets";
 import { Picker, type Item, type PickerSource } from "./Picker";
 import { Tree, type TreeHandle } from "./Tree";
+import { GitChanges } from "./GitChanges";
 import { gitMarks, single } from "./gitstatus";
 import { loadSession, mergeBreakpoints, mergeCursors, saveSession, type Session } from "./session";
 import { extOf, serverFor } from "../lang/registry";
@@ -128,6 +129,9 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
   const [branch, setBranch] = useState("");
   const [diag, setDiag] = useState({ errors: 0, warnings: 0 });
   const [changes, setChanges] = useState(0); // paths git reports as changed, untracked or conflicted
+  const [gitStatus, setGitStatus] = useState<Record<string, string>>({});
+  const [gitDetailed, setGitDetailed] = useState<FileStatus[]>([]);
+  const [sideTab, setSideTab] = useState<"files" | "git">("files");
   const [lspMissing, setLspMissing] = useState<ReadonlySet<string>>(new Set()); // servers not found in PATH
   const [picker, setPicker] = useState<PickerSource | null>(null);
   const [bindings, setBindings] = useState<Binding[] | null>(null);
@@ -497,7 +501,16 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
         title: "Focus file tree",
         run() {
           if (!sidebarOn.current) showSidebar(true);
+          setSideTab("files");
           tree.current?.focus();
+        },
+      },
+      {
+        id: "git.status",
+        title: "Show Git changes in sidebar (<Space>gs)",
+        run() {
+          if (!sidebarOn.current) showSidebar(true);
+          setSideTab("git");
         },
       },
       { id: "term.dock", title: "Move terminal panel (bottom, right, top)", run: () => setDock((d) => DOCKS[(DOCKS.indexOf(d) + 1) % DOCKS.length]) },
@@ -674,10 +687,22 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
 
   // The tree's colors; asked again on every change on disk and in the repository, one `git status` at a time.
   const [git, setGit] = useState(() => gitMarks({}));
-  const loadGit = useMemo(() => single(() => files.gitStatus().then((s) => {
-    setGit(() => gitMarks(s));
-    setChanges(Object.values(s).filter((c) => c !== "!").length);
-  })), [files]);
+  const loadGit = useMemo(() => single(async () => {
+    try {
+      const s = await files.gitStatus();
+      setGitStatus(s);
+      setGit(() => gitMarks(s));
+      setChanges(Object.values(s).filter((c) => c !== "!").length);
+    } catch {
+      // ignore outside repository
+    }
+    try {
+      const detailed = await files.gitDetailedStatus();
+      setGitDetailed(detailed);
+    } catch {
+      setGitDetailed([]);
+    }
+  }), [files]);
 
   // Changes on disk (git checkout, codegen, our own saves) reach the tree and the open buffers.
   useEffect(() => backend.onFsChanged(ws.id, async (c) => {
@@ -838,7 +863,14 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
   };
   const go = (id: string, arg?: string) => () => run(id, arg);
   const branchEl = branch && (
-    <Seg className="branch" title={tip("Git branch: open lazygit", "term.lazygit")} onPress={go("term.lazygit")}>
+    <Seg
+      className="branch"
+      title={tip("Git branch: show changes in sidebar (<Space>gs)", "git.status")}
+      onPress={() => {
+        showSidebar(true);
+        setSideTab("git");
+      }}
+    >
       {branch}{changes > 0 && <span className="changes" title={`${changes} changed paths`}>±{changes}</span>}
     </Seg>
   );
@@ -957,21 +989,98 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
           />
         </div>
         <div className="sidebar-title">
-          <span className="sidebar-tab label active">Files</span>
+          <div className="sidebar-tabs">
+            <button
+              type="button"
+              className={`sidebar-tab ${sideTab === "files" ? "active" : ""}`}
+              onClick={() => setSideTab("files")}
+            >
+              Files
+            </button>
+            <button
+              type="button"
+              className={`sidebar-tab ${sideTab === "git" ? "active" : ""}`}
+              onClick={() => setSideTab("git")}
+            >
+              Git
+              {changes > 0 && <span className="sidebar-tab-badge">{changes}</span>}
+            </button>
+          </div>
           <span className="sidebar-tools">
-            {sideTool("New file", "file.new", "\uea7f")}
-            {sideTool("New folder", "file.new", "\uea80", "dir")}
-            <IconButton glyph={"\ueac5"} label="Collapse all folders" onPress={() => tree.current?.collapseAll()} />
+            {sideTab === "files" ? (
+              <>
+                {sideTool("New file", "file.new", "\uea7f")}
+                {sideTool("New folder", "file.new", "\uea80", "dir")}
+                <IconButton glyph={"\ueac5"} label="Collapse all folders" onPress={() => tree.current?.collapseAll()} />
+              </>
+            ) : (
+              <IconButton glyph={"\ue702"} label="Open Lazygit (<Space>gg)" onPress={() => run("term.lazygit")} />
+            )}
           </span>
         </div>
-        <Tree
-          ref={tree}
-          files={files}
-          onOpen={(p) => run("file.open", p)}
-          git={git}
-          onLeave={() => ed.focus(ed.active)}
-          onCommand={run}
-        />
+        {sideTab === "files" ? (
+          <Tree
+            ref={tree}
+            files={files}
+            onOpen={(p) => run("file.open", p)}
+            git={git}
+            onLeave={() => ed.focus(ed.active)}
+            onCommand={run}
+          />
+        ) : (
+          <GitChanges
+            status={gitStatus}
+            detailedFiles={gitDetailed}
+            branch={branch}
+            onOpen={(p) => run("file.open", p)}
+            onDiff={async (p) => {
+              await run("file.open", p);
+              run("git.diff");
+            }}
+            onLeave={() => ed.focus(ed.active)}
+            onLazygit={() => run("term.lazygit")}
+            onStageFile={async (p) => {
+              try {
+                await files.gitStageFile(p);
+                loadGit();
+              } catch (e) {
+                fail(errText(e));
+              }
+            }}
+            onUnstageFile={async (p) => {
+              try {
+                await files.gitUnstageFile(p);
+                loadGit();
+              } catch (e) {
+                fail(errText(e));
+              }
+            }}
+            onDiscardFile={async (p) => {
+              try {
+                await files.gitDiscardFile(p);
+                loadGit();
+              } catch (e) {
+                fail(errText(e));
+              }
+            }}
+            onStageAll={async () => {
+              try {
+                await files.gitStageAll();
+                loadGit();
+              } catch (e) {
+                fail(errText(e));
+              }
+            }}
+            onUnstageAll={async () => {
+              try {
+                await files.gitUnstageAll();
+                loadGit();
+              } catch (e) {
+                fail(errText(e));
+              }
+            }}
+          />
+        )}
       </aside>
       <div className="panes" ref={panesEl}>
         {[...rs].map(([id, r]) => (

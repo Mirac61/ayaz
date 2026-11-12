@@ -77,6 +77,20 @@ export function GitBranch(ws: string): $CancellablePromise<string> {
     return $Call.ByID(2200203215, ws);
 }
 
+/**
+ * GitDetailedStatus returns detailed info for each changed file.
+ */
+export function GitDetailedStatus(ws: string): $CancellablePromise<git$0.FileStatus[] | null> {
+    return $Call.ByID(443283817, ws);
+}
+
+/**
+ * GitDiscardFile discards changes to a file (reverts to HEAD or removes if untracked).
+ */
+export function GitDiscardFile(ws: string, path: string): $CancellablePromise<void> {
+    return $Call.ByID(1923549901, ws, path);
+}
+
 export function GitHead(ws: string, path: string): $CancellablePromise<$models.HeadFile> {
     return $Call.ByID(1952299173, ws, path);
 }
@@ -89,10 +103,38 @@ export function GitIndex(ws: string, path: string): $CancellablePromise<$models.
 }
 
 /**
+ * GitStageAll stages all changes in the repository.
+ */
+export function GitStageAll(ws: string): $CancellablePromise<void> {
+    return $Call.ByID(2665084142, ws);
+}
+
+/**
+ * GitStageFile stages a single file in the index.
+ */
+export function GitStageFile(ws: string, path: string): $CancellablePromise<void> {
+    return $Call.ByID(1580124645, ws, path);
+}
+
+/**
  * GitStatus is each changed, untracked or ignored path's state for the tree (see git.Status).
  */
 export function GitStatus(ws: string): $CancellablePromise<{ [_ in string]?: string } | null> {
     return $Call.ByID(997429033, ws);
+}
+
+/**
+ * GitUnstageAll unstages all staged changes in the repository.
+ */
+export function GitUnstageAll(ws: string): $CancellablePromise<void> {
+    return $Call.ByID(874749149, ws);
+}
+
+/**
+ * GitUnstageFile unstages a single file from the index.
+ */
+export function GitUnstageFile(ws: string, path: string): $CancellablePromise<void> {
+    return $Call.ByID(3579542696, ws, path);
 }
 
 /**
@@ -174,6 +216,14 @@ export function Open(root: string): $CancellablePromise<$models.Info | null> {
  */
 export function OpenDialog(): $CancellablePromise<$models.Info | null> {
     return $Call.ByID(742162657);
+}
+
+/**
+ * Platform returns the operating system and Linux distribution/package manager:
+ * "darwin", "windows", "linux-debian", "linux-arch", "linux-fedora", or "linux".
+ */
+export function Platform(): $CancellablePromise<string> {
+    return $Call.ByID(528321110);
 }
 
 /**

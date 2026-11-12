@@ -358,6 +358,15 @@ Done when: all four language groups have diagnostics, completion and navigation.
 
 - Done 2026-11-12: Rust, C, and C++ debugging with `lldb-dap` over stdio (`adapters.ts`, `app/dap.go`); auto-detects `xcrun lldb-dap` on macOS; binary path defaults to `target/debug` for Cargo and file basename for C/C++, overridable via `debugProgram` in `settings.json`; unit tests in `adapters.test.ts` and `debugger.test.ts`, opt-in E2E in `debug.spec.ts`.
 
+## M75 – Git staging tab, platform-specific install hints and Windows hardening
+
+- Done 2026-11-12:
+  - Platform and distro detection in Go (`app/platform.go`) and frontend (`lsp.ts`); language server install hints tailored for Windows (`winget`/`scoop`), macOS (`brew`), and Linux distros (`pacman`, `apt`, `dnf`, `cargo`).
+  - Sidebar Git changes tab (`GitChanges.tsx`, `<Space>gs`): partitioned into Staged Changes and Changes with stage/unstage/discard actions, batch stage all/unstage all, inline discard confirmation, context menu, keyboard shortcuts (`s`, `u`, `x`, `d`, `Enter`), and Fugitive-like `:Gwrite` and `:Gread` ex commands.
+  - Tree polish: internal `.git` folder hidden from the root explorer; directory rows no longer display duplicate status badges.
+  - Windows hardening: AltGr collision prevention in keymap sequencer, standard Windows/Linux keybindings (`Ctrl+P`, `Ctrl+Shift+P`, `Ctrl+F4`, `Ctrl+Shift+W`, `Ctrl+B`, `Ctrl+J`), Windows drive letter and backslash path support in task problem matcher (`tasks.ts`), terminal copy/paste pass-through (`Ctrl+Shift+C`/`V`).
+  - UI polish: segmented pill control in sidebar header with count badges, fixed CSS unicode escapes in window title bar project badge.
+
 ## Later
 
 | | What | Plugs into |

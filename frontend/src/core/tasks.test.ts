@@ -38,3 +38,18 @@ test("lines that only look like locations stay out", () => {
   const out = ["listening on http://localhost:8080/", "12:30:01 started", "ok  \texample.com/e2e\t0.2s", "[process exited]"].join("\n");
   expect(parseProblems(out, "/ws")).toEqual([]);
 });
+
+test("Windows paths with drive letters and backslashes", () => {
+  const out = [
+    `C:\\workspace\\src\\main.go:14:5: undefined: helper`,
+    `C:\\workspace\\sub\\lib.ts(20,2): error TS2322: Type error`,
+    `.\\relative\\path.go:8:1: syntax error`,
+    `D:\\other\\file.c:1:1: error`,
+  ].join("\r\n");
+  expect(parseProblems(out, "C:\\workspace")).toEqual([
+    loc("src/main.go", 14, 4, "undefined: helper"),
+    loc("sub/lib.ts", 20, 1, "error TS2322: Type error"),
+    loc("relative/path.go", 8, 0, "syntax error"),
+    loc("D:/other/file.c", 1, 0, "error"),
+  ]);
+});

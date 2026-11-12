@@ -2,12 +2,12 @@
 import { Application, Browser, Clipboard, Events, Stream, Window } from "@wailsio/runtime";
 import { ConfigService, PingService, WorkspaceService } from "../../bindings/github.com/Mirac61/ayaz/app";
 import type { HeadFile, Info, Match, OpenEvent, Swap, Version } from "../../bindings/github.com/Mirac61/ayaz/app";
-import type { Blame } from "../../bindings/github.com/Mirac61/ayaz/internal/git";
+import type { Blame, FileStatus } from "../../bindings/github.com/Mirac61/ayaz/internal/git";
 import type { Entry, Preview, TextFile } from "../../bindings/github.com/Mirac61/ayaz/internal/workspace";
 import type { Match as FileMatch } from "../../bindings/github.com/Mirac61/ayaz/internal/index";
 import type { Loc } from "./quickfix";
 
-export type { Blame, Entry, FileMatch, HeadFile, Info, Match, OpenEvent, Preview, Swap, TextFile, Version };
+export type { Blame, Entry, FileMatch, FileStatus, HeadFile, Info, Match, OpenEvent, Preview, Swap, TextFile, Version };
 
 // A batch of changes on disk. Paths are workspace-relative, files or folders; rescan: events were lost, check everything.
 // A file in the config folder the app watches.
@@ -56,6 +56,7 @@ export interface Backend {
   openURL(url: string): Promise<void>; // in the system browser
   copy(text: string): Promise<void>; // to the system clipboard
   zoom(level: number): Promise<void>; // this window's page zoom, 1 = 100 %; fails in the server build
+  platform(): Promise<string>; // OS and Linux distro, e.g. "darwin", "windows", "linux-arch", "linux-debian"
 }
 
 // A running project search; cancel() stops it (closes the stream). done resolves with an error text, or null.
@@ -85,6 +86,12 @@ export interface Files {
   // Who last changed line (1-based): text is the buffer's when it has unsaved changes, else "". null: nothing to show.
   gitBlame(path: string, line: number, text: string): Promise<Blame | null>;
   gitStatus(): Promise<Record<string, string>>; // changed, untracked and ignored paths: M A ? ! U (empty outside a repo)
+  gitDetailedStatus(): Promise<FileStatus[]>; // all changed/staged/untracked files
+  gitStageFile(path: string): Promise<void>;
+  gitUnstageFile(path: string): Promise<void>;
+  gitDiscardFile(path: string): Promise<void>;
+  gitStageAll(): Promise<void>;
+  gitUnstageAll(): Promise<void>;
   // Hot exit: unsaved text kept in the user cache, outside the project.
   swapWrite(path: string, text: string): Promise<void>;
   swapRemove(path: string): Promise<void>;
@@ -127,6 +134,7 @@ export const backend: Backend = {
   openURL: (url) => Browser.OpenURL(url),
   copy: (text) => Clipboard.SetText(text),
   zoom: (level) => Window.SetZoom(level),
+  platform: () => WorkspaceService.Platform(),
   onFsChanged: (ws, fn) =>
     Events.On("fs:changed", (e: { data: FsChange & { ws: string } }) => {
       if (e.data.ws === ws) fn(e.data);
@@ -157,6 +165,12 @@ export const backend: Backend = {
     gitApplyHunk: (path, hunk, reverse) => WorkspaceService.GitApplyHunk(ws, path, hunk, reverse),
     gitBlame: (path, line, text) => WorkspaceService.GitBlame(ws, path, text, line),
     gitStatus: async () => ((await WorkspaceService.GitStatus(ws)) ?? {}) as Record<string, string>,
+    gitDetailedStatus: async () => ((await WorkspaceService.GitDetailedStatus(ws)) ?? []) as FileStatus[],
+    gitStageFile: (path) => WorkspaceService.GitStageFile(ws, path),
+    gitUnstageFile: (path) => WorkspaceService.GitUnstageFile(ws, path),
+    gitDiscardFile: (path) => WorkspaceService.GitDiscardFile(ws, path),
+    gitStageAll: () => WorkspaceService.GitStageAll(ws),
+    gitUnstageAll: () => WorkspaceService.GitUnstageAll(ws),
     swapWrite: (path, text) => WorkspaceService.SwapWrite(ws, path, text),
     swapRemove: (path) => WorkspaceService.SwapRemove(ws, path),
     swaps: async () => (await WorkspaceService.Swaps(ws)) ?? [],

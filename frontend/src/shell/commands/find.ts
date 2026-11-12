@@ -19,7 +19,7 @@ const fileItem = (path: string, positions: number[] | null | undefined, hint?: s
   positions: positions ?? [],
   icon: fileIcon(path),
   hint,
-  dim: Array.from(path.slice(0, path.lastIndexOf("/") + 1)).length,
+  dim: Array.from(path.slice(0, Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\")) + 1)).length,
   dir: true,
 });
 

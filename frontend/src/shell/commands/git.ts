@@ -54,8 +54,79 @@ export function gitCommands(c: Ctx): Command[] {
     },
     {
       id: "git.diff",
-      title: "Toggle diff against HEAD",
+      title: "Toggle diff against HEAD (<Space>gd)",
       run: () => { if (!c.ed.toggleDiff()) c.fail("This file has no version at HEAD to compare with"); },
+    },
+    {
+      id: "git.stageFile",
+      title: "Stage active file (<Space>ga)",
+      run: async () => {
+        const buf = c.ed.current();
+        if (!buf || buf.path.startsWith("/")) return c.fail("No file open");
+        try {
+          await c.files.gitStageFile(buf.path);
+          c.ed.gitChanged();
+          c.say(`Staged ${buf.path}`);
+        } catch (e) {
+          c.fail(errText(e));
+        }
+      },
+    },
+    {
+      id: "git.unstageFile",
+      title: "Unstage active file (<Space>gu)",
+      run: async () => {
+        const buf = c.ed.current();
+        if (!buf || buf.path.startsWith("/")) return c.fail("No file open");
+        try {
+          await c.files.gitUnstageFile(buf.path);
+          c.ed.gitChanged();
+          c.say(`Unstaged ${buf.path}`);
+        } catch (e) {
+          c.fail(errText(e));
+        }
+      },
+    },
+    {
+      id: "git.discardFile",
+      title: "Discard changes in active file",
+      run: async () => {
+        const buf = c.ed.current();
+        if (!buf || buf.path.startsWith("/")) return c.fail("No file open");
+        try {
+          await c.files.gitDiscardFile(buf.path);
+          c.ed.gitChanged();
+          c.say(`Discarded changes in ${buf.path}`);
+        } catch (e) {
+          c.fail(errText(e));
+        }
+      },
+    },
+    {
+      id: "git.stageAll",
+      title: "Stage all changes (<Space>gA)",
+      run: async () => {
+        try {
+          await c.files.gitStageAll();
+          c.ed.gitChanged();
+          c.say("Staged all changes");
+        } catch (e) {
+          c.fail(errText(e));
+        }
+      },
+    },
+    {
+      id: "git.unstageAll",
+      title: "Unstage all changes (<Space>gU)",
+      run: async () => {
+        try {
+          await c.files.gitUnstageAll();
+          c.ed.gitChanged();
+          c.say("Unstaged all changes");
+        } catch (e) {
+          c.fail(errText(e));
+        }
+      },
     },
   ];
 }

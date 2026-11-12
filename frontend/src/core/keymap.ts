@@ -77,8 +77,13 @@ export function defaultKeymap(mac = isMac): Binding[] {
     n("]x", "git.nextConflict"),
     n("[x", "git.prevConflict"),
     n("<Space>hu", "git.unstageHunk"),
+    n("<Space>ga", "git.stageFile"),
+    n("<Space>gu", "git.unstageFile"),
+    n("<Space>gA", "git.stageAll"),
+    n("<Space>gU", "git.unstageAll"),
     n("<Space>gd", "git.diff"),
     n("<Space>gb", "git.blame"),
+    n("<Space>gs", "git.status"),
     ...Object.entries(panes).flatMap(([k, cmd]) => [n(`<C-${k}>`, cmd), n(`<C-w>${k}`, cmd), t(`<C-${k}>`, cmd)]),
     t("<C-\\><C-n>", "term.normal"),
     n("<Space>mr", "md.reading"),
@@ -113,12 +118,12 @@ export function defaultKeymap(mac = isMac): Binding[] {
     ...(mac
       ? [g("<D-p>", "find.files"), g("<D-S-p>", "find.commands"), g("<D-j>", "term.panel"), g("<D-S-n>", "window.new"),
         g("<D-,>", "settings.open"), g("<D-b>", "view.sidebar")]
-      : [g("<C-S-p>", "find.files"), g("<C-S-j>", "term.panel"), g("<C-S-n>", "window.new"),
-        g("<C-,>", "settings.open"), g("<C-S-b>", "view.sidebar")]),
+      : [g("<C-p>", "find.files"), g("<C-S-p>", "find.commands"), g("<C-j>", "term.panel"), g("<C-S-j>", "term.panel"),
+        g("<C-S-n>", "window.new"), g("<C-,>", "settings.open"), g("<C-b>", "view.sidebar"), g("<C-S-b>", "view.sidebar")]),
     ...(mac
       ? [g("<D-w>", "tab.close"), g("<D-S-t>", "tab.reopen"), g("<D-[>", "nav.back"), g("<D-]>", "nav.forward"), g("<C-->", "nav.back"),
         g("<C-S-_>", "nav.forward")] // Ctrl -, Ctrl Shift - like VS Code on macOS: brackets need Alt on German layouts
-      : [g("<C-S-t>", "tab.reopen"), g("<A-Left>", "nav.back"), g("<A-Right>", "nav.forward")]),
+      : [g("<C-F4>", "tab.close"), g("<C-S-w>", "tab.close"), g("<C-S-t>", "tab.reopen"), g("<A-Left>", "nav.back"), g("<A-Right>", "nav.forward")]),
     // "+" has its own key on German layouts, "=" on US ones.
     ...[["=", "view.zoomIn"], ["+", "view.zoomIn"], ["-", "view.zoomOut"], ["0", "view.zoomReset"]]
       .map(([k, cmd]) => g(`<${mac ? "D" : "C"}-${k}>`, cmd)),
@@ -181,11 +186,21 @@ const CANON: Record<string, string> = Object.fromEntries(
   [...Object.values(NAMED), ...Array.from({ length: 24 }, (_, i) => `F${i + 1}`)].map((n) => [n.toLowerCase(), n]),
 );
 
-type KeyEv = Pick<KeyboardEvent, "key" | "code" | "ctrlKey" | "altKey" | "shiftKey" | "metaKey">;
+type KeyEv = Pick<KeyboardEvent, "key" | "code" | "ctrlKey" | "altKey" | "shiftKey" | "metaKey"> & {
+  getModifierState?(keyArg: string): boolean;
+};
 
 // One key press in the same notation as parseKeys; "" for a lone modifier.
 export function keyName(e: KeyEv): string {
   if (["Shift", "Control", "Alt", "Meta"].includes(e.key)) return "";
+  // AltGr on Windows/Linux sets both ctrlKey and altKey (or getModifierState("AltGraph")).
+  // It is used to type characters like { } [ ] \ @ ~ | and must not trigger shortcut chords.
+  if (
+    (typeof e.getModifierState === "function" && e.getModifierState("AltGraph")) ||
+    (e.ctrlKey && e.altKey && e.key.length === 1 && !/^[a-zA-Z0-9]$/.test(e.key))
+  ) {
+    return "";
+  }
   const named = NAMED[e.key] ?? (/^F\d+$/.test(e.key) ? e.key : undefined);
   const mods = [e.ctrlKey && "C", e.altKey && "A", e.metaKey && "D"].filter(Boolean) as string[];
   if (!mods.length) return named ? `<${(e.shiftKey && named !== "Space" ? "S-" : "") + named}>` : e.key;
