@@ -80,6 +80,9 @@ test("breakpoints changed while debugging reach the adapter; with no session not
   dbg.breakpointsChanged("main.go", [1, 2]);
   await tick();
   expect(f.requests[f.requests.length - 1].arguments.breakpoints).toEqual([{ line: 1 }, { line: 2 }]);
+  dbg.breakpointsChanged("main.go", [{ line: 1, condition: "x == 1" }]);
+  await tick();
+  expect(f.requests[f.requests.length - 1].arguments.breakpoints).toEqual([{ line: 1, condition: "x == 1" }]);
 });
 
 test("a failed launch rejects and leaves the debugger idle", async () => {

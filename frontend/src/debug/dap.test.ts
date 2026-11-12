@@ -20,6 +20,32 @@ test("the breakpoints go out as absolute paths with their lines", async () => {
   expect(sent.find((m) => m.command === "launch").arguments).toEqual({ mode: "debug", program: "/p", cwd: "/p" });
 });
 
+test("conditional breakpoints, logpoints and hitCondition are forwarded in setBreakpoints", async () => {
+  const f = fake();
+  const sent: any[] = [];
+  const raw = f.transport.send;
+  f.transport.send = (j) => { sent.push(JSON.parse(j)); raw(j); };
+  await launch(new DapClient(f.transport), {
+    root: "/p",
+    breakpoints: {
+      "main.go": [
+        { line: 5, condition: "i == 2" },
+        { line: 8, logMessage: "log here" },
+        { line: 12, hitCondition: "5" },
+      ],
+    },
+  });
+  const bp = sent.find((m) => m.command === "setBreakpoints");
+  expect(bp.arguments).toEqual({
+    source: { path: "/p/main.go" },
+    breakpoints: [
+      { line: 5, condition: "i == 2" },
+      { line: 8, logMessage: "log here" },
+      { line: 12, hitCondition: "5" },
+    ],
+  });
+});
+
 test("events reach their listeners: stopped, output, terminated; * sees all; the unsubscribe works", async () => {
   const f = fake();
   const client = new DapClient(f.transport);

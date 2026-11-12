@@ -338,6 +338,10 @@ Done when: all four language groups have diagnostics, completion and navigation.
 
 - Done 2026-11-12: debug adapters table (`debug/adapters.ts`) replaces Go-only launch arguments and active file targets; `app/dap.go` dispatches to configured adapters and checks availability; `internal/dap` adds `StartStdio` for stdio-based debug adapters alongside Delve's TCP socket connection. Unit tests in `adapters.test.ts`, `debugger.test.ts`, and `internal/dap/dap_test.go`.
 
+## M70 – Debugger: conditional breakpoints, logpoints and hit counts
+
+- Done 2026-11-12: conditional breakpoints, logpoints and hit counts via `<Space>dB` and prompt parser (`breakpoints.ts`, `debug/dap.ts`); gutter markers distinguish solid red dot (unconditional), hollow red dot (condition or hit count), and red diamond (logpoint); session format migrates seamlessly from legacy `number[]` to `Breakpoint[]`; unit tests in `breakpoints.test.ts`, `session.test.ts`, `dap.test.ts`, and `debugger.test.ts`.
+
 ## Later
 
 | | What | Plugs into |

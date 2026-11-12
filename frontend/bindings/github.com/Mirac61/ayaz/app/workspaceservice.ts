@@ -209,7 +209,7 @@ export function Rename(ws: string, $from: string, to: string): $CancellablePromi
 }
 
 /**
- * Reveal shows the file in Finder (selected), on Linux opens its folder.
+ * Reveal shows the file in Finder (selected), on Windows in File Explorer, on Linux opens its folder.
  */
 export function Reveal(ws: string, path: string): $CancellablePromise<void> {
     return $Call.ByID(1586829996, ws, path);

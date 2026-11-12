@@ -26,16 +26,30 @@ test("parseSession keeps previews and terminals of panes in the layout", () => {
   expect(s?.terms).toEqual({ 2: "" });
 });
 
-test("parseSession keeps breakpoint lines as sorted whole numbers and drops files without any", () => {
+test("parseSession accepts legacy number[] breakpoints and migrates to Breakpoint[]", () => {
   const s = parseSession(JSON.stringify({
     layout, panes: {}, tabs: {}, cursors: {}, breakpoints: { "a.go": [9, 3, 3, 0, 1.5, "x"], "b.go": [], "c.go": "no" },
   }));
-  expect(s?.breakpoints).toEqual({ "a.go": [3, 9] });
+  expect(s?.breakpoints).toEqual({ "a.go": [{ line: 3 }, { line: 9 }] });
+});
+
+test("parseSession accepts Breakpoint[] with conditions, logMessage, and hitCondition", () => {
+  const s = parseSession(JSON.stringify({
+    layout, panes: {}, tabs: {}, cursors: {}, breakpoints: {
+      "a.go": [{ line: 5, condition: "i == 2" }, { line: 8, logMessage: "msg" }, { line: 12, hitCondition: "3" }],
+      "b.go": [{ line: 0 }, { line: 2.5 }],
+    },
+  }));
+  expect(s?.breakpoints).toEqual({
+    "a.go": [{ line: 5, condition: "i == 2" }, { line: 8, logMessage: "msg" }, { line: 12, hitCondition: "3" }],
+  });
 });
 
 test("mergeBreakpoints: loaded files replace theirs (an empty list clears it), the others stay", () => {
-  const old = { "a.go": [1], "b.go": [2], "c.go": [3] };
-  expect(mergeBreakpoints(old, { "a.go": [5, 6], "b.go": [] })).toEqual({ "a.go": [5, 6], "c.go": [3] });
+  const old = { "a.go": [{ line: 1 }], "b.go": [{ line: 2 }], "c.go": [{ line: 3 }] };
+  expect(mergeBreakpoints(old, { "a.go": [{ line: 5 }, { line: 6 }], "b.go": [] })).toEqual({
+    "a.go": [{ line: 5 }, { line: 6 }], "c.go": [{ line: 3 }],
+  });
 });
 
 test("parseSession rejects broken input and falls back to the first pane", () => {

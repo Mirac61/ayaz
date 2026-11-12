@@ -1,5 +1,6 @@
-// The debugger (M48): breakpoints, starting, stepping, stopping and the variables of the stopped program.
+// The debugger (M48, M70): breakpoints, starting, stepping, stopping and the variables of the stopped program.
 import type { Command } from "../../core/commands";
+import { formatBreakpointPrompt, parseBreakpointPrompt } from "../../editor/breakpoints";
 import { lines, type Row } from "../../debug/variables";
 import { installHint } from "../../editor/lsp";
 import type { Item, PickerSource } from "../Picker";
@@ -47,6 +48,23 @@ export function debugCommands(c: Ctx): Command[] {
         c.say(on ? "Breakpoint set" : "Breakpoint removed");
         const path = c.ed.current()?.path;
         if (path) c.dbg.breakpointsChanged(path, c.ed.breakpoints()[path] ?? []); // a running session learns of it
+      },
+    },
+    {
+      id: "debug.conditionalBreakpoint",
+      title: "Edit conditional breakpoint (<Space>dB)",
+      run() {
+        const cur = c.ed.getBreakpoint();
+        const initial = cur ? formatBreakpointPrompt(cur) : "";
+        c.prompt("Breakpoint condition (plain text = condition, log: text = logpoint, hits: 5 = hit count)", initial, async (text) => {
+          const parsed = parseBreakpointPrompt(text);
+          const bp = c.ed.setBreakpoint(parsed);
+          if (!bp) return c.fail("No editor here to put a breakpoint in");
+          const kind = bp.logMessage ? "Logpoint" : (bp.condition || bp.hitCondition ? "Conditional breakpoint" : "Breakpoint");
+          c.say(`${kind} set on line ${bp.line}`);
+          const path = c.ed.current()?.path;
+          if (path) c.dbg.breakpointsChanged(path, c.ed.breakpoints()[path] ?? []);
+        });
       },
     },
     {

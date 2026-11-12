@@ -19,7 +19,11 @@ import { backend } from "../core/backend";
 import { Jumps, type Spot } from "./jumps";
 import { browsable } from "../editor/mdlive";
 import { historyRoute, viewPath } from "../editor/vim/setup";
-import { breakpointLines, setLines as setBreakpointLines, toggleBreakpoint } from "../editor/breakpoints";
+import {
+  breakpoints as breakpointsOf, getBreakpoint as getBreakpointOf,
+  setBreakpoint as setBreakpointOn, setBreakpoints as setBreakpointLines, toggleBreakpoint,
+  type Breakpoint,
+} from "../editor/breakpoints";
 import { setDebugLine } from "../editor/debugline";
 import { diffWith, headEffects, toggleDiff } from "../editor/gitgutter";
 import { setEditorConfig } from "../core/editorconfig";
@@ -86,7 +90,7 @@ export class Editors {
   private dirtyTabs = ""; // the dirty buffers' paths when the tabs were last drawn
   tabsOn = true; // set through setTabs
   cursors: Record<string, number> = {}; // from the session: where the cursor was when a file loads again
-  bps: Record<string, number[]> = {}; // from the session: the breakpoints a file gets when it loads again
+  bps: Record<string, Breakpoint[]> = {}; // from the session: the breakpoints a file gets when it loads again
   private jumps = new Map<number, Jumps>(); // per pane: back/forward across files
   private navigating = false; // nav() is opening a file: not a new jump
   private closed: string[] = []; // closed tabs, last on top (Cmd+Shift+T)
@@ -592,10 +596,10 @@ export class Editors {
       if (path && id > 0 && !isVirtual(path)) panes[id] = path; // the debugger's output isn't a file to open again
       if (p.term && id > 0) terms[id] = p.cmd ?? "";
     }
-    const cursors: Record<string, number> = {}, breakpoints: Record<string, number[]> = {};
+    const cursors: Record<string, number> = {}, breakpoints: Record<string, Breakpoint[]> = {};
     for (const b of this.buffers.list().filter((b) => !isVirtual(b.path))) {
       cursors[b.path] = b.state.selection.main.head;
-      breakpoints[b.path] = breakpointLines(b.state);
+      breakpoints[b.path] = breakpointsOf(b.state);
     }
     return { panes, terms, tabs: Object.fromEntries([...this.tabs].map(([id, l]) => [id, l.filter((t) => !isTermTab(t))])), active: this.active, cursors, breakpoints };
   }
@@ -615,11 +619,11 @@ export class Editors {
   }
 
   // Every loaded buffer's breakpoints (files without any are left out): what the debugger is given.
-  breakpoints(): Record<string, number[]> {
-    const out: Record<string, number[]> = {};
+  breakpoints(): Record<string, Breakpoint[]> {
+    const out: Record<string, Breakpoint[]> = {};
     for (const b of this.buffers.list()) {
-      const lines = breakpointLines(b.state);
-      if (lines.length) out[b.path] = lines;
+      const list = breakpointsOf(b.state);
+      if (list.length) out[b.path] = list;
     }
     return out;
   }
@@ -631,6 +635,20 @@ export class Editors {
     const on = toggleBreakpoint(v);
     this.emit(); // the session notices
     return on;
+  }
+
+  // <Space>dB: sets or edits a conditional breakpoint or logpoint on the cursor line.
+  setBreakpoint(extra?: { condition?: string; logMessage?: string; hitCondition?: string }): Breakpoint | null {
+    const v = this.activeView();
+    if (!v) return null;
+    const bp = setBreakpointOn(v, extra);
+    this.emit();
+    return bp;
+  }
+
+  getBreakpoint(): Breakpoint | null {
+    const v = this.activeView();
+    return v ? getBreakpointOf(v) : null;
   }
 
   // Marks the line the debugger stopped on in path (and nowhere else); null clears it everywhere.

@@ -1,6 +1,6 @@
 import type { DebugAdapter } from "./adapters";
 import {
-  DapClient, launch, setBreakpoints, type OutputEvent, type Scope, type StackFrame, type StoppedEvent, type Variable,
+  DapClient, launch, setBreakpoints, type Breakpoint, type OutputEvent, type Scope, type StackFrame, type StoppedEvent, type Variable,
 } from "./dap";
 
 // One debugging session: starting, the program stopping and running again, stepping, ending. The editor side
@@ -37,8 +37,8 @@ export class DebugSession {
   }
 
   // Launches program (an absolute path, the root's own by default) with these breakpoints (workspace-relative path
-  // → lines). Rejects if launching fails.
-  async start(breakpoints: Record<string, number[]>, program?: string, adapter?: DebugAdapter) {
+  // → breakpoints or lines). Rejects if launching fails.
+  async start(breakpoints: Record<string, (number | Breakpoint)[]>, program?: string, adapter?: DebugAdapter) {
     this.hooks.state("starting");
     try {
       await launch(this.client, { root: this.root, program, adapter, breakpoints });
@@ -67,9 +67,9 @@ export class DebugSession {
     return (await this.client.request<{ variables: Variable[] }>("variables", { variablesReference: ref })).variables;
   }
 
-  // New breakpoint lines for one file while the program runs or is stopped.
-  breakpoints(path: string, lines: number[]) {
-    return this.state === "ended" ? Promise.resolve() : setBreakpoints(this.client, this.root, path, lines).then(() => {});
+  // New breakpoints for one file while the program runs or is stopped.
+  breakpoints(path: string, bps: (number | Breakpoint)[]) {
+    return this.state === "ended" ? Promise.resolve() : setBreakpoints(this.client, this.root, path, bps).then(() => {});
   }
 
   // Ends the program and the session.

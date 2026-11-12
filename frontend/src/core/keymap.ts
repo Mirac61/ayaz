@@ -60,6 +60,7 @@ export function defaultKeymap(mac = isMac): Binding[] {
     n("<Space>hr", "git.resetHunk"),
     n("<Space>hs", "git.stageHunk"),
     n("<Space>db", "debug.toggleBreakpoint"),
+    n("<Space>dB", "debug.conditionalBreakpoint"),
     n("<Space>dd", "debug.start"),
     n("<Space>dc", "debug.continue"),
     n("<Space>dn", "debug.next"),

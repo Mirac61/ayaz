@@ -1,3 +1,4 @@
+import type { Breakpoint } from "../editor/breakpoints";
 import { pickAdapter } from "../debug/adapters";
 import { DapClient, type Transport } from "../debug/dap";
 import { DebugSession, type DebugState, type Step } from "../debug/session";
@@ -6,7 +7,7 @@ import { scopeRow, toggle, type Row } from "../debug/variables";
 // The debugger as the workbench uses it: one session at a time, its stops shown in the editor, its output in a
 // buffer, its state in the status line. The editor is behind a small interface so this runs in tests.
 export interface DebugEditor {
-  breakpoints(): Record<string, number[]>;
+  breakpoints(): Record<string, (number | Breakpoint)[]>;
   // The workspace-relative path of the file in the active editor, null if there is none (or it is outside the folder).
   activePath(): string | null;
   openAt(path: string, line: number, col: number): Promise<void>;
@@ -93,8 +94,8 @@ export class Debugger {
     await this.session.stop();
   }
 
-  // A breakpoint changed in path while a session lives: the adapter gets the file's new lines.
-  breakpointsChanged(path: string, lines: number[]) {
-    if (this.session && this.session.state !== "ended") void this.session.breakpoints(path, lines).catch(() => {});
+  // A breakpoint changed in path while a session lives: the adapter gets the file's new breakpoints.
+  breakpointsChanged(path: string, bps: (number | Breakpoint)[]) {
+    if (this.session && this.session.state !== "ended") void this.session.breakpoints(path, bps).catch(() => {});
   }
 }

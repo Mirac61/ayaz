@@ -100,6 +100,12 @@ export class DapClient {
 }
 
 // What the debugger shows of a stopped program.
+export interface Breakpoint {
+  line: number;
+  condition?: string;
+  logMessage?: string;
+  hitCondition?: string;
+}
 export interface StackFrame { id: number; name: string; line: number; column: number; source?: { path?: string; name?: string } }
 export interface Scope { name: string; variablesReference: number; expensive?: boolean }
 export interface Variable { name: string; value: string; type?: string; variablesReference: number }
@@ -112,7 +118,7 @@ export interface LaunchOptions {
   root: string; // absolute path of the folder
   program?: string; // absolute path of what the adapter debugs (for Go the package folder); the folder's own by default
   adapter?: DebugAdapter; // Go (Delve) by default
-  breakpoints: Record<string, number[]>; // workspace-relative path → lines (1-based)
+  breakpoints: Record<string, (number | Breakpoint)[]>; // workspace-relative path → breakpoints or lines (1-based)
 }
 
 // Starts debugging program (the folder's root by default): initialize, launch, then (after the adapter says "initialized")
@@ -134,6 +140,14 @@ export async function launch(client: DapClient, opts: LaunchOptions): Promise<vo
 }
 
 // The same breakpoints again for one file (the user toggled one while the program runs or is stopped).
-export function setBreakpoints(client: DapClient, root: string, path: string, lines: number[]) {
-  return client.request("setBreakpoints", { source: { path: `${root}/${path}` }, breakpoints: lines.map((line) => ({ line })) });
+export function setBreakpoints(client: DapClient, root: string, path: string, bps: (number | Breakpoint)[]) {
+  return client.request("setBreakpoints", {
+    source: { path: `${root}/${path}` },
+    breakpoints: bps.map((b) => (typeof b === "number" ? { line: b } : {
+      line: b.line,
+      ...(b.condition && { condition: b.condition }),
+      ...(b.logMessage && { logMessage: b.logMessage }),
+      ...(b.hitCondition && { hitCondition: b.hitCondition }),
+    })),
+  });
 }

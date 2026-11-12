@@ -60,3 +60,52 @@ func main() {
   await expect(code).toContainText("total 6");
   await expect(code).toContainText("to stderr");
 });
+
+test("debug with conditional breakpoint: condition i == 2 stops once", async ({ page }) => {
+  test.skip(!hasDlv, "dlv not in PATH");
+  test.skip(process.env.AYAZ_DEBUG_E2E !== "1", "set AYAZ_DEBUG_E2E=1 to run it (needs developer tools access on macOS)");
+  test.setTimeout(120_000);
+  mkdirSync(join(e2eWorkspace, "zdebug"), { recursive: true });
+  writeFileSync(join(e2eWorkspace, "zdebug", "main.go"), `package main
+
+import "fmt"
+
+func main() {
+	total := 0
+	for i := 1; i <= 3; i++ {
+		total += i
+	}
+	fmt.Println("total", total)
+}
+`);
+  await page.goto("/");
+  const tree = page.getByRole("tree", { name: "Files" });
+  await tree.getByRole("treeitem", { name: "zdebug" }).click();
+  await tree.getByRole("treeitem", { name: "main.go" }).click();
+  const code = page.locator(".cm-content");
+  await expect(code).toContainText("total += i");
+
+  // Move to line 8 (total += i) and set a conditional breakpoint with <Space>dB
+  await page.keyboard.type("gg7j dB");
+  const prompt = page.getByRole("dialog", { name: /Breakpoint condition/i });
+  await expect(prompt).toBeVisible({ timeout: 5_000 });
+  await page.keyboard.type("i == 2");
+  await page.keyboard.press("Enter");
+
+  const condDots = page.locator(".cm-bp .cm-gutterElement:not([style*='visibility']) .cm-bp-conditional");
+  await expect(condDots).toHaveCount(1);
+
+  await page.keyboard.type(" dd");
+  const status = page.locator(".statusline");
+  await expect(status).toContainText("DEBUG paused", { timeout: 90_000 });
+  await expect(page.locator(".cm-debug-line")).toContainText("total += i");
+
+  await page.keyboard.type(" dv");
+  const picker = page.getByRole("dialog", { name: /Variables/ });
+  await expect(picker.getByRole("option", { name: /i = 2/ })).toBeVisible({ timeout: 15_000 });
+  await page.keyboard.press("Escape");
+
+  // Continue: since i was 2, next loop is i = 3 (condition false), so program continues to the end without another stop
+  await page.keyboard.press("F5");
+  await expect(status).not.toContainText("DEBUG", { timeout: 30_000 });
+});
