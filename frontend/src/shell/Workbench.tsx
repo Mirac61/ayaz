@@ -38,6 +38,8 @@ import { quickfixTools } from "./commands/quickfix";
 import { restoreTabs, viewCommands } from "./commands/view";
 import { harpoonCommands } from "./commands/harpoon";
 import { recentFolders } from "./folders";
+import { updaterStore, type UpdateProgress, type UpdateState } from "../core/updater";
+import { UpdateDialog } from "./UpdateDialog";
 import { applyDiagText } from "./diagText";
 import { recentCommands, rememberCommand } from "./recentCommands";
 import { Handle, Hints, Pane } from "./parts";
@@ -133,6 +135,25 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
   const [gitDetailed, setGitDetailed] = useState<FileStatus[]>([]);
   const [sideTab, setSideTab] = useState<"files" | "git">("files");
   const [lspMissing, setLspMissing] = useState<ReadonlySet<string>>(new Set()); // servers not found in PATH
+  const [showUpdateDialog, setShowUpdateDialog] = useState(false);
+  const [updateState, setUpdateState] = useState<UpdateState>(() => updaterStore.state);
+  const [updateInfo, setUpdateInfo] = useState(() => updaterStore.info);
+  const [updateProgress, setUpdateProgress] = useState<UpdateProgress | null>(() => updaterStore.progress);
+
+  useEffect(() => {
+    return updaterStore.subscribe(() => {
+      setUpdateState(updaterStore.state);
+      setUpdateInfo(updaterStore.info);
+      setUpdateProgress(updaterStore.progress);
+    });
+  }, []);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      updaterStore.check(false).catch(() => {});
+    }, 5000);
+    return () => clearTimeout(t);
+  }, []);
   const [picker, setPicker] = useState<PickerSource | null>(null);
   const [bindings, setBindings] = useState<Binding[] | null>(null);
   const tree = useRef<TreeHandle>(null);
@@ -424,6 +445,24 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       ...gitCommands(c),
       ...debugCommands(c),
       ...viewCommands(c),
+      {
+        id: "ayaz.checkForUpdates",
+        title: "Ayaz: Check for updates (:checkupdate)",
+        async run() {
+          say("Checking for updates...");
+          try {
+            const res = await updaterStore.check(true);
+            if (res && res.available) {
+              setShowUpdateDialog(true);
+              say(`Update v${res.latestVersion} available!`);
+            } else {
+              say(`Ayaz is up to date (v${res?.currentVersion || "0.2.1"})`);
+            }
+          } catch (e) {
+            fail(`Update check failed: ${e instanceof Error ? e.message : String(e)}`);
+          }
+        },
+      },
       {
         id: "view.zen",
         title: "Toggle Zen mode (<Space>uz, :zen)",
@@ -943,6 +982,19 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
         {status.words !== undefined && <Seg title="Words in this file">{plural(status.words, "word")}</Seg>}
         {status.indent && <Seg onPress={palette} title="Indentation of this file">{status.indent}</Seg>}
         {status.eol && <Seg onPress={palette} title="Line endings of this file are kept on save">{status.eol}</Seg>}
+        {updateState === "ready" ? (
+          <Seg className="update-ready" onPress={() => setShowUpdateDialog(true)} title="Update ready! Click to restart Ayaz">
+            ↻ Restart to update
+          </Seg>
+        ) : updateState === "downloading" ? (
+          <Seg className="update-downloading" onPress={() => setShowUpdateDialog(true)} title={`Downloading update: ${updateProgress?.percent ?? 0}%`}>
+            ↓ {updateProgress?.percent ?? 0}%
+          </Seg>
+        ) : updateInfo?.available ? (
+          <Seg className="update-available" onPress={() => setShowUpdateDialog(true)} title={`Update available: v${updateInfo.latestVersion} (click to view)`}>
+            ↑ v{updateInfo.latestVersion}
+          </Seg>
+        ) : null}
         {ft && <span className="filetype" title="Language">{ft}</span>}
         <Seg className="location" onPress={go("find.commands", ":")} title="Go to a line (:)">
           {status.info ?? `${status.line}:${status.col}`}
@@ -1241,6 +1293,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
           </div>
         </div>
       )}
+      {showUpdateDialog && <UpdateDialog onClose={() => setShowUpdateDialog(false)} />}
     </div>
   );
 }

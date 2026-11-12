@@ -1,13 +1,13 @@
 // The only place that imports generated bindings or the Wails runtime (02-architecture, principle 2).
 import { Application, Browser, Clipboard, Events, Stream, Window } from "@wailsio/runtime";
-import { ConfigService, PingService, WorkspaceService } from "../../bindings/github.com/Mirac61/ayaz/app";
-import type { HeadFile, Info, Match, OpenEvent, Swap, Version } from "../../bindings/github.com/Mirac61/ayaz/app";
+import { ConfigService, PingService, UpdateService, WorkspaceService } from "../../bindings/github.com/Mirac61/ayaz/app";
+import type { HeadFile, Info, Match, OpenEvent, Swap, UpdateInfo, Version } from "../../bindings/github.com/Mirac61/ayaz/app";
 import type { Blame, FileStatus } from "../../bindings/github.com/Mirac61/ayaz/internal/git";
 import type { Entry, Preview, TextFile } from "../../bindings/github.com/Mirac61/ayaz/internal/workspace";
 import type { Match as FileMatch } from "../../bindings/github.com/Mirac61/ayaz/internal/index";
 import type { Loc } from "./quickfix";
 
-export type { Blame, Entry, FileMatch, FileStatus, HeadFile, Info, Match, OpenEvent, Preview, Swap, TextFile, Version };
+export type { Blame, Entry, FileMatch, FileStatus, HeadFile, Info, Match, OpenEvent, Preview, Swap, TextFile, UpdateInfo, Version };
 
 // A batch of changes on disk. Paths are workspace-relative, files or folders; rescan: events were lost, check everything.
 // A file in the config folder the app watches.
@@ -57,6 +57,14 @@ export interface Backend {
   copy(text: string): Promise<void>; // to the system clipboard
   zoom(level: number): Promise<void>; // this window's page zoom, 1 = 100 %; fails in the server build
   platform(): Promise<string>; // OS and Linux distro, e.g. "darwin", "windows", "linux-arch", "linux-debian"
+  checkUpdate(): Promise<UpdateInfo | null>;
+  downloadAndInstallUpdate(): Promise<void>;
+  restartApp(): Promise<void>;
+  currentVersion(): Promise<string>;
+  onUpdateAvailable(fn: (info: UpdateInfo) => void): () => void;
+  onUpdateProgress(fn: (progress: { written: number; total: number; percent: number }) => void): () => void;
+  onUpdateReady(fn: () => void): () => void;
+  onUpdateError(fn: (err: string) => void): () => void;
 }
 
 // A running project search; cancel() stops it (closes the stream). done resolves with an error text, or null.
@@ -135,6 +143,23 @@ export const backend: Backend = {
   copy: (text) => Clipboard.SetText(text),
   zoom: (level) => Window.SetZoom(level),
   platform: () => WorkspaceService.Platform(),
+  checkUpdate: async () => (await UpdateService.Check()) ?? null,
+  downloadAndInstallUpdate: () => UpdateService.DownloadAndInstall(),
+  restartApp: () => UpdateService.Restart(),
+  currentVersion: () => UpdateService.CurrentVersion(),
+  onUpdateAvailable: (fn) => Events.On("ayaz:updater:available", (e: { data: UpdateInfo }) => fn(e.data)),
+  onUpdateProgress: (fn) => Events.On("wails:updater:download-progress", (e: { data?: { bytesWritten?: number; bytesTotal?: number; Written?: number; Total?: number } }) => {
+    const d = e?.data || {};
+    const written = d.bytesWritten ?? d.Written ?? 0;
+    const total = d.bytesTotal ?? d.Total ?? 0;
+    const percent = total > 0 ? Math.round((written / total) * 100) : 0;
+    fn({ written, total, percent });
+  }),
+  onUpdateReady: (fn) => Events.On("wails:updater:update-ready", () => fn()),
+  onUpdateError: (fn) => Events.On("wails:updater:error", (e: { data?: { message?: string; Error?: string } | string }) => {
+    const msg = typeof e?.data === "string" ? e.data : (e?.data?.message || e?.data?.Error || "Update error");
+    fn(msg);
+  }),
   onFsChanged: (ws, fn) =>
     Events.On("fs:changed", (e: { data: FsChange & { ws: string } }) => {
       if (e.data.ws === ws) fn(e.data);

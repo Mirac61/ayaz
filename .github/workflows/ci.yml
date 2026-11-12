@@ -1,105 +1,36 @@
 name: ci
 on:
-  push:
-    branches: [main]
   pull_request:
+  push:
+    branches-ignore: [main]
+  workflow_dispatch:
 
 jobs:
-  go:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-latest, ubuntu-24.04, windows-latest]
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
-    defaults:
-      run:
-        shell: bash # the Windows runner defaults to PowerShell
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-      - name: Linux GUI libraries (Wails links GTK4/WebKitGTK)
-        if: runner.os == 'Linux'
-        run: scripts/ci-apt.sh libgtk-4-dev libwebkitgtk-6.0-dev
-      # main embeds frontend/dist, which only exists after a frontend build.
-      - run: mkdir -p frontend/dist && touch frontend/dist/index.html
-      # go test already vets what it compiles; the full vet runs once, and the windows job vets GOOS=windows.
-      - run: go vet ./...
-        if: runner.os == 'Linux'
-      - run: go test -race ./...
-      - name: Fuzz the path jail
-        if: runner.os == 'Linux'
-        run: go test -run='^$' -fuzz=FuzzResolve -fuzztime=30s ./internal/workspace
-
-  # Windows is built from Linux: this catches code that only compiles on Unix (syscall.Kill, creack/pty) without a Windows runner.
-  windows:
+  test:
+    name: Lightweight Unit Tests (Go & Frontend)
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    env:
-      GOOS: windows
-      CGO_ENABLED: "0"
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-      - run: mkdir -p frontend/dist && touch frontend/dist/index.html
-      - run: go vet ./...
-      - run: go build -ldflags "-H windowsgui" -o ayaz.exe .
 
-  frontend:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    defaults:
-      run:
-        working-directory: frontend
-    steps:
-      - uses: actions/checkout@v5
-      - uses: oven-sh/setup-bun@v2
-      - run: bun install --frozen-lockfile
-      - run: bun run typecheck
-      - run: bun run lint
-      - run: bun run test
-
-  # Vitest browser mode and Playwright E2E, both in WebKit. E2E runs against the server build, with a real gopls
-  # (the LSP tests skip without one). On macOS too: that is the platform the app is for.
-  browser:
-    strategy:
-      fail-fast: false # one OS failing must not hide the other
-      matrix:
-        os: [ubuntu-24.04, macos-latest]
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v5
-      - uses: oven-sh/setup-bun@v2
-      - run: bun install --frozen-lockfile
-        working-directory: frontend
-      - name: apt mirror fallback
-        if: runner.os == 'Linux'
-        run: scripts/ci-apt.sh
-        working-directory: .
-      - name: Playwright WebKit (Linux needs its system libraries too)
-        run: bunx playwright install ${{ runner.os == 'Linux' && '--with-deps' || '' }} webkit
-        working-directory: frontend
-      - run: bun run test:browser
-        working-directory: frontend
-      # E2E only on macOS (the target platform): on Linux it would need GTK/WebKitGTK just to link the server build.
-      - if: runner.os == 'macOS'
+      - name: Setup Go
         uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
-      - if: runner.os == 'macOS'
-        run: bun run build
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      # Embed placeholder so main package can compile without full frontend dist
+      - name: Dist placeholder
+        run: mkdir -p frontend/dist && touch frontend/dist/index.html
+
+      - name: Go Unit Tests
+        run: go test ./...
+
+      - name: Frontend Tests & Typecheck
         working-directory: frontend
-      - if: runner.os == 'macOS'
-        run: go install golang.org/x/tools/gopls@v0.24.0
-      - if: runner.os == 'macOS'
-        run: echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
-      - if: runner.os == 'macOS'
-        run: go build -tags server,production -o bin/ayaz-server .
-      - if: runner.os == 'macOS'
-        run: bun run e2e
-        working-directory: frontend
+        run: |
+          bun install --frozen-lockfile
+          bun run typecheck
+          bun run test

@@ -50,6 +50,19 @@ export interface Swap {
 }
 
 /**
+ * UpdateInfo holds details about an available update.
+ */
+export interface UpdateInfo {
+    "available": boolean;
+    "currentVersion": string;
+    "latestVersion": string;
+    "releaseNotes": string;
+    "publishedAt": string;
+    "filename": string;
+    "assetSize": number;
+}
+
+/**
  * Version is one kept text of a file; Time is when it was replaced, in Unix milliseconds.
  */
 export interface Version {

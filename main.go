@@ -8,12 +8,15 @@ import (
 	"github.com/Mirac61/ayaz/app"
 	"github.com/Mirac61/ayaz/internal/fsserve"
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/updater"
 )
 
 //go:embed all:frontend/dist
 var assets embed.FS
 
 func main() {
+	updater.HandleHelperMode()
+
 	// `ayaz file[:line]` goes to the running app and ends here; with --wait it ends once the file is closed there.
 	cwd, _ := os.Getwd()
 	req := app.ParseOpen(os.Args[1:], cwd)
@@ -21,6 +24,7 @@ func main() {
 		return
 	}
 	ws := app.NewWorkspaceService(os.Args[1:])
+	updateSvc := app.NewUpdateService()
 	a := application.New(application.Options{
 		Name:        "Ayaz",
 		Description: "Keyboard-first code editor",
@@ -28,6 +32,7 @@ func main() {
 			application.NewService(&app.PingService{}),
 			application.NewService(ws),
 			application.NewService(&app.ConfigService{}),
+			application.NewService(updateSvc),
 		},
 		Assets: application.AssetOptions{
 			Handler:    application.AssetFileServerFS(assets),
@@ -41,6 +46,7 @@ func main() {
 
 	app.OnReady(a)
 	app.CloseTabNotWindow(a)
+	_ = updateSvc.Init(a)
 	a.HandleStream("pty", ws.HandleTerminal)
 	a.HandleStream("lsp", ws.HandleLSP)
 	a.HandleStream("dap", ws.HandleDAP)

@@ -27,6 +27,18 @@ tasks:
     cmds:
       - task: "{{.GOOS}}:package"
 
+  test:
+    summary: Runs all Go and frontend unit tests
+    cmds:
+      - go test ./...
+      - '{{.PACKAGE_MANAGER}} --cwd frontend run typecheck'
+      - '{{.PACKAGE_MANAGER}} --cwd frontend run test'
+
+  release:local:
+    summary: Builds and publishes a release locally without using GitHub Actions minutes
+    cmds:
+      - ./scripts/release-local.sh {{.TAG | default ""}}
+
   install:
     summary: Builds Ayaz and installs it for the current user (macOS, Linux, Windows)
     cmds:

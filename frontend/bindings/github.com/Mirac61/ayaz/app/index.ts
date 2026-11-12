@@ -3,10 +3,12 @@
 
 import * as ConfigService from "./configservice.js";
 import * as PingService from "./pingservice.js";
+import * as UpdateService from "./updateservice.js";
 import * as WorkspaceService from "./workspaceservice.js";
 export {
     ConfigService,
     PingService,
+    UpdateService,
     WorkspaceService
 };
 
@@ -16,5 +18,6 @@ export type {
     Match,
     OpenEvent,
     Swap,
+    UpdateInfo,
     Version
 } from "./models.js";

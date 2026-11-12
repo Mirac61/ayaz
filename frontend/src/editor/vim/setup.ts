@@ -31,6 +31,7 @@ const EX: [name: string, prefix: string, command: string][] = [
   ["harpoon", "harpoon", "harpoon.menu"],
   ["Gwrite", "Gw", "git.stageFile"],
   ["Gread", "Gr", "git.discardFile"],
+  ["checkupdate", "checkupdate", "ayaz.checkForUpdates"],
 ];
 
 // Whether a palette line reads as a Vim ex command (":w", ":%s/a/b/", ":3,5d") rather than words to search commands by.

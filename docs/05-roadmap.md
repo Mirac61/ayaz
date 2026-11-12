@@ -367,6 +367,18 @@ Done when: all four language groups have diagnostics, completion and navigation.
   - Windows hardening: AltGr collision prevention in keymap sequencer, standard Windows/Linux keybindings (`Ctrl+P`, `Ctrl+Shift+P`, `Ctrl+F4`, `Ctrl+Shift+W`, `Ctrl+B`, `Ctrl+J`), Windows drive letter and backslash path support in task problem matcher (`tasks.ts`), terminal copy/paste pass-through (`Ctrl+Shift+C`/`V`).
   - UI polish: segmented pill control in sidebar header with count badges, fixed CSS unicode escapes in window title bar project badge.
 
+## M76 – Platform-independent in-app auto-update and local release workflow
+
+- Done 2026-11-12:
+  - Wails v3 in-app self-updater integration (`app/updater.go`, `app/version.go`): `UpdateService` with `Check()`, `DownloadAndInstall()`, `Restart()`, and `CurrentVersion()`.
+  - Platform-independent asset matching (`MatchAsset`) resolving `darwin`/`macos`, `windows`/`win`, `linux` for `amd64` and `arm64`, skipping sidecars and checksums.
+  - Helper mode initialized at the entry of `main.go` (`updater.HandleHelperMode()`) for seamless Windows binary swaps without socket contention.
+  - Automatic GitHub authentication token discovery from `AYAZ_GITHUB_TOKEN`, `GITHUB_TOKEN`, and `gh auth token` to enable updates from private repositories.
+  - Local release automation (`scripts/release-local.sh`, `task release:local`): cross-compiles Windows and macOS binaries, packages zip archives, generates `SHA256SUMS`, and publishes directly via GitHub CLI without burning CI minutes.
+  - CI budget preservation: paused automatic triggers on push in `.github/workflows/ci.yml` and `.github/workflows/release.yml` (switched to `workflow_dispatch`), and added `SHA256SUMS` generation to the GitHub Actions release workflow.
+  - Frontend updater store and UI (`updater.ts`, `UpdateDialog.tsx`, `Workbench.tsx`): background check 5s after startup, command palette entry `Ayaz: Check for updates` (`:checkupdate`), status bar indicator pills (`↑ v0.2.2`, `↓ 45%`, `↻ Restart to update`), and modal dialog showing release notes, download progress, and restart action.
+  - Tests: Go unit tests for `MatchAsset` and token resolution in `updater_test.go`; frontend unit tests in `updater.test.ts`.
+
 ## Later
 
 | | What | Plugs into |

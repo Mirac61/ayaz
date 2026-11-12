@@ -1,8 +1,8 @@
 name: release
 on:
-  push:
-    tags: ["v*"]
-  workflow_dispatch: # builds the archives as workflow artifacts without publishing a release
+  workflow_dispatch: # manual only while repo is private
+  # push:
+  #   tags: ["v*"]
 
 permissions:
   contents: write
@@ -68,6 +68,11 @@ jobs:
         with:
           path: dist
           merge-multiple: true
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum * > SHA256SUMS
+          cd ..
       - name: Create the release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
