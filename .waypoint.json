@@ -14,13 +14,13 @@
     {
       "id": "3",
       "title": "Verify CI build & push to main",
-      "status": "IN_PROGRESS"
+      "status": "DONE"
     },
     {
       "id": "4",
       "title": "Tag v0.3.0 and verify release build on GitHub Actions",
-      "status": "TODO"
+      "status": "DONE"
     }
   ],
-  "updated_at": "2026-11-12T21:30:45Z"
+  "updated_at": "2026-11-12T21:48:40Z"
 }
