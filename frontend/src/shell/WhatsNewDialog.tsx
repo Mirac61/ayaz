@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { backend } from "../core/backend";
 import { AyazLogo } from "./AyazLogo";
 
@@ -39,6 +39,14 @@ export const WhatsNewDialog: React.FC<WhatsNewDialogProps> = ({
   version = "v0.5.0",
   onClose,
 }) => {
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const prevFocused = document.activeElement as HTMLElement | null;
+    dialogRef.current?.querySelector<HTMLButtonElement>(".welcome-modal-close")?.focus();
+    return () => prevFocused?.focus();
+  }, []);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -53,10 +61,12 @@ export const WhatsNewDialog: React.FC<WhatsNewDialogProps> = ({
   return (
     <div className="welcome-modal-backdrop" onClick={onClose}>
       <div
+        ref={dialogRef}
         className="welcome-modal"
         style={{ maxWidth: 600 }}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
+        aria-modal="true"
         aria-label="Was ist neu in Ayaz"
       >
         <div className="welcome-modal-header">

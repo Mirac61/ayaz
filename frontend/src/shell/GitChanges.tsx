@@ -181,6 +181,8 @@ export const GitChanges: React.FC<Props> = ({
         setCursor(allItems.length - 1);
         break;
       case "Enter":
+        if (e.target === e.currentTarget && allItems[cur]) openItem(allItems[cur].path);
+        break;
       case "o":
         if (allItems[cur]) openItem(allItems[cur].path);
         break;

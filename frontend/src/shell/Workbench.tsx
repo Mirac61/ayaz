@@ -299,8 +299,8 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       else notify.warn(text);
     }
   }), [ws.id]);
-  const run = (id: string, arg?: string) =>
-    void Promise.resolve().then(() => commands.run(id, arg)).catch((e) => fail(errText(e)));
+  const run = (id: string, arg?: string): Promise<void> =>
+    Promise.resolve(commands.run(id, arg)).then(() => {}).catch((e) => fail(errText(e)));
 
   useEffect(() => {
     // Closes the window (ADR-0014: one workspace per window); the app quits after the last one.
@@ -1139,7 +1139,8 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
         !inEditor &&
         (t?.tagName === "INPUT" ||
           (!term && (t?.tagName === "TEXTAREA" || (t as HTMLElement)?.isContentEditable || !!t?.closest?.("input, textarea, [contenteditable='true']"))));
-      if (!k || isEditable) {
+      if (!k) return;
+      if (isEditable) {
         s.reset();
         shadow.reset();
         return;

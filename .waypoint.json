@@ -3,22 +3,22 @@
   "tasks": [
     {
       "id": "1",
-      "title": "Konzeption & Bento-Grid-Architektur: Schnellstart, gefilterte Projekte, GitHub-Hub, Themes & Extensions",
+      "title": "Konzeption \u0026 Bento-Grid-Architektur: Schnellstart, gefilterte Projekte, GitHub-Hub, Themes \u0026 Extensions",
       "status": "DONE"
     },
     {
       "id": "2",
-      "title": "GitHub & Git Integration im Startbildschirm (Clone-Dialog, GitHub Issues/PR-Quicklinks, Auth-Status)",
+      "title": "GitHub \u0026 Git Integration im Startbildschirm (Clone-Dialog, GitHub Issues/PR-Quicklinks, Auth-Status)",
       "status": "DONE"
     },
     {
       "id": "3",
-      "title": "Interaktive Theme-Live-Palette & Extensions-Hub (Direkt-Umschalter, Extension-Architektur-Vorbereitung)",
+      "title": "Interaktive Theme-Live-Palette \u0026 Extensions-Hub (Direkt-Umschalter, Extension-Architektur-Vorbereitung)",
       "status": "DONE"
     },
     {
       "id": "4",
-      "title": "Strukturierte Keyboard-Cheatsheet-Tabs (Essentials, Navigation, Vim) & Recent-Filter",
+      "title": "Strukturierte Keyboard-Cheatsheet-Tabs (Essentials, Navigation, Vim) \u0026 Recent-Filter",
       "status": "DONE"
     },
     {
@@ -60,7 +60,22 @@
       "id": "12",
       "title": "feature angebe soltle angezeigt werden in der app und in github bei neuen releases",
       "status": "DONE"
+    },
+    {
+      "id": "13",
+      "title": "Startseite im Editor-Stil (Neovim-Dashboard: Einzeltasten, keymap-Keys, ruhige Rows)",
+      "status": "DONE"
+    },
+    {
+      "id": "14",
+      "title": "e2e 'two windows, switch folder' rot: README.md-Treeitem fehlt bei / (auch ohne Startseiten-Änderung)",
+      "status": "TODO"
+    },
+    {
+      "id": "15",
+      "title": "Startseite 'klare Winternacht': Kristall-Hero, Sternenhimmel, Frostglas-Kacheln/-Panels, Einzeltasten",
+      "status": "DONE"
     }
   ],
-  "updated_at": "2026-11-13T13:58:50.000000Z"
+  "updated_at": "2026-11-13T15:22:48.999Z"
 }

@@ -41,39 +41,61 @@ export const AgentPrompt: React.FC<AgentPromptProps> = ({
   const [result, setResult] = useState("");
   const [copied, setCopied] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const genIdRef = useRef(0);
 
   useEffect(() => {
+    const prevFocused = document.activeElement as HTMLElement | null;
     textareaRef.current?.focus();
+    return () => prevFocused?.focus();
   }, []);
+
+  const handlePromptChange = (val: string) => {
+    setPrompt(val);
+    genIdRef.current++;
+    if (status !== "idle") setStatus("idle");
+    if (result) setResult("");
+  };
 
   const handleGenerate = async () => {
     const input = prompt.trim();
     if (!input) return;
 
+    const currentGenId = ++genIdRef.current;
     setStatus("generating");
     setResult("");
 
-    // Build context summary
-    const fileName = filePath ? filePath.split("/").pop() : "active buffer";
-    const contextPrefix = `// Context: ${fileName}${selection ? " (selection)" : ""}\n`;
+    // Build context summary based on enabled pills
+    const fileName = includeFile && filePath ? filePath.split("/").pop() : "";
+    const activeSelection = includeSelection ? selection : "";
+    let contextHeader = "";
+    if (fileName || activeSelection || (includeDiagnostics && diagnosticsCount > 0)) {
+      const parts: string[] = [];
+      if (fileName) parts.push(`file: ${fileName}`);
+      if (activeSelection) parts.push("selection");
+      if (includeDiagnostics && diagnosticsCount > 0) parts.push(`${diagnosticsCount} diagnostics`);
+      contextHeader = `// Context (${parts.join(", ")}):\n`;
+    }
 
-    // High-velocity transformation / generation logic
     setTimeout(() => {
+      if (genIdRef.current !== currentGenId) return;
+
       let generated = "";
       if (input.includes("Test") || input.includes("test")) {
-        generated = `${contextPrefix}// Generated Tests for ${fileName}\ndescribe("${fileName}", () => {\n  it("should handle expected behavior", () => {\n    // Implementation\n  });\n});`;
+        const targetName = fileName || "active buffer";
+        generated = `${contextHeader}// [Preview] Generated Tests for ${targetName}\ndescribe("${targetName}", () => {\n  it("should handle expected behavior", () => {\n    // Implementation\n  });\n});`;
       } else if (input.includes("Refactor") || input.includes("refactor")) {
-        generated = selection
-          ? `${selection}\n  // Refactored cleanly with modern best practices`
-          : `${contextPrefix}// Clean modular refactoring applied.`;
+        generated = activeSelection
+          ? `// [Preview] Refactored implementation:\n${activeSelection}\n  // Clean modular refactoring applied`
+          : `${contextHeader}// [Preview] Clean modular refactoring applied.`;
       } else if (input.includes("Fix") || input.includes("fix")) {
-        generated = selection
-          ? `// Fixed diagnostic issues\n${selection}`
-          : `${contextPrefix}// Diagnostics addressed and type checks verified.`;
+        generated = activeSelection
+          ? `// [Preview] Fixed diagnostics:\n${activeSelection}`
+          : `${contextHeader}// [Preview] Diagnostics addressed and verified.`;
       } else {
-        generated = selection
-          ? `${selection}\n\n// Agent modification:\n// ${input}`
-          : `${contextPrefix}// Code generated based on prompt:\n// ${input}`;
+        generated = activeSelection
+          ? `${activeSelection}\n\n// [Preview] Agent modification:\n// ${input}`
+          : `${contextHeader}// [Preview] Code generated based on prompt:\n// ${input}`;
       }
 
       setResult(generated);
@@ -91,9 +113,11 @@ export const AgentPrompt: React.FC<AgentPromptProps> = ({
   return (
     <div className="agent-prompt-backdrop" onClick={onClose}>
       <div
+        ref={dialogRef}
         className="agent-prompt-box"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
+        aria-modal="true"
         aria-label="Agentic Coding Assistant"
       >
         <header className="agent-header">
@@ -168,7 +192,7 @@ export const AgentPrompt: React.FC<AgentPromptProps> = ({
             className="agent-textarea"
             placeholder="Beschreibe die Änderung (z. B. 'Refactor in async', 'Fehlerbehandlung hinzufügen', 'Tests schreiben')... [⌘Enter]"
             value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
+            onChange={(e) => handlePromptChange(e.target.value)}
             onKeyDown={(e) => {
               if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
                 e.preventDefault();
@@ -187,7 +211,7 @@ export const AgentPrompt: React.FC<AgentPromptProps> = ({
                 type="button"
                 className="agent-quick-btn"
                 onClick={() => {
-                  setPrompt(q.prompt);
+                  handlePromptChange(q.prompt);
                   textareaRef.current?.focus();
                 }}
               >

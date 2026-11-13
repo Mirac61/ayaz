@@ -27,6 +27,8 @@
 .agent-prompt-box {
   width: 100%;
   max-width: 680px;
+  max-height: calc(100vh - 16vh);
+  overflow-y: auto;
   background: color-mix(in srgb, var(--bg-1) 95%, transparent);
   border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--edge));
   border-radius: var(--radius-lg);
@@ -262,9 +264,13 @@
   font: 600 12px/16px var(--font-mono);
   border-radius: var(--radius);
   cursor: pointer;
-  outline: none;
   border: 1px solid var(--edge);
   transition: all var(--t) var(--ease);
+}
+
+.agent-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 .agent-btn.primary {

@@ -49,9 +49,9 @@ const EX: [name: string, prefix: string, command: string][] = [
   ["ai", "ai", "agent.inline"],
   ["agent", "agent", "agent.inline"],
   ["Gpush", "Gp", "git.push"],
-  ["Gpull", "Gl", "git.pull"],
+  ["Gpull", "Gpul", "git.pull"],
   ["Gfetch", "Gf", "git.fetch"],
-  ["Grebase", "Grb", "git.rebase"],
+  ["Grebase", "Greb", "git.rebase"],
 ];
 
 // Whether a palette line reads as a Vim ex command (":w", ":%s/a/b/", ":3,5d") rather than words to search commands by.
