@@ -45,7 +45,12 @@
       "id": "9",
       "title": "Die Vim normal und so das schöner machen",
       "status": "TODO"
+    },
+    {
+      "id": "10",
+      "title": "man sollte pushen können und es gibt ein bug bei dem schreiben, wo man bei space, nicht immer ds richtige bekommt im Sinne von es öffnet sich as Terminel:d",
+      "status": "TODO"
     }
   ],
-  "updated_at": "2026-11-13T11:56:32.428057Z"
+  "updated_at": "2026-11-13T12:00:09.774545Z"
 }
