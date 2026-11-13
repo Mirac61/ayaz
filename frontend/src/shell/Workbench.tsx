@@ -597,7 +597,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
               setShowUpdateDialog(true);
               say(`Update v${res.latestVersion} available!`);
             } else {
-              say(`Ayaz is up to date (v${res?.currentVersion || "0.3.2"})`);
+              say(`Ayaz is up to date (v${res?.currentVersion || "0.4.0"})`);
             }
           } catch (e) {
             fail(`Update check failed: ${e instanceof Error ? e.message : String(e)}`);
