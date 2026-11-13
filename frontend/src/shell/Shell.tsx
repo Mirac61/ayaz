@@ -9,6 +9,7 @@ import { folderIcon } from "../theme/icons";
 import { setZoom, zoomLevel } from "./zoom";
 import { Workbench } from "./Workbench";
 import { AyazLogo } from "./AyazLogo";
+import { DocsHub } from "./DocsHub";
 import { availableThemes, setThemeOverride, themeName } from "../core/settings";
 
 interface GitHubItem {
@@ -53,6 +54,7 @@ export function Shell() {
   const [showClone, setShowClone] = useState(false);
   const [cloneUrl, setCloneUrl] = useState("");
   const [cloning, setCloning] = useState(false);
+  const [showDocs, setShowDocs] = useState(false);
 
   const [repo, setRepo] = useState("Mirac61/ayaz");
   const [issues, setIssues] = useState<GitHubItem[] | "loading" | "failed">("loading");
@@ -184,9 +186,11 @@ export function Shell() {
     { key: "c", icon: "", label: "Clone repository", sub: "Git URL or owner/repo", run: () => setShowClone(true) },
     { key: "n", icon: "", label: "New window", sub: mod(isMac ? "⇧N" : "Shift+N"), run: () => void backend.newWindow() },
     { key: "t", icon: "", label: "Theme", sub: theme, run: openThemePicker },
+    { key: "?", icon: "", label: "Docs & Help", sub: "<F1> or :help", run: () => setShowDocs(true) },
   ];
   const singleKeys: Record<string, () => void> = {
     r: openRecentPicker,
+    "?": () => setShowDocs(true),
     ",": () => void backend.openSettings(),
     ...Object.fromEntries(tiles.map((t) => [t.key, t.run])),
   };
@@ -380,6 +384,15 @@ export function Shell() {
             </div>
           </div>
         </div>
+      )}
+
+      {showDocs && (
+        <DocsHub
+          onClose={() => {
+            setShowDocs(false);
+            focusPage();
+          }}
+        />
       )}
 
       {picker && (

@@ -50,6 +50,7 @@ import { Notifications } from "./Notifications";
 import { Cmdline } from "./Cmdline";
 import { AgentPrompt } from "./AgentPrompt";
 import { WhatsNewDialog } from "./WhatsNewDialog";
+import { DocsHub } from "./DocsHub";
 import { Handle, Hints, Pane } from "./parts";
 import { ContextMenu, IconButton, Seg, type MenuItem } from "../ui/ui";
 import "./shell.css";
@@ -147,6 +148,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
   const [showCmdline, setShowCmdline] = useState(false);
   const [showAgentPrompt, setShowAgentPrompt] = useState(false);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
+  const [showDocs, setShowDocs] = useState(false);
   const [updateState, setUpdateState] = useState<UpdateState>(() => updaterStore.state);
   const [updateInfo, setUpdateInfo] = useState(() => updaterStore.info);
   const [updateProgress, setUpdateProgress] = useState<UpdateProgress | null>(() => updaterStore.progress);
@@ -775,6 +777,11 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
         id: "ayaz.whatsNew",
         title: "What's new in Ayaz (Feature highlights)",
         run: () => setShowWhatsNew(true),
+      },
+      {
+        id: "app.docs",
+        title: "Ayaz Documentation & Help (<F1>, :help, :docs)",
+        run: () => setShowDocs(true),
       },
       { id: "term.dock", title: "Move terminal panel (bottom, right, top)", run: () => setDock((d) => DOCKS[(DOCKS.indexOf(d) + 1) % DOCKS.length]) },
       { id: "term.panel", title: "Toggle terminal panel", run: togglePanel },
@@ -1729,6 +1736,14 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       )}
       {showUpdateDialog && <UpdateDialog onClose={() => setShowUpdateDialog(false)} />}
       {showWhatsNew && <WhatsNewDialog version="v0.5.0" onClose={() => setShowWhatsNew(false)} />}
+      {showDocs && (
+        <DocsHub
+          onClose={() => {
+            setShowDocs(false);
+            ed.focus(ed.active);
+          }}
+        />
+      )}
       {showAgentPrompt && (
         <AgentPrompt
           filePath={ed.current()?.path}

@@ -140,7 +140,7 @@ export function defaultKeymap(mac = isMac): Binding[] {
     // "+" has its own key on German layouts, "=" on US ones.
     ...[["=", "view.zoomIn"], ["+", "view.zoomIn"], ["-", "view.zoomOut"], ["0", "view.zoomReset"]]
       .map(([k, cmd]) => g(`<${mac ? "D" : "C"}-${k}>`, cmd)),
-    g("<F1>", "find.commands"),
+    g("<F1>", "app.docs"),
   ];
 }
 
