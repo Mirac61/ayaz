@@ -75,6 +75,7 @@ export function Shell() {
     <div className="welcome" onKeyDown={onKey}>
       <div className="titlebar">
         <button type="button" className="titlebar-project" tabIndex={-1} onClick={openRecentPicker}>
+          <AyazLogo size={12} variant="frost" className="titlebar-project-logo" />
           <span className="titlebar-project-name">Open Recent Project</span>
         </button>
       </div>

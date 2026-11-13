@@ -1259,6 +1259,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
           tabIndex={-1}
           onMouseDown={(e) => { e.preventDefault(); run("folder.switch"); }}
         >
+          <AyazLogo size={12} variant="frost" className="titlebar-project-logo" />
           <span className="titlebar-project-name">{ws.name}</span>
         </button>
         <span className="titlebar-file">{file}</span>

@@ -19,12 +19,12 @@
     {
       "id": "4",
       "title": "UI-Schritt 2: Titelleiste / Header (Kompakt 30px, Frost-Badge, dezentere Breadcrumbs)",
-      "status": "IN_PROGRESS"
+      "status": "DONE"
     },
     {
       "id": "5",
       "title": "UI-Schritt 3: Statusleiste (Kompaktes Glacier Dock 26px, Eiskapsel-Vim-Modus)",
-      "status": "PENDING"
+      "status": "IN_PROGRESS"
     },
     {
       "id": "6",
