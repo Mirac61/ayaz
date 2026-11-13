@@ -24,6 +24,7 @@ export class DebugSession {
   state: DebugState = "starting";
   threadId = 0;
   frames: StackFrame[] = []; // of the thread that stopped, innermost first
+  activeFrameId = 0;
 
   constructor(readonly client: DapClient, readonly root: string, private hooks: DebugHooks) {
     client.on("stopped", (b: StoppedEvent) => void this.onStopped(b));
@@ -60,9 +61,9 @@ export class DebugSession {
     await this.client.request(step, { threadId: this.threadId });
   }
 
-  // The scopes of the innermost frame (arguments, locals, globals) while the program is stopped; [] otherwise.
+  // The scopes of the active frame (arguments, locals, globals) while the program is stopped; [] otherwise.
   async scopes(): Promise<Scope[]> {
-    const frame = this.frames[0];
+    const frame = this.frames.find((f) => f.id === this.activeFrameId) ?? this.frames[0];
     if (this.state !== "paused" || !frame) return [];
     const res = await this.client.request<{ scopes?: Scope[] }>("scopes", { frameId: frame.id });
     return res.scopes ?? [];
@@ -73,12 +74,18 @@ export class DebugSession {
     return (await this.client.request<{ variables: Variable[] }>("variables", { variablesReference: ref })).variables;
   }
 
-  // Evaluates expr in the context of the innermost frame (or without a frame if none).
+  // Evaluates expr in the context of the active frame (or without a frame if none).
   async evaluate(expression: string, context: "watch" | "hover" | "repl" = "watch"): Promise<{ result: string; type?: string; variablesReference: number }> {
-    const frame = this.frames[0];
+    const frame = this.frames.find((f) => f.id === this.activeFrameId) ?? this.frames[0];
     const args: { expression: string; context: string; frameId?: number } = { expression, context };
     if (frame) args.frameId = frame.id;
     return this.client.request<{ result: string; type?: string; variablesReference: number }>("evaluate", args);
+  }
+
+  setActiveFrame(frameId: number) {
+    if (this.frames.some((f) => f.id === frameId)) {
+      this.activeFrameId = frameId;
+    }
   }
 
   watch(expression: string) {
@@ -120,6 +127,7 @@ export class DebugSession {
       frames = (await this.client.request<{ stackFrames: StackFrame[] }>("stackTrace", args)).stackFrames;
     } catch { /* the program may have moved on already: show the stop without a place */ }
     this.frames = frames;
+    this.activeFrameId = frames[0]?.id ?? 0;
     const top = frames.find((f) => f.source?.path);
     this.hooks.stopped(top ? { path: this.relative(top.source!.path!), line: top.line } : null, b.reason);
   }

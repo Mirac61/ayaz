@@ -2,7 +2,7 @@ import { afterEach, expect, test } from "vitest";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { editorExtensions } from "./editor";
-import { breakpointLines, setLines, toggleBreakpoint } from "./breakpoints";
+import { breakpointLines, setLines, toggleBreakpoint, toggleBreakpointAt } from "./breakpoints";
 
 let view: EditorView | null = null;
 afterEach(() => {
@@ -48,6 +48,14 @@ test("the dots follow edits: lines inserted above push them down, a deleted line
   view!.dispatch({ changes: { from: two.from, to: two.to + 1 } }); // delete the line and its break
   expect(lines()).toEqual([4]); // "four" has moved up to line 4
   expect(view!.state.doc.line(4).text).toBe("four");
+});
+
+test("toggleBreakpointAt sets and removes breakpoint on specified line", () => {
+  mount();
+  expect(toggleBreakpointAt(view!, 3)).toBe(true);
+  expect(lines()).toEqual([3]);
+  expect(toggleBreakpointAt(view!, 3)).toBe(false);
+  expect(lines()).toEqual([]);
 });
 
 test("typing in a line and splitting it keep the dot with the text", () => {

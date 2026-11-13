@@ -265,3 +265,19 @@ test("runInTerminal forwards adapter request to editor", async () => {
   expect(terminalLaunched).toEqual({ args: ["./main"], cwd: "/p" });
   expect(f.got).toContain("response:runInTerminal:true");
 });
+
+test("frames and activeFrameId exposed on Debugger and updated on selectFrame", async () => {
+  const { f, dbg } = setup();
+  await dbg.start();
+  f.push({ type: "event", event: "stopped", body: { reason: "breakpoint", threadId: 1 } });
+  await tick();
+
+  expect(dbg.frames).toHaveLength(1);
+  expect(dbg.frames[0].name).toBe("main");
+  expect(dbg.activeFrameId).toBe(1);
+  expect(dbg.relative("/p/src/main.go")).toBe("src/main.go");
+  expect(dbg.relative("/usr/lib/go/src/fmt/print.go")).toBe("/usr/lib/go/src/fmt/print.go");
+
+  dbg.selectFrame(1);
+  expect(dbg.activeFrameId).toBe(1);
+});

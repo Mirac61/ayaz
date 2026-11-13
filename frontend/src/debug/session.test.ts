@@ -72,6 +72,34 @@ test("continue, next, step in and step out go to the stopped thread and set runn
   expect(log.filter((l) => l === "state paused")).toHaveLength(4);
 });
 
+test("active frame selection switches scope and evaluate target frame", async () => {
+  const { f, session } = setup({
+    answer: (m) => {
+      if (m.command === "stackTrace") return { stackFrames: [MAIN, { id: 2, name: "helper", line: 5, column: 1, source: { path: "/p/helper.go" } }] };
+      if (m.command === "scopes") return { scopes: [{ name: `Scope for ${m.arguments?.frameId}`, variablesReference: 10 }] };
+      if (m.command === "evaluate") return { result: `val-${m.arguments?.frameId}`, variablesReference: 0 };
+      return undefined;
+    },
+  });
+  await session.start({});
+  f.push({ type: "event", event: "stopped", body: { reason: "breakpoint", threadId: 1 } });
+  await tick();
+  expect(session.activeFrameId).toBe(1);
+
+  const scope1 = await session.scopes();
+  expect(scope1[0].name).toBe("Scope for 1");
+  const eval1 = await session.evaluate("x");
+  expect(eval1.result).toBe("val-1");
+
+  session.setActiveFrame(2);
+  expect(session.activeFrameId).toBe(2);
+
+  const scope2 = await session.scopes();
+  expect(scope2[0].name).toBe("Scope for 2");
+  const eval2 = await session.evaluate("x");
+  expect(eval2.result).toBe("val-2");
+});
+
 test("program output and the adapter's console lines reach the output hook, telemetry doesn't", async () => {
   const { f, log, session } = setup();
   await session.start({});

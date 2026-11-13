@@ -32,7 +32,16 @@ export class Debugger {
 
   get status(): DebugStatus { return this.session?.state ?? "idle"; }
   get frames() { return this.session?.frames ?? []; }
+  get activeFrameId(): number { return this.session?.activeFrameId ?? 0; }
   get watchesList(): string[] { return [...this.watches]; }
+
+  selectFrame(frameId: number) {
+    this.session?.setActiveFrame(frameId);
+  }
+
+  relative(path: string): string {
+    return this.session ? this.session.relative(path) : path;
+  }
 
   addWatch(expr: string) {
     const trimmed = expr.trim();

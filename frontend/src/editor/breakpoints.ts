@@ -120,9 +120,9 @@ export function getBreakpoint(view: EditorView): Breakpoint | null {
   return breakpoints(s).find((b) => b.line === line) ?? null;
 }
 
-// Toggles a plain breakpoint on the cursor line; true when there is one now.
-export function toggleBreakpoint(view: EditorView): boolean {
-  const s = view.state, line = s.doc.lineAt(s.selection.main.head).number;
+// Toggles a plain breakpoint on line (1-based); true when there is one now.
+export function toggleBreakpointAt(view: EditorView, line: number): boolean {
+  const s = view.state;
   const list = breakpoints(s), existing = list.find((b) => b.line === line);
   if (existing) {
     view.dispatch({ effects: setBreakpoints.of(list.filter((b) => b.line !== line)) });
@@ -130,6 +130,12 @@ export function toggleBreakpoint(view: EditorView): boolean {
   }
   view.dispatch({ effects: setBreakpoints.of([...list, { line }]) });
   return true;
+}
+
+// Toggles a plain breakpoint on the cursor line; true when there is one now.
+export function toggleBreakpoint(view: EditorView): boolean {
+  const line = view.state.doc.lineAt(view.state.selection.main.head).number;
+  return toggleBreakpointAt(view, line);
 }
 
 // Sets or updates a breakpoint on the cursor line with the given options (condition, logMessage, hitCondition).
@@ -147,7 +153,7 @@ export function setBreakpoint(view: EditorView, extra?: { condition?: string; lo
 }
 
 const theme = EditorView.baseTheme({
-  ".cm-bp .cm-gutterElement": { width: "12px", display: "flex", alignItems: "center", justifyContent: "center" },
+  ".cm-bp .cm-gutterElement": { width: "12px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" },
   ".cm-bp-dot": { width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "var(--error, #e82424)" }, // kanagawa samuraiRed
   ".cm-bp-dot.cm-bp-conditional": { backgroundColor: "transparent", border: "2px solid var(--error, #e82424)", boxSizing: "border-box" },
   ".cm-bp-dot.cm-bp-logpoint": { borderRadius: "0", transform: "rotate(45deg)", width: "7px", height: "7px" },
@@ -165,6 +171,13 @@ export const breakpointGutter: Extension = [
       }));
     },
     initialSpacer: () => SOLID_DOT,
+    domEventHandlers: {
+      mousedown(view, line) {
+        const lineNo = view.state.doc.lineAt(line.from).number;
+        toggleBreakpointAt(view, lineNo);
+        return true;
+      },
+    },
   }),
   theme,
 ];

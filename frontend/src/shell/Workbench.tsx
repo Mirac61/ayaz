@@ -8,7 +8,8 @@ import { backend, type FileStatus, type Info, type OpenEvent } from "../core/bac
 import { Commands } from "../core/commands";
 import { defaultKeymap, keyName, mergeKeymap, parseUserKeymap, Sequencer, type Binding } from "../core/keymap";
 import { diff, lf } from "../core/buffers";
-import { parseProblems } from "../core/tasks";
+import { PREVIEW } from "../core/viewers";
+import { parseWatcherProblems } from "../core/tasks";
 import { docBuild, type DocBuild } from "../core/docBuild";
 import { Quickfix } from "../core/quickfix";
 import { setLspMessages, installHint } from "../editor/lsp";
@@ -233,9 +234,11 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
         await ed.open(path, id).catch(() => {});
         const b = ed.buffers.get(path);
         if (b && !b.mtime && !b.state.doc.length) await ed.moved(path, null);
-        if (b && session.previews.includes(id)) {
+        if (session.previews.includes(id)) {
           ed.focus(id);
-          ed.toggleReading();
+          if (path.endsWith(".svg")) ed.showViewer(id, path);
+          else if (path.endsWith(".html") || path.endsWith(".htm")) ed.showViewer(id, PREVIEW + path);
+          else if (b) ed.toggleReading();
           previews.current.add(id);
         }
       }
@@ -276,10 +279,15 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
   const sayRef = useRef(say);
   sayRef.current = say;
   const dbg = useMemo(() => new Debugger(ws.root, ed, (adapter) => dapStream(ws.id, adapter), setDebug, (t) => sayRef.current(t)), [ed]);
-  useEffect(() => () => {
-    clearTimeout(msgTimer.current);
-    dbg.dispose();
-  }, [dbg]);
+  useEffect(() => {
+    ed.onBreakpointsChanged = (path, bps) => {
+      dbg.breakpointsChanged(path, bps);
+    };
+    return () => {
+      clearTimeout(msgTimer.current);
+      dbg.dispose();
+    };
+  }, [ed, dbg]);
   useEffect(() => setLspMessages(ws.id, (text, level) => {
     if (level === "error" || level === "warning") {
       setMsg({ text, error: level === "error", warning: level === "warning" });
@@ -520,22 +528,45 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
     const runTask = ({ name, cmd }: ProjectTask) => {
       lastTask = { name, cmd };
       say(`Task "${name}": ${cmd}`);
+      let hadLiveProblems = false;
       termSplit(cmd, {
         onExit: () => {}, // keep the pane and its output
+        onLiveOutput(text) {
+          const locs = parseWatcherProblems(text, ws.root);
+          if (locs.length) {
+            hadLiveProblems = true;
+            q.set(`Task "${name}"`, locs, false, false);
+          } else if (hadLiveProblems) {
+            hadLiveProblems = false;
+            q.set(`Task "${name}"`, [], false, false);
+            say(`Task "${name}" compiled cleanly`);
+          }
+        },
         onOutput(text) {
-          const locs = parseProblems(text, ws.root);
+          const locs = parseWatcherProblems(text, ws.root);
           if (locs.length) q.set(`Task "${name}"`, locs, false, false);
-          else say(`Task "${name}" ended, no file:line in its output`);
+          else if (!hadLiveProblems) say(`Task "${name}" ended, no file:line in its output`);
         },
       });
     };
 
     // <Space>mp on .typ/.tex: the watcher runs as a task; the PDF opens beside the source once the first build has written it.
     const buildDoc = async (path: string, { cmd, pdf }: DocBuild) => {
+      const openPdf = ed.findPaneWithPath(pdf);
+      if (openPdf !== null) {
+        return closePane(true, openPdf);
+      }
       const from = ed.active;
-      runTask({ name: `Build ${path}`, cmd });
       const slash = pdf.lastIndexOf("/");
       const [dir, name] = [pdf.slice(0, Math.max(slash, 0)), pdf.slice(slash + 1)];
+      const alreadyExists = (await files.list(dir).catch(() => [])).some((e) => e.name === name);
+
+      runTask({ name: `Build ${path}`, cmd });
+
+      if (alreadyExists) {
+        return void openNext.current.set(splitPane("row", undefined, from), pdf);
+      }
+
       for (let i = 0; i < 40; i++) {
         if ((await files.list(dir).catch(() => [])).some((e) => e.name === name)) {
           return void openNext.current.set(splitPane("row", undefined, from), pdf);
@@ -591,15 +622,26 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       },
       {
         id: "md.preview",
-        title: "Toggle Markdown preview in a split; builds Typst and LaTeX files to a PDF beside them",
+        title: "Toggle preview in a split (Markdown, Typst, LaTeX, SVG, HTML)",
         run() {
           const b = ed.current();
           const doc = b && docBuild(b.path);
           if (b && doc) return void buildDoc(b.path, doc);
-          if (!b || !b.path.endsWith(".md")) return fail("The preview is for Markdown, Typst and LaTeX files");
+          if (!b) return fail("No active file to preview");
+
+          const isMd = b.path.endsWith(".md");
+          const isSvg = b.path.endsWith(".svg");
+          const isHtml = b.path.endsWith(".html") || b.path.endsWith(".htm");
+
+          if (!isMd && !isSvg && !isHtml) {
+            return fail("The preview is for Markdown, Typst, LaTeX, SVG and HTML files");
+          }
+
           const open = [...previews.current].find((id) => ed.pathOf(id) === b.path);
           if (open !== undefined) return closePane(true, open);
-          previewNext.current.add(splitPane("row"));
+
+          const from = ed.active;
+          previewNext.current.add(splitPane("row", undefined, from));
         },
       },
       {
@@ -1352,6 +1394,86 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
         )}
       </aside>
       <div className="panes" ref={panesEl}>
+        {debug !== "idle" && (
+          <div className="debug-toolbar" role="toolbar" aria-label="Debug step controls">
+            <span className="debug-toolbar-status">{debug}</span>
+            <button
+              type="button"
+              className="debug-toolbar-btn continue"
+              title={debug === "paused" ? "Continue (F5, <Space>dc)" : "Pause (<Space>dc)"}
+              aria-label="Continue"
+              tabIndex={-1}
+              onClick={() => run("debug.continue")}
+            >
+              {debug === "paused" ? "▶" : "⏸"}
+            </button>
+            <button
+              type="button"
+              className="debug-toolbar-btn next"
+              title="Step Over (F10, <Space>dn)"
+              aria-label="Step Over"
+              tabIndex={-1}
+              disabled={debug !== "paused"}
+              onClick={() => run("debug.next")}
+            >
+              ↷
+            </button>
+            <button
+              type="button"
+              className="debug-toolbar-btn step-in"
+              title="Step Into (F11, <Space>ds)"
+              aria-label="Step Into"
+              tabIndex={-1}
+              disabled={debug !== "paused"}
+              onClick={() => run("debug.stepIn")}
+            >
+              ↓
+            </button>
+            <button
+              type="button"
+              className="debug-toolbar-btn step-out"
+              title="Step Out (Shift+F11, <Space>do)"
+              aria-label="Step Out"
+              tabIndex={-1}
+              disabled={debug !== "paused"}
+              onClick={() => run("debug.stepOut")}
+            >
+              ↑
+            </button>
+            <button
+              type="button"
+              className="debug-toolbar-btn callstack"
+              title="Call Stack (<Space>dk)"
+              aria-label="Call Stack"
+              tabIndex={-1}
+              disabled={debug !== "paused"}
+              onClick={() => run("debug.callstack")}
+            >
+              ≡
+            </button>
+            <button
+              type="button"
+              className="debug-toolbar-btn variables"
+              title="Variables (<Space>dv)"
+              aria-label="Variables"
+              tabIndex={-1}
+              disabled={debug !== "paused"}
+              onClick={() => run("debug.variables")}
+            >
+              {"{x}"}
+            </button>
+            <button
+              type="button"
+              className="debug-toolbar-btn stop"
+              title="Stop (<Space>dq)"
+              aria-label="Stop"
+              tabIndex={-1}
+              onClick={() => run("debug.stop")}
+            >
+              ■
+            </button>
+          </div>
+        )}
         {[...rs].map(([id, r]) => (
           <Pane
             key={id}
@@ -1381,7 +1503,14 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
               splitFrom.current.delete(id);
               termFor.current.delete(id);
               if (previewNext.current.delete(id)) {
-                ed.toggleReading(); // the new pane is active; keep typing in the source
+                const fromPath = from !== undefined ? ed.pathOf(from) : undefined;
+                if (fromPath?.endsWith(".svg")) {
+                  ed.showViewer(id, fromPath);
+                } else if (fromPath?.endsWith(".html") || fromPath?.endsWith(".htm")) {
+                  ed.showViewer(id, PREVIEW + fromPath);
+                } else {
+                  ed.toggleReading(); // the new pane is active; keep typing in the source
+                }
                 previews.current.add(id);
                 if (from !== undefined) { ed.focus(from); ed.syncScroll(from); }
               }

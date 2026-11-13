@@ -104,6 +104,44 @@ export function debugCommands(c: Ctx): Command[] {
     { id: "debug.stepIn", title: "Debug: step into (F11, <Space>ds)", run: () => void c.dbg.step("stepIn") },
     { id: "debug.stepOut", title: "Debug: step out (Shift+F11, <Space>do)", run: () => void c.dbg.step("stepOut") },
     {
+      id: "debug.callstack",
+      title: "Debug: call stack (<Space>dk)",
+      run() {
+        if (c.dbg.status !== "paused") {
+          return c.say(c.dbg.status === "idle" ? "Not debugging: <Space>dd starts" : "The program isn't stopped");
+        }
+        const frames = c.dbg.frames;
+        if (!frames.length) return c.say("No call stack frames available");
+        const items = frames.map((f, i): Item => {
+          const loc = f.source?.path ? `${c.dbg.relative(f.source.path)}:${f.line}` : `line ${f.line}`;
+          const activeMark = f.id === c.dbg.activeFrameId ? "▶ " : "";
+          return {
+            label: `${activeMark}${f.name || `frame #${i}`}`,
+            hint: loc,
+          };
+        });
+        c.setPicker({
+          title: "Call stack",
+          query: async (q) => items.filter((item) => item.label.toLowerCase().includes(q.toLowerCase()) || (item.hint && item.hint.toLowerCase().includes(q.toLowerCase()))),
+          pick(item) {
+            const idx = items.indexOf(item);
+            if (idx < 0) return;
+            const frame = frames[idx];
+            c.dbg.selectFrame(frame.id);
+            if (frame.source?.path) {
+              const rel = c.dbg.relative(frame.source.path);
+              void c.ed.openAt(rel, frame.line, frame.column || 0).then(() => {
+                c.ed.setDebugLine(rel, frame.line);
+              });
+              c.say(`Jumped to frame ${frame.name} (${rel}:${frame.line})`);
+            } else {
+              c.say(`Frame ${frame.name} has no source location`);
+            }
+          },
+        });
+      },
+    },
+    {
       id: "debug.variables",
       title: "Debug: variables of the stopped program (<Space>dv)",
       run: () => void c.dbg.variables().then((rows) => (rows ? c.setPicker(variables(rows)) : c.say("The program isn't stopped")),
