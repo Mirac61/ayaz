@@ -13,6 +13,7 @@ export interface ViewContext {
   url: string; // the file under /fs/
   onStatus(): void; // status() changed
   openURL?(url: string): void; // links inside the file, in the system browser
+  getContent?(): string | null; // live text from open buffer (e.g. for live SVG / HTML)
 }
 
 export interface ViewProvider {
@@ -25,6 +26,7 @@ export interface ViewProvider {
 const providers: ViewProvider[] = [];
 export const registerViewer = (p: ViewProvider) => void providers.push(p);
 export const BROWSER = "browser://"; // a browser tab's path: browser://localhost:3000
+export const PREVIEW = "preview://"; // an HTML or live preview tab's path: preview://index.html
 export const viewerFor = (path: string) =>
   providers.find((p) => (p.scheme ? path.startsWith(p.scheme) : p.exts.includes(extOf(path))));
 

@@ -24,6 +24,7 @@ export interface TermOptions {
   dir?: string; // start here instead of the workspace root (a folder the shell of another terminal had cd'ed to)
   onExit?(): void;
   onOutput?(text: string): void; // at exit, everything it printed (scrollback included), for tasks' problem lines
+  onLiveOutput?(text: string): void; // while running, debounced live output for watchers
   onMode?(m: TermMode): void;
   windowMs?: number; // batching knobs, Spike S6
   maxBytes?: number;
@@ -111,7 +112,17 @@ export function openTerminal(el: HTMLElement, opts: TermOptions = {}): TermHandl
   const input = (data: string) => live() && ws.send(frame(0, enc.encode(data)));
   term.onData(input);
   term.onResize(({ cols, rows }) => live() && ws.send(frame(1, enc.encode(JSON.stringify({ cols, rows })))));
-  ws.onmessage = (ev) => term.write(new Uint8Array(ev.data as ArrayBuffer));
+  let liveTimer: ReturnType<typeof setTimeout> | undefined;
+  ws.onmessage = (ev) => {
+    term.write(new Uint8Array(ev.data as ArrayBuffer), () => {
+      if (opts.onLiveOutput && !disposed) {
+        if (liveTimer) clearTimeout(liveTimer);
+        liveTimer = setTimeout(() => {
+          if (!disposed && opts.onLiveOutput) opts.onLiveOutput(bufferText(term));
+        }, 150);
+      }
+    });
+  };
   let disposed = false;
   ws.onclose = () => {
     if (disposed) return;
@@ -211,6 +222,7 @@ export function openTerminal(el: HTMLElement, opts: TermOptions = {}): TermHandl
     },
     dispose: () => {
       disposed = true;
+      if (liveTimer) clearTimeout(liveTimer);
       ro.disconnect();
       ws.close(); // Go hangs up the shell's process group
       term.dispose();

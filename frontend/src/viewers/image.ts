@@ -60,13 +60,28 @@ export function mountImage(el: HTMLElement, ctx: ViewContext): ViewHandle {
   img.addEventListener("error", () => { failed = true; ctx.onStatus(); });
   const ro = new ResizeObserver(() => layout());
   ro.observe(box);
-  img.src = ctx.url;
+
+  const loadSource = () => {
+    const live = ctx.getContent?.();
+    if (live && (ctx.url.endsWith(".svg") || ctx.url.includes(".svg"))) {
+      img.src = `data:image/svg+xml;utf8,${encodeURIComponent(live)}`;
+    } else {
+      img.src = `${ctx.url}${ctx.url.includes("?") ? "&" : "?"}t=${Date.now()}`;
+    }
+  };
+
+  const initialLive = ctx.getContent?.();
+  if (initialLive && (ctx.url.endsWith(".svg") || ctx.url.includes(".svg"))) {
+    img.src = `data:image/svg+xml;utf8,${encodeURIComponent(initialLive)}`;
+  } else {
+    img.src = ctx.url;
+  }
 
   return {
     focus: () => box.focus(),
     dispose: () => { ro.disconnect(); box.remove(); },
     status: () => (failed ? "can't show this image" : img.naturalWidth ? `${Math.round(scale * 100)}%${fit ? " fit" : ""}  ${img.naturalWidth}×${img.naturalHeight}` : ""),
-    reload: () => { img.src = `${ctx.url}?t=${Date.now()}`; },
+    reload: loadSource,
   };
 }
 

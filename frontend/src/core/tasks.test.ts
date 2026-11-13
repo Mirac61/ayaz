@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { parseProblems } from "./tasks";
+import { parseProblems, parseWatcherProblems } from "./tasks";
 
 const loc = (path: string, line: number, col: number, text: string) => ({ path, line, col, len: 0, text });
 
@@ -52,4 +52,47 @@ test("Windows paths with drive letters and backslashes", () => {
     loc("relative/path.go", 8, 0, "syntax error"),
     loc("D:/other/file.c", 1, 0, "error"),
   ]);
+});
+
+test("parseWatcherProblems: typst watch cycle extracts only current cycle and clears on success", () => {
+  const failedThenSuccess = [
+    "[10:00:00] compiling ...",
+    "watching main.typ",
+    "[10:00:00] compiled with errors",
+    "main.typ:5:10: error: expected expression",
+    "[10:00:05] compiling ...",
+    "watching main.typ",
+    "[10:00:05] compiled successfully in 10 ms",
+  ].join("\n");
+  expect(parseWatcherProblems(failedThenSuccess, "/ws")).toEqual([]);
+
+  const failedCycle = [
+    "[10:00:00] compiling ...",
+    "[10:00:00] compiled successfully in 10 ms",
+    "[10:00:05] compiling ...",
+    "watching main.typ",
+    "[10:00:05] compiled with errors",
+    "sub/chapter.typ:12:4: error: unknown import",
+  ].join("\n");
+  expect(parseWatcherProblems(failedCycle, "/ws")).toEqual([
+    loc("sub/chapter.typ", 12, 3, "error: unknown import"),
+  ]);
+});
+
+test("parseWatcherProblems: LaTeX watcher loop with delimiters", () => {
+  const failed = [
+    "--- compiling ---",
+    "error: ./paper.tex:24: Undefined control sequence \\badcmd",
+  ].join("\n");
+  expect(parseWatcherProblems(failed, "/ws")).toEqual([
+    loc("paper.tex", 24, 0, "Undefined control sequence \\badcmd"),
+  ]);
+
+  const success = [
+    "--- compiling ---",
+    "error: ./paper.tex:24: Undefined control sequence \\badcmd",
+    "--- compiling ---",
+    "--- success ---",
+  ].join("\n");
+  expect(parseWatcherProblems(success, "/ws")).toEqual([]);
 });

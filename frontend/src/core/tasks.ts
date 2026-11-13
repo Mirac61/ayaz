@@ -24,3 +24,37 @@ export function parseProblems(output: string, root: string): Loc[] {
   }
   return out;
 }
+
+// parseWatcherProblems parses problem locations from long-running watcher output (typst watch, tectonic loops, etc.).
+// It extracts problems from the latest compilation cycle and returns an empty list if the latest compile succeeded.
+export function parseWatcherProblems(output: string, root: string): Loc[] {
+  // 1. Typst watch: cycles start with "compiling ..." or "[..:..:..] compiling ..."
+  const typstIdx = Math.max(output.lastIndexOf("compiling ..."), output.lastIndexOf("compiling"));
+  if (typstIdx !== -1) {
+    const after = output.slice(typstIdx);
+    if (after.includes("compiled successfully")) return [];
+    return parseProblems(after, root);
+  }
+
+  // 2. Explicit loop delimiters (e.g. LaTeX watcher in docBuild)
+  const markerIdx = output.lastIndexOf("--- compiling ---");
+  if (markerIdx !== -1) {
+    const after = output.slice(markerIdx);
+    if (after.includes("--- success ---")) return [];
+    return parseProblems(after, root);
+  }
+
+  // 3. TypeScript watch mode (tsc --watch)
+  const tscWatchIdx = Math.max(
+    output.lastIndexOf("Starting compilation in watch mode..."),
+    output.lastIndexOf("Starting incremental compilation..."),
+    output.lastIndexOf("File change detected."),
+  );
+  if (tscWatchIdx !== -1) {
+    const after = output.slice(tscWatchIdx);
+    if (after.includes("Found 0 errors")) return [];
+    return parseProblems(after, root);
+  }
+
+  return parseProblems(output, root);
+}

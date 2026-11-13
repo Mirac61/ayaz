@@ -7,12 +7,13 @@ import { getCM, Vim } from "@replit/codemirror-vim";
 import type { Files } from "../core/backend";
 import { Buffers, diff, isDirty, isVirtual, type Buffer } from "../core/buffers";
 import { setLspHost, formatBeforeSave, fileOps, toChanges, type WorkspaceEdit } from "../editor/lsp";
-import { createState, editorExtensions, isProse, isWrapped, setWrap, settingsEffects } from "../editor/editor";
+import { createState, editorExtensions, isProse, isWrapped, setWrap, settingsEffects, spellchecking, spellcheckAttr, noSpellcheckAttr } from "../editor/editor";
 import { cleanupChanges } from "../editor/cleanup";
 import { isReading, linkAt, toggleReading } from "../editor/mdlive";
 import { openTerminal, setTermZoom, termFontSize, termZoom, type TermHandle, type TermOptions } from "../terminal/terminal";
-import { BROWSER, fsUrl, viewerFor, type ViewHandle } from "../core/viewers";
+import { BROWSER, PREVIEW, fsUrl, viewerFor, type ViewHandle } from "../core/viewers";
 import "../viewers/browser";
+import "../viewers/html";
 import "../viewers/image";
 import "../viewers/pdf";
 import { backend } from "../core/backend";
@@ -91,6 +92,7 @@ export class Editors {
   tabsOn = true; // set through setTabs
   cursors: Record<string, number> = {}; // from the session: where the cursor was when a file loads again
   bps: Record<string, Breakpoint[]> = {}; // from the session: the breakpoints a file gets when it loads again
+  onBreakpointsChanged?: (path: string, bps: Breakpoint[]) => void;
   private jumps = new Map<number, Jumps>(); // per pane: back/forward across files
   private navigating = false; // nav() is opening a file: not a new jump
   private closed: string[] = []; // closed tabs, last on top (Cmd+Shift+T)
@@ -417,7 +419,8 @@ export class Editors {
   // Returns the pane showing path, or having it as a tab, or null if not open.
   findPaneWithPath(path: string): number | null {
     for (const [id, p] of this.panes) {
-      if (p.buf?.path === path || (this.tabs.get(id) ?? []).includes(path)) return id;
+      const pPath = this.pathOf(id);
+      if (pPath === path || p.buf?.path === path || p.title === path || p.title === PREVIEW + path || (this.tabs.get(id) ?? []).includes(path)) return id;
     }
     return null;
   }
@@ -507,6 +510,15 @@ export class Editors {
     return true;
   }
 
+  toggleSpellcheck(): boolean | null {
+    const v = this.activeView();
+    if (!v) return null;
+    const cur = v.contentDOM.getAttribute("spellcheck") === "true";
+    const next = !cur;
+    v.dispatch({ effects: spellchecking.reconfigure(next ? spellcheckAttr : noSpellcheckAttr) });
+    return next;
+  }
+
   current(): Buffer | null { return this.panes.get(this.active)?.buf ?? null; }
 
   // From a terminal pane, the file opens in the editor pane used last. Images and the like open in a viewer.
@@ -544,7 +556,7 @@ export class Editors {
     return id;
   }
 
-  private showViewer(id: number, path: string) {
+  showViewer(id: number, path: string) {
     const el = this.panes.get(id)!.el;
     this.detach(id, false, this.isTerm(id));
     const p: Pane = { el, buf: null, mode: "view", title: path };
@@ -553,13 +565,15 @@ export class Editors {
     const body = document.createElement("div");
     body.className = "pane-body";
     el.append(body);
+    const cleanPath = path.startsWith(PREVIEW) ? path.slice(PREVIEW.length) : path;
     p.viewer = viewerFor(path)!.mount(body, {
-      url: path.startsWith(BROWSER) ? path.slice(BROWSER.length) : fsUrl(this.wsId, path),
+      url: path.startsWith(BROWSER) ? path.slice(BROWSER.length) : fsUrl(this.wsId, cleanPath),
       onStatus: () => id === this.active && this.emit(),
       openURL: (u) => browsable(u) && void backend.openURL(u),
+      getContent: () => this.buffers.get(cleanPath)?.state.doc.toString() ?? null,
     });
     el.addEventListener("focusin", () => this.setActive(id));
-    if (!path.startsWith(BROWSER)) this.touch(path); // an address isn't a recent file
+    if (!path.startsWith(BROWSER) && !path.startsWith(PREVIEW)) this.touch(path); // an address isn't a recent file
     this.addTab(id, path);
     this.focus(id);
   }
@@ -647,7 +661,12 @@ export class Editors {
     this.renderTabs(id);
   }
 
-  pathOf(id: number) { return this.panes.get(id)?.buf?.path; }
+  pathOf(id: number) {
+    const p = this.panes.get(id);
+    const raw = p?.buf?.path ?? p?.title ?? this.currentTab(id);
+    if (raw && raw.startsWith(PREVIEW)) return raw.slice(PREVIEW.length);
+    return raw;
+  }
 
   // The active editor's file, workspace-relative; null if there is none or it lies outside the folder.
   activePath(): string | null {
@@ -1154,6 +1173,16 @@ export class Editors {
             o.view!.dispatch({ changes: tr.changes, annotations: [synced.of(true), Transaction.addToHistory.of(false)] });
       }
       p.buf.state = v.state; // the docs are equal now; keep the state of the pane that was typed in
+      if (trs.some((t) => t.docChanged)) {
+        for (const [oid, o] of this.panes) {
+          if (oid !== id && o.viewer?.reload && this.pathOf(oid) === p.buf.path) {
+            o.viewer.reload();
+          }
+        }
+      }
+      if (trs.some((t) => t.effects.some((e) => e.is(setBreakpointLines)))) {
+        this.onBreakpointsChanged?.(p.buf.path, this.breakpoints()[p.buf.path] ?? []);
+      }
     }
     if (id === this.active) this.emit();
   }

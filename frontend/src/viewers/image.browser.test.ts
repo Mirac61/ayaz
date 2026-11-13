@@ -48,6 +48,26 @@ test("small images stay at 100 % and centered", async () => {
   expect(el.querySelector("img")!.style.transform).toBe("translate(150px, 125px) scale(1)");
 });
 
+test("live SVG update from getContent and reload", () => {
+  el = document.createElement("div");
+  el.style.cssText = "position:relative;width:400px;height:300px";
+  document.body.append(el);
+  let liveSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100"><rect width="200" height="100" fill="blue"/></svg>`;
+  const h = mountImage(el, {
+    url: "/fs/ws/icon.svg",
+    onStatus: () => {},
+    getContent: () => liveSvg,
+  });
+  const img = el.querySelector("img")!;
+  expect(img.src).toContain("data:image/svg+xml;utf8,");
+  expect(img.src).toContain(encodeURIComponent(liveSvg));
+
+  liveSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="150"><rect width="300" height="150" fill="green"/></svg>`;
+  h.reload?.();
+  expect(img.src).toContain(encodeURIComponent(liveSvg));
+  h.dispose();
+});
+
 test("a broken image says so", async () => {
   const h = mount("data:image/png;base64,AAAA");
   await vi.waitFor(() => expect(h.status()).toBe("can't show this image"));
