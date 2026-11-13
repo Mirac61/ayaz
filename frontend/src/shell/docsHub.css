@@ -55,14 +55,18 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font: 600 13px/1 var(--font-sans, system-ui, sans-serif);
   color: var(--fg-1, #dcd7ba);
 }
 
-.docs-brand-glyph {
-  font-family: var(--font-mono, monospace);
-  font-size: 16px;
+.docs-brand-icon {
   color: var(--accent, #7aa89f);
+  flex: none;
+}
+
+.docs-brand-title {
+  margin: 0;
+  font: 600 13px/1 var(--font-sans, system-ui, sans-serif);
+  color: var(--fg-1, #dcd7ba);
 }
 
 .docs-badge {
@@ -85,9 +89,7 @@
   left: 10px;
   top: 50%;
   transform: translateY(-50%);
-  font-family: var(--font-mono, monospace);
   color: var(--fg-4, #717c7c);
-  font-size: 13px;
   pointer-events: none;
 }
 
@@ -113,9 +115,7 @@
   background: transparent;
   border: none;
   color: var(--fg-3, #957fb8);
-  font-family: var(--font-mono, monospace);
-  font-size: 15px;
-  padding: 6px 10px;
+  padding: 6px;
   cursor: pointer;
   border-radius: 4px;
   display: flex;
@@ -191,11 +191,12 @@
 }
 
 .docs-nav-icon {
-  font-family: var(--font-mono, monospace);
-  font-size: 13px;
-  width: 16px;
-  text-align: center;
   flex: none;
+  color: var(--fg-4, #717c7c);
+}
+
+.docs-nav-item.active .docs-nav-icon {
+  color: var(--accent, #7aa89f);
 }
 
 /* Main Content Area */

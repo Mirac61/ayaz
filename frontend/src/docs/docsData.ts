@@ -1,8 +1,23 @@
+import type { LucideIcon } from "lucide-react";
+import {
+  Compass,
+  Key,
+  Code,
+  FileText,
+  Terminal,
+  GitBranch,
+  Bug,
+  Cpu,
+  Layers,
+  CheckCircle,
+  Map,
+} from "lucide-react";
+
 export interface DocItem {
   id: string;
-  category: string;
-  icon: string;
   title: string;
+  category: "Getting Started" | "Editor & Navigation" | "Development & Tools" | "Architecture & Specs";
+  icon: LucideIcon;
   content: string;
 }
 
@@ -36,7 +51,7 @@ Ayaz is a keyboard-first code editor. Every action is a registered command and c
 | \`<Space>tt\` | \`term.tab\` | Open terminal in current pane tab |
 | \`<Space>uz\` / \`:zen\` | \`view.zen\` | Toggle distraction-free Zen mode |
 | \`<Space>ub\` | \`git.toggleInlineBlame\` | Toggle ghost line Git blame |
-| \`<F1>\` / \`:help\` / \`:docs\` | \`app.docs\` | Open these docs |
+| \`<F1>\` / \`:help\` / \`:docs\` | \`app.docs\` | Open this interactive Docs Hub |
 
 ---
 
@@ -127,14 +142,14 @@ const ITEMS: DocItem[] = [
   {
     id: "getting-started",
     category: "Getting Started",
-    icon: "\uf135", // rocket
+    icon: Compass,
     title: "Getting Started & Overview",
     content: readmeContent || visionContent,
   },
   {
     id: "keymap-commands",
     category: "Getting Started",
-    icon: "\uf11c", // keyboard
+    icon: Key,
     title: "Keymap & Command Cheatsheet",
     content: COMMANDS_DOC,
   },
@@ -143,14 +158,14 @@ const ITEMS: DocItem[] = [
   {
     id: "neovim-vim",
     category: "Editor & Navigation",
-    icon: "\ue62b", // vim
+    icon: Code,
     title: "Vim Navigation & Motions",
     content: VIM_DOC,
   },
   {
     id: "markdown-viewers",
     category: "Editor & Navigation",
-    icon: "\uf48a", // markdown
+    icon: FileText,
     title: "Markdown, Reading Mode & Previews",
     content: `# Native Markdown, PDFs and Real Terminals
 
@@ -166,7 +181,7 @@ Ayaz renders rich documents natively alongside code without heavy Electron overh
   {
     id: "terminals",
     category: "Editor & Navigation",
-    icon: "\uf120", // terminal
+    icon: Terminal,
     title: "Built-in PTY Terminal & Lazygit",
     content: `# Built-In PTY Terminal & Lazygit
 
@@ -185,7 +200,7 @@ Ayaz provides a full xterm.js terminal connected directly to your system shell.
   {
     id: "git-suite",
     category: "Development & Tools",
-    icon: "\uf126", // git
+    icon: GitBranch,
     title: "Git Suite & Remote Operations",
     content: `# Git Remote Suite in Ayaz
 
@@ -209,37 +224,37 @@ Ayaz features a complete, zero-terminal Git suite directly built into the editor
   {
     id: "lsp-debugging",
     category: "Development & Tools",
-    icon: "\uf188", // bug
+    icon: Bug,
     title: "LSP & DAP Debugger",
     content: LSP_DEBUG_DOC,
   },
 
-  // 4. Engineering & Roadmap
+  // 4. Architecture & Specs
   {
     id: "architecture",
-    category: "Engineering & Roadmap",
-    icon: "\uf1b2", // architecture
+    category: "Architecture & Specs",
+    icon: Cpu,
     title: "Architecture & Low Memory Design",
     content: archContent || visionContent,
   },
   {
     id: "performance",
-    category: "Engineering & Roadmap",
-    icon: "\uf0e7", // bolt
+    category: "Architecture & Specs",
+    icon: Layers,
     title: "Performance Budgets & RAM",
     content: perfContent,
   },
   {
     id: "testing",
-    category: "Engineering & Roadmap",
-    icon: "\uf00c", // check
+    category: "Architecture & Specs",
+    icon: CheckCircle,
     title: "Testing Strategy & Quality",
     content: testContent,
   },
   {
     id: "roadmap",
-    category: "Engineering & Roadmap",
-    icon: "\uf279", // roadmap
+    category: "Architecture & Specs",
+    icon: Map,
     title: "Milestones & Roadmap",
     content: roadmapContent,
   },
@@ -269,7 +284,7 @@ export function docText(path: string): string {
   return DOC_ITEMS.find((d) => d.id === id)?.content ?? `# Not found\n\nThere is no docs topic "${id}". See [the index](index.md).\n`;
 }
 
-// :help <topic>: an exact id, then the first id or title containing the words.
+// :help <topic>: an exact id, then the first id containing words, then title.
 export function findDoc(topic: string): DocItem | undefined {
   const q = topic.trim().toLowerCase();
   return (
