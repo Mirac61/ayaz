@@ -92,5 +92,8 @@ describe("Welcome Screen & Bento Hub", () => {
     expect(normalizeGitUrl("facebook/react")).toBe("https://github.com/facebook/react.git");
     expect(normalizeGitUrl("https://github.com/Mirac61/ayaz.git")).toBe("https://github.com/Mirac61/ayaz.git");
     expect(normalizeGitUrl("git@github.com:Mirac61/ayaz.git")).toBe("git@github.com:Mirac61/ayaz.git");
+    expect(normalizeGitUrl("git@gitlab.com:group/subgroup/project.git")).toBe("git@gitlab.com:group/subgroup/project.git");
+    expect(normalizeGitUrl("ssh://git@host:port/repo.git")).toBe("ssh://git@host:port/repo.git");
+    expect(normalizeGitUrl("   ")).toBe("");
   });
 });

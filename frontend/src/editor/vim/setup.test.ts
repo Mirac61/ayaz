@@ -12,4 +12,39 @@ describe("vim ex parser", () => {
     expect(isEx("w!")).toBe(true);
     expect(isEx("q!")).toBe(true);
   });
+
+  it("identifies git ex commands and shortcuts", () => {
+    expect(isEx("Gpush")).toBe(true);
+    expect(isEx("Gp")).toBe(true);
+    expect(isEx("Gpull")).toBe(true);
+    expect(isEx("Gpul")).toBe(true);
+    expect(isEx("Gfetch")).toBe(true);
+    expect(isEx("Gf")).toBe(true);
+    expect(isEx("Grebase")).toBe(true);
+    expect(isEx("Greb")).toBe(true);
+    expect(isEx("Gwrite")).toBe(true);
+    expect(isEx("Gw")).toBe(true);
+    expect(isEx("Gcommit")).toBe(true);
+    expect(isEx("Gc")).toBe(true);
+    expect(isEx("Gvdiffsplit")).toBe(true);
+    expect(isEx("Gvd")).toBe(true);
+  });
+
+  it("identifies ai and assistant shortcuts", () => {
+    expect(isEx("ai")).toBe(true);
+    expect(isEx("agent")).toBe(true);
+  });
+
+  it("handles range and pattern syntax", () => {
+    expect(isEx("%s/foo/bar/g")).toBe(true);
+    expect(isEx("'<,'>d")).toBe(true);
+    expect(isEx("1,5d")).toBe(true);
+    expect(isEx(".+1,-1m$")).toBe(true);
+  });
+
+  it("distinguishes ordinary search terms from ex commands", () => {
+    expect(isEx("find files")).toBe(false);
+    expect(isEx("open folder")).toBe(false);
+    expect(isEx("switch project")).toBe(false);
+  });
 });
