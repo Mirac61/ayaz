@@ -466,6 +466,7 @@ const INSTALL_TABLE: Record<string, PlatformMap> = {
   pyright: { all: "npm i -g pyright" },
   debugpy: { all: "pip install debugpy" },
   "rust-analyzer": { all: "rustup component add rust-analyzer" },
+  dockerfile: { all: "npm i -g dockerfile-language-server-nodejs" },
 
   tinymist: {
     darwin: "brew install tinymist",
@@ -530,6 +531,14 @@ const INSTALL_TABLE: Record<string, PlatformMap> = {
     "linux-fedora": "sudo dnf install lldb",
     "linux-debian": "sudo apt install lldb",
     linux: "install lldb with your package manager",
+  },
+  "lua-language-server": {
+    darwin: "brew install lua-language-server",
+    windows: "winget install sumneko.lua or scoop install lua-language-server",
+    "linux-arch": "sudo pacman -S lua-language-server",
+    "linux-fedora": "sudo dnf install lua-language-server",
+    "linux-debian": "sudo apt install lua-language-server, or brew install lua-language-server",
+    linux: "install lua-language-server with your package manager",
   },
 };
 

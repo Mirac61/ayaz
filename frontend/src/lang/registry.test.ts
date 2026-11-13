@@ -22,9 +22,15 @@ test("typst: headings, code, math and comments get their own tokens", async () =
 
 test("language servers for the new languages", () => {
   expect(serverFor("a.py")).toEqual(["python", "pyright"]);
+  expect(serverFor("a.pyi")).toEqual(["python", "pyright"]);
   expect(serverFor("src/main.rs")).toEqual(["rust", "rust-analyzer"]);
-  expect(serverFor("ci.yml")?.[1]).toBe("yaml");
-  expect(serverFor("Cargo.toml")?.[1]).toBe("taplo");
+  expect(serverFor("ci.yml")).toEqual(["yaml", "yaml"]);
+  expect(serverFor("config.yaml")).toEqual(["yaml", "yaml"]);
+  expect(serverFor("Cargo.toml")).toEqual(["toml", "taplo"]);
+  expect(serverFor("init.lua")).toEqual(["lua", "lua-language-server"]);
+  expect(serverFor("Dockerfile")).toEqual(["dockerfile", "dockerfile"]);
+  expect(serverFor("Dockerfile.dev")).toEqual(["dockerfile", "dockerfile"]);
+  expect(serverFor("Containerfile")).toEqual(["dockerfile", "dockerfile"]);
   expect(serverFor("a.typ")?.[1]).toBe("tinymist");
   expect(serverFor("a.tex")?.[1]).toBe("texlab");
   expect(serverFor("a.sh")).toBeUndefined();
@@ -32,5 +38,7 @@ test("language servers for the new languages", () => {
 
 test("a file without an extension is found by its name", async () => {
   expect(await loadLanguage("build/Dockerfile")).not.toBeNull();
+  expect(await loadLanguage("build/Dockerfile.dev")).not.toBeNull();
+  expect(await loadLanguage("Containerfile")).not.toBeNull();
   expect(await loadLanguage("Makefile")).toBeNull();
 });

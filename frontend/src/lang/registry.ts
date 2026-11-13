@@ -35,6 +35,8 @@ const langs: Record<string, { load: Loader; lsp?: [string, string] }> = {
   json: { load: () => import("@codemirror/lang-json").then((m) => m.json()), lsp: ["json", "json"] },
   java: { load: () => import("@codemirror/lang-java").then((m) => m.java()), lsp: ["java", "jdtls"] },
   py: { load: python, lsp: ["python", "pyright"] },
+  pyi: { load: python, lsp: ["python", "pyright"] },
+  pyw: { load: python, lsp: ["python", "pyright"] },
   rs: { load: () => import("@codemirror/lang-rust").then((m) => m.rust()), lsp: ["rust", "rust-analyzer"] },
   yaml: { load: yaml, lsp: ["yaml", "yaml"] },
   yml: { load: yaml, lsp: ["yaml", "yaml"] },
@@ -46,15 +48,25 @@ const langs: Record<string, { load: Loader; lsp?: [string, string] }> = {
   xml: { load: xml },
   svg: { load: xml },
   php: { load: php },
-  lua: { load: legacy(() => import("@codemirror/legacy-modes/mode/lua").then((m) => m.lua)) },
-  dockerfile: { load: legacy(() => import("@codemirror/legacy-modes/mode/dockerfile").then((m) => m.dockerFile)) },
+  lua: { load: legacy(() => import("@codemirror/legacy-modes/mode/lua").then((m) => m.lua)), lsp: ["lua", "lua-language-server"] },
+  dockerfile: { load: legacy(() => import("@codemirror/legacy-modes/mode/dockerfile").then((m) => m.dockerFile)), lsp: ["dockerfile", "dockerfile"] },
+  containerfile: { load: legacy(() => import("@codemirror/legacy-modes/mode/dockerfile").then((m) => m.dockerFile)), lsp: ["dockerfile", "dockerfile"] },
   typ: { load: typ, lsp: ["typst", "tinymist"] },
   tex: { load: latex, lsp: ["latex", "texlab"] },
   md: { load: () => import("@codemirror/lang-markdown").then((m) => m.markdown({ base: m.markdownLanguage, codeLanguages })) }, // GFM (Q7)
 };
 
-// Dockerfile has no extension: its name is the key, like an extension is.
-const keyOf = (path: string) => extOf(path) || path.slice(path.lastIndexOf("/") + 1).toLowerCase();
+// Dockerfile / Containerfile may have no extension or variants like Dockerfile.dev, *.dockerfile.
+const keyOf = (path: string) => {
+  const ext = extOf(path);
+  if (ext && langs[ext]) return ext;
+  const name = path.slice(path.lastIndexOf("/") + 1).toLowerCase();
+  if (langs[name]) return name;
+  if (name.startsWith("dockerfile.") || name.endsWith(".dockerfile") || name.startsWith("containerfile.") || name.endsWith(".containerfile")) {
+    return "dockerfile";
+  }
+  return ext || name;
+};
 export const extOf = (path: string) => {
   const name = path.slice(path.lastIndexOf("/") + 1);
   const dot = name.lastIndexOf(".");
@@ -68,7 +80,7 @@ export const serverFor = (path: string): [lang: string, server: string] | undefi
 
 const names: Record<string, string[]> = {
   go: ["golang"], js: ["javascript"], ts: ["typescript"], cpp: ["c++"], md: ["markdown"], py: ["python"], rs: ["rust"],
-  sh: ["shell"], yml: ["yaml"], typ: ["typst"], tex: ["latex"],
+  sh: ["shell"], yml: ["yaml"], typ: ["typst"], tex: ["latex"], toml: ["toml"], lua: ["lua"], dockerfile: ["docker", "containerfile"],
 };
 
 // Fenced code blocks in Markdown: info string → language. One entry per loader, so c/h/cc/cpp/hpp share one parser.

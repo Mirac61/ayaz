@@ -27,9 +27,11 @@ var lspServers = map[string]string{
 	"pyright":       "pyright-langserver --stdio",
 	"rust-analyzer": "rust-analyzer",
 	"yaml":          "yaml-language-server --stdio",
-	"taplo":         "taplo lsp stdio",
-	"tinymist":      "tinymist lsp",
-	"texlab":        "texlab",
+	"taplo":               "taplo lsp stdio",
+	"tinymist":            "tinymist lsp",
+	"texlab":              "texlab",
+	"lua-language-server": "lua-language-server",
+	"dockerfile":          "docker-langserver --stdio",
 }
 
 type lspConfig struct {
