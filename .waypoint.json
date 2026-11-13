@@ -4,33 +4,43 @@
     {
       "id": "1",
       "title": "LSP Discovery: detect PATH from .zshrc, Mason (~/.local/share/nvim/mason/bin), mise, nvm and brew",
-      "status": "TODO"
+      "status": "DONE"
     },
     {
       "id": "2",
       "title": "Extended Languages: add syntax highlighting & LSP for Python, Rust, YAML, TOML, Lua, Dockerfile",
-      "status": "TODO"
+      "status": "DONE"
     },
     {
       "id": "3",
       "title": "Typst & LaTeX live preview: watch & compile to PDF in side split (<Space>mp) with quickfix problem matcher",
-      "status": "TODO"
+      "status": "DONE"
     },
     {
       "id": "4",
       "title": "Generalized Previews: live SVG code/image split toggle, HTML preview iframe",
-      "status": "TODO"
+      "status": "DONE"
     },
     {
       "id": "5",
       "title": "Workflow Polish: paste image into Markdown (saved to assets/), prose spellcheck, word count in statusline",
-      "status": "TODO"
+      "status": "DONE"
     },
     {
       "id": "6",
       "title": "DAP Debugger: visual breakpoints in gutter, step controls, variables inspector & callstack",
-      "status": "TODO"
+      "status": "DONE"
+    },
+    {
+      "id": "7",
+      "title": "Update Dialog Polish: refined aesthetic matching Kanagawa/Ayaz, remove emojis, rich markdown notes, glowing status indicators",
+      "status": "DONE"
+    },
+    {
+      "id": "8",
+      "title": "Update Verification Fix: resolve codesign signature failure from AppleDouble (._*) files, re-pack v0.3.2 release with --norsrc, add defensive cleanup in updater",
+      "status": "DONE"
     }
   ],
-  "updated_at": "2026-11-13T00:15:00Z"
+  "updated_at": "2026-11-13T10:01:30.000000Z"
 }
