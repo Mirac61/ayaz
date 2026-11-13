@@ -15,8 +15,8 @@ export type Eol = "\n" | "\r\n";
 export const eolOf = (text: string): Eol => (/\r\n/.test(text.slice(0, text.indexOf("\n") + 1)) ? "\r\n" : "\n");
 export const lf = (text: string) => text.replace(/\r\n/g, "\n");
 
-// Buffers with no file: the debugger's output, or git HEAD snapshots.
-export const isVirtual = (path: string) => path.startsWith("debug://") || path.startsWith("head://");
+// Buffers with no file: the debugger's output, git HEAD snapshots, or the in-app docs.
+export const isVirtual = (path: string) => /^(debug|head|docs):\/\//.test(path);
 
 export const isDirty = (b: Buffer) => !b.state.doc.eq(b.saved);
 
@@ -65,11 +65,11 @@ export class Buffers {
     return this.load(path);
   }
 
-  // A buffer with no file behind it (the debugger's output): read-only, never dirty, never read from disk or swapped.
-  async virtual(path: string): Promise<Buffer> {
+  // A buffer with no file behind it (the debugger's output, docs): read-only, never dirty, never read from disk or swapped.
+  async virtual(path: string, doc = ""): Promise<Buffer> {
     const have = this.m.get(path);
     if (have) return have;
-    const state = await this.makeState(path, "");
+    const state = await this.makeState(path, doc);
     const b: Buffer = { path, state, mtime: 0, saved: state.doc, eol: "\n" };
     this.m.set(path, b);
     return b;

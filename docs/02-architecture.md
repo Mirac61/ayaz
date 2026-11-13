@@ -257,6 +257,18 @@ In the pickers: `Ctrl-n/p` or `Ctrl-j/k` move, `Enter` opens, `Esc` closes.
 - `wrap` is the default until `<Space>uw` toggles it; `formatOnSave` runs the language server's formatter on `:w`.
 - Built in: `go` indents with tabs and formats on save, `md` wraps. A broken file keeps the defaults and says why in the status line.
 
+## UI rules
+
+Every overlay (picker, menus, the clone dialog) looks and behaves the same:
+
+1. It uses the `.picker` classes and tokens in `shell.css`: `--overlay`, `--edge-overlay`, `--radius-sm`, the shared shadow,
+   `overlay-in`, and `.picker-backdrop` (dimmed, no blur). Blur only under `:root[data-glass]`. No colours of its own.
+2. No uppercase labels with letter spacing, no rows of chips, no counter badges, no sparkles.
+3. Icons are Nerd Font glyphs, as in the tree and on the start page. No icon library, no emoji.
+4. Keyboard first: Esc closes, focus goes back where it was, shortcuts show as `<kbd>`.
+5. Text is English, one language per screen.
+6. Content that reads like a document (the docs) opens as a read-only editor tab (`docs://`), not as a modal.
+
 ## Extension points
 
 | Later | Plugs into | Core changes |

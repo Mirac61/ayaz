@@ -157,17 +157,6 @@ test("defaultKeymap binds terminal send, tab, move to editor and floating scratc
   expect(km.find((b) => b.keys === "<C-CR>")?.command).toBe("term.send");
 });
 
-test("defaultKeymap binds agent.inline for macOS and non-macOS without Vim conflict", () => {
-  const macKm = defaultKeymap(true);
-  const linuxKm = defaultKeymap(false);
-
-  expect(macKm.some((b) => b.command === "agent.inline" && b.keys === "<D-i>")).toBe(true);
-  expect(linuxKm.some((b) => b.command === "agent.inline" && b.keys === "<C-S-a>")).toBe(true);
-  expect(macKm.some((b) => b.command === "agent.inline" && b.keys === "<Space>ai")).toBe(true);
-  expect(linuxKm.some((b) => b.command === "agent.inline" && b.keys === "<Space>ai")).toBe(true);
-  // Ensure non-macOS does not bind <C-i> globally to avoid breaking Vim jump-forward
-  expect(linuxKm.find((b) => b.keys === "<C-i>")).toBeUndefined();
-});
 
 test("defaultKeymap binds tree revealCurrent and md outline", () => {
   const km = defaultKeymap();

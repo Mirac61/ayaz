@@ -9,7 +9,7 @@ import { folderIcon } from "../theme/icons";
 import { setZoom, zoomLevel } from "./zoom";
 import { Workbench } from "./Workbench";
 import { AyazLogo } from "./AyazLogo";
-import { DocsHub } from "./DocsHub";
+import { DOCS_INDEX, docFiles } from "../docs/docsData";
 import { availableThemes, setThemeOverride, themeName } from "../core/settings";
 
 interface GitHubItem {
@@ -28,7 +28,6 @@ const FIRST_KEYS: [keys: string[], what: string][] = [
   [keysOf("find.grep"), "Search in files"],
   [keysOf("find.commands"), "All commands and their keys"],
   [keysOf("term.panel"), "Terminal"],
-  [keysOf("agent.inline"), "Ask the agent"],
   [["gd", "gr", "K"], "Definition, references, hover"],
   [[":w", ":q"], "Save, close"],
 ];
@@ -54,7 +53,7 @@ export function Shell() {
   const [showClone, setShowClone] = useState(false);
   const [cloneUrl, setCloneUrl] = useState("");
   const [cloning, setCloning] = useState(false);
-  const [showDocs, setShowDocs] = useState(false);
+  const [initial, setInitial] = useState<string | undefined>(); // a file the next workbench opens first
 
   const [repo, setRepo] = useState("Mirac61/ayaz");
   const [issues, setIssues] = useState<GitHubItem[] | "loading" | "failed">("loading");
@@ -62,8 +61,16 @@ export function Shell() {
 
   const show = (w: Info | null) => {
     if (w) rememberFolder(w);
+    setInitial(undefined);
     setWs(w);
   };
+
+  // The docs need a workbench, and a workbench a folder: the docs written out to <config>/docs, kept out of Recent.
+  const openDocs = () =>
+    backend.docsFolder(docFiles()).then(backend.openFolder).then((w) => {
+      setInitial(DOCS_INDEX);
+      setWs(w);
+    }, (e) => setErr(errText(e)));
 
   const fetchIssues = async (name: string) => {
     const clean = name.trim().replace(/^https?:\/\/github\.com\//, "").replace(/\.git$/, "");
@@ -149,7 +156,7 @@ export function Shell() {
   };
 
   if (ws === undefined) return null;
-  if (ws) return <Workbench key={ws.id} ws={ws} onSwitch={switchTo} initial={settingsWindow ? "settings.json" : undefined} />;
+  if (ws) return <Workbench key={ws.id} ws={ws} onSwitch={switchTo} initial={settingsWindow ? "settings.json" : initial} />;
 
   const recent = recentFolders();
 
@@ -186,11 +193,10 @@ export function Shell() {
     { key: "c", icon: "", label: "Clone repository", sub: "Git URL or owner/repo", run: () => setShowClone(true) },
     { key: "n", icon: "", label: "New window", sub: mod(isMac ? "⇧N" : "Shift+N"), run: () => void backend.newWindow() },
     { key: "t", icon: "", label: "Theme", sub: theme, run: openThemePicker },
-    { key: "?", icon: "", label: "Docs & Help", sub: "<F1> or :help", run: () => setShowDocs(true) },
+    { key: "?", icon: "", label: "Docs", sub: ":help", run: () => void openDocs() },
   ];
   const singleKeys: Record<string, () => void> = {
     r: openRecentPicker,
-    "?": () => setShowDocs(true),
     ",": () => void backend.openSettings(),
     ...Object.fromEntries(tiles.map((t) => [t.key, t.run])),
   };
@@ -336,10 +342,16 @@ export function Shell() {
       </div>
 
       {showClone && (
-        <div className="welcome-modal-backdrop" onClick={() => !cloning && closeClone()}>
-          <div className="welcome-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
-            <div className="welcome-modal-header">
-              <span className="welcome-modal-title">Clone repository</span>
+        <div className="picker-backdrop" onClick={() => !cloning && closeClone()}>
+          <div
+            className="picker welcome-modal"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Clone repository"
+          >
+            <div className="picker-head">
+              <span className="picker-title">Clone repository</span>
               <button
                 type="button"
                 className="welcome-modal-close"
@@ -384,15 +396,6 @@ export function Shell() {
             </div>
           </div>
         </div>
-      )}
-
-      {showDocs && (
-        <DocsHub
-          onClose={() => {
-            setShowDocs(false);
-            focusPage();
-          }}
-        />
       )}
 
       {picker && (

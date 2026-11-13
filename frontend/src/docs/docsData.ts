@@ -1,21 +1,6 @@
-import type { LucideIcon } from "lucide-react";
-import {
-  Compass,
-  Terminal,
-  GitBranch,
-  Sparkles,
-  Layers,
-  Cpu,
-  CheckCircle,
-  FileText,
-  Key,
-} from "lucide-react";
-
 export interface DocItem {
   id: string;
   title: string;
-  category: "Getting Started" | "User Guides" | "Architecture & Specs";
-  icon: LucideIcon;
   content: string;
 }
 
@@ -47,10 +32,9 @@ Ayaz is a keyboard-first code editor. Every action is a registered command and c
 | \`<Space>t\` / \`Cmd+J\` | \`term.panel\` | Toggle integrated terminal bottom panel |
 | \`<Space>tf\` | \`term.float\` | Toggle floating scratchpad terminal |
 | \`<Space>tt\` | \`term.tab\` | Open terminal in current pane tab |
-| \`Cmd+I\` / \`<Space>ai\` / \`:ai\` | \`agent.inline\` | Inline Agentic Coding Assistant |
 | \`<Space>uz\` / \`:zen\` | \`view.zen\` | Toggle distraction-free Zen mode |
 | \`<Space>ub\` | \`git.toggleInlineBlame\` | Toggle ghost line Git blame |
-| \`<F1>\` / \`:help\` / \`:docs\` | \`app.docs\` | Open this interactive Docs Hub |
+| \`<F1>\` / \`:help\` / \`:docs\` | \`app.docs\` | Open these docs |
 
 ---
 
@@ -101,26 +85,20 @@ const perfContent = rawDocs["../../../docs/03-performance.md"] || "";
 const testContent = rawDocs["../../../docs/04-testing.md"] || "";
 const roadmapContent = rawDocs["../../../docs/05-roadmap.md"] || "";
 
-export const DOC_ITEMS: DocItem[] = [
+const ITEMS: DocItem[] = [
   {
     id: "getting-started",
     title: "Getting Started & Overview",
-    category: "Getting Started",
-    icon: Compass,
     content: readmeContent || visionContent,
   },
   {
     id: "keymap-commands",
     title: "Keymap & Command Cheatsheet",
-    category: "User Guides",
-    icon: Key,
     content: COMMANDS_DOC,
   },
   {
     id: "git-suite",
     title: "Git Remote Suite & Sidebar",
-    category: "User Guides",
-    icon: GitBranch,
     content: `# Git Remote Suite in Ayaz
 
 Ayaz features a complete, zero-terminal Git suite directly built into the editor and sidebar.
@@ -141,36 +119,8 @@ Ayaz features a complete, zero-terminal Git suite directly built into the editor
 `,
   },
   {
-    id: "agentic-assistant",
-    title: "Agentic Coding Assistant",
-    category: "User Guides",
-    icon: Sparkles,
-    content: `# Agentic Coding Assistant (Zed-Style Inline AI)
-
-Ayaz integrates an inline coding companion directly into the editor.
-
-## Opening the Assistant
-- **macOS:** \`Cmd+I\` or \`<Space>ai\` or \`:ai\`
-- **Linux/Windows:** \`Ctrl+Shift+A\` or \`<Space>ai\` or \`:ai\`
-
-## Smart Context Pills
-The assistant dynamically analyzes what you are looking at:
-- **@file:** Binds the current active file path and buffer content.
-- **@selection:** Passes the highlighted code block to the prompt.
-- **@diagnostics:** Feeds LSP error and warning counts into the transformation context.
-
-## Fast Transformation Prompts
-- **Refactor:** Clean modular refactoring according to modern idioms.
-- **Fix Diagnostics:** Target compiler and LSP type errors.
-- **Unit Tests:** Generate test cases directly into the buffer.
-- **1-Click Apply:** Directly applies the generated change into your buffer with full undo/redo history.
-`,
-  },
-  {
     id: "markdown-viewers",
     title: "Markdown, PDFs & Terminals",
-    category: "User Guides",
-    icon: FileText,
     content: `# Native Markdown, PDFs and Real Terminals
 
 Ayaz renders rich documents natively alongside code without heavy Electron overhead.
@@ -190,29 +140,56 @@ Ayaz renders rich documents natively alongside code without heavy Electron overh
   {
     id: "architecture",
     title: "Architecture & Low Memory Design",
-    category: "Architecture & Specs",
-    icon: Cpu,
     content: archContent || visionContent,
   },
   {
     id: "performance",
     title: "Performance Budgets & RAM",
-    category: "Architecture & Specs",
-    icon: Layers,
     content: perfContent,
   },
   {
     id: "testing",
     title: "Testing Strategy & Quality",
-    category: "Architecture & Specs",
-    icon: CheckCircle,
     content: testContent,
   },
   {
     id: "roadmap",
     title: "Milestones & Roadmap",
-    category: "Architecture & Specs",
-    icon: Terminal,
     content: roadmapContent,
   },
 ];
+
+// Images and badges point at files beside the repo's Markdown that the app doesn't ship: they would show broken.
+const noImages = (md: string) => md.replace(/^\[?!\[[^\]]*\]\([^)]*\)(\]\([^)]*\))?[ \t]*\n/gm, "");
+
+export const DOC_ITEMS: DocItem[] = ITEMS.map((d) => ({ ...d, content: noImages(d.content) }));
+
+// Docs open as read-only Markdown buffers (shell/editors), like Vim's :help.
+export const DOCS = "docs://";
+export const DOCS_INDEX = `${DOCS}index.md`;
+export const docPath = (id: string) => `${DOCS}${id}.md`;
+
+const INDEX = `# Ayaz docs
+
+\`<F1>\` or \`:help\` opens this page, \`:help <topic>\` a topic (\`:help git\`).
+The command palette lists the topics under "Docs: find topic".
+
+${DOC_ITEMS.map((d) => `- [${d.title}](${d.id}.md)`).join("\n")}
+`;
+
+// The text of a docs:// path; an unknown topic says so instead of failing.
+export function docText(path: string): string {
+  const id = path.slice(DOCS.length).replace(/\.md$/, "");
+  if (id === "index") return INDEX;
+  return DOC_ITEMS.find((d) => d.id === id)?.content ?? `# Not found\n\nThere is no docs topic "${id}". See [the index](index.md).\n`;
+}
+
+// :help <topic>: an exact id, then the first id or title containing the words.
+export function findDoc(topic: string): DocItem | undefined {
+  const q = topic.trim().toLowerCase();
+  return DOC_ITEMS.find((d) => d.id === q) ?? DOC_ITEMS.find((d) => d.id.includes(q) || d.title.toLowerCase().includes(q));
+}
+
+// What the start page's docs folder holds: one file per topic plus the index.
+export const docFiles = (): Record<string, string> =>
+  Object.fromEntries([["index.md", INDEX], ...DOC_ITEMS.map((d) => [`${d.id}.md`, d.content])]);

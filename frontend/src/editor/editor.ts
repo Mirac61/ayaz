@@ -26,6 +26,7 @@ import { swatches } from "./swatches";
 import { diagnosticText } from "./diagtext";
 import { editorConfigIndent } from "../core/editorconfig";
 import { detectIndent, INDENT_SAMPLE } from "../core/indent";
+import { isVirtual } from "../core/buffers";
 import { fileSettings } from "../core/settings";
 
 class Num extends GutterMarker {
@@ -134,5 +135,5 @@ export const spellcheckFor = (path: string | null) => !!(path && PROSE.has(extOf
 
 export async function createState(path: string | null, doc: string, ws?: string, root?: string): Promise<EditorState> {
   const lang = path && !hasLongLine(doc) ? await loadLanguage(path) : null;
-  return EditorState.create({ doc, extensions: [editorExtensions(), indenting.of(indentFor(path, doc.slice(0, INDENT_SAMPLE))), wrapping.of(wrapFor(path) ? EditorView.lineWrapping : []), spellchecking.of(spellcheckFor(path) ? spellcheckAttr : noSpellcheckAttr), lang ?? [], path && ws && root ? [lspExtension(ws, root, path), diagnosticText] : [], path?.startsWith("/") || path?.startsWith("debug://") || path?.startsWith("head://") ? EditorState.readOnly.of(true) : [], path ? snippetCompletion(extOf(path)) : [], path && SWATCHED.has(extOf(path)) ? swatches : [], path && extOf(path) === "md" ? [mdlive, mdRender, ws ? [mdImages.of({ ws, file: path }), pasteImage(ws, path)] : []] : []] });
+  return EditorState.create({ doc, extensions: [editorExtensions(), indenting.of(indentFor(path, doc.slice(0, INDENT_SAMPLE))), wrapping.of(wrapFor(path) ? EditorView.lineWrapping : []), spellchecking.of(spellcheckFor(path) ? spellcheckAttr : noSpellcheckAttr), lang ?? [], path && ws && root && !path.startsWith("docs://") ? [lspExtension(ws, root, path), diagnosticText] : [], path?.startsWith("/") || (path && isVirtual(path)) ? EditorState.readOnly.of(true) : [], path ? snippetCompletion(extOf(path)) : [], path && SWATCHED.has(extOf(path)) ? swatches : [], path && extOf(path) === "md" ? [mdlive, mdRender, ws ? [mdImages.of({ ws, file: path }), pasteImage(ws, path)] : []] : []] });
 }

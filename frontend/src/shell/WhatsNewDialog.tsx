@@ -19,11 +19,6 @@ const HIGHLIGHTS = [
     desc: "Schnellstart, Git Clone Modal mit Ordnerauswahl, interaktive Theme-Palette (10 Themes live schaltbar), Projekt-Echtzeitfilter und Tastatur-Cheatsheet.",
   },
   {
-    icon: "✦",
-    title: "Agentic Coding Field (wie bei Zed)",
-    desc: "Inline-KI-Promptfeld mit Kontext-Pills (@file, @selection, @diagnostics), Modell-Auswahl und 1-Klick-Codeübernahme in den Puffer (Cmd+I / <Space>ai).",
-  },
-  {
     icon: "⎇",
     title: "Vollständige Git Remote Suite",
     desc: "Direktes Git Push (<Space>gp), Pull (<Space>gl), Fetch (<Space>gf) und Rebase (<Space>grb) in der Sidebar und Palette.",
