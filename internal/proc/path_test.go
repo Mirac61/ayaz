@@ -41,6 +41,7 @@ path=('/opt/homebrew/bin' $path)
 }
 
 func TestDetectMasonPaths(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", "")
 	temp := t.TempDir()
 	masonBin := filepath.Join(temp, ".local", "share", "nvim", "mason", "bin")
 	if err := os.MkdirAll(masonBin, 0755); err != nil {
@@ -54,6 +55,7 @@ func TestDetectMasonPaths(t *testing.T) {
 }
 
 func TestDetectMisePaths(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", "")
 	temp := t.TempDir()
 	miseShims := filepath.Join(temp, ".local", "share", "mise", "shims")
 	miseBin := filepath.Join(temp, ".local", "bin")
@@ -74,6 +76,7 @@ func TestDetectMisePaths(t *testing.T) {
 }
 
 func TestDetectNvmPaths(t *testing.T) {
+	t.Setenv("NVM_DIR", "")
 	temp := t.TempDir()
 	nodeV20 := filepath.Join(temp, ".nvm", "versions", "node", "v20.10.0", "bin")
 	nodeV22 := filepath.Join(temp, ".nvm", "versions", "node", "v22.1.0", "bin")
