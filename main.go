@@ -15,6 +15,11 @@ import (
 var assets embed.FS
 
 func main() {
+	if os.Getenv("WAILS_UPDATE_HELPER") == "1" {
+		if newPath := os.Getenv("WAILS_UPDATE_NEW"); newPath != "" {
+			_ = app.CleanAppleDouble(newPath)
+		}
+	}
 	updater.HandleHelperMode()
 
 	// `ayaz file[:line]` goes to the running app and ends here; with --wait it ends once the file is closed there.

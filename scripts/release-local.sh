@@ -24,7 +24,7 @@ echo "==> 1. Building frontend..."
 
 echo "==> 2. Building macOS package..."
 wails3 task darwin:package
-ditto -c -k --keepParent bin/ayaz.app dist/ayaz-macos-arm64.zip
+COPYFILE_DISABLE=1 ditto -c -k --keepParent --norsrc bin/ayaz.app dist/ayaz-macos-arm64.zip
 
 echo "==> 3. Cross-compiling Windows (amd64)..."
 GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build \

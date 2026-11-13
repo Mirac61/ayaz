@@ -210,7 +210,13 @@ func (s *UpdateService) DownloadAndInstall() error {
 		return fmt.Errorf("updater not initialized")
 	}
 
-	return a.Updater.DownloadAndInstall(context.Background())
+	if err := a.Updater.DownloadAndInstall(context.Background()); err != nil {
+		return err
+	}
+	if p := a.Updater.DownloadedPath(); p != "" {
+		_ = CleanAppleDouble(p)
+	}
+	return nil
 }
 
 // Restart executes the atomic binary swap and restarts Ayaz into the new version.
