@@ -1873,229 +1873,359 @@ body.dragging {
   background: rgba(80, 160, 255, 0.25);
   color: #93c5fd;
 }
+.statusline .seg.update-available {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-radius: var(--radius-sm);
+  padding: 1px 6px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.statusline .seg.update-available:hover {
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
+}
 .statusline .seg.update-downloading {
-  background: rgba(56, 189, 248, 0.15);
-  color: #38bdf8;
-  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-radius: var(--radius-sm);
   padding: 1px 6px;
   font-weight: 500;
 }
 .statusline .seg.update-ready {
-  background: rgba(52, 211, 153, 0.18);
-  color: #34d399;
-  border-radius: 4px;
-  padding: 1px 6px;
-  font-weight: 600;
+  background: color-mix(in srgb, var(--insert) 16%, transparent);
+  color: var(--insert);
+  border: 1px solid color-mix(in srgb, var(--insert) 32%, transparent);
+  border-radius: var(--radius-sm);
+  padding: 1px 7px;
+  font-weight: 500;
   cursor: pointer;
-  animation: pulse-update 2s infinite ease-in-out;
+  animation: pulse-update 2.5s infinite ease-in-out;
 }
 .statusline .seg.update-ready:hover {
-  background: rgba(52, 211, 153, 0.3);
-  color: #6ee7b7;
+  background: color-mix(in srgb, var(--insert) 26%, transparent);
+  border-color: color-mix(in srgb, var(--insert) 45%, transparent);
 }
 
 @keyframes pulse-update {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+  50% { opacity: 0.72; }
 }
 
 .update-dialog-backdrop {
+  position: fixed;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 24px;
+  background: rgb(0 0 0 / 0.55);
+  backdrop-filter: blur(4px);
   z-index: 999;
 }
 
 .update-dialog {
-  width: 480px;
-  max-width: 90vw;
+  width: 500px;
+  max-width: min(92vw, 560px);
   max-height: 85vh;
   display: flex;
   flex-direction: column;
   background: var(--overlay);
   border: 1px solid var(--edge-overlay);
-  border-radius: 8px;
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-sm);
+  box-shadow:
+    0 24px 50px rgb(0 0 0 / 0.65),
+    0 0 0 1px rgb(255 255 255 / 0.05);
   animation: overlay-in var(--t) var(--ease);
   overflow: hidden;
+}
+:root[data-glass] .update-dialog {
+  backdrop-filter: blur(20px) saturate(1.2);
 }
 
 .update-dialog-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--edge-overlay);
-  background: rgba(255, 255, 255, 0.02);
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--edge);
+  background: color-mix(in srgb, var(--fg-1) 2%, transparent);
 }
 
 .update-dialog-title-row {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
 }
 
-.update-dialog-icon {
-  font-size: 24px;
-  line-height: 1;
+.update-dialog-logo-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
 }
 
 .update-dialog-title-group {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
+  min-width: 0;
 }
 
 .update-dialog-title {
   margin: 0;
-  font-size: 14px;
+  font-family: var(--font-ui);
+  font-size: 13px;
   font-weight: 600;
-  color: var(--fg-0);
+  color: var(--fg-1);
+  letter-spacing: -0.01em;
 }
 
 .update-dialog-version-badge {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: 11px;
   font-family: var(--font-mono);
-}
-
-.update-dialog-version-badge .ver.current {
-  color: var(--fg-2);
-}
-
-.update-dialog-version-badge .arrow {
   color: var(--fg-3);
 }
 
+.update-dialog-version-badge .ver.current {
+  color: var(--fg-4);
+}
+
+.update-dialog-version-badge .arrow {
+  color: var(--fg-4);
+  font-size: 10px;
+}
+
 .update-dialog-version-badge .ver.latest {
-  color: #60a5fa;
+  color: var(--accent);
   font-weight: 600;
 }
 
 .update-dialog-version-badge .size {
-  color: var(--fg-3);
+  color: var(--fg-4);
   font-size: 11px;
 }
 
 .update-dialog-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
   background: transparent;
   border: none;
-  color: var(--fg-2);
-  font-size: 14px;
+  border-radius: var(--radius-sm);
+  color: var(--fg-3);
   cursor: pointer;
-  padding: 4px 6px;
-  border-radius: 4px;
+  transition:
+    background-color var(--t-fast) var(--ease),
+    color var(--t-fast) var(--ease);
 }
 .update-dialog-close:hover {
-  background: var(--item-hover);
-  color: var(--fg-0);
+  background: var(--hover);
+  color: var(--fg-1);
 }
 
 .update-dialog-body {
-  padding: 16px 20px;
+  padding: 14px 18px 0;
   flex: 1;
   min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.update-dialog-section-label {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--fg-3);
-  font-weight: 600;
-}
-
-.update-dialog-notes {
-  flex: 1;
-  max-height: 220px;
-  overflow-y: auto;
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid var(--edge);
-  border-radius: 6px;
-  padding: 10px 12px;
-}
-
-.update-dialog-notes pre {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--fg-1);
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.update-dialog-progress-section {
-  padding: 0 20px 16px;
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.update-dialog-progress-bar-bg {
-  height: 6px;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 3px;
-  overflow: hidden;
+.update-dialog-section-label {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fg-4);
+  font-weight: 600;
 }
 
-.update-dialog-progress-bar-fill {
-  height: 100%;
-  background: #38bdf8;
-  border-radius: 3px;
-  transition: width 0.15s ease-out;
+.update-dialog-notes {
+  flex: 1;
+  max-height: 200px;
+  overflow-y: auto;
+  background: var(--bg-0);
+  border: 1px solid var(--edge);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--fg-2);
+}
+
+.update-dialog-notes p {
+  margin: 0 0 8px;
+}
+.update-dialog-notes p:last-child {
+  margin-bottom: 0;
+}
+
+.update-dialog-notes ul,
+.update-dialog-notes ol {
+  margin: 4px 0 8px;
+  padding-left: 18px;
+}
+
+.update-dialog-notes li {
+  margin-bottom: 3px;
+}
+
+.update-dialog-notes strong {
+  font-weight: 600;
+  color: var(--fg-1);
+}
+
+.update-dialog-notes code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: color-mix(in srgb, var(--fg-1) 8%, transparent);
+  border-radius: var(--radius-sm);
+  padding: 1px 4px;
+  color: var(--fg-1);
+}
+
+.update-dialog-notes a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dotted color-mix(in srgb, var(--accent) 50%, transparent);
+  cursor: pointer;
+  transition: border-bottom-color var(--t-fast) var(--ease);
+}
+.update-dialog-notes a:hover {
+  border-bottom-color: var(--accent);
+}
+
+.update-dialog-progress-section {
+  padding: 12px 18px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .update-dialog-progress-meta {
   display: flex;
   justify-content: space-between;
   font-size: 11px;
-  color: var(--fg-2);
   font-family: var(--font-mono);
+  color: var(--fg-3);
 }
 
-.update-dialog-ready-message {
-  margin: 0 20px 16px;
-  padding: 10px 12px;
-  background: rgba(52, 211, 153, 0.12);
-  border: 1px solid rgba(52, 211, 153, 0.3);
-  border-radius: 6px;
-  font-size: 12px;
-  color: #34d399;
+.update-dialog-progress-bar-bg {
+  height: 4px;
+  background: color-mix(in srgb, var(--fg-1) 8%, transparent);
+  border-radius: 2px;
+  overflow: hidden;
 }
 
-.update-dialog-error-message {
-  margin: 0 20px 16px;
+.update-dialog-progress-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.15s ease-out;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.update-dialog-status-card {
+  margin: 12px 18px 0;
   padding: 10px 12px;
-  background: rgba(239, 68, 68, 0.12);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-family: var(--font-ui);
+}
+
+.update-dialog-status-card.ready {
+  background: color-mix(in srgb, var(--insert) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--insert) 24%, transparent);
+}
+
+.update-dialog-status-card.error {
+  background: color-mix(in srgb, var(--error) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--error) 24%, transparent);
+}
+
+.update-dialog-status-card .status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-top: 5px;
+  flex-shrink: 0;
+}
+
+.update-dialog-status-card .status-dot.ready {
+  background: var(--insert);
+  box-shadow: 0 0 6px var(--insert);
+  animation: pulse-update 2.5s infinite ease-in-out;
+}
+
+.update-dialog-status-card .status-dot.error {
+  background: var(--error);
+  box-shadow: 0 0 6px var(--error);
+}
+
+.update-dialog-status-card .status-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.update-dialog-status-card .status-title {
   font-size: 12px;
-  color: #f87171;
+  font-weight: 600;
+  color: var(--fg-1);
+}
+
+.update-dialog-status-card .status-desc {
+  font-size: 11px;
+  color: var(--fg-3);
+  line-height: 1.4;
+  word-break: break-word;
 }
 
 .update-dialog-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
-  padding: 14px 20px;
-  border-top: 1px solid var(--edge-overlay);
-  background: rgba(0, 0, 0, 0.15);
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  margin-top: 14px;
+  border-top: 1px solid var(--edge);
+  background: color-mix(in srgb, var(--bg-0) 65%, transparent);
 }
 
 .update-btn {
-  padding: 6px 14px;
-  border-radius: 5px;
+  font-family: var(--font-ui);
   font-size: 12px;
   font-weight: 500;
+  height: 28px;
+  padding: 0 14px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid transparent;
-  transition: all 0.15s ease;
+  user-select: none;
+  transition:
+    background-color var(--t-fast) var(--ease),
+    border-color var(--t-fast) var(--ease),
+    color var(--t-fast) var(--ease),
+    filter var(--t-fast) var(--ease);
 }
 
 .update-btn.secondary {
@@ -2104,18 +2234,81 @@ body.dragging {
   border-color: var(--edge);
 }
 .update-btn.secondary:hover {
-  background: var(--item-hover);
-  color: var(--fg-0);
+  background: var(--hover);
+  color: var(--fg-1);
+  border-color: var(--edge-overlay);
 }
 
 .update-btn.primary {
   background: var(--accent);
-  color: #fff;
+  color: var(--bg-0);
+  font-weight: 600;
 }
 .update-btn.primary:hover:not(:disabled) {
-  filter: brightness(1.15);
+  filter: brightness(1.12);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.update-btn.primary:active:not(:disabled) {
+  filter: brightness(0.96);
 }
 .update-btn.primary:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* Debug step controls toolbar */
+.debug-toolbar {
+  position: absolute;
+  top: 10px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: var(--bg-1, #1f1f28);
+  border: 1px solid var(--accent, #7e9cd8);
+  border-radius: var(--radius-md, 6px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+  z-index: 60;
+  animation: overlay-in var(--t) var(--ease);
+}
+
+.debug-toolbar-status {
+  margin-right: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--warning, #e6c384);
+  letter-spacing: 0.5px;
+}
+
+.debug-toolbar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm, 4px);
+  background: transparent;
+  color: var(--fg-1, #dcd7ba);
+  cursor: pointer;
+  font-size: 14px;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+
+.debug-toolbar-btn:hover:not(:disabled) {
+  background: var(--bg-2, #2a2a37);
+  color: var(--accent, #7e9cd8);
+}
+
+.debug-toolbar-btn.stop:hover:not(:disabled) {
+  color: var(--error, #e82424);
+}
+
+.debug-toolbar-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
