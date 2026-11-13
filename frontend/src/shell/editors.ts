@@ -36,6 +36,8 @@ import { header } from "../editor/sticky";
 import { Waits } from "./waits";
 import { UndoSteps } from "./undoSteps";
 import { HiddenTerms } from "./terminals";
+import { settings } from "../core/settings";
+import { extOf } from "../lang/registry";
 import { DOCS, docText } from "../docs/docsData";
 
 export interface Status {
@@ -100,6 +102,7 @@ export class Editors {
   private waits = new Waits(); // `ayaz --wait`: files somebody waits to see closed
   private hidden = new HiddenTerms();
   private terms = 0; // numbers the terminals: "shell 1", "lazygit 2"
+  private lastEdits = new Map<string, number>(); // path → timestamp in ms when buffer was last modified
   onTermExit: (id: number) => void = () => {}; // the shell in split pane id ended, or its last tab closed: the pane closes (the panel passes its own onExit)
   onPlus: (at: DOMRect, id: number) => void = () => {}; // the + in pane id's tab bar, at the button
   onTabMenu: (at: { x: number; y: number }, path: string, id: number) => void = () => {}; // right click on a tab
@@ -555,7 +558,26 @@ export class Editors {
       const pos = Math.min(at, v.state.doc.length);
       v.dispatch({ selection: { anchor: pos }, effects: EditorView.scrollIntoView(pos, { y: "center" }) });
     }
-    if (path.startsWith(DOCS) && !isReading(v.state)) toggleReading(v); // docs read rendered, like a help page
+    if (path.startsWith(DOCS) && !isReading(v.state)) {
+      toggleReading(v); // docs always read rendered, like a help page
+    } else if (extOf(path) === "md") {
+      const mode = settings().markdownReadingMode;
+      if (mode === "always") {
+        if (!isReading(v.state)) toggleReading(v);
+      } else if (mode === "smart") {
+        const timeoutSec = settings().markdownReadingTimeout ?? 300;
+        const nowMs = Date.now();
+        const fileMtimeMs = b.mtime > 0 ? b.mtime / 1000 : 0;
+        const lastEditMs = this.lastEdits.get(path) ?? 0;
+        const lastActiveMs = Math.max(fileMtimeMs, lastEditMs);
+        const ageSec = lastActiveMs > 0 ? (nowMs - lastActiveMs) / 1000 : 0;
+        // Brand new/unsaved file (mtime === 0) or recently edited (< timeout): stay in editor mode.
+        // Existing file opened fresh after inactivity (ageSec >= timeout): open in reading mode!
+        if (fresh && fileMtimeMs > 0 && ageSec >= timeoutSec) {
+          if (!isReading(v.state)) toggleReading(v);
+        }
+      }
+    }
     return id;
   }
 
@@ -1178,6 +1200,7 @@ export class Editors {
       }
       p.buf.state = v.state; // the docs are equal now; keep the state of the pane that was typed in
       if (trs.some((t) => t.docChanged)) {
+        this.lastEdits.set(p.buf.path, Date.now());
         for (const [oid, o] of this.panes) {
           if (oid !== id && o.viewer?.reload && this.pathOf(oid) === p.buf.path) {
             o.viewer.reload();

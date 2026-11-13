@@ -90,6 +90,11 @@
       "id": "19",
       "title": "UI vereinheitlichen: PRs #8–#11 in dev gemergt, PR #12 (dev -> main) erstellt",
       "status": "DONE"
+    },
+    {
+      "id": "20",
+      "title": "Dedizierte Docs-Seite (DocsHub), logische Gliederung, einstellbarer Smart-Lesemodus für Markdown",
+      "status": "DONE"
     }
   ],
   "updated_at": "2026-11-13T19:05:00.000Z"

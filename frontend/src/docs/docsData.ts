@@ -1,5 +1,7 @@
 export interface DocItem {
   id: string;
+  category: string;
+  icon: string;
   title: string;
   content: string;
 }
@@ -67,15 +69,50 @@ Ayaz is a keyboard-first code editor. Every action is a registered command and c
 | \`<Space>gc\` | \`:Gcommit\` / \`:Gc\` | Commit staged changes |
 | \`<Space>gD\` | \`:Gvdiffsplit\` | Split diff view against HEAD |
 | \`<Space>gg\` | \`term.lazygit\` | Open Lazygit terminal interface |
+`;
 
----
+const VIM_DOC = `# Neovim Motions & Text Objects in Ayaz
 
-## Neovim Motions & Text Objects
-- Standard normal mode motions (\`h\`, \`j\`, \`k\`, \`l\`, \`w\`, \`b\`, \`e\`, \`0\`, \`$\`, \`gg\`, \`G\`).
-- Surround commands (\`ys\`, \`cs\`, \`ds\`).
-- Structural text objects (\`daf\` delete function, \`cia\` change inside argument).
-- Multi-cursor next occurrence: \`gb\` in normal or visual mode.
-- LSP motions: \`gd\` go to definition, \`K\` hover type info, \`gr\` references.
+Ayaz embeds Codemirror Vim with native extensions tailored to daily Neovim muscle memory.
+
+## Core Motions & Operators
+
+- Standard normal motions: \`h\`, \`j\`, \`k\`, \`l\`, \`w\`, \`b\`, \`e\`, \`0\`, \`$\`, \`gg\`, \`G\`.
+- Screen line motions: \`gj\`, \`gk\` navigate wrapped rows smoothly.
+- Operators: \`d\` (delete), \`c\` (change), \`y\` (yank), \`p\` (paste), \`>\` / \`<\` (indent), \`gcc\` (comment line), \`gc{motion}\`.
+
+## Surround Commands
+Like \`nvim-surround\`:
+- \`ys{motion}{char}\`: Surround motion with delimiter (e.g. \`ysiw"\` surrounds word with quotes).
+- \`ds{char}\`: Delete surrounding delimiter (e.g. \`ds(\` removes parentheses).
+- \`cs{old}{new}\`: Change surrounding delimiter (e.g. \`cs"'\` changes double to single quotes).
+
+## Structural Text Objects
+- \`af\` / \`if\`: Outer/inner function or method.
+- \`ac\` / \`ic\`: Outer/inner class, struct, interface or type.
+- \`aa\` / \`ia\`: Outer/inner parameter or argument.
+- \`]\` / \`[\` jumps: \`]f\` / \`[f\` jump to next/previous function start; \`]d\` / \`[d\` jump between LSP diagnostics; \`]c\` / \`[c\` jump between git change hunks.
+`;
+
+const LSP_DEBUG_DOC = `# LSP & DAP Debugger
+
+Ayaz provides complete Language Server Protocol (LSP) and Debug Adapter Protocol (DAP) integration.
+
+## Language Server (LSP) Features
+- **Hover (\`K\`):** Displays type signature and documentation tooltip.
+- **Go to Definition (\`gd\`):** Jumps to symbol definition across workspace files and standard library.
+- **References (\`gr\`):** Populates quickfix list with all symbol references across the project.
+- **Rename (\`<Space>cr\`):** Project-wide symbol rename with live preview.
+- **Code Actions (\`<Space>ca\`):** Contextual code fixes and imports.
+- **Format on Save:** Automatically formats Go and configured languages on save.
+
+## Interactive Debugger (DAP)
+- **Toggle Breakpoint (\`<Space>db\`):** Sets/clears breakpoint on current line or via gutter click.
+- **Conditional / Logpoints (\`<Space>dB\`):** Sets conditional expressions or log message points.
+- **Start / Continue (\`<Space>dc\`):** Starts debug session or continues paused execution.
+- **Step Over (\`<Space>dn\`), Step Into (\`<Space>di\`), Step Out (\`<Space>do\`):** Standard stepping controls.
+- **Callstack (\`<Space>dk\`):** Inspects callstack frames and switches evaluation scope.
+- **Watch Expressions (\`<Space>dw\`):** Evaluates variables dynamically at breakpoints.
 `;
 
 const readmeContent = rawReadme["../../../README.md"] || "";
@@ -86,19 +123,70 @@ const testContent = rawDocs["../../../docs/04-testing.md"] || "";
 const roadmapContent = rawDocs["../../../docs/05-roadmap.md"] || "";
 
 const ITEMS: DocItem[] = [
+  // 1. Getting Started
   {
     id: "getting-started",
+    category: "Getting Started",
+    icon: "\uf135", // rocket
     title: "Getting Started & Overview",
     content: readmeContent || visionContent,
   },
   {
     id: "keymap-commands",
+    category: "Getting Started",
+    icon: "\uf11c", // keyboard
     title: "Keymap & Command Cheatsheet",
     content: COMMANDS_DOC,
   },
+
+  // 2. Editor & Navigation
+  {
+    id: "neovim-vim",
+    category: "Editor & Navigation",
+    icon: "\ue62b", // vim
+    title: "Vim Navigation & Motions",
+    content: VIM_DOC,
+  },
+  {
+    id: "markdown-viewers",
+    category: "Editor & Navigation",
+    icon: "\uf48a", // markdown
+    title: "Markdown, Reading Mode & Previews",
+    content: `# Native Markdown, PDFs and Real Terminals
+
+Ayaz renders rich documents natively alongside code without heavy Electron overhead.
+
+## Markdown Reading View & Split Preview
+- **Reading View (\`<Space>mr\`):** Hides raw markdown formatting tokens for clean reading while maintaining Neovim motions.
+- **Toggle Split Preview (\`<Space>mp\`):** Opens a live rendered preview of the active Markdown document in an adjacent pane.
+- **Smart Reading Mode:** Automatically opens older or existing documents in reading view, while newly created or edited files stay in edit mode (configurable in \`settings.json\`).
+- **Export & Build Support:** Directly compiles Typst, LaTeX and Markdown documents into live PDF views.
+`,
+  },
+  {
+    id: "terminals",
+    category: "Editor & Navigation",
+    icon: "\uf120", // terminal
+    title: "Built-in PTY Terminal & Lazygit",
+    content: `# Built-In PTY Terminal & Lazygit
+
+Ayaz provides a full xterm.js terminal connected directly to your system shell.
+
+## Terminal Features
+- **Bottom Panel (\`<Space>t\` / \`Cmd+J\`):** Full interactive terminal panel at the bottom of the window.
+- **Floating Scratchpad (\`<Space>tf\`):** Fast pop-over terminal for quick commands.
+- **Terminal as Split Pane (\`<Space>tt\`):** Opens a terminal buffer in any editor pane.
+- **Send Line/Selection (\`<Space>ts\` / \`<C-CR>\`):** Sends current line or visual selection directly into the terminal.
+- **Lazygit (\`<Space>gg\`):** Launches lazygit directly in an editor tab.
+`,
+  },
+
+  // 3. Development & Tools
   {
     id: "git-suite",
-    title: "Git Remote Suite & Sidebar",
+    category: "Development & Tools",
+    icon: "\uf126", // git
+    title: "Git Suite & Remote Operations",
     content: `# Git Remote Suite in Ayaz
 
 Ayaz features a complete, zero-terminal Git suite directly built into the editor and sidebar.
@@ -119,41 +207,39 @@ Ayaz features a complete, zero-terminal Git suite directly built into the editor
 `,
   },
   {
-    id: "markdown-viewers",
-    title: "Markdown, PDFs & Terminals",
-    content: `# Native Markdown, PDFs and Real Terminals
-
-Ayaz renders rich documents natively alongside code without heavy Electron overhead.
-
-## Markdown Reading View & Split Preview
-- **Toggle Split Preview (\`<Space>mp\`):** Opens a live rendered preview of the active Markdown document in an adjacent pane.
-- **Reading View (\`<Space>mr\`):** Hides raw markdown formatting tokens for clean reading while maintaining Neovim motions.
-- **Export & Build Support:** Directly compiles Typst, LaTeX and Markdown documents into live PDF views.
-
-## Built-In PTY Terminal
-- **Bottom Panel (\`<Space>t\` / \`Cmd+J\`):** Full interactive xterm.js terminal connected directly to your system shell.
-- **Floating Scratchpad (\`<Space>tf\`):** Fast pop-over terminal for quick commands.
-- **Send Line/Selection (\`<Space>ts\` / \`<C-CR>\`):** Sends current line or visual selection directly into the terminal.
-- **Lazygit (\`<Space>gg\`):** Launches lazygit directly in an editor tab.
-`,
+    id: "lsp-debugging",
+    category: "Development & Tools",
+    icon: "\uf188", // bug
+    title: "LSP & DAP Debugger",
+    content: LSP_DEBUG_DOC,
   },
+
+  // 4. Engineering & Roadmap
   {
     id: "architecture",
+    category: "Engineering & Roadmap",
+    icon: "\uf1b2", // architecture
     title: "Architecture & Low Memory Design",
     content: archContent || visionContent,
   },
   {
     id: "performance",
+    category: "Engineering & Roadmap",
+    icon: "\uf0e7", // bolt
     title: "Performance Budgets & RAM",
     content: perfContent,
   },
   {
     id: "testing",
+    category: "Engineering & Roadmap",
+    icon: "\uf00c", // check
     title: "Testing Strategy & Quality",
     content: testContent,
   },
   {
     id: "roadmap",
+    category: "Engineering & Roadmap",
+    icon: "\uf279", // roadmap
     title: "Milestones & Roadmap",
     content: roadmapContent,
   },
@@ -164,17 +250,16 @@ const noImages = (md: string) => md.replace(/^\[?!\[[^\]]*\]\([^)]*\)(\]\([^)]*\
 
 export const DOC_ITEMS: DocItem[] = ITEMS.map((d) => ({ ...d, content: noImages(d.content) }));
 
-// Docs open as read-only Markdown buffers (shell/editors), like Vim's :help.
 export const DOCS = "docs://";
 export const DOCS_INDEX = `${DOCS}index.md`;
 export const docPath = (id: string) => `${DOCS}${id}.md`;
 
-const INDEX = `# Ayaz docs
+const INDEX = `# Ayaz Docs
 
-\`<F1>\` or \`:help\` opens this page, \`:help <topic>\` a topic (\`:help git\`).
-The command palette lists the topics under "Docs: find topic".
+\`<F1>\` or \`:help\` opens the documentation hub.
+Use the sidebar or search bar to browse through all topics:
 
-${DOC_ITEMS.map((d) => `- [${d.title}](${d.id}.md)`).join("\n")}
+${DOC_ITEMS.map((d) => `- [${d.title}](${d.id}.md) *(${d.category})*`).join("\n")}
 `;
 
 // The text of a docs:// path; an unknown topic says so instead of failing.
@@ -187,7 +272,11 @@ export function docText(path: string): string {
 // :help <topic>: an exact id, then the first id or title containing the words.
 export function findDoc(topic: string): DocItem | undefined {
   const q = topic.trim().toLowerCase();
-  return DOC_ITEMS.find((d) => d.id === q) ?? DOC_ITEMS.find((d) => d.id.includes(q) || d.title.toLowerCase().includes(q));
+  return (
+    DOC_ITEMS.find((d) => d.id === q) ??
+    DOC_ITEMS.find((d) => d.id.includes(q)) ??
+    DOC_ITEMS.find((d) => d.title.toLowerCase().includes(q))
+  );
 }
 
 // What the start page's docs folder holds: one file per topic plus the index.
