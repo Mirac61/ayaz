@@ -50,7 +50,12 @@
       "id": "10",
       "title": "man sollte pushen können und es gibt ein bug bei dem schreiben, wo man bei space, nicht immer ds richtige bekommt im Sinne von es öffnet sich as Terminel:d",
       "status": "TODO"
+    },
+    {
+      "id": "11",
+      "title": "fetch pull rebase feature were gut",
+      "status": "TODO"
     }
   ],
-  "updated_at": "2026-11-13T12:00:09.774545Z"
+  "updated_at": "2026-11-13T12:00:49.64425Z"
 }
