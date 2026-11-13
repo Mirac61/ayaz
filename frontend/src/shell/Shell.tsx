@@ -193,7 +193,7 @@ export function Shell() {
     { key: "c", icon: "", label: "Clone repository", sub: "Git URL or owner/repo", run: () => setShowClone(true) },
     { key: "n", icon: "", label: "New window", sub: mod(isMac ? "⇧N" : "Shift+N"), run: () => void backend.newWindow() },
     { key: "t", icon: "", label: "Theme", sub: theme, run: openThemePicker },
-    { key: "?", icon: "", label: "Docs & Help", sub: "<F1> or :help", run: () => void openDocs() },
+    { key: "?", icon: "", label: "Docs", sub: ":help", run: () => void openDocs() },
   ];
   const singleKeys: Record<string, () => void> = {
     r: openRecentPicker,
@@ -342,10 +342,16 @@ export function Shell() {
       </div>
 
       {showClone && (
-        <div className="welcome-modal-backdrop" onClick={() => !cloning && closeClone()}>
-          <div className="welcome-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
-            <div className="welcome-modal-header">
-              <span className="welcome-modal-title">Clone repository</span>
+        <div className="picker-backdrop" onClick={() => !cloning && closeClone()}>
+          <div
+            className="picker welcome-modal"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Clone repository"
+          >
+            <div className="picker-head">
+              <span className="picker-title">Clone repository</span>
               <button
                 type="button"
                 className="welcome-modal-close"
