@@ -58,6 +58,15 @@ export function viewCommands({ ed, say, fail, setPicker }: Ctx): Command[] {
       },
     },
     {
+      id: "view.spellcheck",
+      title: "Toggle prose spellcheck (<Space>us)",
+      run() {
+        const on = ed.toggleSpellcheck();
+        if (on === null) return fail("No editor here for spellcheck");
+        say(on ? "Spellcheck on" : "Spellcheck off");
+      },
+    },
+    {
       id: "view.diagnosticText",
       title: "Toggle diagnostic text after the line",
       run: () => say(toggleDiagText() ? "Diagnostic text on" : "Diagnostic text off"),

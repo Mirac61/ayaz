@@ -1,6 +1,7 @@
 import { EditorView } from "@codemirror/view";
 import { backend } from "../core/backend";
 import { imageTarget } from "../core/pasteImage";
+import { notify } from "../core/notifications";
 
 const base64 = async (f: Blob) => {
   const bytes = new Uint8Array(await f.arrayBuffer());
@@ -10,7 +11,7 @@ const base64 = async (f: Blob) => {
 };
 
 // Markdown buffers: pasting an image saves it next to the file and inserts `![](assets/…)`. Text pastes go on as usual.
-export const pasteImage = (ws: string, file: string, say: (text: string) => void = () => {}) =>
+export const pasteImage = (ws: string, file: string, say: (text: string) => void = (text) => notify.say(text)) =>
   EditorView.domEventHandlers({
     paste(e, view) {
       const item = [...(e.clipboardData?.items ?? [])].find((i) => i.kind === "file" && i.type.startsWith("image/"));

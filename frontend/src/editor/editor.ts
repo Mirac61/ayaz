@@ -127,7 +127,12 @@ const PROSE = new Set(["md", "txt", "typ", "tex"]);
 const SWATCHED = new Set(["css", "html", "js", "mjs", "jsx", "ts", "tsx", "json"]); // where hex colors get a swatch
 export const isProse = (path: string) => PROSE.has(extOf(path));
 
+export const spellchecking = new Compartment();
+export const spellcheckAttr = EditorView.contentAttributes.of({ spellcheck: "true" });
+export const noSpellcheckAttr = EditorView.contentAttributes.of({ spellcheck: "false" });
+export const spellcheckFor = (path: string | null) => !!(path && PROSE.has(extOf(path)));
+
 export async function createState(path: string | null, doc: string, ws?: string, root?: string): Promise<EditorState> {
   const lang = path && !hasLongLine(doc) ? await loadLanguage(path) : null;
-  return EditorState.create({ doc, extensions: [editorExtensions(), indenting.of(indentFor(path, doc.slice(0, INDENT_SAMPLE))), wrapping.of(wrapFor(path) ? EditorView.lineWrapping : []), lang ?? [], path && ws && root ? [lspExtension(ws, root, path), diagnosticText] : [], path?.startsWith("/") || path?.startsWith("debug://") || path?.startsWith("head://") ? EditorState.readOnly.of(true) : [], path ? snippetCompletion(extOf(path)) : [], path && PROSE.has(extOf(path)) ? EditorView.contentAttributes.of({ spellcheck: "true" }) : [], path && SWATCHED.has(extOf(path)) ? swatches : [], path && extOf(path) === "md" ? [mdlive, mdRender, ws ? [mdImages.of({ ws, file: path }), pasteImage(ws, path)] : []] : []] });
+  return EditorState.create({ doc, extensions: [editorExtensions(), indenting.of(indentFor(path, doc.slice(0, INDENT_SAMPLE))), wrapping.of(wrapFor(path) ? EditorView.lineWrapping : []), spellchecking.of(spellcheckFor(path) ? spellcheckAttr : noSpellcheckAttr), lang ?? [], path && ws && root ? [lspExtension(ws, root, path), diagnosticText] : [], path?.startsWith("/") || path?.startsWith("debug://") || path?.startsWith("head://") ? EditorState.readOnly.of(true) : [], path ? snippetCompletion(extOf(path)) : [], path && SWATCHED.has(extOf(path)) ? swatches : [], path && extOf(path) === "md" ? [mdlive, mdRender, ws ? [mdImages.of({ ws, file: path }), pasteImage(ws, path)] : []] : []] });
 }
