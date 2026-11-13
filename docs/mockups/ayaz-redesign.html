@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Ayaz — Echte Internet-Farbpaletten & Hybrid-Mockup</title>
+  <style>
+    :root {
+      --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", sans-serif;
+      --font-mono: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%;
+      background: #0f1117;
+      color: #d8dee9;
+      font-family: var(--font-ui);
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Top Switcher Deck */
+    .deck {
+      height: 48px;
+      background: #141720;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      z-index: 50;
+      position: relative;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: 0.5px;
+      color: #eceff4;
+    }
+
+    .switch-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #0d0f14;
+      padding: 3px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .palette-btn {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 5px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+
+    .palette-btn:hover { color: #fff; background: rgba(255,255,255,0.05); }
+    .palette-btn.active {
+      background: #1f2430;
+      color: #88c0d0;
+      font-weight: 600;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+
+    .palette-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    /* App Stage */
+    .app-viewport {
+      height: calc(100% - 48px);
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      grid-template-rows: 32px 1fr 26px;
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    /* ==============================================================
+       PALETTE 1: "ICEBERG" (cocopon - Neovim Kult-Standard)
+       Das Benchmark für ermüdungsfreie, kühle Editor-Ästhetik
+       ============================================================== */
+    .palette-iceberg {
+      --bg-chrome: #12141c;       /* Titelleiste, Sidebar, Status */
+      --bg-canvas: #161821;       /* Editor-Fläche */
+      --bg-tab-track: #12141c;    /* Tab-Streifen */
+      --bg-tab-active: #1e2132;   /* Aktiver Tab */
+      --bg-highlight: #272c42;    /* Fokuszeile, Keycaps */
+      --edge: rgba(137, 184, 194, 0.12);
+      --edge-active: #89b8c2;
+      --fg-primary: #c6c8d1;      /* Soft Snow Text */
+      --fg-secondary: #818596;    /* Chrome Labels */
+      --fg-muted: #535973;        /* Zeilennummern, Trenner */
+      --accent: #89b8c2;          /* Iceberg Cyan */
+      --accent-alt: #84a0c6;      /* Sub-Zero Blue */
+      --mode-normal: #89b8c2;
+      --mode-insert: #b4be82;     /* Ice Lichen Green */
+      --mode-visual: #a093c7;     /* Winter Purple */
+      --mode-err: #e27878;        /* Soft Crimson */
+    }
+
+    /* ==============================================================
+       PALETTE 2: "NORD ARCTIC" (Arctic Ice Studio - Welt-Standard)
+       Der offizielle Benchmark für Polar Night, Frost & Aurora
+       ============================================================== */
+    .palette-nord {
+      --bg-chrome: #242933;       /* Deeper Polar Night */
+      --bg-canvas: #2e3440;       /* nord0 */
+      --bg-tab-track: #242933;
+      --bg-tab-active: #3b4252;   /* nord1 */
+      --bg-highlight: #434c5e;    /* nord2 */
+      --edge: rgba(216, 222, 233, 0.10);
+      --edge-active: #88c0d0;     /* nord8 Frost Cyan */
+      --fg-primary: #eceff4;      /* nord6 Snowstorm */
+      --fg-secondary: #d8dee9;    /* nord4 */
+      --fg-muted: #616e88;        /* nord3 */
+      --accent: #88c0d0;          /* nord8 Glacier Cyan */
+      --accent-alt: #81a1c1;      /* nord9 Frost Blue */
+      --mode-normal: #88c0d0;
+      --mode-insert: #a3be8c;     /* nord14 Aurora Green */
+      --mode-visual: #b48ead;     /* nord15 Aurora Purple */
+      --mode-err: #bf616a;        /* nord11 Aurora Red */
+    }
+
+    /* ==============================================================
+       PALETTE 3: "POIMANDRES" (pmndrs / drcmda - Modern Sleek)
+       Muted Blueberry-Obsidian mit Glacial Mint-Cyan
+       ============================================================== */
+    .palette-poimandres {
+      --bg-chrome: #171922;       /* Deep Muted Navy */
+      --bg-canvas: #1b1e28;       /* Blueberry Canvas */
+      --bg-tab-track: #171922;
+      --bg-tab-active: #252b3d;   /* Elevated Tab */
+      --bg-highlight: #30374f;
+      --edge: rgba(93, 228, 199, 0.12);
+      --edge-active: #5de4c7;     /* Mint Ice */
+      --fg-primary: #e4f0fb;      /* Ice White */
+      --fg-secondary: #a6accd;    /* Soft Periwinkle */
+      --fg-muted: #5e6687;
+      --accent: #5de4c7;          /* Mint Frost */
+      --accent-alt: #89ddff;      /* Glacial Sky */
+      --mode-normal: #5de4c7;
+      --mode-insert: #fffac2;     /* Pale Sunlight */
+      --mode-visual: #d0679d;     /* Berry Pink */
+      --mode-err: #d0679d;
+    }
+
+    /* ==============================================================
+       PALETTE 4: "AYAZ FROSTBITE" (Curated Hybrid: Deep & Piercing)
+       Die Synthese: Tiefer als Nord, kristallklarer als Iceberg
+       ============================================================== */
+    .palette-ayaz {
+      --bg-chrome: #11141c;       /* Arktische Nacht */
+      --bg-canvas: #151924;       /* Tiefer Fjord-Canvas */
+      --bg-tab-track: #11141c;
+      --bg-tab-active: #1d2333;   /* Kristallisierter Tab */
+      --bg-highlight: #283045;
+      --edge: rgba(126, 196, 224, 0.12);
+      --edge-active: #7ec4e0;
+      --fg-primary: #eef4fc;      /* Kristallklar */
+      --fg-secondary: #9cb0cc;    /* Gletschersilber */
+      --fg-muted: #586985;
+      --accent: #7ec4e0;          /* Ayaz Polar Ice */
+      --accent-alt: #6cb6d9;
+      --mode-normal: #7ec4e0;
+      --mode-insert: #8ee0b5;     /* Packeis-Grün */
+      --mode-visual: #b9a3e3;     /* Polarlicht */
+      --mode-err: #e07070;
+    }
+
+    /* Global UI Components */
+    .app-titlebar {
+      grid-column: 1 / -1;
+      height: 32px;
+      background: var(--bg-chrome);
+      border-bottom: 1px solid var(--edge);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      font-size: 11px;
+      color: var(--fg-secondary);
+      user-select: none;
+    }
+
+    .lights {
+      display: flex;
+      gap: 7px;
+      align-items: center;
+      margin-right: 14px;
+    }
+    .light { width: 11px; height: 11px; border-radius: 50%; }
+    .light-r { background: #ff5f56; }
+    .light-y { background: #ffbd2e; }
+    .light-g { background: #27c93f; }
+
+    .title-project-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--edge);
+      padding: 2px 8px;
+      border-radius: 4px;
+      color: var(--fg-primary);
+      font-weight: 600;
+      font-size: 11px;
+      font-family: var(--font-mono);
+    }
+
+    .title-center {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+    .title-center .sep { color: var(--fg-muted); }
+
+    .app-sidebar {
+      background: var(--bg-chrome);
+      border-right: 1px solid var(--edge);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    .sidebar-head {
+      height: 32px;
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      color: var(--fg-muted);
+      border-bottom: 1px solid var(--edge);
+    }
+
+    .tree {
+      list-style: none;
+      padding: 6px 0;
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+
+    .tree-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 14px;
+      color: var(--fg-secondary);
+      cursor: pointer;
+    }
+    .tree-row:hover { background: rgba(255, 255, 255, 0.03); color: var(--fg-primary); }
+    .tree-row.active {
+      background: rgba(126, 196, 224, 0.08);
+      color: var(--accent);
+      border-left: 2px solid var(--accent);
+      padding-left: 12px;
+    }
+    .tree-indent { width: 14px; display: inline-block; }
+    .tree-arrow { font-size: 9px; opacity: 0.6; }
+    .tree-icon { font-size: 13px; opacity: 0.75; }
+
+    /* Splits & Tabs */
+    .app-editor-panes {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      background: var(--bg-canvas);
+      overflow: hidden;
+    }
+
+    .editor-pane {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border-right: 1px solid var(--edge);
+      background: var(--bg-canvas);
+    }
+    .editor-pane:last-child { border-right: none; }
+
+    /* REALISTISCHER HYBRID-TABBAR */
+    .hybrid-tabbar {
+      height: 32px;
+      background: var(--bg-tab-track);
+      border-bottom: 1px solid var(--edge);
+      display: flex;
+      align-items: stretch;
+      padding: 3px 6px 0 6px;
+      gap: 3px;
+    }
+
+    .hybrid-tab {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 14px;
+      font-size: 12px;
+      color: var(--fg-secondary);
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--edge);
+      border-bottom: none;
+      border-radius: 3px 3px 0 0;
+      /* 45° Chamfer Cut */
+      clip-path: polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 0 100%);
+      cursor: pointer;
+      position: relative;
+      transition: all 0.12s ease;
+    }
+
+    .hybrid-tab:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--fg-primary);
+    }
+
+    /* Der aktive Tab fließt nahtlos in den Canvas */
+    .hybrid-tab.active {
+      background: var(--bg-canvas);
+      color: var(--fg-primary);
+      border-color: var(--edge-active);
+      box-shadow: inset 0 1.5px 0 var(--accent);
+    }
+
+    .diamond-sparkle {
+      width: 5px;
+      height: 5px;
+      background: var(--accent);
+      transform: rotate(45deg);
+      border-radius: 1px;
+      flex: none;
+      box-shadow: 0 0 6px var(--accent);
+    }
+
+    .tab-close {
+      opacity: 0.35;
+      font-size: 11px;
+      margin-left: 4px;
+    }
+    .hybrid-tab:hover .tab-close { opacity: 0.9; }
+
+    /* Code Canvas */
+    .code-buffer {
+      flex: 1;
+      padding: 16px;
+      display: flex;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.65;
+      overflow: hidden;
+      color: var(--fg-primary);
+    }
+
+    .gutter-lines {
+      padding-right: 18px;
+      color: var(--fg-muted);
+      text-align: right;
+      user-select: none;
+      font-size: 12px;
+    }
+
+    .code-text { flex: 1; white-space: pre; }
+
+    /* Syntax Highlighting */
+    .k-kw { color: #b48ead; font-weight: 600; }
+    .k-fn { color: var(--accent-alt); }
+    .k-str { color: #a3be8c; }
+    .k-type { color: var(--accent); }
+    .k-com { color: var(--fg-muted); font-style: italic; }
+
+    .active-line {
+      background: rgba(255, 255, 255, 0.03);
+      display: inline-block;
+      width: 100%;
+      border-left: 2px solid var(--accent);
+      padding-left: 4px;
+      margin-left: -6px;
+    }
+
+    /* Statusline (26px) */
+    .app-statusline {
+      grid-column: 1 / -1;
+      height: 26px;
+      background: var(--bg-chrome);
+      border-top: 1px solid var(--edge);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      font-size: 11px;
+      color: var(--fg-secondary);
+      font-family: var(--font-mono);
+      user-select: none;
+    }
+
+    .status-capsule-badge {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--edge-active);
+      color: var(--mode-normal);
+      padding: 1px 7px;
+      border-radius: 3px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+    }
+
+    .stat-seg { display: inline-flex; align-items: center; gap: 6px; }
+
+    /* Palette Info Overlay / Bottom Banner */
+    .palette-meta-bar {
+      position: fixed;
+      bottom: 34px;
+      right: 16px;
+      background: var(--bg-chrome);
+      border: 1px solid var(--edge);
+      border-radius: 6px;
+      padding: 8px 14px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      display: flex;
+      gap: 14px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+      z-index: 100;
+    }
+    .meta-chip { display: flex; align-items: center; gap: 6px; }
+  </style>
+</head>
+<body>
+
+  <!-- Top Switcher -->
+  <div class="deck">
+    <div class="brand">
+      <svg width="20" height="20" viewBox="0 0 512 512" fill="none">
+        <polygon points="256,50 278,236 256,256 256,50" fill="#ffffff" />
+        <polygon points="256,50 256,256 234,236 256,50" fill="#cbe6ff" />
+        <polygon points="256,462 278,276 256,256 256,462" fill="#38bdf8" />
+        <polygon points="256,462 256,256 234,276 256,462" fill="#0284c7" />
+        <polygon points="50,256 236,234 256,256 50,256" fill="#70d6ff" />
+        <polygon points="50,256 256,256 236,278 50,256" fill="#0284c7" />
+        <polygon points="462,256 276,234 256,256 462,256" fill="#ffffff" />
+        <polygon points="462,256 256,256 276,278 462,256" fill="#bae6fd" />
+      </svg>
+      AYAZ PALETTE BENCHMARK
+    </div>
+
+    <!-- Die 4 echten Internet-Standards -->
+    <div class="switch-group">
+      <button class="palette-btn active" onclick="setPalette('palette-iceberg', this, 'Iceberg (#161821 Canvas, #89b8c2 Cyan) — Neovim Benchmark von cocopon')">
+        <span class="palette-dot" style="background:#89b8c2;"></span>
+        <span>1. Iceberg (cocopon)</span>
+      </button>
+      <button class="palette-btn" onclick="setPalette('palette-nord', this, 'Nord (#2e3440 Canvas, #88c0d0 Frost Cyan) — Arctic Ice Studio Goldstandard')">
+        <span class="palette-dot" style="background:#88c0d0;"></span>
+        <span>2. Nord Arctic</span>
+      </button>
+      <button class="palette-btn" onclick="setPalette('palette-poimandres', this, 'Poimandres (#1b1e28 Canvas, #5de4c7 Mint) — pmndrs Minimal Cold Slate')">
+        <span class="palette-dot" style="background:#5de4c7;"></span>
+        <span>3. Poimandres (pmndrs)</span>
+      </button>
+      <button class="palette-btn" onclick="setPalette('palette-ayaz', this, 'Ayaz Frostbite (#151924 Canvas, #7ec4e0 Polar Ice) — Tiefe Fjord-Balance')">
+        <span class="palette-dot" style="background:#7ec4e0;"></span>
+        <span>4. Ayaz Frostbite (Curated)</span>
+      </button>
+    </div>
+
+    <div style="font-size:11px; color:#8fa0b8;">
+      <span id="desc-label">Iceberg (#161821 Canvas, #89b8c2 Cyan) — Neovim Benchmark</span>
+    </div>
+  </div>
+
+  <!-- Main 1:1 App Viewport -->
+  <div id="viewport" class="app-viewport palette-iceberg">
+    
+    <!-- Titlebar -->
+    <header class="app-titlebar">
+      <div style="display:flex; align-items:center;">
+        <div class="lights">
+          <div class="light light-r"></div>
+          <div class="light light-y"></div>
+          <div class="light light-g"></div>
+        </div>
+        <div class="title-project-badge">
+          <span style="color:var(--accent);">❄</span>
+          <span>ayaz</span>
+        </div>
+      </div>
+
+      <div class="title-center">
+        <span style="color:var(--fg-muted);">frontend</span>
+        <span class="sep">/</span>
+        <span style="color:var(--fg-muted);">src</span>
+        <span class="sep">/</span>
+        <span style="color:var(--fg-primary); font-weight:600;">Workbench.tsx</span>
+      </div>
+
+      <div style="display:flex; gap:12px; font-family:var(--font-mono); font-size:11px; opacity:0.8;">
+        <span>⎇ main*</span>
+        <span>⌘P Palette</span>
+      </div>
+    </header>
+
+    <!-- Sidebar -->
+    <aside class="app-sidebar">
+      <div class="sidebar-head">
+        <span>Explorer</span>
+        <span style="font-size:10px; color:var(--accent); font-family:var(--font-mono);">3 MOD</span>
+      </div>
+      <ul class="tree">
+        <li class="tree-row"><span class="tree-arrow">▾</span> <span class="tree-icon">📁</span> <span>cmd</span></li>
+        <li class="tree-row"><span class="tree-indent"></span><span class="tree-icon">📄</span> <span>main.go</span></li>
+        <li class="tree-row"><span class="tree-arrow">▾</span> <span class="tree-icon">📁</span> <span>frontend</span></li>
+        <li class="tree-row"><span class="tree-indent"></span><span class="tree-arrow">▾</span> <span class="tree-icon">📁</span> <span>src</span></li>
+        <li class="tree-row active"><span class="tree-indent"></span><span class="tree-indent"></span><span class="tree-icon">⚛</span> <span>Workbench.tsx</span></li>
+        <li class="tree-row"><span class="tree-indent"></span><span class="tree-indent"></span><span class="tree-icon">🎨</span> <span>shell.css</span></li>
+        <li class="tree-row"><span class="tree-indent"></span><span class="tree-indent"></span><span class="tree-icon">❄️</span> <span>tokens.css</span></li>
+        <li class="tree-row"><span class="tree-arrow">▸</span> <span class="tree-icon">📁</span> <span>internal</span></li>
+      </ul>
+    </aside>
+
+    <!-- Editor Split Panes -->
+    <main class="app-editor-panes">
+      
+      <!-- Split 1 -->
+      <div class="editor-pane">
+        <div class="hybrid-tabbar">
+          <div class="hybrid-tab active">
+            <span class="diamond-sparkle"></span>
+            <span>Workbench.tsx</span>
+            <span class="tab-close">×</span>
+          </div>
+          <div class="hybrid-tab">
+            <span>shell.css</span>
+          </div>
+        </div>
+
+        <div class="code-buffer">
+          <div class="gutter-lines">
+            1<br>2<br>3<br>4<br>5<br>6<br>7<br>8<br>9<br>10<br>11<br>12
+          </div>
+          <div class="code-text"><span class="k-kw">import</span> { <span class="k-type">Editors</span> } <span class="k-kw">from</span> <span class="k-str">"./editors"</span>;
+<span class="k-kw">import</span> { <span class="k-fn">AyazLogo</span> } <span class="k-kw">from</span> <span class="k-str">"./AyazLogo"</span>;
+
+<span class="k-com">// Ayaz — echtes Internet-Farbbenchmark</span>
+<span class="k-kw">export function</span> <span class="k-fn">Workbench</span>({ ws }: <span class="k-type">Props</span>) {
+  <span class="active-line"><span class="k-kw">const</span> [palette] = <span class="k-fn">useState</span>(<span class="k-str">"arctic-ice"</span>);</span>
+
+  <span class="k-kw">return</span> (
+    &lt;<span class="k-type">div</span> <span class="k-fn">className</span>=<span class="k-str">"workbench ayaz-frost"</span>&gt;
+      &lt;<span class="k-type">CrystallineTabs</span> chamfer={<span class="k-str">"45deg"</span>} /&gt;
+      &lt;<span class="k-type">GlacierDock</span> mode={<span class="k-str">"normal"</span>} /&gt;
+    &lt;/<span class="k-type">div</span>&gt;
+  );
+}</div>
+        </div>
+      </div>
+
+      <!-- Split 2 -->
+      <div class="editor-pane">
+        <div class="hybrid-tabbar">
+          <div class="hybrid-tab active">
+            <span class="diamond-sparkle"></span>
+            <span>main.go</span>
+            <span class="tab-close">×</span>
+          </div>
+        </div>
+
+        <div class="code-buffer">
+          <div class="gutter-lines">
+            1<br>2<br>3<br>4<br>5<br>6<br>7<br>8<br>9
+          </div>
+          <div class="code-text"><span class="k-kw">package</span> main
+
+<span class="k-kw">func</span> <span class="k-fn">InitAyazEngine</span>() <span class="k-type">error</span> {
+    opts := &wails.Options{
+        Title:      <span class="k-str">"Ayaz — Zero Fatigue"</span>,
+        Background: <span class="k-type">"var(--bg-canvas)"</span>,
+    }
+    <span class="k-kw">return</span> wails.Run(opts)
+}</div>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- Statusline -->
+    <footer class="app-statusline">
+      <div style="display:flex; align-items:center; gap:12px;">
+        <span class="status-capsule-badge">NORMAL</span>
+        <span class="stat-seg">⎇ main</span>
+        <span class="stat-seg"><span style="color:var(--mode-err); font-weight:600;">● 0</span> <span style="color:#e2a478; font-weight:600;">▲ 1</span></span>
+      </div>
+      <div style="display:flex; align-items:center; gap:14px; opacity:0.85;">
+        <span>gopls</span>
+        <span>UTF-8</span>
+        <span>TypeScript</span>
+        <span style="color:var(--accent); font-weight:600;">14:28</span>
+      </div>
+    </footer>
+
+    <!-- Palette Inspector Badge (Floating) -->
+    <div class="palette-meta-bar" id="meta-bar">
+      <div class="meta-chip"><span>Canvas:</span> <strong id="m-canvas" style="color:var(--fg-primary);">#161821</strong></div>
+      <div class="meta-chip"><span>Chrome:</span> <strong id="m-chrome" style="color:var(--fg-secondary);">#12141c</strong></div>
+      <div class="meta-chip"><span>Accent:</span> <strong id="m-accent" style="color:var(--accent);">#89b8c2</strong></div>
+      <div class="meta-chip"><span>Text:</span> <strong id="m-text" style="color:var(--fg-primary);">#c6c8d1</strong></div>
+    </div>
+
+  </div>
+
+  <script>
+    const metas = {
+      'palette-iceberg': { canvas: '#161821', chrome: '#12141c', accent: '#89b8c2', text: '#c6c8d1' },
+      'palette-nord': { canvas: '#2e3440', chrome: '#242933', accent: '#88c0d0', text: '#eceff4' },
+      'palette-poimandres': { canvas: '#1b1e28', chrome: '#171922', accent: '#5de4c7', text: '#e4f0fb' },
+      'palette-ayaz': { canvas: '#151924', chrome: '#11141c', accent: '#7ec4e0', text: '#eef4fc' }
+    };
+
+    function setPalette(className, btn, desc) {
+      document.querySelectorAll('.palette-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      const vp = document.getElementById('viewport');
+      vp.className = 'app-viewport ' + className;
+      document.getElementById('desc-label').textContent = desc;
+
+      const m = metas[className];
+      document.getElementById('m-canvas').textContent = m.canvas;
+      document.getElementById('m-chrome').textContent = m.chrome;
+      document.getElementById('m-accent').textContent = m.accent;
+      document.getElementById('m-text').textContent = m.text;
+    }
+  </script>
+</body>
+</html>

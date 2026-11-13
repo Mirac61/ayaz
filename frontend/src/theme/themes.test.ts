@@ -20,6 +20,18 @@ test("every built-in theme names every ui and syntax color and the terminal's co
   }
 });
 
+test("built-in themes include arctic and frost palettes without replacing graphite", () => {
+  expect(BUILTIN_THEMES.graphite).toBeDefined();
+  expect(BUILTIN_THEMES.iceberg).toBeDefined();
+  expect(BUILTIN_THEMES.nord).toBeDefined();
+  expect(BUILTIN_THEMES.poimandres).toBeDefined();
+  expect(BUILTIN_THEMES["ayaz-frost"]).toBeDefined();
+  expect(resolveTheme("iceberg").ui.accent).toBe("#84a0c6");
+  expect(resolveTheme("nord").ui.accent).toBe("#88c0d0");
+  expect(resolveTheme("poimandres").ui.accent).toBe("#5de4c7");
+  expect(resolveTheme("ayaz-frost").ui.accent).toBe("#7ec4e0");
+});
+
 test("a custom theme changes what it names and keeps the rest of its base", () => {
   const specs = parseThemeSpecs({
     mine: { extends: "kanagawa", ui: { bg0: "#000000" }, syntax: { keyword: "#ff0000" }, terminal: { red: "#00ff00" } },

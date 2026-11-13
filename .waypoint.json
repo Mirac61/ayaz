@@ -1,46 +1,26 @@
 {
-  "objective": "Roadmap: LSP Discovery, Extended Languages & Live Previews",
+  "objective": "Design-Evolution & Brand Identity: Eigenständiges UI-Konzept für Ayaz",
   "tasks": [
     {
       "id": "1",
-      "title": "LSP Discovery: detect PATH from .zshrc, Mason (~/.local/share/nvim/mason/bin), mise, nvm and brew",
+      "title": "Design-Analyse: Differenzierung von Zed & Ausarbeitung der Ayaz (Frost/Kristall) DNA",
       "status": "DONE"
     },
     {
       "id": "2",
-      "title": "Extended Languages: add syntax highlighting & LSP for Python, Rust, YAML, TOML, Lua, Dockerfile",
+      "title": "Interaktive Mockups: Erstellung von 3 eigenständigen Design-Richtungen in HTML/CSS & Hi-Res Render",
       "status": "DONE"
     },
     {
       "id": "3",
-      "title": "Typst & LaTeX live preview: watch & compile to PDF in side split (<Space>mp) with quickfix problem matcher",
+      "title": "Integration der 4 Internet-Farbpaletten (Iceberg, Nord, Poimandres, Ayaz-Frost) in themes.ts",
       "status": "DONE"
     },
     {
       "id": "4",
-      "title": "Generalized Previews: live SVG code/image split toggle, HTML preview iframe",
-      "status": "DONE"
-    },
-    {
-      "id": "5",
-      "title": "Workflow Polish: paste image into Markdown (saved to assets/), prose spellcheck, word count in statusline",
-      "status": "DONE"
-    },
-    {
-      "id": "6",
-      "title": "DAP Debugger: visual breakpoints in gutter, step controls, variables inspector & callstack",
-      "status": "DONE"
-    },
-    {
-      "id": "7",
-      "title": "Update Dialog Polish: refined aesthetic matching Kanagawa/Ayaz, remove emojis, rich markdown notes, glowing status indicators",
-      "status": "DONE"
-    },
-    {
-      "id": "8",
-      "title": "Update Verification Fix: resolve codesign signature failure from AppleDouble (._*) files, re-pack v0.3.2 release with --norsrc, add defensive cleanup in updater",
-      "status": "DONE"
+      "title": "Nächster Schritt: UI-Formen (Chamfered Tabs, Header, Status) auswählen und anpassen",
+      "status": "IN_PROGRESS"
     }
   ],
-  "updated_at": "2026-11-13T10:01:30.000000Z"
+  "updated_at": "2026-11-13T10:30:45.000000Z"
 }
