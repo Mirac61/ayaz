@@ -196,7 +196,7 @@ export function Shell() {
   };
 
   const onKey = (e: React.KeyboardEvent) => {
-    if (picker || showClone) return;
+    if (picker || showClone || showDocs) return;
     const cmd = isMac ? e.metaKey : e.ctrlKey;
     if (cmd && e.key === ",") return void backend.openSettings();
     if (cmd && e.key === "o") {
