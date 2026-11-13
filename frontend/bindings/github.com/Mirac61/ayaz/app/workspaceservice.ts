@@ -28,6 +28,13 @@ import * as application$0 from "../../../wailsapp/wails/v3/pkg/application/model
 import * as $models from "./models.js";
 
 /**
+ * Clone prompts for a parent destination folder, clones the git repository from repoURL into a subfolder, and opens it.
+ */
+export function Clone(repoURL: string): $CancellablePromise<$models.Info | null> {
+    return $Call.ByID(173487622, repoURL);
+}
+
+/**
  * Close tears a workspace down: watcher, indexes, shells and language servers, then the ID itself.
  * The frontend calls it when switching folders; closing a window calls it too.
  */
@@ -98,6 +105,13 @@ export function GitDiscardFile(ws: string, path: string): $CancellablePromise<vo
     return $Call.ByID(1923549901, ws, path);
 }
 
+/**
+ * GitFetch fetches remote refs.
+ */
+export function GitFetch(ws: string): $CancellablePromise<void> {
+    return $Call.ByID(4045243897, ws);
+}
+
 export function GitHead(ws: string, path: string): $CancellablePromise<$models.HeadFile> {
     return $Call.ByID(1952299173, ws, path);
 }
@@ -107,6 +121,27 @@ export function GitHead(ws: string, path: string): $CancellablePromise<$models.H
  */
 export function GitIndex(ws: string, path: string): $CancellablePromise<$models.HeadFile> {
     return $Call.ByID(1084272005, ws, path);
+}
+
+/**
+ * GitPull pulls changes from the remote.
+ */
+export function GitPull(ws: string): $CancellablePromise<void> {
+    return $Call.ByID(787643952, ws);
+}
+
+/**
+ * GitPush pushes committed changes to the remote.
+ */
+export function GitPush(ws: string): $CancellablePromise<void> {
+    return $Call.ByID(752661691, ws);
+}
+
+/**
+ * GitRebase rebases the current branch on its upstream branch.
+ */
+export function GitRebase(ws: string): $CancellablePromise<void> {
+    return $Call.ByID(883503035, ws);
 }
 
 /**
