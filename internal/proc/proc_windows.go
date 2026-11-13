@@ -10,6 +10,14 @@ import (
 	"strings"
 )
 
+func init() {
+	curPath := os.Getenv("PATH")
+	enriched := EnrichPath(curPath)
+	if enriched != curPath {
+		_ = os.Setenv("PATH", enriched)
+	}
+}
+
 // Shell is PowerShell.
 func Shell() string {
 	if s, err := exec.LookPath("powershell.exe"); err == nil {
