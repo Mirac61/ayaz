@@ -1,5 +1,5 @@
 // The only place that imports generated bindings or the Wails runtime (02-architecture, principle 2).
-import { Application, Browser, Clipboard, Events, Stream, Window } from "@wailsio/runtime";
+import { Application, Browser, Call, Clipboard, Events, Stream, Window } from "@wailsio/runtime";
 import { ConfigService, PingService, UpdateService, WorkspaceService } from "../../bindings/github.com/Mirac61/ayaz/app";
 import type { HeadFile, Info, Match, OpenEvent, Swap, UpdateInfo, Version } from "../../bindings/github.com/Mirac61/ayaz/app";
 import type { Blame, FileStatus } from "../../bindings/github.com/Mirac61/ayaz/internal/git";
@@ -29,6 +29,7 @@ export interface Backend {
   initialWorkspace(): Promise<Info | null>;
   openFolderDialog(): Promise<Info | null>;
   openFolder(root: string): Promise<Info | null>;
+  clone(repoURL: string): Promise<Info | null>;
   closeWorkspace(ws: string): Promise<void>; // watcher, index, shells, servers (ADR-0014)
   closeWindow(): Promise<void>; // this window; a no-op in the server build
   newWindow(): Promise<void>;
@@ -121,6 +122,7 @@ export const backend: Backend = {
   initialWorkspace: () => WorkspaceService.Initial(),
   openFolderDialog: () => WorkspaceService.OpenDialog(),
   openFolder: (root) => WorkspaceService.Open(root),
+  clone: (repoURL) => Call.ByName("github.com/Mirac61/ayaz/app.WorkspaceService.Clone", repoURL),
   closeWorkspace: (ws) => WorkspaceService.Close(ws),
   closeWindow: () => WorkspaceService.CloseWindow(),
   newWindow: () => WorkspaceService.NewWindow(),

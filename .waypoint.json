@@ -1,41 +1,51 @@
 {
-  "objective": "Lineare Git-Strategie (Feature -> dev -> main) & Schrittweises UI-Redesign",
+  "objective": "Modernisierung \u0026 Erweiterung des Startbildschirms (Ayaz Welcome Hub)",
   "tasks": [
     {
       "id": "1",
-      "title": "Fix: TestDetectNvmPaths und XDG_DATA_HOME isolieren, CI-Fehler behoben",
+      "title": "Konzeption \u0026 Bento-Grid-Architektur: Schnellstart, gefilterte Projekte, GitHub-Hub, Themes \u0026 Extensions",
       "status": "DONE"
     },
     {
       "id": "2",
-      "title": "Branching & CI: dev-Branch erstellt, CI-Workflow fuer PRs/Pushes auf dev erweitert",
-      "status": "DONE"
+      "title": "GitHub \u0026 Git Integration im Startbildschirm (Clone-Dialog, GitHub Issues/PR-Quicklinks, Auth-Status)",
+      "status": "IN_PROGRESS"
     },
     {
       "id": "3",
-      "title": "UI-Schritt 1: Tab-Bar (45° Chamfered Kristall-Schnitt, Diamant-Sparkle, kein Zed-Unterstrich)",
-      "status": "DONE"
+      "title": "Interaktive Theme-Live-Palette \u0026 Extensions-Hub (Direkt-Umschalter, Extension-Architektur-Vorbereitung)",
+      "status": "PENDING"
     },
     {
       "id": "4",
-      "title": "UI-Schritt 2: Titelleiste / Header (Kompakt 30px, Frost-Badge, dezentere Breadcrumbs)",
-      "status": "DONE"
+      "title": "Strukturierte Keyboard-Cheatsheet-Tabs (Essentials, Navigation, Vim) \u0026 Recent-Filter",
+      "status": "PENDING"
     },
     {
       "id": "5",
-      "title": "UI-Schritt 3: Statusleiste (Kompaktes Glacier Dock 26px, Eiskapsel-Vim-Modus)",
-      "status": "DONE"
+      "title": "CSS-Styling im kristallinen Ayaz-Frost-Design (Bento Cards, sanfter Frost-Glow, Responsive Layout)",
+      "status": "PENDING"
     },
     {
       "id": "6",
-      "title": "UI-Schritt 4: Filetree & Split Borders (Raureif-Haarlinien, feine Trenner)",
-      "status": "DONE"
+      "title": "Tests, Build-Verifikation, Merge in dev und Release-Vorbereitung",
+      "status": "PENDING"
     },
     {
       "id": "7",
-      "title": "Review & Release: Feature ui/ayaz-redesign in dev mergen, CI testen, dann dev -> main",
-      "status": "DONE"
+      "title": "Agentic Coding field wie bei zed",
+      "status": "TODO"
+    },
+    {
+      "id": "8",
+      "title": "nicht den ganzen pfad bei projekt switchen anzeigen",
+      "status": "TODO"
+    },
+    {
+      "id": "9",
+      "title": "Die Vim normal und so das schöner machen",
+      "status": "TODO"
     }
   ],
-  "updated_at": "2026-11-13T10:44:30.000000Z"
+  "updated_at": "2026-11-13T11:56:32.428057Z"
 }

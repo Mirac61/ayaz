@@ -2,11 +2,13 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 
 	"github.com/Mirac61/ayaz/internal/git"
@@ -92,6 +94,43 @@ func (s *WorkspaceService) OpenDialog(ctx context.Context) (*Info, error) {
 		return nil, err
 	}
 	return s.Open(ctx, dir)
+}
+
+// Clone prompts for a parent destination folder, clones the git repository from repoURL into a subfolder, and opens it.
+func (s *WorkspaceService) Clone(ctx context.Context, repoURL string) (*Info, error) {
+	repoURL = strings.TrimSpace(repoURL)
+	if repoURL == "" {
+		return nil, fmt.Errorf("empty repository URL")
+	}
+	// Convert shorthand like "owner/repo" to "https://github.com/owner/repo.git"
+	if !strings.Contains(repoURL, "://") && !strings.HasPrefix(repoURL, "git@") && strings.Count(repoURL, "/") == 1 {
+		repoURL = "https://github.com/" + repoURL + ".git"
+	}
+	base := filepath.Base(strings.TrimSuffix(repoURL, ".git"))
+	if base == "" || base == "/" || base == "." {
+		base = "repo"
+	}
+
+	app := application.Get()
+	if app == nil || app.Dialog == nil {
+		return nil, fmt.Errorf("no dialog support")
+	}
+	parentDir, err := app.Dialog.OpenFile().
+		CanChooseDirectories(true).CanChooseFiles(false).CanCreateDirectories(true).
+		SetTitle("Select destination folder for " + base).PromptForSingleSelection()
+	if err != nil || parentDir == "" {
+		return nil, err
+	}
+
+	targetDir := filepath.Join(parentDir, base)
+	cmd := exec.CommandContext(ctx, "git", "clone", repoURL, targetDir)
+	proc.SetHideWindow(cmd)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("git clone failed: %v (%s)", err, strings.TrimSpace(string(out)))
+	}
+
+	return s.Open(ctx, targetDir)
 }
 
 // Open registers the folder as a workspace of the calling window and starts watching it.
