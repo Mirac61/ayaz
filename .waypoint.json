@@ -24,12 +24,12 @@
     {
       "id": "5",
       "title": "UI-Schritt 3: Statusleiste (Kompaktes Glacier Dock 26px, Eiskapsel-Vim-Modus)",
-      "status": "IN_PROGRESS"
+      "status": "DONE"
     },
     {
       "id": "6",
       "title": "UI-Schritt 4: Filetree & Split Borders (Raureif-Haarlinien, feine Trenner)",
-      "status": "PENDING"
+      "status": "IN_PROGRESS"
     },
     {
       "id": "7",

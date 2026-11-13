@@ -977,7 +977,7 @@
   opacity: 0.45;
 }
 
-/* Zed / Linear-inspired statusline: calm continuous surface, 18px mode badge, and short 12px hairline dividers. */
+/* Ayaz Glacier Dock: 26px compact statusline with crystalline mode capsule and frost hairlines */
 .statusline {
   grid-column: 1 / -1;
   grid-row: 4;
@@ -991,22 +991,45 @@
   color: var(--fg-3);
   background: var(--bg-0);
   border-top: 1px solid var(--edge);
+  box-shadow: 0 -1px 0 color-mix(in srgb, var(--accent) 3%, transparent);
   white-space: nowrap;
   overflow: hidden;
+  user-select: none;
 }
-/* Mode: calm typographic indicator with no box or outline; color alone reflects the editor state. */
+/* Mode: Crystalline Ice Capsule with sub-zero glow and rotating micro-crystal shard */
 .statusline .mode {
   --mode: var(--status-normal);
   flex: none;
   display: inline-flex;
   align-items: center;
-  padding: 0 4px;
-  font: 600 var(--text-sm) var(--font-mono);
+  gap: 5.5px;
+  height: 18px;
+  padding: 0 8px 0 7px;
+  font: 700 10px/1 var(--font-mono);
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
   color: var(--mode);
-  background: none;
-  border: 0;
-  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--mode) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--mode) 30%, transparent);
+  border-radius: 9px;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--mode) 20%, transparent);
   box-sizing: border-box;
+  transition:
+    background-color var(--t-fast) var(--ease),
+    border-color var(--t-fast) var(--ease),
+    box-shadow var(--t-fast) var(--ease),
+    color var(--t-fast) var(--ease);
+}
+.statusline .mode::before {
+  content: "";
+  display: block;
+  width: 3.5px;
+  height: 3.5px;
+  background: var(--mode);
+  transform: rotate(45deg);
+  border-radius: 0.5px;
+  box-shadow: 0 0 4px var(--mode);
+  flex: none;
 }
 .statusline .insert {
   --mode: var(--status-insert);
@@ -1026,7 +1049,7 @@
 .statusline .view {
   --mode: var(--status-view);
 }
-/* The clickable fields: flat, with a hover surface; a thin divider sits between the groups on the right. */
+/* The clickable fields: subtle ice hover and clean alignment */
 .statusline .seg {
   flex: none;
   height: 20px;
@@ -1037,15 +1060,17 @@
   font: var(--text-sm) var(--font-mono);
   color: var(--fg-3);
   background: none;
-  border: 0;
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition:
-    background-color var(--t-fast),
-    color var(--t-fast);
+    background-color var(--t-fast) var(--ease),
+    border-color var(--t-fast) var(--ease),
+    color var(--t-fast) var(--ease);
 }
 .statusline .seg:hover {
-  background: var(--hover);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 20%, transparent);
   color: var(--fg-1);
 }
 .statusline .recording {
@@ -1056,11 +1081,13 @@
 }
 .statusline .branch {
   color: var(--fg-2);
+  font-weight: 500;
 }
 .statusline .branch::before {
   content: "\e725";
   font: var(--text-xs) var(--font-mono);
-  color: var(--fg-3);
+  color: var(--accent);
+  opacity: 0.85;
 }
 .statusline .changes {
   color: var(--status-warning);
@@ -1937,19 +1964,6 @@ body.dragging {
 }
 
 /* Update Dialog & Statusline Pills */
-.statusline .seg.update-available {
-  background: rgba(80, 160, 255, 0.15);
-  color: #60a5fa;
-  border-radius: 4px;
-  padding: 1px 6px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-.statusline .seg.update-available:hover {
-  background: rgba(80, 160, 255, 0.25);
-  color: #93c5fd;
-}
 .statusline .seg.update-available {
   background: color-mix(in srgb, var(--accent) 15%, transparent);
   color: var(--accent);
