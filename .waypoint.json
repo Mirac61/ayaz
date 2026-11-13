@@ -1,26 +1,41 @@
 {
-  "objective": "Design-Evolution & Brand Identity: Eigenständiges UI-Konzept für Ayaz",
+  "objective": "Lineare Git-Strategie (Feature -> dev -> main) & Schrittweises UI-Redesign",
   "tasks": [
     {
       "id": "1",
-      "title": "Design-Analyse: Differenzierung von Zed & Ausarbeitung der Ayaz (Frost/Kristall) DNA",
+      "title": "Fix: TestDetectNvmPaths und XDG_DATA_HOME isolieren, CI-Fehler behoben",
       "status": "DONE"
     },
     {
       "id": "2",
-      "title": "Interaktive Mockups: Erstellung von 3 eigenständigen Design-Richtungen in HTML/CSS & Hi-Res Render",
+      "title": "Branching & CI: dev-Branch erstellt, CI-Workflow fuer PRs/Pushes auf dev erweitert",
       "status": "DONE"
     },
     {
       "id": "3",
-      "title": "Integration der 4 Internet-Farbpaletten (Iceberg, Nord, Poimandres, Ayaz-Frost) in themes.ts",
-      "status": "DONE"
+      "title": "UI-Schritt 1: Tab-Bar (45° Chamfered Kristall-Schnitt, Diamant-Sparkle, kein Zed-Unterstrich)",
+      "status": "IN_PROGRESS"
     },
     {
       "id": "4",
-      "title": "Nächster Schritt: UI-Formen (Chamfered Tabs, Header, Status) auswählen und anpassen",
-      "status": "IN_PROGRESS"
+      "title": "UI-Schritt 2: Titelleiste / Header (Kompakt 30px, Frost-Badge, dezentere Breadcrumbs)",
+      "status": "PENDING"
+    },
+    {
+      "id": "5",
+      "title": "UI-Schritt 3: Statusleiste (Kompaktes Glacier Dock 26px, Eiskapsel-Vim-Modus)",
+      "status": "PENDING"
+    },
+    {
+      "id": "6",
+      "title": "UI-Schritt 4: Filetree & Split Borders (Raureif-Haarlinien, feine Trenner)",
+      "status": "PENDING"
+    },
+    {
+      "id": "7",
+      "title": "Review & Release: Feature ui/ayaz-redesign in dev mergen, CI testen, dann dev -> main",
+      "status": "PENDING"
     }
   ],
-  "updated_at": "2026-11-13T10:30:45.000000Z"
+  "updated_at": "2026-11-13T10:44:30.000000Z"
 }
