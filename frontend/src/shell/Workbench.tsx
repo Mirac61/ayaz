@@ -49,7 +49,7 @@ import { notify } from "../core/notifications";
 import { Notifications } from "./Notifications";
 import { Cmdline } from "./Cmdline";
 import { WhatsNewDialog } from "./WhatsNewDialog";
-import { DocsHub } from "./DocsHub";
+import { DOC_ITEMS, DOCS_INDEX, docPath, findDoc } from "../docs/docsData";
 import { Handle, Hints, Pane } from "./parts";
 import { ContextMenu, IconButton, Seg, type MenuItem } from "../ui/ui";
 import "./shell.css";
@@ -146,7 +146,6 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
   const [showUpdateDialog, setShowUpdateDialog] = useState(false);
   const [showCmdline, setShowCmdline] = useState(false);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
-  const [showDocs, setShowDocs] = useState(false);
   const [updateState, setUpdateState] = useState<UpdateState>(() => updaterStore.state);
   const [updateInfo, setUpdateInfo] = useState(() => updaterStore.info);
   const [updateProgress, setUpdateProgress] = useState<UpdateProgress | null>(() => updaterStore.progress);
@@ -773,8 +772,27 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       },
       {
         id: "app.docs",
-        title: "Ayaz Documentation & Help (<F1>, :help, :docs)",
-        run: () => setShowDocs(true),
+        title: "Docs (<F1>, :help, :help <topic>)",
+        async run(a) {
+          const doc = a ? findDoc(a) : undefined;
+          if (a && !doc) return run("app.docsTopics", a);
+          await ed.open(doc ? docPath(doc.id) : DOCS_INDEX);
+        },
+      },
+      {
+        id: "app.docsTopics",
+        title: "Docs: find topic",
+        run: (a) => setPicker({
+          title: "Docs",
+          initial: a,
+          placeholder: "Filter topics",
+          async query(q) {
+            const ql = q.toLowerCase();
+            return DOC_ITEMS.filter((d) => d.title.toLowerCase().includes(ql) || d.id.includes(ql))
+              .map((d) => ({ label: d.title, hint: d.id }));
+          },
+          pick: (it) => void ed.open(docPath(it.hint!)),
+        }),
       },
       { id: "term.dock", title: "Move terminal panel (bottom, right, top)", run: () => setDock((d) => DOCKS[(DOCKS.indexOf(d) + 1) % DOCKS.length]) },
       { id: "term.panel", title: "Toggle terminal panel", run: togglePanel },
@@ -1729,14 +1747,6 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       )}
       {showUpdateDialog && <UpdateDialog onClose={() => setShowUpdateDialog(false)} />}
       {showWhatsNew && <WhatsNewDialog version="v0.5.0" onClose={() => setShowWhatsNew(false)} />}
-      {showDocs && (
-        <DocsHub
-          onClose={() => {
-            setShowDocs(false);
-            ed.focus(ed.active);
-          }}
-        />
-      )}
     </div>
   );
 }

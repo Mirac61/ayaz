@@ -12,6 +12,14 @@
 import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wailsio/runtime";
 
 /**
+ * DocsFolder writes the in-app docs (file name → Markdown, sent by the frontend) to <config>/docs and returns the folder.
+ * Written on every call, so the files match the running version. Only plain *.md names are accepted.
+ */
+export function DocsFolder(files: { [_ in string]?: string } | null): $CancellablePromise<string> {
+    return $Call.ByID(3190254095, files);
+}
+
+/**
  * Folder creates the config folder, settings.json, keymap.json and snippets.json (explained) if missing, and returns the folder.
  */
 export function Folder(): $CancellablePromise<string> {

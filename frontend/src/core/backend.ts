@@ -45,6 +45,7 @@ export interface Backend {
   settings(): Promise<string>; // the user's settings.json, "" if none
   snippets(): Promise<string>; // the user's snippets.json, "" if none
   configFolder(): Promise<string>; // where settings.json and keymap.json live; creates an empty settings.json
+  docsFolder(files: Record<string, string>): Promise<string>; // writes the docs (name → Markdown) to <config>/docs
   openSettings(): Promise<void>; // a new window on the config folder, settings.json open
   // Fuzzy-ranks a short list (recent files, buffers, commands) with the Go matcher.
   rank(items: string[], query: string, limit: number): Promise<FileMatch[]>;
@@ -144,6 +145,7 @@ export const backend: Backend = {
   settings: () => ConfigService.Settings(),
   snippets: () => ConfigService.Snippets(),
   configFolder: () => ConfigService.Folder(),
+  docsFolder: (files) => ConfigService.DocsFolder(files),
   openSettings: () => ConfigService.OpenSettings(),
   rank: async (items, q, limit) => (await WorkspaceService.Rank(items, q, limit)) ?? [],
   openURL: (url) => Browser.OpenURL(url),
