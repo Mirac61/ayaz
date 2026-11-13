@@ -16,6 +16,7 @@
   align-items: center;
   gap: 8px;
   height: var(--head);
+  box-sizing: border-box;
   padding: 0 8px;
   border-bottom: 1px solid var(--edge);
   background: var(--bg-tabs);

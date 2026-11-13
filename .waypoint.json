@@ -80,7 +80,12 @@
       "id": "16",
       "title": "In-App Docs Hub (offline Docusaurus-Style Dokumentation mit Radix UI, Lucide Icons, Suche und F1 / :help)",
       "status": "DONE"
+    },
+    {
+      "id": "17",
+      "title": "Tabbar & Sidebar-Header Höhenausrichtung (exakt 36px) und Tab bündig links ohne Einrückung",
+      "status": "DONE"
     }
   ],
-  "updated_at": "2026-11-13T18:55:00.000Z"
+  "updated_at": "2026-11-13T19:05:00.000Z"
 }
