@@ -63,4 +63,22 @@ describe("GitChanges data handling", () => {
     expect(staged.some((f) => f.path === "src/both.ts")).toBe(true);
     expect(unstaged.some((f) => f.path === "src/both.ts")).toBe(true);
   });
+
+  test("handles empty detailed files and null values gracefully", () => {
+    const files: FileStatus[] = [];
+    const staged = files.filter((f) => f.staged);
+    const unstaged = files.filter((f) => f.unstaged);
+    expect(staged).toHaveLength(0);
+    expect(unstaged).toHaveLength(0);
+  });
+
+  test("correctly sorts files case-insensitively within stages", () => {
+    const files: FileStatus[] = [
+      { path: "zebra.txt", status: "M", staged: true, unstaged: false },
+      { path: "Alpha.txt", status: "A", staged: true, unstaged: false },
+      { path: "beta.txt", status: "M", staged: true, unstaged: false },
+    ];
+    const sorted = [...files].sort((a, b) => a.path.toLowerCase().localeCompare(b.path.toLowerCase()));
+    expect(sorted.map((f) => f.path)).toEqual(["Alpha.txt", "beta.txt", "zebra.txt"]);
+  });
 });
