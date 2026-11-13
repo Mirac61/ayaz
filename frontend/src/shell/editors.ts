@@ -36,6 +36,7 @@ import { header } from "../editor/sticky";
 import { Waits } from "./waits";
 import { UndoSteps } from "./undoSteps";
 import { HiddenTerms } from "./terminals";
+import { DOCS, docText } from "../docs/docsData";
 
 export interface Status {
   pane: number;
@@ -539,6 +540,7 @@ export class Editors {
       this.showViewer(id, path);
       return id;
     }
+    if (path.startsWith(DOCS)) await this.buffers.virtual(path, docText(path));
     const fresh = !this.buffers.get(path);
     const b = await this.buffers.open(path);
     if (fresh) {
@@ -553,6 +555,7 @@ export class Editors {
       const pos = Math.min(at, v.state.doc.length);
       v.dispatch({ selection: { anchor: pos }, effects: EditorView.scrollIntoView(pos, { y: "center" }) });
     }
+    if (path.startsWith(DOCS) && !isReading(v.state)) toggleReading(v); // docs read rendered, like a help page
     return id;
   }
 
@@ -652,7 +655,7 @@ export class Editors {
       cursors[b.path] = b.state.selection.main.head;
       breakpoints[b.path] = breakpointsOf(b.state);
     }
-    return { panes, terms, tabs: Object.fromEntries([...this.tabs].map(([id, l]) => [id, l.filter((t) => !isTermTab(t))])), active: this.active, cursors, breakpoints };
+    return { panes, terms, tabs: Object.fromEntries([...this.tabs].map(([id, l]) => [id, l.filter((t) => !isTermTab(t) && !isVirtual(t))])), active: this.active, cursors, breakpoints };
   }
 
   // Session restore: the pane's tabs before its file opens (which adds to them).
@@ -800,7 +803,7 @@ export class Editors {
   // Re-reads the active buffer from disk (`:e!`).
   async reload() {
     const b = this.current();
-    if (!b) return;
+    if (!b || isVirtual(b.path)) return; // no file to read again
     this.show(this.active, await this.buffers.load(b.path));
     void this.loadHead(b.path);
   }
@@ -1127,6 +1130,7 @@ export class Editors {
 
   private touch(path: string) {
     this.mru = [path, ...this.mru.filter((p) => p !== path)];
+    if (isVirtual(path)) return; // nothing to open again from Recent files after a restart
     try {
       const r = [path, ...this.recent().filter((p) => p !== path)].slice(0, RECENT_MAX);
       localStorage.setItem(this.recentKey, JSON.stringify(r));

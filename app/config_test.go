@@ -69,3 +69,20 @@ func TestFolderFillsTheOldEmptySettings(t *testing.T) {
 		t.Fatalf("settings.json = %q", b)
 	}
 }
+
+func TestDocsFolderWritesMarkdownOnly(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("AYAZ_CONFIG_DIR", dir)
+	got, err := ConfigService{}.DocsFolder(map[string]string{"index.md": "# Docs\n"})
+	if err != nil || got != filepath.Join(dir, "docs") {
+		t.Fatalf("DocsFolder() = %q, %v", got, err)
+	}
+	if b, _ := os.ReadFile(filepath.Join(got, "index.md")); string(b) != "# Docs\n" {
+		t.Fatalf("index.md = %q", b)
+	}
+	for _, bad := range []string{"../x.md", "a/b.md", "x.txt"} {
+		if _, err := (ConfigService{}).DocsFolder(map[string]string{bad: ""}); err == nil {
+			t.Fatalf("DocsFolder accepted %q", bad)
+		}
+	}
+}

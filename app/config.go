@@ -71,6 +71,28 @@ func (ConfigService) Folder() (string, error) {
 	return dir, nil
 }
 
+// DocsFolder writes the in-app docs (file name → Markdown, sent by the frontend) to <config>/docs and returns the folder.
+// Written on every call, so the files match the running version. Only plain *.md names are accepted.
+func (ConfigService) DocsFolder(files map[string]string) (string, error) {
+	dir, err := configDir()
+	if err != nil {
+		return "", err
+	}
+	dir = filepath.Join(dir, "docs")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", err
+	}
+	for name, text := range files {
+		if name != filepath.Base(name) || filepath.Ext(name) != ".md" {
+			return "", errors.New("docs: bad file name " + name)
+		}
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(text), 0o644); err != nil {
+			return "", err
+		}
+	}
+	return dir, nil
+}
+
 // OpenSettings opens a window on the config folder with settings.json (Cmd+,), or brings the open one to the front.
 func (ConfigService) OpenSettings() {
 	a := application.Get()
