@@ -75,7 +75,12 @@
       "id": "15",
       "title": "Startseite 'klare Winternacht': Kristall-Hero, Sternenhimmel, Frostglas-Kacheln/-Panels, Einzeltasten",
       "status": "DONE"
+    },
+    {
+      "id": "16",
+      "title": "In-App Docs Hub (offline Docusaurus-Style Dokumentation mit Radix UI, Lucide Icons, Suche und F1 / :help)",
+      "status": "DONE"
     }
   ],
-  "updated_at": "2026-11-13T15:22:48.999Z"
+  "updated_at": "2026-11-13T18:55:00.000Z"
 }
