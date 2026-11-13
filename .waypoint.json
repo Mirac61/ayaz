@@ -29,12 +29,12 @@
     {
       "id": "6",
       "title": "UI-Schritt 4: Filetree & Split Borders (Raureif-Haarlinien, feine Trenner)",
-      "status": "IN_PROGRESS"
+      "status": "DONE"
     },
     {
       "id": "7",
       "title": "Review & Release: Feature ui/ayaz-redesign in dev mergen, CI testen, dann dev -> main",
-      "status": "PENDING"
+      "status": "IN_PROGRESS"
     }
   ],
   "updated_at": "2026-11-13T10:44:30.000000Z"
