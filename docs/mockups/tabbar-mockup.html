@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Ayaz — Tab-Bar Design Mockup (Raffiniertes Crystalline A)</title>
+  <style>
+    :root {
+      --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", sans-serif;
+      --font-mono: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+
+      /* Iceberg / Ayaz Standard Palette */
+      --bg-0: #12141c;
+      --bg-tabs: #12141c;
+      --bg-canvas: #161821;
+      --bg-active: #161821; /* Active Tab seamlessly matches canvas */
+      --hover: #191c28;
+      --edge: rgba(137, 184, 194, 0.12);
+      --edge-active: rgba(137, 184, 194, 0.35);
+      --fg-1: #c6c8d1;
+      --fg-2: #818596;
+      --fg-3: #535973;
+      --accent: #89b8c2;
+      --accent-glow: rgba(137, 184, 194, 0.3);
+      --dirty-color: #e2a478;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0a0c12;
+      color: var(--fg-1);
+      font-family: var(--font-ui);
+      padding: 30px;
+      overflow-y: auto;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    header {
+      margin-bottom: 28px;
+      border-bottom: 1px solid var(--edge);
+      padding-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+
+    h1 {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .subtitle {
+      font-size: 13px;
+      color: var(--fg-2);
+      margin-top: 4px;
+    }
+
+    .theme-picker {
+      display: flex;
+      gap: 6px;
+      font-size: 11px;
+    }
+
+    .theme-btn {
+      background: #161821;
+      border: 1px solid var(--edge);
+      color: var(--fg-2);
+      padding: 4px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: var(--font-mono);
+    }
+    .theme-btn.active {
+      color: var(--accent);
+      border-color: var(--accent);
+      background: #1e2132;
+    }
+
+    .section-card {
+      background: #10131a;
+      border: 1px solid var(--edge);
+      border-radius: 8px;
+      margin-bottom: 28px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    }
+
+    .section-header {
+      padding: 12px 18px;
+      background: #131620;
+      border-bottom: 1px solid var(--edge);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+    .badge-old { background: rgba(226, 120, 120, 0.15); color: #e27878; }
+    .badge-a { background: rgba(137, 184, 194, 0.18); color: #89b8c2; border: 1px solid rgba(137, 184, 194, 0.4); }
+
+    .desc-text {
+      font-size: 12px;
+      color: var(--fg-2);
+      padding: 12px 18px;
+      background: #0e1017;
+      border-bottom: 1px solid var(--edge);
+      line-height: 1.5;
+    }
+
+    .tabbar-container {
+      background: var(--bg-tabs);
+      position: relative;
+    }
+
+    /* ==============================================================
+       1. DER ZED-LOOK (AKTUELL)
+       ============================================================== */
+    .tabbar-zed {
+      height: 36px;
+      display: flex;
+      align-items: stretch;
+      background: var(--bg-tabs);
+      border-bottom: 1px solid var(--edge);
+    }
+
+    .tabbar-zed .tab {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 16px;
+      font-size: 13px;
+      color: var(--fg-2);
+      background: transparent;
+      border: none;
+      border-right: 1px solid var(--edge);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .tabbar-zed .tab:hover { background: var(--hover); color: var(--fg-1); }
+    .tabbar-zed .tab.active {
+      background: #1e2132;
+      color: var(--fg-1);
+      box-shadow: inset 0 -2px 0 var(--accent);
+    }
+    .tabbar-zed .dirty {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--dirty-color);
+    }
+
+    /* ==============================================================
+       2. VARIANTE A (RAFFINIERT): "REFINED CRYSTALLINE"
+       - Genau EIN einziger Kristall (als Fokus-Kristall)
+       - Subtiler 5px Micro-Chamfer (nicht klobig)
+       - Hauchfeine 1px Lichtkante oben
+       - Nahtlose Verschmelzung mit dem Editor-Canvas
+       - Normaler runder, dezenter Dirty-Punkt (kein Doppel-Kristall)
+       ============================================================== */
+    .tabbar-refined-a {
+      height: 33px;
+      display: flex;
+      align-items: stretch;
+      background: var(--bg-tabs);
+      padding: 3px 6px 0 6px;
+      gap: 2px;
+      border-bottom: 1px solid var(--edge);
+    }
+
+    .tabbar-refined-a .tab {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 0 13px;
+      font-size: 12px;
+      font-weight: 400;
+      color: var(--fg-2);
+      background: transparent;
+      border: 1px solid transparent;
+      border-bottom: none;
+      /* Subtiler 5px Micro-Chamfer an der oberen rechten Ecke */
+      clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 0 100%);
+      cursor: pointer;
+      position: relative;
+      transition: all 0.12s ease;
+      white-space: nowrap;
+    }
+
+    .tabbar-refined-a .tab:not(.active):hover {
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--fg-1);
+      border-color: rgba(255, 255, 255, 0.05);
+    }
+
+    /* Aktiver Tab: Verschmilzt nahtlos mit dem Code-Canvas darunter */
+    .tabbar-refined-a .tab.active {
+      background: var(--bg-canvas);
+      color: var(--fg-1);
+      font-weight: 500;
+      border-color: var(--edge-active);
+      /* Seidige 1.2px Eis-Lichtlinie oben */
+      box-shadow: inset 0 1.5px 0 var(--accent), 0 -1px 8px var(--accent-glow);
+      margin-bottom: -1px; /* Überdeckt den Border-Bottom der Tabbar perfekt */
+      padding-bottom: 1px;
+    }
+
+    /* Der EINE einzige Fokus-Kristall */
+    .single-crystal {
+      width: 4px;
+      height: 4px;
+      background: var(--accent);
+      transform: rotate(45deg);
+      border-radius: 0.5px;
+      box-shadow: 0 0 5px var(--accent);
+      flex: none;
+      margin-right: 1px;
+    }
+
+    /* Ungespeichert: Sehr dezenter, ruhiger Punkt (KEIN zweiter Kristall!) */
+    .clean-dirty-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--dirty-color);
+      box-shadow: 0 0 4px rgba(226, 164, 120, 0.5);
+      flex: none;
+      margin-left: 2px;
+    }
+
+    /* Close Button */
+    .tab-close {
+      margin-left: 6px;
+      opacity: 0.35;
+      font-size: 11px;
+      line-height: 1;
+      width: 14px;
+      height: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 2px;
+    }
+    .tab:hover .tab-close { opacity: 0.75; }
+    .tab-close:hover { background: rgba(255,255,255,0.1); opacity: 1; }
+
+    /* Plus Button */
+    .tab-plus {
+      margin-left: auto;
+      width: 26px;
+      height: 26px;
+      align-self: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      background: transparent;
+      color: var(--fg-3);
+      cursor: pointer;
+      font-family: var(--font-mono);
+      font-size: 14px;
+      border-radius: 4px;
+    }
+    .tab-plus:hover { background: var(--hover); color: var(--fg-1); }
+
+    /* Code Canvas below Tabbar */
+    .code-canvas {
+      background: var(--bg-canvas);
+      padding: 16px 20px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--fg-1);
+    }
+    .kw { color: #a093c7; }
+    .fn { color: #89b8c2; }
+    .str { color: #b4be82; }
+
+    /* Zoom Callout */
+    .zoom-box {
+      margin-top: 14px;
+      padding: 18px;
+      background: #0b0d13;
+      border-top: 1px dashed var(--edge);
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .zoom-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      flex: none;
+      width: 180px;
+      line-height: 1.4;
+    }
+
+    .zoom-preview {
+      transform: scale(2.0);
+      transform-origin: left center;
+      display: inline-flex;
+      pointer-events: none;
+      padding: 4px 8px;
+      background: #12141c;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div>
+      <h1>❄️ Ayaz Tab-Bar — Überarbeitung Variante A</h1>
+      <div class="subtitle">Nur ein einziger Fokus-Kristall · 5px Micro-Chamfer · Nahtlose Canvas-Verschmelzung</div>
+    </div>
+    <div class="theme-picker">
+      <button class="theme-btn active" onclick="setPalette('iceberg')">Iceberg</button>
+      <button class="theme-btn" onclick="setPalette('nord')">Nord</button>
+      <button class="theme-btn" onclick="setPalette('poimandres')">Poimandres</button>
+      <button class="theme-btn" onclick="setPalette('ayaz')">Ayaz Frost</button>
+    </div>
+  </header>
+
+  <!-- ==============================================================
+       ÜBERARBEITETE VARIANTE A: REFINED CRYSTALLINE
+       ============================================================== -->
+  <div class="section-card" style="border-color: rgba(137, 184, 194, 0.45);">
+    <div class="section-header" style="background:#131824;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span class="badge badge-a">Raffiniertes A</span>
+        <strong style="font-size:13px; color:#89b8c2;">Single-Crystal Micro-Chamfer</strong>
+      </div>
+      <span style="font-size:11px; color:#89b8c2;">Ruhig, edel, genau 1 Kristall, keine Überladung</span>
+    </div>
+
+    <div class="desc-text">
+      <strong>Was hier verfeinert wurde:</strong>
+      <ul style="margin-left: 18px; margin-top: 4px; line-height: 1.6;">
+        <li><strong>Nur 1 Kristall:</strong> Ein einziger, winziger 4x4px Diamant-Kristall (<code>◆</code> in Eis-Cyan) vor dem aktiven Dateinamen.</li>
+        <li><strong>Kein zweiter Kristall bei Dirty:</strong> Ungespeicherte Dateien haben einen sanft glimmenden 5px-Bernstein-Punkt (kein zweiter Diamant!).</li>
+        <li><strong>5px Micro-Chamfer:</strong> Kein grober Kettensägen-Schnitt, sondern eine hauchzarte 5px-Facette an der oberen rechten Ecke.</li>
+        <li><strong>Nahtloser Übergang nach unten:</strong> Der aktive Tab hat dieselbe Farbe wie der Editor-Canvas und öffnet sich ohne Bodenlinie direkt in den Code.</li>
+      </ul>
+    </div>
+
+    <!-- Live Tabbar -->
+    <div class="tabbar-container">
+      <div class="tabbar-refined-a">
+        <button class="tab">
+          <span>main.go</span>
+          <span class="tab-close">×</span>
+        </button>
+        <button class="tab active">
+          <span class="single-crystal"></span>
+          <span>Workbench.tsx</span>
+          <span class="clean-dirty-dot" title="Ungespeichert"></span>
+          <span class="tab-close">×</span>
+        </button>
+        <button class="tab">
+          <span>shell.css</span>
+          <span class="tab-close">×</span>
+        </button>
+        <button class="tab-plus" title="Neuer Tab">+</button>
+      </div>
+      <div class="code-canvas">
+        <span class="kw">export function</span> <span class="fn">Workbench</span>({ ws }: Props) {<br>
+        &nbsp;&nbsp;<span class="kw">const</span> [activeTab] = <span class="fn">useState</span>(<span class="str">"Workbench.tsx"</span>);<br>
+        &nbsp;&nbsp;<span class="kw">return</span> &lt;<span class="fn">Editor</span> /&gt;;<br>
+        }
+      </div>
+    </div>
+
+    <!-- Zoom Inspection -->
+    <div class="zoom-box">
+      <div class="zoom-label">
+        🔍 200% Vergrößerung:<br>
+        <span style="font-weight:400; color:var(--fg-2); font-size:10px;">Micro-Chamfer Ecke & Single Crystal Fokus</span>
+      </div>
+      <div class="zoom-preview">
+        <div class="tabbar-refined-a" style="border:none; padding:0; background:transparent;">
+          <div class="tab active" style="margin-bottom:0;">
+            <span class="single-crystal"></span>
+            <span style="font-weight:500;">Workbench.tsx</span>
+            <span class="clean-dirty-dot"></span>
+            <span class="tab-close" style="opacity:0.8;">×</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==============================================================
+       ZUM VERGLEICH: DER ALTE ZED-LOOK
+       ============================================================== -->
+  <div class="section-card" style="opacity: 0.75;">
+    <div class="section-header">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span class="badge badge-old">Altes Design (Zed-Klon)</span>
+        <strong style="font-size:13px;">Rechteck-Kacheln mit Bodenstrich</strong>
+      </div>
+      <span style="font-size:11px; color:#e27878;">Zum direkten Gegenüberstellen</span>
+    </div>
+    <div class="tabbar-container">
+      <div class="tabbar-zed">
+        <button class="tab">
+          <span>main.go</span>
+          <span class="tab-close">×</span>
+        </button>
+        <button class="tab active">
+          <span>Workbench.tsx</span>
+          <span class="dirty"></span>
+          <span class="tab-close">×</span>
+        </button>
+        <button class="tab">
+          <span>shell.css</span>
+          <span class="tab-close">×</span>
+        </button>
+        <button class="tab-plus">+</button>
+      </div>
+      <div class="code-canvas">
+        <span class="kw">export function</span> <span class="fn">Workbench</span>() { ... }
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const palettes = {
+      iceberg: {
+        '--bg-0': '#12141c',
+        '--bg-tabs': '#12141c',
+        '--bg-canvas': '#161821',
+        '--edge': 'rgba(137, 184, 194, 0.12)',
+        '--edge-active': 'rgba(137, 184, 194, 0.35)',
+        '--fg-1': '#c6c8d1',
+        '--fg-2': '#818596',
+        '--accent': '#89b8c2',
+        '--accent-glow': 'rgba(137, 184, 194, 0.3)',
+        '--dirty-color': '#e2a478'
+      },
+      nord: {
+        '--bg-0': '#242933',
+        '--bg-tabs': '#242933',
+        '--bg-canvas': '#2e3440',
+        '--edge': 'rgba(216, 222, 233, 0.12)',
+        '--edge-active': 'rgba(136, 192, 208, 0.4)',
+        '--fg-1': '#eceff4',
+        '--fg-2': '#d8dee9',
+        '--accent': '#88c0d0',
+        '--accent-glow': 'rgba(136, 192, 208, 0.3)',
+        '--dirty-color': '#ebcb8b'
+      },
+      poimandres: {
+        '--bg-0': '#171922',
+        '--bg-tabs': '#171922',
+        '--bg-canvas': '#1b1e28',
+        '--edge': 'rgba(93, 228, 199, 0.12)',
+        '--edge-active': 'rgba(93, 228, 199, 0.35)',
+        '--fg-1': '#e4f0fb',
+        '--fg-2': '#a6accd',
+        '--accent': '#5de4c7',
+        '--accent-glow': 'rgba(93, 228, 199, 0.3)',
+        '--dirty-color': '#fffac2'
+      },
+      ayaz: {
+        '--bg-0': '#11141c',
+        '--bg-tabs': '#11141c',
+        '--bg-canvas': '#151924',
+        '--edge': 'rgba(126, 196, 224, 0.14)',
+        '--edge-active': 'rgba(126, 196, 224, 0.4)',
+        '--fg-1': '#eef4fc',
+        '--fg-2': '#9cb0cc',
+        '--accent': '#7ec4e0',
+        '--accent-glow': 'rgba(126, 196, 224, 0.3)',
+        '--dirty-color': '#e6bf7b'
+      }
+    };
+
+    function setPalette(name) {
+      document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+      event.target.classList.add('active');
+      const p = palettes[name];
+      for (const [k, v] of Object.entries(p)) {
+        document.documentElement.style.setProperty(k, v);
+      }
+    }
+  </script>
+</body>
+</html>

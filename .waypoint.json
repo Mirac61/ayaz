@@ -14,12 +14,12 @@
     {
       "id": "3",
       "title": "UI-Schritt 1: Tab-Bar (45° Chamfered Kristall-Schnitt, Diamant-Sparkle, kein Zed-Unterstrich)",
-      "status": "IN_PROGRESS"
+      "status": "DONE"
     },
     {
       "id": "4",
       "title": "UI-Schritt 2: Titelleiste / Header (Kompakt 30px, Frost-Badge, dezentere Breadcrumbs)",
-      "status": "PENDING"
+      "status": "IN_PROGRESS"
     },
     {
       "id": "5",
