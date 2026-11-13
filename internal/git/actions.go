@@ -181,3 +181,51 @@ func Commit(root, msg string) error {
 	}
 	return nil
 }
+
+// Push pushes commits in root to its remote tracking branch.
+func Push(root string) error {
+	out, ok, err := run(root, "push")
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return fmt.Errorf("git push failed: %s", strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
+// Pull pulls changes from the remote tracking branch into root.
+func Pull(root string) error {
+	out, ok, err := run(root, "pull")
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return fmt.Errorf("git pull failed: %s", strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
+// Fetch fetches updates from remote without merging.
+func Fetch(root string) error {
+	out, ok, err := run(root, "fetch")
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return fmt.Errorf("git fetch failed: %s", strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
+// Rebase rebases the current branch on its upstream branch.
+func Rebase(root string) error {
+	out, ok, err := run(root, "pull", "--rebase")
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return fmt.Errorf("git pull --rebase failed: %s", strings.TrimSpace(string(out)))
+	}
+	return nil
+}

@@ -420,6 +420,58 @@ func (s *WorkspaceService) GitCommit(ws, msg string) error {
 	return nil
 }
 
+// GitPush pushes committed changes to the remote.
+func (s *WorkspaceService) GitPush(ws string) error {
+	w, err := s.reg.Get(ws)
+	if err != nil {
+		return err
+	}
+	if err := git.Push(w.Root); err != nil {
+		return err
+	}
+	s.emit("git:changed", GitChange{WS: ws})
+	return nil
+}
+
+// GitPull pulls changes from the remote.
+func (s *WorkspaceService) GitPull(ws string) error {
+	w, err := s.reg.Get(ws)
+	if err != nil {
+		return err
+	}
+	if err := git.Pull(w.Root); err != nil {
+		return err
+	}
+	s.emit("git:changed", GitChange{WS: ws})
+	return nil
+}
+
+// GitFetch fetches remote refs.
+func (s *WorkspaceService) GitFetch(ws string) error {
+	w, err := s.reg.Get(ws)
+	if err != nil {
+		return err
+	}
+	if err := git.Fetch(w.Root); err != nil {
+		return err
+	}
+	s.emit("git:changed", GitChange{WS: ws})
+	return nil
+}
+
+// GitRebase rebases the current branch on its upstream branch.
+func (s *WorkspaceService) GitRebase(ws string) error {
+	w, err := s.reg.Get(ws)
+	if err != nil {
+		return err
+	}
+	if err := git.Rebase(w.Root); err != nil {
+		return err
+	}
+	s.emit("git:changed", GitChange{WS: ws})
+	return nil
+}
+
 // HeadFile is a file's text at HEAD; Tracked is false for new files and outside a repository.
 type HeadFile struct {
 	Text    string `json:"text"`

@@ -26,6 +26,10 @@ interface Props {
   onStageAll?(): Promise<void>;
   onUnstageAll?(): Promise<void>;
   onCommit?(msg: string): Promise<void>;
+  onPush?(): Promise<void> | void;
+  onPull?(): Promise<void> | void;
+  onFetch?(): Promise<void> | void;
+  onRebase?(): Promise<void> | void;
 }
 
 const GIT_BADGE: Record<string, string> = {
@@ -61,6 +65,10 @@ export const GitChanges: React.FC<Props> = ({
   onStageAll,
   onUnstageAll,
   onCommit,
+  onPush,
+  onPull,
+  onFetch,
+  onRebase,
 }) => {
   const el = useRef<HTMLDivElement>(null);
   const [cursor, setCursor] = useState(0);
@@ -68,6 +76,7 @@ export const GitChanges: React.FC<Props> = ({
   const [confirmDiscard, setConfirmDiscard] = useState<string | null>(null);
   const [commitMsg, setCommitMsg] = useState("");
   const [committing, setCommitting] = useState(false);
+  const [busyRemote, setBusyRemote] = useState<string | null>(null);
   const commitInputRef = useRef<HTMLTextAreaElement>(null);
 
   // Group items into Staged and Unstaged
@@ -239,8 +248,6 @@ export const GitChanges: React.FC<Props> = ({
     });
   };
 
-  const totalCount = new Set(allItems.map((i) => i.path)).size;
-
   const renderSection = (
     title: string,
     items: GitItem[],
@@ -369,11 +376,62 @@ export const GitChanges: React.FC<Props> = ({
           <Glyph icon={["\ue725", "inherit"]} />
           <span className="branch-name">{branch || "no repository"}</span>
         </div>
-        {totalCount > 0 && (
-          <span className="git-changes-count">
-            {totalCount} {totalCount === 1 ? "file" : "files"}
-          </span>
-        )}
+        <div className="git-remote-toolbar">
+          {onPush && (
+            <button
+              type="button"
+              className="git-remote-btn"
+              disabled={busyRemote !== null}
+              onClick={async () => {
+                setBusyRemote("push");
+                try {
+                  await onPush();
+                } finally {
+                  setBusyRemote(null);
+                }
+              }}
+              title="Git Push: Lokale Commits auf Remote übertragen"
+            >
+              {busyRemote === "push" ? "⇡…" : "⇡ Push"}
+            </button>
+          )}
+          {onPull && (
+            <button
+              type="button"
+              className="git-remote-btn"
+              disabled={busyRemote !== null}
+              onClick={async () => {
+                setBusyRemote("pull");
+                try {
+                  await onPull();
+                } finally {
+                  setBusyRemote(null);
+                }
+              }}
+              title="Git Pull: Änderungen von Remote holen"
+            >
+              {busyRemote === "pull" ? "⇣…" : "⇣ Pull"}
+            </button>
+          )}
+          {onFetch && (
+            <button
+              type="button"
+              className="git-remote-btn icon-only"
+              disabled={busyRemote !== null}
+              onClick={async () => {
+                setBusyRemote("fetch");
+                try {
+                  await onFetch();
+                } finally {
+                  setBusyRemote(null);
+                }
+              }}
+              title="Git Fetch: Remote-Refs abrufen"
+            >
+              {busyRemote === "fetch" ? "⟳…" : "⟳"}
+            </button>
+          )}
+        </div>
       </div>
 
       {onCommit && (

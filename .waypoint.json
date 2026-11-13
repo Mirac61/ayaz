@@ -3,22 +3,22 @@
   "tasks": [
     {
       "id": "1",
-      "title": "Konzeption \u0026 Bento-Grid-Architektur: Schnellstart, gefilterte Projekte, GitHub-Hub, Themes \u0026 Extensions",
+      "title": "Konzeption & Bento-Grid-Architektur: Schnellstart, gefilterte Projekte, GitHub-Hub, Themes & Extensions",
       "status": "DONE"
     },
     {
       "id": "2",
-      "title": "GitHub \u0026 Git Integration im Startbildschirm (Clone-Dialog, GitHub Issues/PR-Quicklinks, Auth-Status)",
+      "title": "GitHub & Git Integration im Startbildschirm (Clone-Dialog, GitHub Issues/PR-Quicklinks, Auth-Status)",
       "status": "DONE"
     },
     {
       "id": "3",
-      "title": "Interaktive Theme-Live-Palette \u0026 Extensions-Hub (Direkt-Umschalter, Extension-Architektur-Vorbereitung)",
+      "title": "Interaktive Theme-Live-Palette & Extensions-Hub (Direkt-Umschalter, Extension-Architektur-Vorbereitung)",
       "status": "DONE"
     },
     {
       "id": "4",
-      "title": "Strukturierte Keyboard-Cheatsheet-Tabs (Essentials, Navigation, Vim) \u0026 Recent-Filter",
+      "title": "Strukturierte Keyboard-Cheatsheet-Tabs (Essentials, Navigation, Vim) & Recent-Filter",
       "status": "DONE"
     },
     {
@@ -34,28 +34,33 @@
     {
       "id": "7",
       "title": "Agentic Coding field wie bei zed",
-      "status": "TODO"
+      "status": "DONE"
     },
     {
       "id": "8",
       "title": "nicht den ganzen pfad bei projekt switchen anzeigen",
-      "status": "TODO"
+      "status": "DONE"
     },
     {
       "id": "9",
       "title": "Die Vim normal und so das schöner machen",
-      "status": "TODO"
+      "status": "DONE"
     },
     {
       "id": "10",
       "title": "man sollte pushen können und es gibt ein bug bei dem schreiben, wo man bei space, nicht immer ds richtige bekommt im Sinne von es öffnet sich as Terminel:d",
-      "status": "TODO"
+      "status": "DONE"
     },
     {
       "id": "11",
       "title": "fetch pull rebase feature were gut",
-      "status": "TODO"
+      "status": "DONE"
+    },
+    {
+      "id": "12",
+      "title": "feature angebe soltle angezeigt werden in der app und in github bei neuen releases",
+      "status": "DONE"
     }
   ],
-  "updated_at": "2026-11-13T12:00:49.64425Z"
+  "updated_at": "2026-11-13T13:58:50.000000Z"
 }

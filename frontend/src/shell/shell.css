@@ -638,6 +638,46 @@
   opacity: 0.8;
   flex: none;
 }
+.git-remote-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--edge);
+  flex: none;
+}
+.git-remote-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 6px;
+  font: 600 10.5px/1 var(--font-mono);
+  color: var(--fg-2);
+  background: var(--bg-2);
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  cursor: pointer;
+  transition:
+    background-color var(--t-fast) var(--ease),
+    border-color var(--t-fast) var(--ease),
+    color var(--t-fast) var(--ease);
+}
+.git-remote-btn:hover:not(:disabled) {
+  color: var(--fg-1);
+  background: var(--bg-hover);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--edge));
+}
+.git-remote-btn:active:not(:disabled) {
+  background: var(--bg-active);
+}
+.git-remote-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 .git-commit-box {
   padding: 8px 12px;
   border-bottom: 1px solid var(--edge);
@@ -685,9 +725,11 @@
   border-radius: 3px;
   border: 1px solid var(--edge);
   background: var(--accent);
-  color: #fff;
+  color: var(--bg-0);
   cursor: pointer;
-  transition: opacity 0.15s, filter 0.15s;
+  transition:
+    opacity 0.15s,
+    filter 0.15s;
 }
 .git-commit-btn:disabled {
   opacity: 0.4;
@@ -809,7 +851,10 @@
   font-family: var(--font-mono);
   color: var(--fg-3);
   cursor: pointer;
-  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+  transition:
+    background var(--t-fast) var(--ease),
+    color var(--t-fast) var(--ease),
+    border-color var(--t-fast) var(--ease);
 }
 .git-action-btn:hover {
   background: var(--bg-3);
@@ -881,7 +926,7 @@
 }
 .git-confirm-btn.danger {
   background: var(--git-del);
-  color: #fff;
+  color: var(--bg-0);
   border-color: var(--git-del);
 }
 .tree {
@@ -912,7 +957,11 @@
   white-space: nowrap;
   border-radius: var(--radius-sm);
   cursor: default;
-  background-image: repeating-linear-gradient(90deg, color-mix(in srgb, var(--accent) 10%, var(--edge-split)) 0 1px, transparent 1px 16px);
+  background-image: repeating-linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--accent) 10%, var(--edge-split)) 0 1px,
+    transparent 1px 16px
+  );
   background-size: calc(var(--depth, 0) * 16px) 100%;
   background-repeat: no-repeat;
   background-position: 13px 0;
@@ -1013,17 +1062,19 @@
   flex: none;
   display: inline-flex;
   align-items: center;
-  gap: 5.5px;
+  gap: 6px;
   height: 18px;
   padding: 0 8px 0 7px;
-  font: 700 10px/1 var(--font-mono);
-  letter-spacing: 0.6px;
+  font: 700 9.5px/1 var(--font-mono);
+  letter-spacing: 0.8px;
   text-transform: uppercase;
   color: var(--mode);
-  background: color-mix(in srgb, var(--mode) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--mode) 30%, transparent);
-  border-radius: 9px;
-  box-shadow: 0 0 8px color-mix(in srgb, var(--mode) 20%, transparent);
+  background: color-mix(in srgb, var(--mode) 14%, var(--bg-1));
+  border: 1px solid color-mix(in srgb, var(--mode) 36%, transparent);
+  border-radius: 999px;
+  box-shadow:
+    0 0 10px color-mix(in srgb, var(--mode) 25%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--mode) 20%, transparent);
   box-sizing: border-box;
   transition:
     background-color var(--t-fast) var(--ease),
@@ -1034,12 +1085,12 @@
 .statusline .mode::before {
   content: "";
   display: block;
-  width: 3.5px;
-  height: 3.5px;
+  width: 4px;
+  height: 4px;
   background: var(--mode);
   transform: rotate(45deg);
   border-radius: 0.5px;
-  box-shadow: 0 0 4px var(--mode);
+  box-shadow: 0 0 6px var(--mode);
   flex: none;
 }
 .statusline .insert {
@@ -1416,7 +1467,9 @@
   gap: 16px;
   backdrop-filter: blur(12px);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  transition: border-color var(--t) var(--ease), box-shadow var(--t) var(--ease);
+  transition:
+    border-color var(--t) var(--ease),
+    box-shadow var(--t) var(--ease);
 }
 
 .welcome-card-box:hover {
@@ -2027,7 +2080,9 @@
   background: var(--bg-1);
   border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--edge));
   border-radius: var(--radius-lg);
-  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.6), 0 0 32px color-mix(in srgb, var(--accent) 15%, transparent);
+  box-shadow:
+    0 20px 48px rgba(0, 0, 0, 0.6),
+    0 0 32px color-mix(in srgb, var(--accent) 15%, transparent);
   padding: 24px;
   display: flex;
   flex-direction: column;
@@ -2094,7 +2149,9 @@
   border: 1px solid var(--edge);
   border-radius: var(--radius);
   outline: none;
-  transition: border-color var(--t) var(--ease), box-shadow var(--t) var(--ease);
+  transition:
+    border-color var(--t) var(--ease),
+    box-shadow var(--t) var(--ease);
 }
 
 .welcome-modal-input:focus {
@@ -2510,7 +2567,7 @@
   align-items: stretch;
   gap: 2px;
   flex: none;
-  padding: 3px 6px 0 6px;
+  padding: 3px 6px 0;
   overflow: auto hidden;
   scrollbar-width: none;
   background: var(--bg-tabs);
@@ -2556,7 +2613,9 @@
   font-weight: 500;
   border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--edge));
   border-bottom: 1px solid var(--bg-2);
-  box-shadow: inset 0 1.5px 0 var(--accent), 0 -1px 8px color-mix(in srgb, var(--accent) 25%, transparent);
+  box-shadow:
+    inset 0 1.5px 0 var(--accent),
+    0 -1px 8px color-mix(in srgb, var(--accent) 25%, transparent);
   z-index: 1;
 }
 .pane:not(.active) .tabbar .tab.active {
@@ -2856,8 +2915,13 @@ body.dragging {
 }
 
 @keyframes pulse-update {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.72; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.72;
+  }
 }
 
 .update-dialog-backdrop {
@@ -3141,7 +3205,7 @@ body.dragging {
   font-size: 11px;
   color: var(--fg-3);
   line-height: 1.4;
-  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .update-dialog-actions {
@@ -3212,8 +3276,8 @@ body.dragging {
   align-items: center;
   gap: 4px;
   padding: 4px 8px;
-  background: var(--bg-1, #1f1f28);
-  border: 1px solid var(--accent, #7e9cd8);
+  background: var(--bg-1);
+  border: 1px solid var(--accent);
   border-radius: var(--radius-md, 6px);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
   z-index: 60;
@@ -3225,7 +3289,7 @@ body.dragging {
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  color: var(--warning, #e6c384);
+  color: var(--warning);
   letter-spacing: 0.5px;
 }
 
@@ -3239,23 +3303,24 @@ body.dragging {
   border: none;
   border-radius: var(--radius-sm, 4px);
   background: transparent;
-  color: var(--fg-1, #dcd7ba);
+  color: var(--fg-1);
   cursor: pointer;
   font-size: 14px;
-  transition: background var(--t-fast), color var(--t-fast);
+  transition:
+    background var(--t-fast),
+    color var(--t-fast);
 }
 
 .debug-toolbar-btn:hover:not(:disabled) {
-  background: var(--bg-2, #2a2a37);
-  color: var(--accent, #7e9cd8);
+  background: var(--bg-2);
+  color: var(--accent);
 }
 
 .debug-toolbar-btn.stop:hover:not(:disabled) {
-  color: var(--error, #e82424);
+  color: var(--error);
 }
 
 .debug-toolbar-btn:disabled {
   opacity: 0.35;
   cursor: not-allowed;
 }
-

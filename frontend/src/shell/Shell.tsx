@@ -218,11 +218,25 @@ export function Shell() {
   const openRecentPicker = () => setPicker({
     title: "Switch folder",
     async query(q) {
-      const recent = recentFolders().map((f) => ({ label: f.root, icon: folderIcon(false) }));
+      const recent = recentFolders().map((f) => {
+        const shortened = f.root.replace(/^\/Users\/[^/]+/, "~").replace(/^\/home\/[^/]+/, "~");
+        return {
+          label: f.name,
+          hint: shortened,
+          root: f.root,
+          icon: folderIcon(false),
+        };
+      });
       const items = [...recent, { label: "Open folder…", hint: "dialog", icon: folderIcon(true) }];
-      return items.filter((it) => !q || it.label.toLowerCase().includes(q.toLowerCase()));
+      return items.filter(
+        (it) =>
+          !q ||
+          it.label.toLowerCase().includes(q.toLowerCase()) ||
+          ((it as { root?: string }).root && (it as { root?: string }).root!.toLowerCase().includes(q.toLowerCase())) ||
+          (it.hint && it.hint.toLowerCase().includes(q.toLowerCase())),
+      );
     },
-    pick: (it) => void pick(it.hint === "dialog" ? null : it.label),
+    pick: (it) => void pick((it as { root?: string }).root ?? (it.hint === "dialog" ? null : it.label)),
   });
 
   return (

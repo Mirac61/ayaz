@@ -48,6 +48,8 @@ import { startDrag } from "./dnd";
 import { notify } from "../core/notifications";
 import { Notifications } from "./Notifications";
 import { Cmdline } from "./Cmdline";
+import { AgentPrompt } from "./AgentPrompt";
+import { WhatsNewDialog } from "./WhatsNewDialog";
 import { Handle, Hints, Pane } from "./parts";
 import { ContextMenu, IconButton, Seg, type MenuItem } from "../ui/ui";
 import "./shell.css";
@@ -143,6 +145,8 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
   const [lspMissing, setLspMissing] = useState<ReadonlySet<string>>(new Set()); // servers not found in PATH
   const [showUpdateDialog, setShowUpdateDialog] = useState(false);
   const [showCmdline, setShowCmdline] = useState(false);
+  const [showAgentPrompt, setShowAgentPrompt] = useState(false);
+  const [showWhatsNew, setShowWhatsNew] = useState(false);
   const [updateState, setUpdateState] = useState<UpdateState>(() => updaterStore.state);
   const [updateInfo, setUpdateInfo] = useState(() => updaterStore.info);
   const [updateProgress, setUpdateProgress] = useState<UpdateProgress | null>(() => updaterStore.progress);
@@ -705,14 +709,30 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
         run: () => setPicker({
           title: "Switch folder",
           async query(q) {
-            const recent = recentFolders().filter((f) => f.root !== ws.root).map((f) => ({ label: f.root, icon: folderIcon(false) }));
+            const recent = recentFolders()
+              .filter((f) => f.root !== ws.root)
+              .map((f) => {
+                const shortened = f.root.replace(/^\/Users\/[^/]+/, "~").replace(/^\/home\/[^/]+/, "~");
+                return {
+                  label: f.name,
+                  hint: shortened,
+                  root: f.root,
+                  icon: folderIcon(false),
+                };
+              });
             const items = [...recent, { label: "Open folder…", hint: "dialog", icon: folderIcon(true) }];
-            return items.filter((it) => !q || it.label.toLowerCase().includes(q.toLowerCase()));
+            return items.filter(
+              (it) =>
+                !q ||
+                it.label.toLowerCase().includes(q.toLowerCase()) ||
+                ((it as { root?: string }).root && (it as { root?: string }).root!.toLowerCase().includes(q.toLowerCase())) ||
+                (it.hint && it.hint.toLowerCase().includes(q.toLowerCase())),
+            );
           },
           pick(it) {
             const d = ed.buffers.dirty();
             if (d.length) return fail(`No write since last change for "${d[0].path}": save first (:w)`);
-            onSwitch(it.hint === "dialog" ? null : it.label);
+            onSwitch((it as { root?: string }).root ?? (it.hint === "dialog" ? null : it.label));
           },
         }),
       },
@@ -745,6 +765,16 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
           if (!sidebarOn.current) showSidebar(true);
           setSideTab("git");
         },
+      },
+      {
+        id: "agent.inline",
+        title: "Agentic coding assistant (Cmd+I / <Space>ai)",
+        run: () => setShowAgentPrompt(true),
+      },
+      {
+        id: "ayaz.whatsNew",
+        title: "What's new in Ayaz (Feature highlights)",
+        run: () => setShowWhatsNew(true),
       },
       { id: "term.dock", title: "Move terminal panel (bottom, right, top)", run: () => setDock((d) => DOCKS[(DOCKS.indexOf(d) + 1) % DOCKS.length]) },
       { id: "term.panel", title: "Toggle terminal panel", run: togglePanel },
@@ -1103,9 +1133,17 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
     const onKey = (e: KeyboardEvent) => {
       const k = keyName(e);
       const t = e.target as Element | null;
-      if (!k || t?.tagName === "INPUT") return; // the terminal's search box
       const inEditor = !!t?.closest?.(".cm-editor");
       const term = t?.closest?.("[data-term]");
+      const isEditable =
+        !inEditor &&
+        (t?.tagName === "INPUT" ||
+          (!term && (t?.tagName === "TEXTAREA" || (t as HTMLElement)?.isContentEditable || !!t?.closest?.("input, textarea, [contenteditable='true']"))));
+      if (!k || isEditable) {
+        s.reset();
+        shadow.reset();
+        return;
+      }
       const list = inEditor ? global : term?.getAttribute("data-mode") === "terminal" ? terminal : normal;
       if (s.feed(k, list)) {
         e.preventDefault();
@@ -1125,9 +1163,19 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
   if (!bindings) return null;
 
   const rs = rects(layout);
+  const modeLabels: Record<string, string> = {
+    normal: "NORMAL",
+    insert: "INSERT",
+    visual: "VISUAL",
+    replace: "REPLACE",
+    terminal: "TERM",
+    read: "READ",
+    view: "VIEW",
+  };
+  const modeLabel = modeLabels[status.mode] || status.mode.toUpperCase();
   const mode = (
     <>
-      <span className={`mode ${status.mode}`}>{status.mode}</span>
+      <span className={`mode ${status.mode}`} title={`Vim mode: ${status.mode}`}>{modeLabel}</span>
       {status.recording !== undefined && (
         <span className="recording" title="Recording a macro: q stops it">recording @{status.recording}</span>
       )}
@@ -1351,6 +1399,10 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
             }}
             onLeave={() => ed.focus(ed.active)}
             onLazygit={() => run("term.lazygit")}
+            onPush={() => run("git.push")}
+            onPull={() => run("git.pull")}
+            onFetch={() => run("git.fetch")}
+            onRebase={() => run("git.rebase")}
             onStageFile={async (p) => {
               try {
                 await files.gitStageFile(p);
@@ -1675,6 +1727,33 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
         />
       )}
       {showUpdateDialog && <UpdateDialog onClose={() => setShowUpdateDialog(false)} />}
+      {showWhatsNew && <WhatsNewDialog version="v0.5.0" onClose={() => setShowWhatsNew(false)} />}
+      {showAgentPrompt && (
+        <AgentPrompt
+          filePath={ed.current()?.path}
+          selection={ed.activeView()?.state.sliceDoc(
+            ed.activeView()!.state.selection.main.from,
+            ed.activeView()!.state.selection.main.to,
+          )}
+          diagnosticsCount={diag.errors + diag.warnings}
+          onApply={(code) => {
+            const v = ed.activeView();
+            if (v) {
+              const sel = v.state.selection.main;
+              v.dispatch({
+                changes: { from: sel.from, to: sel.to, insert: code },
+                selection: { anchor: sel.from + code.length },
+              });
+              v.focus();
+              say("Applied AI transformation to buffer");
+            }
+          }}
+          onClose={() => {
+            setShowAgentPrompt(false);
+            ed.focus(ed.active);
+          }}
+        />
+      )}
     </div>
   );
 }
