@@ -1,5 +1,5 @@
 // The only place that imports generated bindings or the Wails runtime (02-architecture, principle 2).
-import { Application, Browser, Clipboard, Events, Stream, Window } from "@wailsio/runtime";
+import { Application, Browser, Call, Clipboard, Events, Stream, Window } from "@wailsio/runtime";
 import { ConfigService, PingService, UpdateService, WorkspaceService } from "../../bindings/github.com/Mirac61/ayaz/app";
 import type { HeadFile, Info, Match, OpenEvent, Swap, UpdateInfo, Version } from "../../bindings/github.com/Mirac61/ayaz/app";
 import type { Blame, FileStatus } from "../../bindings/github.com/Mirac61/ayaz/internal/git";
@@ -29,6 +29,7 @@ export interface Backend {
   initialWorkspace(): Promise<Info | null>;
   openFolderDialog(): Promise<Info | null>;
   openFolder(root: string): Promise<Info | null>;
+  clone(repoURL: string): Promise<Info | null>;
   closeWorkspace(ws: string): Promise<void>; // watcher, index, shells, servers (ADR-0014)
   closeWindow(): Promise<void>; // this window; a no-op in the server build
   newWindow(): Promise<void>;
@@ -101,6 +102,10 @@ export interface Files {
   gitStageAll(): Promise<void>;
   gitUnstageAll(): Promise<void>;
   gitCommit(msg: string): Promise<void>;
+  gitPush(): Promise<void>;
+  gitPull(): Promise<void>;
+  gitFetch(): Promise<void>;
+  gitRebase(): Promise<void>;
   // Hot exit: unsaved text kept in the user cache, outside the project.
   swapWrite(path: string, text: string): Promise<void>;
   swapRemove(path: string): Promise<void>;
@@ -121,6 +126,7 @@ export const backend: Backend = {
   initialWorkspace: () => WorkspaceService.Initial(),
   openFolderDialog: () => WorkspaceService.OpenDialog(),
   openFolder: (root) => WorkspaceService.Open(root),
+  clone: (repoURL) => Call.ByName("github.com/Mirac61/ayaz/app.WorkspaceService.Clone", repoURL),
   closeWorkspace: (ws) => WorkspaceService.Close(ws),
   closeWindow: () => WorkspaceService.CloseWindow(),
   newWindow: () => WorkspaceService.NewWindow(),
@@ -198,6 +204,10 @@ export const backend: Backend = {
     gitStageAll: () => WorkspaceService.GitStageAll(ws),
     gitUnstageAll: () => WorkspaceService.GitUnstageAll(ws),
     gitCommit: (msg) => WorkspaceService.GitCommit(ws, msg),
+    gitPush: () => Call.ByName("github.com/Mirac61/ayaz/app.WorkspaceService.GitPush", ws),
+    gitPull: () => Call.ByName("github.com/Mirac61/ayaz/app.WorkspaceService.GitPull", ws),
+    gitFetch: () => Call.ByName("github.com/Mirac61/ayaz/app.WorkspaceService.GitFetch", ws),
+    gitRebase: () => Call.ByName("github.com/Mirac61/ayaz/app.WorkspaceService.GitRebase", ws),
     swapWrite: (path, text) => WorkspaceService.SwapWrite(ws, path, text),
     swapRemove: (path) => WorkspaceService.SwapRemove(ws, path),
     swaps: async () => (await WorkspaceService.Swaps(ws)) ?? [],

@@ -167,5 +167,61 @@ export function gitCommands(c: Ctx): Command[] {
         }
       },
     },
+    {
+      id: "git.push",
+      title: "Git push to remote (<Space>gp, :Gpush)",
+      run: async () => {
+        try {
+          c.say("Git: pushing to remote…");
+          await c.files.gitPush();
+          c.ed.gitChanged();
+          c.say("Git: push succeeded");
+        } catch (e) {
+          c.fail(`Git push failed: ${errText(e)}`);
+        }
+      },
+    },
+    {
+      id: "git.pull",
+      title: "Git pull from remote (<Space>gl, :Gpull)",
+      run: async () => {
+        try {
+          c.say("Git: pulling from remote…");
+          await c.files.gitPull();
+          c.ed.gitChanged();
+          c.say("Git: pull succeeded");
+        } catch (e) {
+          c.fail(`Git pull failed: ${errText(e)}`);
+        }
+      },
+    },
+    {
+      id: "git.fetch",
+      title: "Git fetch from remote (<Space>gf, :Gfetch)",
+      run: async () => {
+        try {
+          c.say("Git: fetching from remote…");
+          await c.files.gitFetch();
+          c.ed.gitChanged();
+          c.say("Git: fetch succeeded");
+        } catch (e) {
+          c.fail(`Git fetch failed: ${errText(e)}`);
+        }
+      },
+    },
+    {
+      id: "git.rebase",
+      title: "Git rebase (<Space>grb, :Grebase)",
+      run: async () => {
+        try {
+          c.say("Git: rebasing…");
+          await c.files.gitRebase();
+          c.ed.gitChanged();
+          c.say("Git: rebase succeeded");
+        } catch (e) {
+          c.fail(`Git rebase failed: ${errText(e)}`);
+        }
+      },
+    },
   ];
 }

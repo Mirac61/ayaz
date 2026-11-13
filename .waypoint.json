@@ -1,41 +1,81 @@
 {
-  "objective": "Lineare Git-Strategie (Feature -> dev -> main) & Schrittweises UI-Redesign",
+  "objective": "Modernisierung \u0026 Erweiterung des Startbildschirms (Ayaz Welcome Hub)",
   "tasks": [
     {
       "id": "1",
-      "title": "Fix: TestDetectNvmPaths und XDG_DATA_HOME isolieren, CI-Fehler behoben",
+      "title": "Konzeption \u0026 Bento-Grid-Architektur: Schnellstart, gefilterte Projekte, GitHub-Hub, Themes \u0026 Extensions",
       "status": "DONE"
     },
     {
       "id": "2",
-      "title": "Branching & CI: dev-Branch erstellt, CI-Workflow fuer PRs/Pushes auf dev erweitert",
+      "title": "GitHub \u0026 Git Integration im Startbildschirm (Clone-Dialog, GitHub Issues/PR-Quicklinks, Auth-Status)",
       "status": "DONE"
     },
     {
       "id": "3",
-      "title": "UI-Schritt 1: Tab-Bar (45° Chamfered Kristall-Schnitt, Diamant-Sparkle, kein Zed-Unterstrich)",
+      "title": "Interaktive Theme-Live-Palette \u0026 Extensions-Hub (Direkt-Umschalter, Extension-Architektur-Vorbereitung)",
       "status": "DONE"
     },
     {
       "id": "4",
-      "title": "UI-Schritt 2: Titelleiste / Header (Kompakt 30px, Frost-Badge, dezentere Breadcrumbs)",
+      "title": "Strukturierte Keyboard-Cheatsheet-Tabs (Essentials, Navigation, Vim) \u0026 Recent-Filter",
       "status": "DONE"
     },
     {
       "id": "5",
-      "title": "UI-Schritt 3: Statusleiste (Kompaktes Glacier Dock 26px, Eiskapsel-Vim-Modus)",
+      "title": "CSS-Styling im kristallinen Ayaz-Frost-Design (Bento Cards, sanfter Frost-Glow, Responsive Layout)",
       "status": "DONE"
     },
     {
       "id": "6",
-      "title": "UI-Schritt 4: Filetree & Split Borders (Raureif-Haarlinien, feine Trenner)",
+      "title": "Tests, Build-Verifikation, Merge in dev und Release-Vorbereitung",
       "status": "DONE"
     },
     {
       "id": "7",
-      "title": "Review & Release: Feature ui/ayaz-redesign in dev mergen, CI testen, dann dev -> main",
+      "title": "Agentic Coding field wie bei zed",
+      "status": "DONE"
+    },
+    {
+      "id": "8",
+      "title": "nicht den ganzen pfad bei projekt switchen anzeigen",
+      "status": "DONE"
+    },
+    {
+      "id": "9",
+      "title": "Die Vim normal und so das schöner machen",
+      "status": "DONE"
+    },
+    {
+      "id": "10",
+      "title": "man sollte pushen können und es gibt ein bug bei dem schreiben, wo man bei space, nicht immer ds richtige bekommt im Sinne von es öffnet sich as Terminel:d",
+      "status": "DONE"
+    },
+    {
+      "id": "11",
+      "title": "fetch pull rebase feature were gut",
+      "status": "DONE"
+    },
+    {
+      "id": "12",
+      "title": "feature angebe soltle angezeigt werden in der app und in github bei neuen releases",
+      "status": "DONE"
+    },
+    {
+      "id": "13",
+      "title": "Startseite im Editor-Stil (Neovim-Dashboard: Einzeltasten, keymap-Keys, ruhige Rows)",
+      "status": "DONE"
+    },
+    {
+      "id": "14",
+      "title": "e2e 'two windows, switch folder' rot: README.md-Treeitem fehlt bei / (auch ohne Startseiten-Änderung)",
+      "status": "TODO"
+    },
+    {
+      "id": "15",
+      "title": "Startseite 'klare Winternacht': Kristall-Hero, Sternenhimmel, Frostglas-Kacheln/-Panels, Einzeltasten",
       "status": "DONE"
     }
   ],
-  "updated_at": "2026-11-13T10:44:30.000000Z"
+  "updated_at": "2026-11-13T15:22:48.999Z"
 }

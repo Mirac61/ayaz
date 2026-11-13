@@ -88,6 +88,11 @@ export function defaultKeymap(mac = isMac): Binding[] {
     n("<Space>gc", "git.commit"),
     n("<Space>gb", "git.blame"),
     n("<Space>gs", "git.status"),
+    n("<Space>gp", "git.push"),
+    n("<Space>gl", "git.pull"),
+    n("<Space>gf", "git.fetch"),
+    n("<Space>grb", "git.rebase"),
+    n("<Space>ai", "agent.inline"),
     ...Object.entries(panes).flatMap(([k, cmd]) => [n(`<C-${k}>`, cmd), n(`<C-w>${k}`, cmd), t(`<C-${k}>`, cmd)]),
     t("<C-\\><C-n>", "term.normal"),
     n("<Space>mr", "md.reading"),
@@ -101,6 +106,7 @@ export function defaultKeymap(mac = isMac): Binding[] {
     n("<Space>uz", "view.zen"),
     n("<Space>us", "view.spellcheck"),
     n("<Space>t", "term.panel"),
+    n("<Space>tp", "term.panel"),
     n("<Space>tt", "term.tab"),
     n("<Space>to", "term.moveToEditor"),
     n("<Space>tc", "term.split"),
@@ -123,9 +129,9 @@ export function defaultKeymap(mac = isMac): Binding[] {
     g("<F11>", "debug.stepIn"),
     g("<S-F11>", "debug.stepOut"),
     ...(mac
-      ? [g("<D-p>", "find.files"), g("<D-S-p>", "find.commands"), g("<D-j>", "term.panel"), g("<D-S-n>", "window.new"),
+      ? [g("<D-p>", "find.files"), g("<D-S-p>", "find.commands"), g("<D-j>", "term.panel"), g("<D-i>", "agent.inline"), g("<D-S-n>", "window.new"),
         g("<D-,>", "settings.open"), g("<D-b>", "view.sidebar")]
-      : [g("<C-p>", "find.files"), g("<C-S-p>", "find.commands"), g("<C-j>", "term.panel"), g("<C-S-j>", "term.panel"),
+      : [g("<C-p>", "find.files"), g("<C-S-p>", "find.commands"), g("<C-j>", "term.panel"), g("<C-S-a>", "agent.inline"), g("<C-S-j>", "term.panel"),
         g("<C-S-n>", "window.new"), g("<C-,>", "settings.open"), g("<C-b>", "view.sidebar"), g("<C-S-b>", "view.sidebar")]),
     ...(mac
       ? [g("<D-w>", "tab.close"), g("<D-S-t>", "tab.reopen"), g("<D-[>", "nav.back"), g("<D-]>", "nav.forward"), g("<C-->", "nav.back"),
