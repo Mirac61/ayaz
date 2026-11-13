@@ -48,7 +48,6 @@ import { startDrag } from "./dnd";
 import { notify } from "../core/notifications";
 import { Notifications } from "./Notifications";
 import { Cmdline } from "./Cmdline";
-import { AgentPrompt } from "./AgentPrompt";
 import { WhatsNewDialog } from "./WhatsNewDialog";
 import { DocsHub } from "./DocsHub";
 import { Handle, Hints, Pane } from "./parts";
@@ -146,7 +145,6 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
   const [lspMissing, setLspMissing] = useState<ReadonlySet<string>>(new Set()); // servers not found in PATH
   const [showUpdateDialog, setShowUpdateDialog] = useState(false);
   const [showCmdline, setShowCmdline] = useState(false);
-  const [showAgentPrompt, setShowAgentPrompt] = useState(false);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
   const [showDocs, setShowDocs] = useState(false);
   const [updateState, setUpdateState] = useState<UpdateState>(() => updaterStore.state);
@@ -767,11 +765,6 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
           if (!sidebarOn.current) showSidebar(true);
           setSideTab("git");
         },
-      },
-      {
-        id: "agent.inline",
-        title: "Agentic coding assistant (Cmd+I / <Space>ai)",
-        run: () => setShowAgentPrompt(true),
       },
       {
         id: "ayaz.whatsNew",
@@ -1740,32 +1733,6 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
         <DocsHub
           onClose={() => {
             setShowDocs(false);
-            ed.focus(ed.active);
-          }}
-        />
-      )}
-      {showAgentPrompt && (
-        <AgentPrompt
-          filePath={ed.current()?.path}
-          selection={ed.activeView()?.state.sliceDoc(
-            ed.activeView()!.state.selection.main.from,
-            ed.activeView()!.state.selection.main.to,
-          )}
-          diagnosticsCount={diag.errors + diag.warnings}
-          onApply={(code) => {
-            const v = ed.activeView();
-            if (v) {
-              const sel = v.state.selection.main;
-              v.dispatch({
-                changes: { from: sel.from, to: sel.to, insert: code },
-                selection: { anchor: sel.from + code.length },
-              });
-              v.focus();
-              say("Applied AI transformation to buffer");
-            }
-          }}
-          onClose={() => {
-            setShowAgentPrompt(false);
             ed.focus(ed.active);
           }}
         />

@@ -23,7 +23,6 @@ describe("DocsHub & In-App Documentation", () => {
     expect(ids).toContain("getting-started");
     expect(ids).toContain("keymap-commands");
     expect(ids).toContain("git-suite");
-    expect(ids).toContain("agentic-assistant");
     expect(ids).toContain("architecture");
   });
 

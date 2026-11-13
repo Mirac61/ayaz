@@ -411,6 +411,7 @@ The M1 UI is usable but not finished (user feedback 2026-11-08: "much better, st
 | E8 Window | inset title bar on macOS, window title with folder and file | |
 | E9 Theme | follow the desktop theme like the nvim colorscheme (caelestia), more themes than Kanagawa | tokens are already CSS variables |
 | E10 Details | scrollbar style, cursor line edge, spacing between tree and editor, hover states | small fixes from daily use |
+| E11 Agent | inline agent at the cursor like Zed: real model backend, diff preview, apply/reject per hunk | removed in 2026-11 because it only showed canned answers |
 
 ---
 

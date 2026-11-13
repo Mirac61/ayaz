@@ -3,7 +3,6 @@ import {
   Compass,
   Terminal,
   GitBranch,
-  Sparkles,
   Layers,
   Cpu,
   CheckCircle,
@@ -47,7 +46,6 @@ Ayaz is a keyboard-first code editor. Every action is a registered command and c
 | \`<Space>t\` / \`Cmd+J\` | \`term.panel\` | Toggle integrated terminal bottom panel |
 | \`<Space>tf\` | \`term.float\` | Toggle floating scratchpad terminal |
 | \`<Space>tt\` | \`term.tab\` | Open terminal in current pane tab |
-| \`Cmd+I\` / \`<Space>ai\` / \`:ai\` | \`agent.inline\` | Inline Agentic Coding Assistant |
 | \`<Space>uz\` / \`:zen\` | \`view.zen\` | Toggle distraction-free Zen mode |
 | \`<Space>ub\` | \`git.toggleInlineBlame\` | Toggle ghost line Git blame |
 | \`<F1>\` / \`:help\` / \`:docs\` | \`app.docs\` | Open this interactive Docs Hub |
@@ -138,32 +136,6 @@ Ayaz features a complete, zero-terminal Git suite directly built into the editor
    - **Direct Commit Box:** Enter commit messages directly in the sidebar with \`Ctrl+Enter\`.
    - **Diff Splitting:** Press \`D\` on any changed item to inspect a side-by-side diff against HEAD.
    - **Inline Blame:** Toggle ghost blame info with \`<Space>ub\` or view blame on current line with \`<Space>gb\`.
-`,
-  },
-  {
-    id: "agentic-assistant",
-    title: "Agentic Coding Assistant",
-    category: "User Guides",
-    icon: Sparkles,
-    content: `# Agentic Coding Assistant (Zed-Style Inline AI)
-
-Ayaz integrates an inline coding companion directly into the editor.
-
-## Opening the Assistant
-- **macOS:** \`Cmd+I\` or \`<Space>ai\` or \`:ai\`
-- **Linux/Windows:** \`Ctrl+Shift+A\` or \`<Space>ai\` or \`:ai\`
-
-## Smart Context Pills
-The assistant dynamically analyzes what you are looking at:
-- **@file:** Binds the current active file path and buffer content.
-- **@selection:** Passes the highlighted code block to the prompt.
-- **@diagnostics:** Feeds LSP error and warning counts into the transformation context.
-
-## Fast Transformation Prompts
-- **Refactor:** Clean modular refactoring according to modern idioms.
-- **Fix Diagnostics:** Target compiler and LSP type errors.
-- **Unit Tests:** Generate test cases directly into the buffer.
-- **1-Click Apply:** Directly applies the generated change into your buffer with full undo/redo history.
 `,
   },
   {

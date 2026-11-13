@@ -46,8 +46,6 @@ const EX: [name: string, prefix: string, command: string][] = [
   ["Gdiffsplit", "Gd", "git.diffSplit"],
   ["checkupdate", "checkupdate", "ayaz.checkForUpdates"],
   ["whatsnew", "whatsnew", "ayaz.whatsNew"],
-  ["ai", "ai", "agent.inline"],
-  ["agent", "agent", "agent.inline"],
   ["Gpush", "Gp", "git.push"],
   ["Gpull", "Gpul", "git.pull"],
   ["Gfetch", "Gf", "git.fetch"],

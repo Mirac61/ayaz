@@ -28,7 +28,6 @@ const FIRST_KEYS: [keys: string[], what: string][] = [
   [keysOf("find.grep"), "Search in files"],
   [keysOf("find.commands"), "All commands and their keys"],
   [keysOf("term.panel"), "Terminal"],
-  [keysOf("agent.inline"), "Ask the agent"],
   [["gd", "gr", "K"], "Definition, references, hover"],
   [[":w", ":q"], "Save, close"],
 ];

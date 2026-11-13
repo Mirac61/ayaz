@@ -30,11 +30,6 @@ describe("vim ex parser", () => {
     expect(isEx("Gvd")).toBe(true);
   });
 
-  it("identifies ai and assistant shortcuts", () => {
-    expect(isEx("ai")).toBe(true);
-    expect(isEx("agent")).toBe(true);
-  });
-
   it("handles range and pattern syntax", () => {
     expect(isEx("%s/foo/bar/g")).toBe(true);
     expect(isEx("'<,'>d")).toBe(true);
