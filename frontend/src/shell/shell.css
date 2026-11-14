@@ -1388,8 +1388,10 @@
     0 0 0 3px color-mix(in srgb, var(--ice) 12%, transparent),
     0 8px 30px rgb(0 0 0 / 0.25);
 }
-.welcome-launch .welcome-glyph {
+.welcome-launch .welcome-glyph,
+.welcome-launch-icon {
   color: var(--ice);
+  flex: none;
 }
 .welcome-launch-text {
   flex: 1;
@@ -1444,16 +1446,17 @@
   transform: translateY(-1px);
 }
 .welcome-tile-icon {
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 32px;
   height: 32px;
   margin-bottom: 10px;
-  font-size: 16px;
   color: var(--ice);
   background: color-mix(in srgb, var(--ice) 12%, transparent);
   border: 1px solid color-mix(in srgb, var(--ice) 22%, transparent);
   border-radius: 8px;
+  flex: none;
 }
 .welcome-tile-label {
   font: 500 var(--text-md) var(--font-ui);
