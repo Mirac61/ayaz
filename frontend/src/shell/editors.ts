@@ -505,6 +505,12 @@ export class Editors {
     return !!v && toggleReading(v) !== null;
   }
 
+  // Returns whether the pane's editor is currently showing Markdown in reading view.
+  isReading(id = this.active): boolean {
+    const v = this.panes.get(id)?.view;
+    return !!v && isReading(v.state);
+  }
+
   // Rendered view and source: Markdown's reading view, or an SVG's image viewer and its text. False for other files.
   toggleRendered(): boolean {
     const p = this.panes.get(this.active), path = this.currentTab(this.active);

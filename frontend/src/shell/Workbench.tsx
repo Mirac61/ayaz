@@ -243,7 +243,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
           ed.focus(id);
           if (path.endsWith(".svg")) ed.showViewer(id, path);
           else if (path.endsWith(".html") || path.endsWith(".htm")) ed.showViewer(id, PREVIEW + path);
-          else if (b) ed.toggleReading();
+          else if (b && !ed.isReading(id)) ed.toggleReading();
           previews.current.add(id);
         }
       }
@@ -776,8 +776,13 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
         id: "app.docs",
         title: "Docs (<F1>, :help, :help <topic>)",
         run(a) {
-          const doc = a ? findDoc(a) : undefined;
-          setShowDocs(doc ? doc.id : DOC_ITEMS[0].id);
+          if (a) {
+            const doc = findDoc(a);
+            if (doc) setShowDocs(doc.id);
+            else run("app.docsTopics", a);
+          } else {
+            setShowDocs(DOC_ITEMS[0].id);
+          }
         },
       },
       {
@@ -1142,7 +1147,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
   // Global chords everywhere; "normal" bindings in the tree and terminal normal mode; "terminal" ones in terminal mode.
   // Inside the editor, codemirror-vim runs the normal-mode bindings (and primes this Sequencer for prefixes).
   useEffect(() => {
-    if (!bindings || picker) return;
+    if (!bindings || picker || showDocs) return;
     const s = (seq.current = new Sequencer((b) => run(b.command, b.arg), showHints));
     // In the editor, Vim runs the normal bindings; this one only follows along for the hints.
     let shadowOn = false;
@@ -1178,7 +1183,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       seq.current = null;
       window.removeEventListener("keydown", onKey, true);
     };
-  }, [bindings, picker]);
+  }, [bindings, picker, showDocs]);
 
   if (!bindings) return null;
 

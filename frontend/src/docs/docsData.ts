@@ -125,7 +125,7 @@ Ayaz provides complete Language Server Protocol (LSP) and Debug Adapter Protocol
 - **Toggle Breakpoint (\`<Space>db\`):** Sets/clears breakpoint on current line or via gutter click.
 - **Conditional / Logpoints (\`<Space>dB\`):** Sets conditional expressions or log message points.
 - **Start / Continue (\`<Space>dc\`):** Starts debug session or continues paused execution.
-- **Step Over (\`<Space>dn\`), Step Into (\`<Space>di\`), Step Out (\`<Space>do\`):** Standard stepping controls.
+- **Step Over (\`<Space>dn\`), Step Into (\`<Space>ds\`), Step Out (\`<Space>do\`):** Standard stepping controls.
 - **Callstack (\`<Space>dk\`):** Inspects callstack frames and switches evaluation scope.
 - **Watch Expressions (\`<Space>dw\`):** Evaluates variables dynamically at breakpoints.
 `;
@@ -284,14 +284,30 @@ export function docText(path: string): string {
   return DOC_ITEMS.find((d) => d.id === id)?.content ?? `# Not found\n\nThere is no docs topic "${id}". See [the index](index.md).\n`;
 }
 
-// :help <topic>: an exact id, then the first id containing words, then title.
-export function findDoc(topic: string): DocItem | undefined {
+// Predicate to match doc items against a search query across title, category, and content.
+export function matchDoc(doc: DocItem, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  return (
+    doc.title.toLowerCase().includes(q) ||
+    doc.category.toLowerCase().includes(q) ||
+    doc.content.toLowerCase().includes(q)
+  );
+}
+
+// Looks up a topic in the given list of doc items: exact id, then partial id, then title.
+export function findDocIn(items: DocItem[], topic: string): DocItem | undefined {
   const q = topic.trim().toLowerCase();
   return (
-    DOC_ITEMS.find((d) => d.id === q) ??
-    DOC_ITEMS.find((d) => d.id.includes(q)) ??
-    DOC_ITEMS.find((d) => d.title.toLowerCase().includes(q))
+    items.find((d) => d.id === q) ??
+    items.find((d) => d.id.includes(q)) ??
+    items.find((d) => d.title.toLowerCase().includes(q))
   );
+}
+
+// :help <topic>: an exact id, then the first id containing words, then title.
+export function findDoc(topic: string): DocItem | undefined {
+  return findDocIn(DOC_ITEMS, topic);
 }
 
 // What the start page's docs folder holds: one file per topic plus the index.

@@ -3,7 +3,9 @@ import * as Dialog from "@radix-ui/react-dialog";
 import MarkdownIt from "markdown-it";
 import DOMPurify from "dompurify";
 import { BookOpen, Search, ArrowLeft, ArrowRight, Menu, PanelRightClose, PanelRightOpen, Sun, Moon } from "lucide-react";
-import { DOC_ITEMS, type DocItem } from "../docs/docsData";
+import { DOC_ITEMS, matchDoc, type DocItem } from "../docs/docsData";
+import { backend } from "../core/backend";
+import { browsable } from "../editor/mdlive";
 import "./docsHub.css";
 
 export interface DocsHubProps {
@@ -29,7 +31,7 @@ function slugify(text: string): string {
 }
 
 function filterDuplicateToc(content: string): string {
-  return content.replace(/^##\s+Contents\b[^\n]*\n[\s\S]*?(?=(?:^##\s)|\Z)/m, "");
+  return content.replace(/^##\s+Contents\b[^\n]*\n[\s\S]*?(?=(?:^##\s)|(?![\s\S]))/m, "");
 }
 
 function sanitizeHtml(html: string): string {
@@ -90,20 +92,26 @@ export const DocsHub: React.FC<DocsHubProps> = ({ initialDocId, onClose }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [tocOpen, setTocOpen] = useState(true);
   const [isLight, setIsLight] = useState<boolean>(() => {
-    if (typeof localStorage !== "undefined") {
-      return localStorage.getItem("ayaz_docs_theme") === "light";
+    try {
+      if (typeof localStorage !== "undefined") {
+        return localStorage.getItem("ayaz_docs_theme") === "light";
+      }
+    } catch {
+      // storage unavailable / blocked
     }
     return false;
   });
 
   const toggleLight = () => {
-    setIsLight((prev) => {
-      const next = !prev;
+    const next = !isLight;
+    setIsLight(next);
+    try {
       if (typeof localStorage !== "undefined") {
         localStorage.setItem("ayaz_docs_theme", next ? "light" : "dark");
       }
-      return next;
-    });
+    } catch {
+      // ignore storage errors without interrupting theme toggle
+    }
   };
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -134,9 +142,7 @@ export const DocsHub: React.FC<DocsHubProps> = ({ initialDocId, onClose }) => {
         snippet: null as string | null,
       }));
     }
-    return DOC_ITEMS.filter(
-      (d) => d.title.toLowerCase().includes(q) || d.category.toLowerCase().includes(q) || d.content.toLowerCase().includes(q),
-    ).map((doc) => ({
+    return DOC_ITEMS.filter((d) => matchDoc(d, q)).map((doc) => ({
       doc,
       snippet: extractSnippet(doc.content, q),
     }));
@@ -207,7 +213,9 @@ export const DocsHub: React.FC<DocsHubProps> = ({ initialDocId, onClose }) => {
   useEffect(() => {
     if (contentRef.current) {
       contentRef.current.scrollTop = 0;
-      contentRef.current.focus({ preventScroll: true });
+      if (typeof document !== "undefined" && document.activeElement !== inputRef.current) {
+        contentRef.current.focus({ preventScroll: true });
+      }
     }
     if (tocHeadings.length > 0) {
       setActiveHeadingId(tocHeadings[0].id);
@@ -270,11 +278,11 @@ export const DocsHub: React.FC<DocsHubProps> = ({ initialDocId, onClose }) => {
 
   // Previous and next documentation items
   const currentDocIndex = useMemo(() => {
-    return DOC_ITEMS.findIndex((d) => d.id === currentDoc?.id);
-  }, [currentDoc]);
+    return filteredDocs.findIndex((d) => d.id === currentDoc?.id);
+  }, [filteredDocs, currentDoc]);
 
-  const prevDoc = currentDocIndex > 0 ? DOC_ITEMS[currentDocIndex - 1] : null;
-  const nextDoc = currentDocIndex >= 0 && currentDocIndex < DOC_ITEMS.length - 1 ? DOC_ITEMS[currentDocIndex + 1] : null;
+  const prevDoc = currentDocIndex > 0 ? filteredDocs[currentDocIndex - 1] : null;
+  const nextDoc = currentDocIndex >= 0 && currentDocIndex < filteredDocs.length - 1 ? filteredDocs[currentDocIndex + 1] : null;
 
   const triggerScrollSpyLock = (id: string) => {
     setActiveHeadingId(id);
@@ -291,7 +299,8 @@ export const DocsHub: React.FC<DocsHubProps> = ({ initialDocId, onClose }) => {
   // Jump to TOC anchor smoothly
   const handleTocClick = (e: React.MouseEvent, id: string) => {
     e.preventDefault();
-    const el = contentRef.current?.querySelector(`#${id}`);
+    const escaped = typeof CSS !== "undefined" && typeof CSS.escape === "function" ? CSS.escape(id) : id;
+    const el = contentRef.current?.querySelector(`#${escaped}`);
     if (el) {
       const prefersReducedMotion = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -304,27 +313,29 @@ export const DocsHub: React.FC<DocsHubProps> = ({ initialDocId, onClose }) => {
     }
   };
 
-  // Jump to anchor link when clicked inside markdown content
+  // Jump to anchor link or open external URL when clicked inside markdown content
   const handleContentClick = (e: React.MouseEvent<HTMLElement>) => {
-    const anchor = (e.target as HTMLElement).closest<HTMLAnchorElement>("a.docs-heading-anchor");
-    if (anchor) {
-      e.preventDefault();
-      const href = anchor.getAttribute("href");
-      if (href && href.startsWith("#")) {
-        const id = href.slice(1);
-        const el = contentRef.current?.querySelector(`#${id}`);
-        if (el) {
-          const prefersReducedMotion =
-            typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const anchor = (e.target as HTMLElement).closest<HTMLAnchorElement>("a");
+    if (!anchor) return;
+    e.preventDefault();
+    const href = anchor.getAttribute("href") ?? "";
+    if (href.startsWith("#")) {
+      const id = decodeURIComponent(href.slice(1));
+      const escaped = typeof CSS !== "undefined" && typeof CSS.escape === "function" ? CSS.escape(id) : id;
+      const el = contentRef.current?.querySelector(`#${escaped}`);
+      if (el) {
+        const prefersReducedMotion =
+          typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-          triggerScrollSpyLock(id);
+        triggerScrollSpyLock(id);
 
-          el.scrollIntoView({
-            behavior: prefersReducedMotion ? "auto" : "smooth",
-            block: "start",
-          });
-        }
+        el.scrollIntoView({
+          behavior: prefersReducedMotion ? "auto" : "smooth",
+          block: "start",
+        });
       }
+    } else if (browsable(href)) {
+      void backend.openURL(href);
     }
   };
 
@@ -362,11 +373,9 @@ export const DocsHub: React.FC<DocsHubProps> = ({ initialDocId, onClose }) => {
         inputRef.current?.blur();
         contentRef.current?.focus({ preventScroll: true });
       } else if (e.key === "Escape") {
-        e.preventDefault();
         if (search.trim()) {
+          e.preventDefault();
           setSearch("");
-        } else {
-          onClose();
         }
       }
       return;
@@ -423,6 +432,12 @@ export const DocsHub: React.FC<DocsHubProps> = ({ initialDocId, onClose }) => {
           <Dialog.Content
             className={`docs-container ${isMac ? "is-mac" : ""} ${isLight ? "light" : ""}`}
             onKeyDown={handleKeyDown}
+            onEscapeKeyDown={(e) => {
+              if (document.activeElement === inputRef.current && search.trim()) {
+                e.preventDefault();
+                setSearch("");
+              }
+            }}
             aria-describedby={undefined}
           >
             {/* Top Command Bar */}
