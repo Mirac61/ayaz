@@ -11,6 +11,7 @@ import { Workbench } from "./Workbench";
 import { AyazLogo } from "./AyazLogo";
 import { DocsHub } from "./DocsHub";
 import { availableThemes, setThemeOverride, themeName } from "../core/settings";
+import { Folder, GitBranch, AppWindow, Palette, BookOpen, Search, type LucideIcon } from "lucide-react";
 
 interface GitHubItem {
   id: number;
@@ -22,7 +23,10 @@ interface GitHubItem {
 }
 
 // The keys to know first, from the default keymap (the user's keymap.json is read later).
-const keysOf = (...ids: string[]) => defaultKeymap().filter((b) => ids.includes(b.command)).map((b) => b.keys);
+const keysOf = (...ids: string[]) =>
+  defaultKeymap()
+    .filter((b) => ids.includes(b.command))
+    .map((b) => b.keys);
 const FIRST_KEYS: [keys: string[], what: string][] = [
   [keysOf("find.files"), "Find files"],
   [keysOf("find.grep"), "Search in files"],
@@ -67,7 +71,10 @@ export function Shell() {
   };
 
   const fetchIssues = async (name: string) => {
-    const clean = name.trim().replace(/^https?:\/\/github\.com\//, "").replace(/\.git$/, "");
+    const clean = name
+      .trim()
+      .replace(/^https?:\/\/github\.com\//, "")
+      .replace(/\.git$/, "");
     if (!clean.includes("/")) return;
     const reqId = ++issuesReqId.current;
     setIssues("loading");
@@ -109,7 +116,11 @@ export function Shell() {
   }, []);
 
   const open = (root: string | null) => (root ? backend.openFolder(root) : backend.openFolderDialog());
-  const pick = (root: string | null) => open(root).then((w) => w && show(w), (e) => setErr(errText(e)));
+  const pick = (root: string | null) =>
+    open(root).then(
+      (w) => w && show(w),
+      (e) => setErr(errText(e)),
+    );
 
   const switchTo = (root: string | null) => {
     const old = ws;
@@ -182,12 +193,12 @@ export function Shell() {
     });
 
   // Single keys like a Neovim dashboard; they only act when no field has focus.
-  const tiles: { key: string; icon: string; label: string; sub: string; run: () => void }[] = [
-    { key: "o", icon: "", label: "Open folder", sub: mod("O"), run: () => void pick(null) },
-    { key: "c", icon: "", label: "Clone repository", sub: "Git URL or owner/repo", run: () => setShowClone(true) },
-    { key: "n", icon: "", label: "New window", sub: mod(isMac ? "⇧N" : "Shift+N"), run: () => void backend.newWindow() },
-    { key: "t", icon: "", label: "Theme", sub: theme, run: openThemePicker },
-    { key: "?", icon: "", label: "Docs", sub: ":help", run: () => setShowDocs(true) },
+  const tiles: { key: string; icon: LucideIcon; label: string; sub: string; run: () => void }[] = [
+    { key: "o", icon: Folder, label: "Open folder", sub: mod("O"), run: () => void pick(null) },
+    { key: "c", icon: GitBranch, label: "Clone repository", sub: "Git URL or owner/repo", run: () => setShowClone(true) },
+    { key: "n", icon: AppWindow, label: "New window", sub: mod(isMac ? "⇧N" : "Shift+N"), run: () => void backend.newWindow() },
+    { key: "t", icon: Palette, label: "Theme", sub: theme, run: openThemePicker },
+    { key: "?", icon: BookOpen, label: "Docs", sub: ":help", run: () => setShowDocs(true) },
   ];
   const singleKeys: Record<string, () => void> = {
     r: openRecentPicker,
@@ -233,9 +244,7 @@ export function Shell() {
           </header>
 
           <button type="button" className="welcome-launch" onClick={openRecentPicker}>
-            <span className="welcome-glyph" aria-hidden="true">
-              {""}
-            </span>
+            <Search size={15} className="welcome-launch-icon" aria-hidden="true" />
             <span className="welcome-launch-text">Jump to a recent folder…</span>
             <kbd aria-hidden="true">r</kbd>
           </button>
@@ -243,18 +252,21 @@ export function Shell() {
           {err && <div className="welcome-err">{err}</div>}
 
           <section className="welcome-tiles" aria-label="Start">
-            {tiles.map((t) => (
-              <button key={t.key} type="button" className="welcome-tile" onClick={t.run}>
-                <span className="welcome-tile-icon welcome-glyph" aria-hidden="true">
-                  {t.icon}
-                </span>
-                <span className="welcome-tile-label">{t.label}</span>
-                <span className="welcome-tile-sub">{t.sub}</span>
-                <kbd className="welcome-tile-key" aria-hidden="true">
-                  {t.key}
-                </kbd>
-              </button>
-            ))}
+            {tiles.map((t) => {
+              const Icon = t.icon;
+              return (
+                <button key={t.key} type="button" className="welcome-tile" onClick={t.run}>
+                  <span className="welcome-tile-icon" aria-hidden="true">
+                    <Icon size={16} />
+                  </span>
+                  <span className="welcome-tile-label">{t.label}</span>
+                  <span className="welcome-tile-sub">{t.sub}</span>
+                  <kbd className="welcome-tile-key" aria-hidden="true">
+                    {t.key}
+                  </kbd>
+                </button>
+              );
+            })}
           </section>
 
           <div className="welcome-panels">
@@ -346,12 +358,7 @@ export function Shell() {
           >
             <div className="picker-head">
               <span className="picker-title">Clone repository</span>
-              <button
-                type="button"
-                className="welcome-modal-close"
-                onClick={() => !cloning && closeClone()}
-                aria-label="Close"
-              >
+              <button type="button" className="welcome-modal-close" onClick={() => !cloning && closeClone()} aria-label="Close">
                 ✕
               </button>
             </div>
