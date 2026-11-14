@@ -803,8 +803,8 @@
     width: 280px;
     background: var(--bg-0);
     box-shadow: 4px 0 24px color-mix(in srgb, var(--bg-0) 80%, transparent);
-    transform: translateX(-100%);
     visibility: hidden;
+    transform: translateX(-100%);
     transition: transform var(--t) var(--ease), visibility var(--t) var(--ease);
   }
 
