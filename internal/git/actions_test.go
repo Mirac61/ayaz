@@ -152,6 +152,8 @@ func TestActions(t *testing.T) {
 
 // The error a failed git command produces names git's reason: that text is what the UI shows.
 func TestActionsNameGitsReason(t *testing.T) {
+	t.Setenv("LC_ALL", "C") // the assertions read git's English messages
+	t.Setenv("LANGUAGE", "C")
 	root := repo(t)
 	want := func(name string, err error, reason string) {
 		t.Helper()
@@ -164,7 +166,7 @@ func TestActionsNameGitsReason(t *testing.T) {
 	want("Pull", Pull(root), "no tracking information")
 	want("Rebase", Rebase(root), "no tracking information")
 	want("StageFile", StageFile(root, "missing.txt"), "did not match any files")
-	want("DiscardFile", DiscardFile(root, "missing.txt"), "git discard")
+	want("DiscardFile", DiscardFile(root, "missing.txt"), "did not match any file")
 	want("StageAll", StageAll(t.TempDir()), "not a git repository")
 	want("UnstageAll", UnstageAll(t.TempDir()), "not a git repository")
 	// A remote that isn't there: pull and rebase would now fail on the fetch, so this comes last.
