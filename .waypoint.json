@@ -120,7 +120,12 @@
       "id": "25",
       "title": "Non-Vim Modus \u0026 Crystalline Vim Mode Badge Redesign",
       "status": "DONE"
+    },
+    {
+      "id": "24",
+      "title": "HTML-Dateien im internen Browser öffnen (Sidebar Tree Action/Context-Menu, Render-Toggle \u0026 :browse Integration)",
+      "status": "TODO"
     }
   ],
-  "updated_at": "2026-11-14T18:23:00.000Z"
+  "updated_at": "2026-11-14T22:46:08.918511Z"
 }

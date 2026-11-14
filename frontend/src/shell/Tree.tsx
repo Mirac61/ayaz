@@ -2,6 +2,7 @@ import { startDrag } from "./dnd";
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import type { Entry, Files } from "../core/backend";
+import { PREVIEW } from "../core/viewers";
 import { fileIcon, folderIcon } from "../theme/icons";
 import { ContextMenu, type MenuItem } from "../ui/ui";
 
@@ -56,6 +57,7 @@ interface Props {
 
 const GIT_CLASS: Record<string, string> = { M: " git-mod", A: " git-add", "?": " git-add", U: " git-conflict", "!": " git-ignored", D: " git-del" };
 export const GIT_BADGE: Record<string, string> = { M: "M", A: "A", D: "D", R: "R", "?": "U", U: "C" };
+export const isHtmlPath = (p: string) => !p.endsWith("/") && (p.endsWith(".html") || p.endsWith(".htm"));
 
 const KEYS: Record<string, string> = {
   a: "file.new", r: "file.rename", d: "file.trash", y: "file.copyPath", Y: "file.copyAbsPath", s: "file.reveal",
@@ -187,6 +189,12 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
       case "G": go(rows.length - 1); break;
       case "Enter": case "o": activate(cur, true); break;
       case "l": case "ArrowRight": activate(cur, false); break;
+      case "p":
+        if (r && !r.dir && isHtmlPath(r.path)) {
+          onOpen(PREVIEW + r.path);
+          break;
+        }
+        break;
       case "/": setFilter(filter ?? ""); setTimeout(() => input.current?.select()); break;
       case "h": case "ArrowLeft":
         if (filter) go(rows.findIndex((x) => x.path === parent(r?.path ?? "")));
@@ -209,11 +217,13 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
     el.current?.focus(); // the file commands act on the tree's cursor row while the tree has the focus
     const cmd = (label: string, id: string, hint?: string, arg?: string): MenuItem =>
       ({ label, hint, run: () => onCommand(id, arg) });
+    const isHtml = !r.dir && isHtmlPath(r.path);
     setMenu({
       x: e.clientX,
       y: e.clientY,
       items: [
         ...(r.dir ? [] : [{ label: "Open", hint: "Enter", run: () => onOpen(r.path) }]),
+        ...(isHtml ? [{ label: "Open in Browser", hint: "p", glyph: "\uf0ac", run: () => onOpen(PREVIEW + r.path) }] : []),
         cmd("New file…", "file.new", "a"),
         cmd("New folder…", "file.new", undefined, "dir"),
         cmd("Rename…", "file.rename", "r"),
@@ -290,6 +300,21 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
                 <span className="tree-chevron" aria-hidden>{r.dir ? (open ? "\uf47c" : "\uf460") : ""}</span>
                 <Glyph icon={r.dir ? folderIcon(open, r.name) : fileIcon(r.name)} />
                 <span className={name}>{r.name}</span>
+                {!r.dir && isHtmlPath(r.name) && (
+                  <button
+                    type="button"
+                    className="tree-action-btn"
+                    title="Open in Browser"
+                    aria-label="Open in Browser"
+                    tabIndex={-1}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpen(PREVIEW + r.path);
+                    }}
+                  >
+                    {"\uf0ac"}
+                  </button>
+                )}
                 {badge && gitMark && (
                   <span className={`tree-git-badge ${GIT_CLASS[gitMark]?.trim()}`} aria-hidden>
                     {badge}
