@@ -72,6 +72,14 @@ export function viewCommands({ ed, say, fail, setPicker }: Ctx): Command[] {
       run: () => say(toggleDiagText() ? "Diagnostic text on" : "Diagnostic text off"),
     },
     {
+      id: "editor.toggleVim",
+      title: "Toggle Vim mode (modal / standard)",
+      run() {
+        const on = ed.toggleVim();
+        say(on ? "Vim mode enabled (◈ NORMAL)" : "Standard mode enabled (◇ STANDARD)");
+      },
+    },
+    {
       id: "browser.open",
       title: "Browser tab for a local page (:browse 3000)",
       async run(arg) {
