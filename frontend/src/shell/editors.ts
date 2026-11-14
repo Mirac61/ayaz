@@ -103,6 +103,7 @@ export class Editors {
   private hidden = new HiddenTerms();
   private terms = 0; // numbers the terminals: "shell 1", "lazygit 2"
   private lastEdits = new Map<string, number>(); // path → timestamp in ms when buffer was last modified
+  private sourceOpened = new Set<string>(); // paths that have been displayed in an editor at least once
   onTermExit: (id: number) => void = () => {}; // the shell in split pane id ended, or its last tab closed: the pane closes (the panel passes its own onExit)
   onPlus: (at: DOMRect, id: number) => void = () => {}; // the + in pane id's tab bar, at the button
   onTabMenu: (at: { x: number; y: number }, path: string, id: number) => void = () => {}; // right click on a tab
@@ -572,9 +573,10 @@ export class Editors {
       return id;
     }
     if (path.startsWith(DOCS)) await this.buffers.virtual(path, docText(path));
-    const fresh = !this.buffers.get(path);
+    const firstDisplay = !this.sourceOpened.has(path);
+    this.sourceOpened.add(path);
     const b = await this.buffers.open(path);
-    if (fresh) {
+    if (firstDisplay) {
       void this.loadHead(path);
       const lines = this.bps[path];
       if (lines?.length) b.state = b.state.update({ effects: setBreakpointLines.of(lines) }).state;
@@ -582,7 +584,7 @@ export class Editors {
     if (this.panes.get(id)!.viewer || this.isTerm(id)) this.replace(id, undefined, true); // back to an editor
     this.show(id, b);
     const at = this.cursors[path], v = this.panes.get(id)!.view!;
-    if (fresh && at !== undefined) {
+    if (firstDisplay && at !== undefined) {
       const pos = Math.min(at, v.state.doc.length);
       v.dispatch({ selection: { anchor: pos }, effects: EditorView.scrollIntoView(pos, { y: "center" }) });
     }
@@ -601,7 +603,7 @@ export class Editors {
         const ageSec = lastActiveMs > 0 ? (nowMs - lastActiveMs) / 1000 : 0;
         // Brand new/unsaved file (mtime === 0) or recently edited (< timeout): stay in editor mode.
         // Existing file opened fresh after inactivity (ageSec >= timeout): open in reading mode!
-        if (fresh && fileMtimeMs > 0 && ageSec >= timeoutSec) {
+        if (firstDisplay && fileMtimeMs > 0 && ageSec >= timeoutSec) {
           if (!isReading(v.state)) toggleReading(v);
         }
       }
@@ -900,7 +902,6 @@ export class Editors {
       this.settingsChanged();
     }
     const hit = (p: string) => !paths || paths.some((c) => p === c || p.startsWith(c + "/")); // a folder covers its files
-    for (const p of this.panes.values()) if (p.viewer && hit(p.title!)) p.viewer.reload?.();
     let note: string | null = null;
     for (const b of this.buffers.list().filter((b) => hit(b.path))) {
       const r = await this.buffers.checkDisk(b).catch(() => ({ kind: "same" as const })); // unreadable now: leave it
@@ -915,6 +916,8 @@ export class Editors {
         b.mtime = r.mtime;
       }
     }
+    const viewerPath = (title?: string) => (title?.startsWith(PREVIEW) ? title.slice(PREVIEW.length) : (title ?? ""));
+    for (const p of this.panes.values()) if (p.viewer && hit(viewerPath(p.title))) p.viewer.reload?.();
     this.emit();
     return note;
   }
@@ -942,6 +945,13 @@ export class Editors {
       this.renderTabs(id);
     }
     for (const b of this.buffers.list()) if (map(b.path) !== b.path) this.buffers.drop(b.path);
+    for (const p of this.sourceOpened) {
+      const next = map(p);
+      if (next !== p) {
+        this.sourceOpened.delete(p);
+        if (next !== null) this.sourceOpened.add(next);
+      }
+    }
     this.emit();
   }
 
