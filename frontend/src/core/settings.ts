@@ -22,6 +22,8 @@ export interface Settings extends FileSettings {
   sidebar: "left" | "right"; // the file tree's side of the window
   statusline: "top" | "bottom"; // mode, messages and meta in the title bar, or in their own line under the code
   markdownSkin: "github" | "kairo"; // the look of the rendered Markdown view (<Space>um cycles it)
+  markdownReadingMode: "smart" | "always" | "never"; // how markdown files open: "smart" (edit if newly created/modified, read if opened after inactivity), "always" (always reading mode), "never" (always edit mode)
+  markdownReadingTimeout: number; // in seconds, default 300 (5 minutes): if a markdown file hasn't been edited/created within this time, open in reading mode
   glass?: boolean; // optional translucent chrome/overlays; solid is the default
   glassOpacity: number; // 0.3 (see-through) to 1: how much of the glass surfaces' colour is left
   theme: string; // a built-in theme (see theme/themes.ts) or one of "themes"
@@ -44,6 +46,8 @@ export const DEFAULTS: Settings = {
   sidebar: "left",
   statusline: "top",
   markdownSkin: "github",
+  markdownReadingMode: "smart",
+  markdownReadingTimeout: 300,
   glassOpacity: 1,
   theme: DEFAULT_THEME,
   themes: {},
@@ -113,7 +117,7 @@ export function parseSettings(json: string): Settings {
   if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("settings.json: expected an object");
   const {
     font, fontSize, terminalFontSize, inlayHints, semanticTokens, stickyScroll,
-    sidebar, statusline, markdownSkin, glass, glassOpacity, theme, themes, statusColors, tasks, languages, ...file
+    sidebar, statusline, markdownSkin, markdownReadingMode, markdownReadingTimeout, glass, glassOpacity, theme, themes, statusColors, tasks, languages, ...file
   } = data as Record<string, unknown>;
   if (font !== undefined && typeof font !== "string") throw new Error('settings.json: "font" must be a string');
   if (inlayHints !== undefined && typeof inlayHints !== "boolean") throw new Error('settings.json: "inlayHints" must be a boolean');
@@ -131,6 +135,12 @@ export function parseSettings(json: string): Settings {
   }
   if (markdownSkin !== undefined && markdownSkin !== "github" && markdownSkin !== "kairo") {
     throw new Error('settings.json: "markdownSkin" must be "github" or "kairo"');
+  }
+  if (markdownReadingMode !== undefined && markdownReadingMode !== "smart" && markdownReadingMode !== "always" && markdownReadingMode !== "never") {
+    throw new Error('settings.json: "markdownReadingMode" must be "smart", "always" or "never"');
+  }
+  if (markdownReadingTimeout !== undefined && (typeof markdownReadingTimeout !== "number" || markdownReadingTimeout < 0)) {
+    throw new Error('settings.json: "markdownReadingTimeout" must be a non-negative number of seconds');
   }
   if (theme !== undefined && typeof theme !== "string") throw new Error('settings.json: "theme" must be a theme name');
   const specs = themes === undefined ? {} : parseThemeSpecs(themes);
@@ -181,6 +191,8 @@ export function parseSettings(json: string): Settings {
     ...(sidebar !== undefined && { sidebar }),
     ...(statusline !== undefined && { statusline }),
     ...(markdownSkin !== undefined && { markdownSkin }),
+    ...(markdownReadingMode !== undefined && { markdownReadingMode: markdownReadingMode as "smart" | "always" | "never" }),
+    ...(markdownReadingTimeout !== undefined && { markdownReadingTimeout: markdownReadingTimeout as number }),
     ...(glass !== undefined && { glass: glass as boolean }),
     ...(glassOpacity !== undefined && { glassOpacity: glassOpacity as number }),
     ...(theme !== undefined && { theme: theme as string }), // checked above
