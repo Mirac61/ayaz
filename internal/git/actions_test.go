@@ -3,6 +3,7 @@ package git
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -147,4 +148,26 @@ func TestActions(t *testing.T) {
 	if err := Commit(root, "   "); err == nil {
 		t.Errorf("expected error for empty commit message")
 	}
+}
+
+// The error a failed git command produces names git's reason: that text is what the UI shows.
+func TestActionsNameGitsReason(t *testing.T) {
+	root := repo(t)
+	want := func(name string, err error, reason string) {
+		t.Helper()
+		if err == nil || !strings.Contains(err.Error(), reason) {
+			t.Errorf("%s = %v, want it to mention %q", name, err, reason)
+		}
+	}
+	want("Commit", Commit(root, "nothing staged"), "nothing to commit")
+	want("Push", Push(root), "No configured push destination")
+	want("Pull", Pull(root), "no tracking information")
+	want("Rebase", Rebase(root), "no tracking information")
+	want("StageFile", StageFile(root, "missing.txt"), "did not match any files")
+	want("DiscardFile", DiscardFile(root, "missing.txt"), "git discard")
+	want("StageAll", StageAll(t.TempDir()), "not a git repository")
+	want("UnstageAll", UnstageAll(t.TempDir()), "not a git repository")
+	// A remote that isn't there: pull and rebase would now fail on the fetch, so this comes last.
+	gitIn(t, root, "remote", "add", "origin", filepath.Join(t.TempDir(), "missing.git"))
+	want("Fetch", Fetch(root), "does not appear to be a git repository")
 }
