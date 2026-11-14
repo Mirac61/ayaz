@@ -103,6 +103,7 @@ export class Editors {
   private hidden = new HiddenTerms();
   private terms = 0; // numbers the terminals: "shell 1", "lazygit 2"
   private lastEdits = new Map<string, number>(); // path → timestamp in ms when buffer was last modified
+  private sourceOpened = new Set<string>(); // paths that have been displayed in an editor at least once
   onTermExit: (id: number) => void = () => {}; // the shell in split pane id ended, or its last tab closed: the pane closes (the panel passes its own onExit)
   onPlus: (at: DOMRect, id: number) => void = () => {}; // the + in pane id's tab bar, at the button
   onTabMenu: (at: { x: number; y: number }, path: string, id: number) => void = () => {}; // right click on a tab
@@ -309,8 +310,9 @@ export class Editors {
   // The button at the top right of a Markdown or SVG pane: rendered view and source.
   private renderToggle(id: number, p: Pane) {
     const path = this.currentTab(id) ?? "";
+    const clean = path.startsWith(PREVIEW) ? path.slice(PREVIEW.length) : path;
     let btn = p.el.querySelector<HTMLElement>(":scope > .render-toggle");
-    if (!/\.(md|svg)$/.test(path)) return void btn?.remove();
+    if (!/\.(md|svg|html|htm)$/.test(clean)) return void btn?.remove();
     if (btn) return;
     btn = Object.assign(document.createElement("button"), {
       type: "button", className: "render-toggle", title: "Rendered view / source",
@@ -354,7 +356,8 @@ export class Editors {
     bar.replaceChildren(...list.map((path) => {
       const term = isTermTab(path);
       const web = path.startsWith(BROWSER);
-      const active = path === cur, slash = term || web ? -1 : path.lastIndexOf("/");
+      const isPreview = path.startsWith(PREVIEW);
+      const active = path === cur, slash = term || web || isPreview ? -1 : path.lastIndexOf("/");
       const t = document.createElement("button");
       t.type = "button";
       t.className = active ? "tab active" : "tab";
@@ -363,12 +366,18 @@ export class Editors {
       t.title = path;
       const name = Object.assign(document.createElement("span"), { className: "tab-name" });
       const isHead = path.startsWith("head://");
-      const real = isHead ? path.slice("head://".length) : path;
-      const headSlash = isHead ? real.lastIndexOf("/") : slash;
+      const real = isHead ? path.slice("head://".length) : isPreview ? path.slice(PREVIEW.length) : path;
+      const headSlash = isHead || isPreview ? real.lastIndexOf("/") : slash;
       if (isHead) {
         const badge = document.createElement("span");
         badge.className = "tab-head-badge";
         badge.textContent = "HEAD";
+        const base = Object.assign(document.createElement("span"), { className: "base", textContent: real.slice(headSlash + 1) });
+        name.append(badge, base);
+      } else if (isPreview) {
+        const badge = document.createElement("span");
+        badge.className = "tab-preview-badge";
+        badge.textContent = "BROWSER";
         const base = Object.assign(document.createElement("span"), { className: "base", textContent: real.slice(headSlash + 1) });
         name.append(badge, base);
       } else if (active && slash >= 0) {
@@ -378,7 +387,7 @@ export class Editors {
         const base = Object.assign(document.createElement("span"), { className: "base", textContent: path.slice(slash + 1) });
         name.append(dir, base);
       } else {
-        name.textContent = term ? path.slice(TERM.length) : web ? path.slice(BROWSER.length) : path.slice(slash + 1);
+        name.textContent = term ? path.slice(TERM.length) : web ? path.slice(BROWSER.length) : isPreview ? real.slice(headSlash + 1) : path.slice(slash + 1);
       }
       if (term) t.classList.add("term");
       t.append(name);
@@ -511,10 +520,20 @@ export class Editors {
     return !!v && isReading(v.state);
   }
 
-  // Rendered view and source: Markdown's reading view, or an SVG's image viewer and its text. False for other files.
+  // Rendered view and source: Markdown's reading view, SVG image viewer/text, or HTML browser preview/source. False for other files.
   toggleRendered(): boolean {
     const p = this.panes.get(this.active), path = this.currentTab(this.active);
-    if (!path?.endsWith(".svg")) return this.toggleReading();
+    if (!path) return false;
+    if (path.startsWith(PREVIEW)) {
+      void this.open(path.slice(PREVIEW.length), this.active, true);
+      return true;
+    }
+    if (path.endsWith(".html") || path.endsWith(".htm")) {
+      if (p?.viewer) void this.open(path, this.active, true);
+      else this.showViewer(this.active, PREVIEW + path);
+      return true;
+    }
+    if (!path.endsWith(".svg")) return this.toggleReading();
     if (p?.viewer) void this.open(path, this.active, true);
     else this.showViewer(this.active, path); // shows the file on disk, unsaved edits stay in the buffer
     return true;
@@ -546,13 +565,18 @@ export class Editors {
       this.jumps.get(id)!.push(from);
     }
     if (!source && viewerFor(path)) {
+      if (path.startsWith(PREVIEW)) {
+        const clean = path.slice(PREVIEW.length);
+        if (!this.buffers.get(clean)) await this.buffers.open(clean).catch(() => {});
+      }
       this.showViewer(id, path);
       return id;
     }
     if (path.startsWith(DOCS)) await this.buffers.virtual(path, docText(path));
-    const fresh = !this.buffers.get(path);
+    const firstDisplay = !this.sourceOpened.has(path);
+    this.sourceOpened.add(path);
     const b = await this.buffers.open(path);
-    if (fresh) {
+    if (firstDisplay) {
       void this.loadHead(path);
       const lines = this.bps[path];
       if (lines?.length) b.state = b.state.update({ effects: setBreakpointLines.of(lines) }).state;
@@ -560,7 +584,7 @@ export class Editors {
     if (this.panes.get(id)!.viewer || this.isTerm(id)) this.replace(id, undefined, true); // back to an editor
     this.show(id, b);
     const at = this.cursors[path], v = this.panes.get(id)!.view!;
-    if (fresh && at !== undefined) {
+    if (firstDisplay && at !== undefined) {
       const pos = Math.min(at, v.state.doc.length);
       v.dispatch({ selection: { anchor: pos }, effects: EditorView.scrollIntoView(pos, { y: "center" }) });
     }
@@ -579,7 +603,7 @@ export class Editors {
         const ageSec = lastActiveMs > 0 ? (nowMs - lastActiveMs) / 1000 : 0;
         // Brand new/unsaved file (mtime === 0) or recently edited (< timeout): stay in editor mode.
         // Existing file opened fresh after inactivity (ageSec >= timeout): open in reading mode!
-        if (fresh && fileMtimeMs > 0 && ageSec >= timeoutSec) {
+        if (firstDisplay && fileMtimeMs > 0 && ageSec >= timeoutSec) {
           if (!isReading(v.state)) toggleReading(v);
         }
       }
@@ -878,7 +902,6 @@ export class Editors {
       this.settingsChanged();
     }
     const hit = (p: string) => !paths || paths.some((c) => p === c || p.startsWith(c + "/")); // a folder covers its files
-    for (const p of this.panes.values()) if (p.viewer && hit(p.title!)) p.viewer.reload?.();
     let note: string | null = null;
     for (const b of this.buffers.list().filter((b) => hit(b.path))) {
       const r = await this.buffers.checkDisk(b).catch(() => ({ kind: "same" as const })); // unreadable now: leave it
@@ -893,6 +916,8 @@ export class Editors {
         b.mtime = r.mtime;
       }
     }
+    const viewerPath = (title?: string) => (title?.startsWith(PREVIEW) ? title.slice(PREVIEW.length) : (title ?? ""));
+    for (const p of this.panes.values()) if (p.viewer && hit(viewerPath(p.title))) p.viewer.reload?.();
     this.emit();
     return note;
   }
@@ -920,6 +945,13 @@ export class Editors {
       this.renderTabs(id);
     }
     for (const b of this.buffers.list()) if (map(b.path) !== b.path) this.buffers.drop(b.path);
+    for (const p of this.sourceOpened) {
+      const next = map(p);
+      if (next !== p) {
+        this.sourceOpened.delete(p);
+        if (next !== null) this.sourceOpened.add(next);
+      }
+    }
     this.emit();
   }
 

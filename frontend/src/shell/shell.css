@@ -994,6 +994,32 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.tree-action-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  margin-right: 2px;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--fg-4);
+  font: 12px/1 var(--font-mono);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  flex: none;
+  transition: color var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
+}
+.tree-row:hover .tree-action-btn,
+.tree-row.cursor .tree-action-btn {
+  display: inline-flex;
+}
+.tree-action-btn:hover {
+  background: var(--hover);
+  color: var(--accent);
+}
 .tree-git-badge {
   flex: none;
   margin-left: auto;
@@ -2206,6 +2232,19 @@
   padding: 1px 4px;
   border-radius: 3px;
   background: var(--git-mod);
+  color: var(--bg-1);
+  margin-right: 5px;
+  letter-spacing: 0.5px;
+  display: inline-block;
+  vertical-align: middle;
+}
+.tabbar .tab .tab-preview-badge {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: var(--accent);
   color: var(--bg-1);
   margin-right: 5px;
   letter-spacing: 0.5px;
