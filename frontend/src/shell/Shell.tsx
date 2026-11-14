@@ -9,7 +9,7 @@ import { folderIcon } from "../theme/icons";
 import { setZoom, zoomLevel } from "./zoom";
 import { Workbench } from "./Workbench";
 import { AyazLogo } from "./AyazLogo";
-import { DOCS_INDEX, docFiles } from "../docs/docsData";
+import { DocsHub } from "./DocsHub";
 import { availableThemes, setThemeOverride, themeName } from "../core/settings";
 import { Folder, GitBranch, AppWindow, Palette, BookOpen, Search, type LucideIcon } from "lucide-react";
 
@@ -23,7 +23,10 @@ interface GitHubItem {
 }
 
 // The keys to know first, from the default keymap (the user's keymap.json is read later).
-const keysOf = (...ids: string[]) => defaultKeymap().filter((b) => ids.includes(b.command)).map((b) => b.keys);
+const keysOf = (...ids: string[]) =>
+  defaultKeymap()
+    .filter((b) => ids.includes(b.command))
+    .map((b) => b.keys);
 const FIRST_KEYS: [keys: string[], what: string][] = [
   [keysOf("find.files"), "Find files"],
   [keysOf("find.grep"), "Search in files"],
@@ -52,6 +55,7 @@ export function Shell() {
   }, []);
 
   const [showClone, setShowClone] = useState(false);
+  const [showDocs, setShowDocs] = useState(false);
   const [cloneUrl, setCloneUrl] = useState("");
   const [cloning, setCloning] = useState(false);
   const [initial, setInitial] = useState<string | undefined>(); // a file the next workbench opens first
@@ -66,15 +70,11 @@ export function Shell() {
     setWs(w);
   };
 
-  // The docs need a workbench, and a workbench a folder: the docs written out to <config>/docs, kept out of Recent.
-  const openDocs = () =>
-    backend.docsFolder(docFiles()).then(backend.openFolder).then((w) => {
-      setInitial(DOCS_INDEX);
-      setWs(w);
-    }, (e) => setErr(errText(e)));
-
   const fetchIssues = async (name: string) => {
-    const clean = name.trim().replace(/^https?:\/\/github\.com\//, "").replace(/\.git$/, "");
+    const clean = name
+      .trim()
+      .replace(/^https?:\/\/github\.com\//, "")
+      .replace(/\.git$/, "");
     if (!clean.includes("/")) return;
     const reqId = ++issuesReqId.current;
     setIssues("loading");
@@ -116,7 +116,11 @@ export function Shell() {
   }, []);
 
   const open = (root: string | null) => (root ? backend.openFolder(root) : backend.openFolderDialog());
-  const pick = (root: string | null) => open(root).then((w) => w && show(w), (e) => setErr(errText(e)));
+  const pick = (root: string | null) =>
+    open(root).then(
+      (w) => w && show(w),
+      (e) => setErr(errText(e)),
+    );
 
   const switchTo = (root: string | null) => {
     const old = ws;
@@ -194,7 +198,7 @@ export function Shell() {
     { key: "c", icon: GitBranch, label: "Clone repository", sub: "Git URL or owner/repo", run: () => setShowClone(true) },
     { key: "n", icon: AppWindow, label: "New window", sub: mod(isMac ? "⇧N" : "Shift+N"), run: () => void backend.newWindow() },
     { key: "t", icon: Palette, label: "Theme", sub: theme, run: openThemePicker },
-    { key: "?", icon: BookOpen, label: "Docs", sub: ":help", run: () => void openDocs() },
+    { key: "?", icon: BookOpen, label: "Docs", sub: ":help", run: () => setShowDocs(true) },
   ];
   const singleKeys: Record<string, () => void> = {
     r: openRecentPicker,
@@ -203,7 +207,7 @@ export function Shell() {
   };
 
   const onKey = (e: React.KeyboardEvent) => {
-    if (picker || showClone) return;
+    if (picker || showClone || showDocs) return;
     const cmd = isMac ? e.metaKey : e.ctrlKey;
     if (cmd && e.key === ",") return void backend.openSettings();
     if (cmd && e.key === "o") {
@@ -354,12 +358,7 @@ export function Shell() {
           >
             <div className="picker-head">
               <span className="picker-title">Clone repository</span>
-              <button
-                type="button"
-                className="welcome-modal-close"
-                onClick={() => !cloning && closeClone()}
-                aria-label="Close"
-              >
+              <button type="button" className="welcome-modal-close" onClick={() => !cloning && closeClone()} aria-label="Close">
                 ✕
               </button>
             </div>
@@ -405,6 +404,15 @@ export function Shell() {
           source={picker}
           onClose={() => {
             setPicker(null);
+            focusPage();
+          }}
+        />
+      )}
+
+      {showDocs && (
+        <DocsHub
+          onClose={() => {
+            setShowDocs(false);
             focusPage();
           }}
         />

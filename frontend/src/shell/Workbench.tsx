@@ -49,7 +49,8 @@ import { notify } from "../core/notifications";
 import { Notifications } from "./Notifications";
 import { Cmdline } from "./Cmdline";
 import { WhatsNewDialog } from "./WhatsNewDialog";
-import { DOC_ITEMS, DOCS_INDEX, docPath, findDoc } from "../docs/docsData";
+import { DocsHub } from "./DocsHub";
+import { DOC_ITEMS, findDoc } from "../docs/docsData";
 import { Handle, Hints, Pane } from "./parts";
 import { ContextMenu, IconButton, Seg, type MenuItem } from "../ui/ui";
 import "./shell.css";
@@ -146,6 +147,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
   const [showUpdateDialog, setShowUpdateDialog] = useState(false);
   const [showCmdline, setShowCmdline] = useState(false);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
+  const [showDocs, setShowDocs] = useState<string | false>(false);
   const [updateState, setUpdateState] = useState<UpdateState>(() => updaterStore.state);
   const [updateInfo, setUpdateInfo] = useState(() => updaterStore.info);
   const [updateProgress, setUpdateProgress] = useState<UpdateProgress | null>(() => updaterStore.progress);
@@ -241,7 +243,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
           ed.focus(id);
           if (path.endsWith(".svg")) ed.showViewer(id, path);
           else if (path.endsWith(".html") || path.endsWith(".htm")) ed.showViewer(id, PREVIEW + path);
-          else if (b) ed.toggleReading();
+          else if (b && !ed.isReading(id)) ed.toggleReading();
           previews.current.add(id);
         }
       }
@@ -773,10 +775,14 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       {
         id: "app.docs",
         title: "Docs (<F1>, :help, :help <topic>)",
-        async run(a) {
-          const doc = a ? findDoc(a) : undefined;
-          if (a && !doc) return run("app.docsTopics", a);
-          await ed.open(doc ? docPath(doc.id) : DOCS_INDEX);
+        run(a) {
+          if (a) {
+            const doc = findDoc(a);
+            if (doc) setShowDocs(doc.id);
+            else run("app.docsTopics", a);
+          } else {
+            setShowDocs(DOC_ITEMS[0].id);
+          }
         },
       },
       {
@@ -791,7 +797,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
             return DOC_ITEMS.filter((d) => d.title.toLowerCase().includes(ql) || d.id.includes(ql))
               .map((d) => ({ label: d.title, hint: d.id }));
           },
-          pick: (it) => void ed.open(docPath(it.hint!)),
+          pick: (it) => setShowDocs(it.hint ?? DOC_ITEMS[0].id),
         }),
       },
       { id: "term.dock", title: "Move terminal panel (bottom, right, top)", run: () => setDock((d) => DOCKS[(DOCKS.indexOf(d) + 1) % DOCKS.length]) },
@@ -1141,7 +1147,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
   // Global chords everywhere; "normal" bindings in the tree and terminal normal mode; "terminal" ones in terminal mode.
   // Inside the editor, codemirror-vim runs the normal-mode bindings (and primes this Sequencer for prefixes).
   useEffect(() => {
-    if (!bindings || picker) return;
+    if (!bindings || picker || showDocs) return;
     const s = (seq.current = new Sequencer((b) => run(b.command, b.arg), showHints));
     // In the editor, Vim runs the normal bindings; this one only follows along for the hints.
     let shadowOn = false;
@@ -1177,7 +1183,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       seq.current = null;
       window.removeEventListener("keydown", onKey, true);
     };
-  }, [bindings, picker]);
+  }, [bindings, picker, showDocs]);
 
   if (!bindings) return null;
 
@@ -1747,6 +1753,12 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       )}
       {showUpdateDialog && <UpdateDialog onClose={() => setShowUpdateDialog(false)} />}
       {showWhatsNew && <WhatsNewDialog version="v0.5.0" onClose={() => setShowWhatsNew(false)} />}
+      {showDocs && (
+        <DocsHub
+          initialDocId={typeof showDocs === "string" ? showDocs : undefined}
+          onClose={() => setShowDocs(false)}
+        />
+      )}
     </div>
   );
 }
