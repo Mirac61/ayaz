@@ -804,11 +804,13 @@
     background: var(--bg-0);
     box-shadow: 4px 0 24px color-mix(in srgb, var(--bg-0) 80%, transparent);
     transform: translateX(-100%);
-    transition: transform var(--t) var(--ease);
+    visibility: hidden;
+    transition: transform var(--t) var(--ease), visibility var(--t) var(--ease);
   }
 
   .docs-sidebar.open {
     transform: translateX(0);
+    visibility: visible;
   }
 
   .docs-mobile-backdrop {

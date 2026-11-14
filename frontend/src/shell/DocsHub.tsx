@@ -11,7 +11,19 @@ import "./docsHub.css";
 export interface DocsHubProps {
   initialDocId?: string;
   onClose(): void;
+  onCloseAutoFocus?(): void;
 }
+
+const DOC_FILENAME_TO_ID: Record<string, string> = {
+  "readme.md": "getting-started",
+  "00-vision.md": "getting-started",
+  "01-research.md": "architecture",
+  "02-architecture.md": "architecture",
+  "03-performance.md": "performance",
+  "04-testing.md": "testing",
+  "05-roadmap.md": "roadmap",
+  "06-open-questions.md": "roadmap",
+};
 
 interface TocHeading {
   id: string;
@@ -83,7 +95,7 @@ const HighlightedText: React.FC<{ text: string; query: string }> = ({ text, quer
   );
 };
 
-export const DocsHub: React.FC<DocsHubProps> = ({ initialDocId, onClose }) => {
+export const DocsHub: React.FC<DocsHubProps> = ({ initialDocId, onClose, onCloseAutoFocus }) => {
   const isMac = typeof navigator !== "undefined" && (/Mac/i.test(navigator.platform) || /Macintosh/i.test(navigator.userAgent));
 
   const [selectedId, setSelectedId] = useState<string>(initialDocId || DOC_ITEMS[0].id);
@@ -313,7 +325,7 @@ export const DocsHub: React.FC<DocsHubProps> = ({ initialDocId, onClose }) => {
     }
   };
 
-  // Jump to anchor link or open external URL when clicked inside markdown content
+  // Jump to anchor link, navigate relative markdown docs, or open external URL
   const handleContentClick = (e: React.MouseEvent<HTMLElement>) => {
     const anchor = (e.target as HTMLElement).closest<HTMLAnchorElement>("a");
     if (!anchor) return;
@@ -334,7 +346,35 @@ export const DocsHub: React.FC<DocsHubProps> = ({ initialDocId, onClose }) => {
           block: "start",
         });
       }
-    } else if (browsable(href)) {
+      return;
+    }
+
+    const [filePart, frag] = href.split("#");
+    const filename = filePart.replace(/^.*[\\/]/, "").toLowerCase();
+    if (filename.endsWith(".md")) {
+      const targetId = DOC_FILENAME_TO_ID[filename];
+      if (targetId) {
+        setSelectedId(targetId);
+        if (frag) {
+          const fragId = decodeURIComponent(frag);
+          setTimeout(() => {
+            const escaped = typeof CSS !== "undefined" && typeof CSS.escape === "function" ? CSS.escape(fragId) : fragId;
+            const el = contentRef.current?.querySelector(`#${escaped}`);
+            if (el) {
+              const prefersReducedMotion =
+                typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+              el.scrollIntoView({
+                behavior: prefersReducedMotion ? "auto" : "smooth",
+                block: "start",
+              });
+            }
+          }, 60);
+        }
+      }
+      return;
+    }
+
+    if (browsable(href)) {
       void backend.openURL(href);
     }
   };
@@ -432,6 +472,10 @@ export const DocsHub: React.FC<DocsHubProps> = ({ initialDocId, onClose }) => {
           <Dialog.Content
             className={`docs-container ${isMac ? "is-mac" : ""} ${isLight ? "light" : ""}`}
             onKeyDown={handleKeyDown}
+            onCloseAutoFocus={(e) => {
+              e.preventDefault();
+              onCloseAutoFocus?.();
+            }}
             onEscapeKeyDown={(e) => {
               if (document.activeElement === inputRef.current && search.trim()) {
                 e.preventDefault();

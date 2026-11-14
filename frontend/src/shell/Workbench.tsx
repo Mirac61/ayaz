@@ -148,6 +148,14 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
   const [showCmdline, setShowCmdline] = useState(false);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
   const [showDocs, setShowDocs] = useState<string | false>(false);
+  const lastActivePaneRef = useRef<number | null>(null);
+
+  const openDocs = (docId: string | false) => {
+    if (docId !== false) {
+      lastActivePaneRef.current = ed.active;
+    }
+    setShowDocs(docId);
+  };
   const [updateState, setUpdateState] = useState<UpdateState>(() => updaterStore.state);
   const [updateInfo, setUpdateInfo] = useState(() => updaterStore.info);
   const [updateProgress, setUpdateProgress] = useState<UpdateProgress | null>(() => updaterStore.progress);
@@ -778,10 +786,10 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
         run(a) {
           if (a) {
             const doc = findDoc(a);
-            if (doc) setShowDocs(doc.id);
+            if (doc) openDocs(doc.id);
             else run("app.docsTopics", a);
           } else {
-            setShowDocs(DOC_ITEMS[0].id);
+            openDocs(DOC_ITEMS[0].id);
           }
         },
       },
@@ -797,7 +805,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
             return DOC_ITEMS.filter((d) => d.title.toLowerCase().includes(ql) || d.id.includes(ql))
               .map((d) => ({ label: d.title, hint: d.id }));
           },
-          pick: (it) => setShowDocs(it.hint ?? DOC_ITEMS[0].id),
+          pick: (it) => openDocs(it.hint ?? DOC_ITEMS[0].id),
         }),
       },
       { id: "term.dock", title: "Move terminal panel (bottom, right, top)", run: () => setDock((d) => DOCKS[(DOCKS.indexOf(d) + 1) % DOCKS.length]) },
@@ -1756,7 +1764,13 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       {showDocs && (
         <DocsHub
           initialDocId={typeof showDocs === "string" ? showDocs : undefined}
-          onClose={() => setShowDocs(false)}
+          onClose={() => {
+            setShowDocs(false);
+            ed.focus(lastActivePaneRef.current ?? ed.active);
+          }}
+          onCloseAutoFocus={() => {
+            ed.focus(lastActivePaneRef.current ?? ed.active);
+          }}
         />
       )}
     </div>
