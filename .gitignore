@@ -13,3 +13,5 @@ frontend/.bindings-tmp*
 *.log
 .DS_Store
 frontend/test-results/
+
+QUESTIONS.md
