@@ -83,12 +83,12 @@
     },
     {
       "id": "17",
-      "title": "Tabbar & Sidebar-Header Höhenausrichtung (exakt 36px) und Tab bündig links ohne Einrückung",
+      "title": "Tabbar \u0026 Sidebar-Header Höhenausrichtung (exakt 36px) und Tab bündig links ohne Einrückung",
       "status": "DONE"
     },
     {
       "id": "19",
-      "title": "UI vereinheitlichen: PRs #8–#11 in dev gemergt, PR #12 (dev -> main) erstellt",
+      "title": "UI vereinheitlichen: PRs #8–#11 in dev gemergt, PR #12 (dev -\u003e main) erstellt",
       "status": "DONE"
     },
     {
@@ -103,7 +103,7 @@
     },
     {
       "id": "22",
-      "title": "DocsHub 12-Punkte Design-Feinschliff, Light-Mode & einklappbares TOC (PR #14 erstellt)",
+      "title": "DocsHub 12-Punkte Design-Feinschliff, Light-Mode \u0026 einklappbares TOC (PR #14 erstellt)",
       "status": "DONE"
     },
     {
@@ -113,9 +113,14 @@
     },
     {
       "id": "24",
-      "title": "Release-Please Setup: Automatisierte Releases & Version-Bumping via Conventional Commits",
+      "title": "Release-Please Setup: Automatisierte Releases \u0026 Version-Bumping via Conventional Commits",
       "status": "DONE"
+    },
+    {
+      "id": "24",
+      "title": "HTML-Dateien im internen Browser öffnen (Sidebar Tree Action/Context-Menu, Render-Toggle \u0026 :browse Integration)",
+      "status": "TODO"
     }
   ],
-  "updated_at": "2026-11-14T15:51:00.000Z"
+  "updated_at": "2026-11-14T22:14:10.022425Z"
 }

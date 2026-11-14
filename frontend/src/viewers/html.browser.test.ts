@@ -34,4 +34,26 @@ describe("html preview browser", () => {
     handle.dispose();
     expect(el.children.length).toBe(0);
   });
+
+  test("mountHtml renders browser badge and injects base href when head exists", () => {
+    el = document.createElement("div");
+    el.style.cssText = "position:relative;width:400px;height:300px";
+    document.body.append(el);
+
+    const content = "<!DOCTYPE html><html><head><title>Test</title></head><body>Hello</body></html>";
+    const ctx = {
+      url: "/fs/ws1/sub/page.html",
+      onStatus: () => {},
+      getContent: () => content,
+    };
+
+    const handle = mountHtml(el, ctx);
+    const badge = el.querySelector(".html-preview-badge");
+    expect(badge?.textContent).toBe("Browser");
+
+    const frame = el.querySelector<HTMLIFrameElement>("iframe");
+    expect(frame?.srcdoc).toContain('<base href="/fs/ws1/sub/">');
+
+    handle.dispose();
+  });
 });

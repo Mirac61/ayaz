@@ -309,8 +309,9 @@ export class Editors {
   // The button at the top right of a Markdown or SVG pane: rendered view and source.
   private renderToggle(id: number, p: Pane) {
     const path = this.currentTab(id) ?? "";
+    const clean = path.startsWith(PREVIEW) ? path.slice(PREVIEW.length) : path;
     let btn = p.el.querySelector<HTMLElement>(":scope > .render-toggle");
-    if (!/\.(md|svg)$/.test(path)) return void btn?.remove();
+    if (!/\.(md|svg|html|htm)$/.test(clean)) return void btn?.remove();
     if (btn) return;
     btn = Object.assign(document.createElement("button"), {
       type: "button", className: "render-toggle", title: "Rendered view / source",
@@ -354,7 +355,8 @@ export class Editors {
     bar.replaceChildren(...list.map((path) => {
       const term = isTermTab(path);
       const web = path.startsWith(BROWSER);
-      const active = path === cur, slash = term || web ? -1 : path.lastIndexOf("/");
+      const isPreview = path.startsWith(PREVIEW);
+      const active = path === cur, slash = term || web || isPreview ? -1 : path.lastIndexOf("/");
       const t = document.createElement("button");
       t.type = "button";
       t.className = active ? "tab active" : "tab";
@@ -363,12 +365,18 @@ export class Editors {
       t.title = path;
       const name = Object.assign(document.createElement("span"), { className: "tab-name" });
       const isHead = path.startsWith("head://");
-      const real = isHead ? path.slice("head://".length) : path;
-      const headSlash = isHead ? real.lastIndexOf("/") : slash;
+      const real = isHead ? path.slice("head://".length) : isPreview ? path.slice(PREVIEW.length) : path;
+      const headSlash = isHead || isPreview ? real.lastIndexOf("/") : slash;
       if (isHead) {
         const badge = document.createElement("span");
         badge.className = "tab-head-badge";
         badge.textContent = "HEAD";
+        const base = Object.assign(document.createElement("span"), { className: "base", textContent: real.slice(headSlash + 1) });
+        name.append(badge, base);
+      } else if (isPreview) {
+        const badge = document.createElement("span");
+        badge.className = "tab-preview-badge";
+        badge.textContent = "BROWSER";
         const base = Object.assign(document.createElement("span"), { className: "base", textContent: real.slice(headSlash + 1) });
         name.append(badge, base);
       } else if (active && slash >= 0) {
@@ -378,7 +386,7 @@ export class Editors {
         const base = Object.assign(document.createElement("span"), { className: "base", textContent: path.slice(slash + 1) });
         name.append(dir, base);
       } else {
-        name.textContent = term ? path.slice(TERM.length) : web ? path.slice(BROWSER.length) : path.slice(slash + 1);
+        name.textContent = term ? path.slice(TERM.length) : web ? path.slice(BROWSER.length) : isPreview ? real.slice(headSlash + 1) : path.slice(slash + 1);
       }
       if (term) t.classList.add("term");
       t.append(name);
@@ -511,10 +519,20 @@ export class Editors {
     return !!v && isReading(v.state);
   }
 
-  // Rendered view and source: Markdown's reading view, or an SVG's image viewer and its text. False for other files.
+  // Rendered view and source: Markdown's reading view, SVG image viewer/text, or HTML browser preview/source. False for other files.
   toggleRendered(): boolean {
     const p = this.panes.get(this.active), path = this.currentTab(this.active);
-    if (!path?.endsWith(".svg")) return this.toggleReading();
+    if (!path) return false;
+    if (path.startsWith(PREVIEW)) {
+      void this.open(path.slice(PREVIEW.length), this.active, true);
+      return true;
+    }
+    if (path.endsWith(".html") || path.endsWith(".htm")) {
+      if (p?.viewer) void this.open(path, this.active, true);
+      else this.showViewer(this.active, PREVIEW + path);
+      return true;
+    }
+    if (!path.endsWith(".svg")) return this.toggleReading();
     if (p?.viewer) void this.open(path, this.active, true);
     else this.showViewer(this.active, path); // shows the file on disk, unsaved edits stay in the buffer
     return true;
@@ -546,6 +564,10 @@ export class Editors {
       this.jumps.get(id)!.push(from);
     }
     if (!source && viewerFor(path)) {
+      if (path.startsWith(PREVIEW)) {
+        const clean = path.slice(PREVIEW.length);
+        if (!this.buffers.get(clean)) await this.buffers.open(clean).catch(() => {});
+      }
       this.showViewer(id, path);
       return id;
     }

@@ -19,6 +19,7 @@ export function mountHtml(parent: HTMLElement, ctx: ViewContext): ViewHandle {
   };
 
   const titleText = decodeURIComponent(ctx.url.slice(ctx.url.lastIndexOf("/") + 1));
+  const badge = el("span", "html-preview-badge", { textContent: "Browser" });
   const title = el("div", "html-preview-title", { textContent: `Preview: ${titleText}` });
 
   const frame = el<HTMLIFrameElement>("iframe", "html-preview-frame", { title: `Preview: ${titleText}` });
@@ -27,7 +28,16 @@ export function mountHtml(parent: HTMLElement, ctx: ViewContext): ViewHandle {
   const render = () => {
     const live = ctx.getContent?.();
     if (live !== null && live !== undefined) {
-      frame.srcdoc = live;
+      const baseHref = ctx.url.slice(0, ctx.url.lastIndexOf("/") + 1);
+      if (baseHref && !/<base\s/i.test(live) && (live.includes("<head") || live.includes("<html") || live.includes("<!DOCTYPE"))) {
+        if (/<head[^>]*>/i.test(live)) {
+          frame.srcdoc = live.replace(/<head[^>]*>/i, `$&<base href="${baseHref}">`);
+        } else {
+          frame.srcdoc = `<base href="${baseHref}">${live}`;
+        }
+      } else {
+        frame.srcdoc = live;
+      }
     } else {
       frame.src = `${ctx.url}${ctx.url.includes("?") ? "&" : "?"}t=${Date.now()}`;
     }
@@ -36,9 +46,15 @@ export function mountHtml(parent: HTMLElement, ctx: ViewContext): ViewHandle {
 
   bar.append(
     button("Reload", "", render),
+    badge,
     title,
     button("Open in system browser", "", () => {
-      if (ctx.openURL) ctx.openURL(ctx.url);
+      if (ctx.openURL) {
+        const full = ctx.url.startsWith("http://") || ctx.url.startsWith("https://")
+          ? ctx.url
+          : `${location.origin}${ctx.url}`;
+        ctx.openURL(full);
+      }
     })
   );
 
