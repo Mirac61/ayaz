@@ -76,18 +76,27 @@ export function viewCommands({ ed, say, fail, setPicker }: Ctx): Command[] {
       title: "Browser tab for a local page or HTML file (:browse 3000)",
       async run(arg) {
         const text = arg?.trim();
-        if (text && /\.(html|htm)$/i.test(text)) {
-          return ed.open(PREVIEW + text.replace(/^\.\//, "")).catch((e) => fail(e instanceof Error ? e.message : String(e)));
-        }
-        if (!text) {
-          const cur = ed.currentTab(ed.active);
-          const clean = cur?.startsWith(PREVIEW) ? cur.slice(PREVIEW.length) : cur;
-          if (clean && /\.(html|htm)$/i.test(clean)) {
-            const target = cur?.startsWith(PREVIEW) ? clean : PREVIEW + clean;
-            return ed.open(target).catch((e) => fail(e instanceof Error ? e.message : String(e)));
+        if (text) {
+          const url = localUrl(text);
+          if (url) {
+            lastBrowse = url.slice(url.indexOf("//") + 2);
+            return ed.open(`${BROWSER}${lastBrowse}`).catch((e) => fail(e instanceof Error ? e.message : String(e)));
           }
+          if (/\.(html|htm)$/i.test(text)) {
+            return ed.open(PREVIEW + text.replace(/^\.\//, "")).catch((e) => fail(e instanceof Error ? e.message : String(e)));
+          }
+          return fail("Only local addresses (localhost:3000) or .html files");
         }
-        const url = localUrl(text || lastBrowse);
+
+        const cur = ed.currentTab(ed.active);
+        if (cur?.startsWith(BROWSER) || cur?.startsWith(PREVIEW)) {
+          return ed.open(cur).catch((e) => fail(e instanceof Error ? e.message : String(e)));
+        }
+        if (cur && /\.(html|htm)$/i.test(cur)) {
+          return ed.open(PREVIEW + cur).catch((e) => fail(e instanceof Error ? e.message : String(e)));
+        }
+
+        const url = localUrl(lastBrowse);
         if (!url) return fail("Only local addresses (localhost:3000) or .html files");
         lastBrowse = url.slice(url.indexOf("//") + 2);
         await ed.open(`${BROWSER}${lastBrowse}`).catch((e) => fail(e instanceof Error ? e.message : String(e)));
