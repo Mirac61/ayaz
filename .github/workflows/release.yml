@@ -1,0 +1,117 @@
+name: release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    name: Release Please
+    runs-on: ubuntu-24.04
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  build-artifacts:
+    name: Multi-Platform Release Build (${{ matrix.os }})
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            archive: ayaz-macos-arm64.zip
+          - os: windows-latest
+            archive: ayaz-windows-amd64.zip
+          - os: ubuntu-24.04
+            archive: ayaz-linux-amd64.tar.gz
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Setup Task
+        uses: arduino/setup-task@v2
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Linux GUI libraries (GTK4 / WebKitGTK for Wails)
+        if: runner.os == 'Linux'
+        run: scripts/ci-apt.sh libgtk-4-dev libwebkitgtk-6.0-dev
+
+      - name: Install Wails3 CLI
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.1.0
+
+      - name: Build
+        run: task ${{ runner.os == 'macOS' && 'package' || 'build' }}
+
+      - name: Archive (macOS)
+        if: runner.os == 'macOS'
+        run: COPYFILE_DISABLE=1 ditto -c -k --keepParent --norsrc bin/ayaz.app "${{ matrix.archive }}"
+
+      - name: Archive (Windows)
+        if: runner.os == 'Windows'
+        run: 7z a "${{ matrix.archive }}" ./bin/ayaz.exe
+
+      - name: Archive (Linux)
+        if: runner.os == 'Linux'
+        run: tar -czf "${{ matrix.archive }}" -C bin ayaz -C ../build/linux ayaz.desktop
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.archive }}
+          path: ${{ matrix.archive }}
+          if-no-files-found: error
+
+  publish-assets:
+    name: Upload Assets to GitHub Release
+    needs: [release-please, build-artifacts]
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Generate Checksums
+        run: |
+          cd dist
+          sha256sum * > SHA256SUMS
+          cat SHA256SUMS
+          cd ..
+
+      - name: Upload Assets to Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ needs.release-please.outputs.tag_name }}"
+          echo "Uploading artifacts to release $TAG..."
+          gh release upload "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --clobber
