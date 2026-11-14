@@ -125,6 +125,19 @@ func TestWriteText(t *testing.T) {
 	if _, err := w.WriteText("out/secret", "x", 0); !errors.Is(err, ErrOutside) {
 		t.Fatalf("write outside = %v, want ErrOutside", err)
 	}
+
+	// Deleted since it was read: the stale mtime must not recreate it.
+	must(t, os.Remove(filepath.Join(w.Root, "sub", "c.go")))
+	if _, err := w.WriteText("sub/c.go", "back", 1); !errors.Is(err, ErrConflict) {
+		t.Fatalf("write to a deleted file = %v, want ErrConflict", err)
+	}
+}
+
+func TestNewRejectsAFile(t *testing.T) {
+	w := newTestWS(t)
+	if _, err := New("2", filepath.Join(w.Root, "a.txt")); err == nil || !strings.Contains(err.Error(), "not a folder") {
+		t.Fatalf("New on a file = %v, want 'not a folder'", err)
+	}
 }
 
 func TestRegistry(t *testing.T) {

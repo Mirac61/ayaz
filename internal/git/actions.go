@@ -82,12 +82,12 @@ func StatusDetailed(root string) ([]FileStatus, error) {
 // StageFile stages path in the git index.
 func StageFile(root, rel string) error {
 	p := filepath.ToSlash(rel)
-	_, ok, err := run(root, "add", "-A", "--", p)
+	out, ok, err := run(root, "add", "-A", "--", p)
 	if err != nil {
 		return err
 	}
 	if !ok {
-		return fmt.Errorf("git add %q failed", p)
+		return fmt.Errorf("git add %q failed: %s", p, strings.TrimSpace(string(out)))
 	}
 	return nil
 }
@@ -99,12 +99,12 @@ func UnstageFile(root, rel string) error {
 	if err == nil && ok {
 		return nil
 	}
-	_, ok, err = run(root, "reset", "HEAD", "--", p)
+	out, ok, err := run(root, "reset", "HEAD", "--", p)
 	if err != nil {
 		return err
 	}
 	if !ok {
-		return fmt.Errorf("git unstage %q failed", p)
+		return fmt.Errorf("git unstage %q failed: %s", p, strings.TrimSpace(string(out)))
 	}
 	return nil
 }
@@ -128,24 +128,24 @@ func DiscardFile(root, rel string) error {
 	if err == nil && ok {
 		return nil
 	}
-	_, ok, err = run(root, "checkout", "HEAD", "--", p)
+	out, ok, err := run(root, "checkout", "HEAD", "--", p)
 	if err != nil {
 		return err
 	}
 	if !ok {
-		return fmt.Errorf("git discard %q failed", p)
+		return fmt.Errorf("git discard %q failed: %s", p, strings.TrimSpace(string(out)))
 	}
 	return nil
 }
 
 // StageAll stages all changes in root.
 func StageAll(root string) error {
-	_, ok, err := run(root, "add", "-A", ".")
+	out, ok, err := run(root, "add", "-A", ".")
 	if err != nil {
 		return err
 	}
 	if !ok {
-		return fmt.Errorf("git add -A failed")
+		return fmt.Errorf("git add -A failed: %s", strings.TrimSpace(string(out)))
 	}
 	return nil
 }
@@ -156,12 +156,12 @@ func UnstageAll(root string) error {
 	if err == nil && ok {
 		return nil
 	}
-	_, ok, err = run(root, "reset", "HEAD")
+	out, ok, err := run(root, "reset", "HEAD")
 	if err != nil {
 		return err
 	}
 	if !ok {
-		return fmt.Errorf("git reset HEAD failed")
+		return fmt.Errorf("git reset HEAD failed: %s", strings.TrimSpace(string(out)))
 	}
 	return nil
 }
