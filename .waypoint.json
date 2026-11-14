@@ -110,7 +110,12 @@
       "id": "23",
       "title": "Release-Vorbereitung v0.6.0 (Changelog, Release-Notes, Version-Bump Plan)",
       "status": "DONE"
+    },
+    {
+      "id": "24",
+      "title": "Release-Please Setup: Automatisierte Releases & Version-Bumping via Conventional Commits",
+      "status": "DONE"
     }
   ],
-  "updated_at": "2026-11-14T09:35:00.000Z"
+  "updated_at": "2026-11-14T15:51:00.000Z"
 }

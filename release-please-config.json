@@ -1,0 +1,46 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "packages": {
+    ".": {
+      "release-type": "go",
+      "package-name": "ayaz",
+      "bump-minor-pre-major": false,
+      "include-component-in-tag": false,
+      "changelog-path": "CHANGELOG.md",
+      "extra-files": [
+        {
+          "type": "generic",
+          "path": "app/version.go"
+        },
+        {
+          "type": "generic",
+          "path": "build/darwin/Info.plist"
+        },
+        {
+          "type": "generic",
+          "path": "build/darwin/Info.dev.plist"
+        },
+        {
+          "type": "json",
+          "path": "build/windows/info.json",
+          "jsonpath": "$.fixed.file_version"
+        },
+        {
+          "type": "json",
+          "path": "build/windows/info.json",
+          "jsonpath": "$.fixed.product_version"
+        },
+        {
+          "type": "json",
+          "path": "build/windows/info.json",
+          "jsonpath": "$.info.0409.FileVersion"
+        },
+        {
+          "type": "json",
+          "path": "build/windows/info.json",
+          "jsonpath": "$.info.0409.ProductVersion"
+        }
+      ]
+    }
+  }
+}
