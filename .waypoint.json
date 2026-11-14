@@ -90,7 +90,32 @@
       "id": "19",
       "title": "UI vereinheitlichen: PRs #8–#11 in dev gemergt, PR #12 (dev -> main) erstellt",
       "status": "DONE"
+    },
+    {
+      "id": "20",
+      "title": "Dedizierte Docs-Seite (DocsHub), logische Gliederung, einstellbarer Smart-Lesemodus für Markdown",
+      "status": "DONE"
+    },
+    {
+      "id": "21",
+      "title": "Start screen action tile icons centering mit Lucide SVG vectors (PR #13 erstellt)",
+      "status": "DONE"
+    },
+    {
+      "id": "22",
+      "title": "DocsHub 12-Punkte Design-Feinschliff, Light-Mode & einklappbares TOC (PR #14 erstellt)",
+      "status": "DONE"
+    },
+    {
+      "id": "23",
+      "title": "Release-Vorbereitung v0.6.0 (Changelog, Release-Notes, Version-Bump Plan)",
+      "status": "DONE"
+    },
+    {
+      "id": "24",
+      "title": "Release-Please Setup: Automatisierte Releases & Version-Bumping via Conventional Commits",
+      "status": "DONE"
     }
   ],
-  "updated_at": "2026-11-13T19:05:00.000Z"
+  "updated_at": "2026-11-14T15:51:00.000Z"
 }

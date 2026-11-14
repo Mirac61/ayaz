@@ -58,6 +58,7 @@ const langs: Record<string, { load: Loader; lsp?: [string, string] }> = {
 
 // Dockerfile / Containerfile may have no extension or variants like Dockerfile.dev, *.dockerfile.
 const keyOf = (path: string) => {
+  if (path.startsWith("docs://")) return "md";
   const ext = extOf(path);
   if (ext && langs[ext]) return ext;
   const name = path.slice(path.lastIndexOf("/") + 1).toLowerCase();

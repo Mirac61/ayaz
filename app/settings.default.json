@@ -77,6 +77,12 @@
   // Wrap long lines. <Space>uw toggles it for the open file.
   "wrap": false,
 
+  // How Markdown files open: "smart" (edit if newly created/modified, read if opened after inactivity), "always" or "never".
+  "markdownReadingMode": "smart",
+
+  // Inactivity timeout in seconds for smart Markdown reading mode (default 300 = 5 minutes).
+  "markdownReadingTimeout": 300,
+
   // Format through the language server when saving.
   "formatOnSave": false,
 

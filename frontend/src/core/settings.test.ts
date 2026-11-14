@@ -75,6 +75,16 @@ test("comments and trailing commas are allowed; strings keep their slashes and c
   expect(s.languages.ts).toEqual({ tabWidth: 2 });
 });
 
+test("markdown reading mode settings", () => {
+  expect(DEFAULTS.markdownReadingMode).toBe("smart");
+  expect(DEFAULTS.markdownReadingTimeout).toBe(300);
+  expect(parseSettings('{"markdownReadingMode": "always"}').markdownReadingMode).toBe("always");
+  expect(parseSettings('{"markdownReadingMode": "never"}').markdownReadingMode).toBe("never");
+  expect(parseSettings('{"markdownReadingTimeout": 60}').markdownReadingTimeout).toBe(60);
+  expect(() => parseSettings('{"markdownReadingMode": "invalid"}')).toThrow(/"markdownReadingMode" must be "smart", "always" or "never"/);
+  expect(() => parseSettings('{"markdownReadingTimeout": -1}')).toThrow(/"markdownReadingTimeout" must be a non-negative number/);
+});
+
 test("the settings.json written for a new user is the defaults", () => {
   expect(parseSettings(template)).toEqual(DEFAULTS);
 });
