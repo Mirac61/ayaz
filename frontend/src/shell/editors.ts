@@ -36,7 +36,7 @@ import { header } from "../editor/sticky";
 import { Waits } from "./waits";
 import { UndoSteps } from "./undoSteps";
 import { HiddenTerms } from "./terminals";
-import { settings } from "../core/settings";
+import { isVim, settings, toggleVim } from "../core/settings";
 import { extOf } from "../lang/registry";
 import { DOCS, docText } from "../docs/docsData";
 
@@ -465,9 +465,21 @@ export class Editors {
 
   // Vim is between commands (no count, operator or partial keys), so a key may start a leader sequence.
   vimIdle(id = this.active): boolean {
+    if (!isVim()) return false;
     const v = this.panes.get(id)?.view;
     const vim = v && (getCM(v)?.state.vim as { insertMode?: boolean; visualMode?: boolean; inputState?: { keyBuffer: string[]; operator: unknown } } | undefined);
     return !!vim && !vim.insertMode && !vim.visualMode && !vim.inputState?.keyBuffer.length && !vim.inputState?.operator;
+  }
+
+  // Toggles Vim modal editing on or off across all open editors.
+  toggleVim(): boolean {
+    const next = toggleVim();
+    this.settingsChanged();
+    for (const p of this.panes.values()) {
+      if (p.view) p.mode = next ? "normal" : "standard";
+    }
+    this.emit();
+    return next;
   }
 
   // Runs a line like "w" or "%s/a/b/" in the active editor, as Vim's command line would.
@@ -969,7 +981,7 @@ export class Editors {
     p.buf = b;
     p.view!.setState(b.state);
     if (isReading(b.state)) toggleReading(p.view!); // a preview pane's reading view stays in that pane
-    p.mode = "normal";
+    p.mode = isVim() ? "normal" : "standard";
     this.watchMode(id); // setState recreates the vim plugin
   }
 
@@ -1010,11 +1022,14 @@ export class Editors {
     }
     const st = p.view.state, head = st.selection.main.head, l = st.doc.lineAt(head), unit = st.facet(indentUnit);
     const scopes = scopesAt(st, head).slice(-2).map((s) => ({ at: s.from, text: header(st.doc.lineAt(s.from).text) }));
+    const cm = p.view ? getCM(p.view) : null;
+    const vim = cm ? (cm.state.vim as { mode?: string; insertMode?: boolean; visualMode?: boolean } | undefined) : null;
+    const currentVimMode = vim?.insertMode ? "insert" : vim?.visualMode ? "visual" : (vim?.mode || p.mode || "normal");
     this.onStatus({
       pane: this.active,
       path: p.buf?.path ?? null,
       dirty: p.buf ? isDirty(p.buf) : false,
-      mode: isReading(st) ? "read" : p.mode,
+      mode: isReading(st) ? "read" : isVim() ? currentVimMode : "standard",
       line: l.number,
       col: head - l.from + 1,
       lines: st.doc.lines,
@@ -1200,15 +1215,19 @@ export class Editors {
   }
 
   private watchMode(id: number) {
-    const p = this.panes.get(id)!;
-    const cm = getCM(p.view!);
+    const p = this.panes.get(id);
+    if (!p?.view) return;
+    const cm = getCM(p.view);
     cm?.on("vim-mode-change", (e: { mode: string }) => {
-      p.mode = e.mode;
+      p.mode = isVim() ? e.mode : "standard";
       if (id === this.active) this.emit();
     });
     // qq and q change no text and no mode, so the status line hears about a macro starting or ending here.
     cm?.on("vim-command-done", () => {
-      if (id === this.active && recordingRegister() !== this.recording) this.emit();
+      if (id === this.active) {
+        if (recordingRegister() !== this.recording) this.emit();
+        this.emit();
+      }
     });
   }
 

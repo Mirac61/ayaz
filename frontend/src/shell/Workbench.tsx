@@ -19,7 +19,7 @@ import { installMarkJump, installPaletteKey, installVim, isEx } from "../editor/
 import { openTerminal, type TermHandle, type TermOptions } from "../terminal/terminal";
 import { Editors, PANEL, type Status } from "./editors";
 import { borders, close, equalize, neighbor, panes, rects, resize, setBorder, split, type Dir, type Layout } from "./layout";
-import { loadSettings, settings, settingsError } from "../core/settings";
+import { isVim, loadSettings, settings, settingsError } from "../core/settings";
 import { loadSnippets, snippetsError } from "../core/snippets";
 import { Picker, type Item, type PickerSource } from "./Picker";
 import { Tree, type TreeHandle } from "./Tree";
@@ -1182,7 +1182,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
         e.preventDefault();
         e.stopPropagation();
         shadow.reset();
-      } else if (inEditor && (shadowOn || ed.vimIdle())) shadow.feed(k, of("normal"));
+      } else if (inEditor && isVim() && (shadowOn || ed.vimIdle())) shadow.feed(k, of("normal"));
     };
     window.addEventListener("keydown", onKey, true);
     return () => {
@@ -1197,6 +1197,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
 
   const rs = rects(layout);
   const modeLabels: Record<string, string> = {
+    standard: "STANDARD",
     normal: "NORMAL",
     insert: "INSERT",
     visual: "VISUAL",
@@ -1205,10 +1206,16 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
     read: "READ",
     view: "VIEW",
   };
-  const modeLabel = modeLabels[status.mode] || status.mode.toUpperCase();
+  const rawMode = status.mode || (isVim() ? "normal" : "standard");
+  const modeKey = rawMode.trim().split(" ")[0].toLowerCase();
+  const modeLabel = modeLabels[modeKey] || rawMode.toUpperCase();
+  const modeTip = isVim() ? `Vim mode: ${modeLabel}` : `Standard mode: ${modeLabel}`;
+
   const mode = (
     <>
-      <span className={`mode ${status.mode}`} title={`Vim mode: ${status.mode}`}>{modeLabel}</span>
+      <span className={`mode ${modeKey}`} title={modeTip}>
+        {modeLabel}
+      </span>
       {status.recording !== undefined && (
         <span className="recording" title="Recording a macro: q stops it">recording @{status.recording}</span>
       )}
@@ -1222,8 +1229,8 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
   const go = (id: string, arg?: string) => () => run(id, arg);
   const branchEl = branch && (
     <Seg
-      className="branch"
-      title={tip("Git branch: show changes in sidebar (<Space>gs)", "git.status")}
+      className={`branch ${changes > 0 ? "dirty" : "clean"}`}
+      title={tip(changes > 0 ? `Git branch: ${branch} (${changes} changed paths)` : `Git branch: ${branch} (clean)`, "git.status")}
       onPress={() => {
         showSidebar(true);
         setSideTab("git");

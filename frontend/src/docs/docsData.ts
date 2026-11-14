@@ -11,6 +11,7 @@ import {
   Layers,
   CheckCircle,
   Map,
+  Sliders,
 } from "lucide-react";
 
 export interface DocItem {
@@ -51,6 +52,7 @@ Ayaz is a keyboard-first code editor. Every action is a registered command and c
 | \`<Space>tt\` | \`term.tab\` | Open terminal in current pane tab |
 | \`<Space>uz\` / \`:zen\` | \`view.zen\` | Toggle distraction-free Zen mode |
 | \`<Space>ub\` | \`git.toggleInlineBlame\` | Toggle ghost line Git blame |
+| \`<Space>uv\` | \`editor.toggleVim\` | Toggle modal Vim vs. modeless Standard editing |
 | \`<F1>\` / \`:help\` / \`:docs\` | \`app.docs\` | Open this interactive Docs Hub |
 
 ---
@@ -107,6 +109,73 @@ Like \`nvim-surround\`:
 - \`ac\` / \`ic\`: Outer/inner class, struct, interface or type.
 - \`aa\` / \`ia\`: Outer/inner parameter or argument.
 - \`]\` / \`[\` jumps: \`]f\` / \`[f\` jump to next/previous function start; \`]d\` / \`[d\` jump between LSP diagnostics; \`]c\` / \`[c\` jump between git change hunks.
+
+## Modal Vim vs. Modeless Standard Mode
+Ayaz supports both full modal Vim editing and modeless standard editing:
+- **Toggle Mode (\`<Space>uv\`):** Instantly switch between Vim mode and Standard mode.
+- **Configurable in \`settings.json\`:**
+  - \`"vim": true\` — Enables Neovim modal editing with relative line numbers.
+  - \`"vim": false\` — Modeless standard editing (direct typing, caret navigation, absolute line numbers).
+`;
+
+const SETTINGS_DOC = `# Ayaz Configuration & settings.json Reference
+
+Ayaz is configured through a single JSON/JSONC file located at \`~/.config/ayaz/settings.json\` (or workspace \`.ayaz/settings.json\`). Saving the file applies changes immediately without restart.
+
+## Core Options
+
+| Setting | Type | Default | Description |
+|---|---|---|---|
+| \`vim\` | \`boolean\` | \`true\` | Enable modal Vim editing. Set to \`false\` for modeless standard editing. |
+| \`theme\` | \`string\` | \`"graphite"\` | Color theme (\`"graphite"\`, \`"kanagawa"\`, \`"tokyo-night"\`, \`"catppuccin-mocha"\`, \`"gruvbox-dark"\`). |
+| \`statusline\` | \`"top" \| "bottom"\` | \`"top"\` | Status line position (in title bar or bottom row). |
+| \`sidebar\` | \`"left" \| "right"\` | \`"left"\` | Position of the file tree sidebar. |
+| \`fontSize\` | \`number\` | \`13\` | Editor and terminal font size in px (6–48). |
+| \`font\` | \`string\` | \`""\` | Monospace editor font family. Fallbacks include Nerd Font symbols. |
+| \`tabWidth\` | \`number\` | \`4\` | Tab / indentation width in spaces (1–16). |
+| \`tabs\` | \`boolean\` | \`false\` | Indent with tabs instead of spaces. |
+| \`formatOnSave\` | \`boolean\` | \`false\` | Run language formatter automatically on file save. |
+| \`stickyScroll\` | \`boolean\` | \`true\` | Stick enclosing function / class headers to editor top. |
+| \`inlayHints\` | \`boolean\` | \`false\` | Display inline parameter names and type hints from LSP. |
+| \`semanticTokens\`| \`boolean\` | \`true\` | Semantic syntax highlighting from language servers. |
+| \`glass\` | \`boolean\` | \`false\` | Enable translucent frosted glass surfaces and blur. |
+| \`glassOpacity\` | \`number\` | \`1.0\` | Glass surface opacity (0.3 to 1.0). |
+
+---
+
+## Statusline Colors (\`statusColors\`)
+
+Override individual mode and status line colors with hex strings:
+
+\`\`\`jsonc
+"statusColors": {
+  "normal": "#7e9cd8",    // Normal mode (Sapphire Blue)
+  "insert": "#98bb6c",    // Insert mode & Clean Git branch icon (Jade Green)
+  "visual": "#957fb8",    // Visual mode (Amethyst Purple)
+  "replace": "#e46876",   // Replace mode (Coral Red)
+  "standard": "#7aa2f7",  // Standard non-Vim mode (Sky Cyan)
+  "terminal": "#c0a36e",  // Terminal pane mode (Warm Ochre)
+  "read": "#7aa89f",      // Read-only / Markdown preview mode (Sage Teal)
+  "view": "#9cabca",      // Custom viewer mode (Slate Blue)
+  "warning": "#dca561",   // Warning counts & Dirty Git branch icon (Warm Amber / Orange)
+  "error": "#e46876"      // Error counts & error messages (Coral Red)
+}
+\`\`\`
+
+---
+
+## Language-Specific Overrides (\`languages\`)
+
+Customize behavior per language:
+
+\`\`\`jsonc
+"languages": {
+  "go": { "tabs": true, "formatOnSave": true },
+  "md": { "wrap": true },
+  "typ": { "wrap": true, "formatOnSave": true },
+  "tex": { "wrap": true }
+}
+\`\`\`
 `;
 
 const LSP_DEBUG_DOC = `# LSP & DAP Debugger
@@ -152,6 +221,13 @@ const ITEMS: DocItem[] = [
     icon: Key,
     title: "Keymap & Command Cheatsheet",
     content: COMMANDS_DOC,
+  },
+  {
+    id: "configuration-settings",
+    category: "Getting Started",
+    icon: Sliders,
+    title: "Settings & Configuration (settings.json)",
+    content: SETTINGS_DOC,
   },
 
   // 2. Editor & Navigation

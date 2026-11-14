@@ -1083,42 +1083,27 @@
   overflow: hidden;
   user-select: none;
 }
-/* Mode: Crystalline Ice Capsule with sub-zero glow and rotating micro-crystal shard */
+/* Mode: Pure typography in vivid color (no boxes, no borders, no icons, no pills) */
 .statusline .mode {
-  --mode: var(--status-normal);
   flex: none;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 18px;
-  padding: 0 8px 0 7px;
-  font: 700 9.5px/1 var(--font-mono);
+  height: 20px;
+  padding: 0 4px;
+  margin: 0;
+  font: 700 11px/1 var(--font-mono);
   letter-spacing: 0.8px;
   text-transform: uppercase;
-  color: var(--mode);
-  background: color-mix(in srgb, var(--mode) 14%, var(--bg-1));
-  border: 1px solid color-mix(in srgb, var(--mode) 36%, transparent);
-  border-radius: 999px;
-  box-shadow:
-    0 0 10px color-mix(in srgb, var(--mode) 25%, transparent),
-    inset 0 1px 0 color-mix(in srgb, var(--mode) 20%, transparent);
-  box-sizing: border-box;
-  transition:
-    background-color var(--t-fast) var(--ease),
-    border-color var(--t-fast) var(--ease),
-    box-shadow var(--t-fast) var(--ease),
-    color var(--t-fast) var(--ease);
+  color: var(--mode, var(--status-normal));
+  background: none;
+  border: none;
+  box-shadow: none;
+  cursor: default;
+  user-select: none;
+  transition: color var(--t-fast) var(--ease);
 }
-.statusline .mode::before {
-  content: "";
-  display: block;
-  width: 4px;
-  height: 4px;
-  background: var(--mode);
-  transform: rotate(45deg);
-  border-radius: 0.5px;
-  box-shadow: 0 0 6px var(--mode);
-  flex: none;
+.statusline .normal {
+  --mode: var(--status-normal);
 }
 .statusline .insert {
   --mode: var(--status-insert);
@@ -1128,6 +1113,9 @@
 }
 .statusline .replace {
   --mode: var(--status-replace);
+}
+.statusline .standard {
+  --mode: var(--status-standard);
 }
 .statusline .terminal {
   --mode: var(--status-terminal);
@@ -1175,8 +1163,15 @@
 .statusline .branch::before {
   content: "\e725";
   font: var(--text-xs) var(--font-mono);
-  color: var(--accent);
-  opacity: 0.85;
+  color: var(--status-insert);
+  opacity: 0.9;
+  transition: color var(--t-fast) var(--ease);
+}
+.statusline .branch.clean::before {
+  color: var(--status-insert);
+}
+.statusline .branch.dirty::before {
+  color: var(--status-warning);
 }
 .statusline .changes {
   color: var(--status-warning);
