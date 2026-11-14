@@ -14,7 +14,10 @@ import (
 // Index is the file's text in the index (what is staged), tracked=false when it isn't in the index.
 func Index(root, rel string) (text string, tracked bool, err error) {
 	out, ok, err := run(root, "show", ":./"+filepath.ToSlash(rel)) // ":./x" is relative to -C, like Head's
-	return string(out), ok, err
+	if !ok {
+		return "", false, err
+	}
+	return string(out), true, nil
 }
 
 // ApplyHunk stages (or, with reverse, unstages) one hunk of the file at rel in the index; the working tree isn't

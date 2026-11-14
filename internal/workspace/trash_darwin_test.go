@@ -20,7 +20,7 @@ func TestTrashItemGoesToTheTrash(t *testing.T) {
 	if b, err := os.ReadFile(to); err != nil || string(b) != "x" {
 		t.Fatalf("not in the Trash at %q: %v", to, err)
 	}
-	if _, err := trashItem(p); err == nil {
+	if err := trash(p); err == nil {
 		t.Fatal("trashing a missing file succeeded")
 	}
 }
