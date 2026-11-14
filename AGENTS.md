@@ -8,7 +8,7 @@
 - Schnelles Gesamt-Gate: `task test`
 
 ## Harte Verbote
-- Niemals `git commit`, `git push` oder `gh` ausführen (übernimmt das Host-Skript).
+- Niemals `git push` oder `gh` ausführen (übernimmt das Host-Skript). `git commit` mit sauberen Conventional Commits ist erlaubt.
 - Niemals nach `main` pushen oder mergen, keine Tags/Releases/Version-Bumps.
 - Niemals bestehende Tests abschwächen, `test.fails` ergänzen oder Assertions löschen, um grün zu werden.
 - Niemals `frontend/bun.lock`, `frontend/package.json`, `go.mod` oder `go.sum` ändern.
