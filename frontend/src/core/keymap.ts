@@ -104,6 +104,7 @@ export function defaultKeymap(mac = isMac): Binding[] {
     n("<Space>ub", "git.toggleInlineBlame"),
     n("<Space>uz", "view.zen"),
     n("<Space>us", "view.spellcheck"),
+    n("<Space>uv", "editor.toggleVim"),
     n("<Space>t", "term.panel"),
     n("<Space>tp", "term.panel"),
     n("<Space>tt", "term.tab"),

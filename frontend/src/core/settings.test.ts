@@ -58,7 +58,10 @@ test("the file tree goes left or right", () => {
 test("the status line goes top or bottom, its colors are hex per key", () => {
   expect(parseSettings('{"statusline": "bottom"}').statusline).toBe("bottom");
   expect(() => parseSettings('{"statusline": "left"}')).toThrow('"statusline" must be "top" or "bottom"');
-  expect(parseSettings('{"statusColors": {"insert": "#98bb6c"}}').statusColors).toEqual({ insert: "#98bb6c" });
+  expect(parseSettings('{"statusColors": {"insert": "#98bb6c", "standard": "#7aa2f7"}}').statusColors).toEqual({
+    insert: "#98bb6c",
+    standard: "#7aa2f7",
+  });
   expect(() => parseSettings('{"statusColors": {"pink": "#fff"}}')).toThrow('unknown status color "pink"');
   expect(() => parseSettings('{"statusColors": {"normal": "blue"}}')).toThrow("statusColors.normal must be a hex color");
 });
@@ -83,6 +86,13 @@ test("markdown reading mode settings", () => {
   expect(parseSettings('{"markdownReadingTimeout": 60}').markdownReadingTimeout).toBe(60);
   expect(() => parseSettings('{"markdownReadingMode": "invalid"}')).toThrow(/"markdownReadingMode" must be "smart", "always" or "never"/);
   expect(() => parseSettings('{"markdownReadingTimeout": -1}')).toThrow(/"markdownReadingTimeout" must be a non-negative number/);
+});
+
+test("vim mode setting: on by default, boolean", () => {
+  expect(DEFAULTS.vim).toBe(true);
+  expect(parseSettings('{"vim": false}').vim).toBe(false);
+  expect(parseSettings('{"vim": true}').vim).toBe(true);
+  expect(() => parseSettings('{"vim": "no"}')).toThrow(/"vim" must be a boolean/);
 });
 
 test("the settings.json written for a new user is the defaults", () => {

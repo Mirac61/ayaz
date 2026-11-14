@@ -24,6 +24,7 @@ export interface Settings extends FileSettings {
   markdownSkin: "github" | "kairo"; // the look of the rendered Markdown view (<Space>um cycles it)
   markdownReadingMode: "smart" | "always" | "never"; // how markdown files open: "smart" (edit if newly created/modified, read if opened after inactivity), "always" (always reading mode), "never" (always edit mode)
   markdownReadingTimeout: number; // in seconds, default 300 (5 minutes): if a markdown file hasn't been edited/created within this time, open in reading mode
+  vim: boolean; // enable Neovim modal editing; when false, uses standard modeless editing
   glass?: boolean; // optional translucent chrome/overlays; solid is the default
   glassOpacity: number; // 0.3 (see-through) to 1: how much of the glass surfaces' colour is left
   theme: string; // a built-in theme (see theme/themes.ts) or one of "themes"
@@ -34,7 +35,7 @@ export interface Settings extends FileSettings {
   languages: Record<string, Partial<FileSettings>>;
 }
 
-export const STATUS_COLORS = ["normal", "insert", "visual", "replace", "terminal", "read", "view", "error", "warning"] as const;
+export const STATUS_COLORS = ["normal", "insert", "visual", "replace", "standard", "terminal", "read", "view", "error", "warning"] as const;
 export type StatusColor = (typeof STATUS_COLORS)[number];
 
 export const DEFAULTS: Settings = {
@@ -48,6 +49,7 @@ export const DEFAULTS: Settings = {
   markdownSkin: "github",
   markdownReadingMode: "smart",
   markdownReadingTimeout: 300,
+  vim: true,
   glassOpacity: 1,
   theme: DEFAULT_THEME,
   themes: {},
@@ -117,11 +119,11 @@ export function parseSettings(json: string): Settings {
   if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("settings.json: expected an object");
   const {
     font, fontSize, terminalFontSize, inlayHints, semanticTokens, stickyScroll,
-    sidebar, statusline, markdownSkin, markdownReadingMode, markdownReadingTimeout, glass, glassOpacity, theme, themes, statusColors, tasks, languages, ...file
+    sidebar, statusline, markdownSkin, markdownReadingMode, markdownReadingTimeout, vim, glass, glassOpacity, theme, themes, statusColors, tasks, languages, ...file
   } = data as Record<string, unknown>;
   if (font !== undefined && typeof font !== "string") throw new Error('settings.json: "font" must be a string');
   if (inlayHints !== undefined && typeof inlayHints !== "boolean") throw new Error('settings.json: "inlayHints" must be a boolean');
-  for (const [name, v] of Object.entries({ semanticTokens, stickyScroll, glass })) {
+  for (const [name, v] of Object.entries({ semanticTokens, stickyScroll, glass, vim })) {
     if (v !== undefined && typeof v !== "boolean") throw new Error(`settings.json: "${name}" must be a boolean`);
   }
   if (glassOpacity !== undefined && (typeof glassOpacity !== "number" || glassOpacity < 0.3 || glassOpacity > 1)) {
@@ -193,6 +195,7 @@ export function parseSettings(json: string): Settings {
     ...(markdownSkin !== undefined && { markdownSkin }),
     ...(markdownReadingMode !== undefined && { markdownReadingMode: markdownReadingMode as "smart" | "always" | "never" }),
     ...(markdownReadingTimeout !== undefined && { markdownReadingTimeout: markdownReadingTimeout as number }),
+    ...(vim !== undefined && { vim: vim as boolean }),
     ...(glass !== undefined && { glass: glass as boolean }),
     ...(glassOpacity !== undefined && { glassOpacity: glassOpacity as number }),
     ...(theme !== undefined && { theme: theme as string }), // checked above
@@ -206,6 +209,7 @@ export function parseSettings(json: string): Settings {
 let current = DEFAULTS;
 let problem = "";
 let glassOverride: boolean | null = null; // the transparency command
+let vimOverride: boolean | null = null; // the vim mode toggle override
 let override = ""; // a theme picked with the theme command: kept until settings.json names another one
 let fileTheme = DEFAULTS.theme;
 
@@ -215,6 +219,29 @@ export const themeName = () => override || current.theme;
 // Glass is on when the command said so, else as settings.json has it.
 export const glassOn = () => glassOverride ?? !!current.glass;
 export const availableThemes = () => themeNames(current.themes);
+
+const VIM_KEY = "ayaz.vim";
+export function isVim(): boolean {
+  if (vimOverride !== null) return vimOverride;
+  try {
+    const v = localStorage.getItem(VIM_KEY);
+    if (v === "on" || v === "off") return v === "on";
+  } catch { /* storage fallback */ }
+  return current.vim;
+}
+
+export function setVim(on: boolean): void {
+  vimOverride = on;
+  try {
+    localStorage.setItem(VIM_KEY, on ? "on" : "off");
+  } catch { /* storage fallback */ }
+}
+
+export function toggleVim(): boolean {
+  const next = !isVim();
+  setVim(next);
+  return next;
+}
 
 // Puts the theme on the page, then the colors of "statusColors" over it.
 function paintTheme() {
@@ -258,6 +285,7 @@ export function loadSettings(text: string) {
   }
   const root = document.documentElement.style;
   glassOverride = null;
+  vimOverride = null;
   root.setProperty("--glass", String(current.glassOpacity));
   root.setProperty("--editor-font-size", `${current.fontSize}px`);
   root.removeProperty("--font-mono"); // back to the stylesheet's stack, so a reload doesn't stack fonts
