@@ -5,20 +5,12 @@
 
 ### Features
 
-* Start page after the sternklar mockup ([fc2fd97](https://github.com/Mirac61/ayaz/commit/fc2fd9767c64b34b11c94ff26f461af895672623))
-* Start page after the sternklar mockup ([a843d6b](https://github.com/Mirac61/ayaz/commit/a843d6b9f45d24df22a3ffb5e7da775dd7dec187))
-* start page after the sternklar mockup ([#34](https://github.com/Mirac61/ayaz/issues/34)) ([638bec0](https://github.com/Mirac61/ayaz/commit/638bec023957a34f1dde1522118ee05ec7b8c2d6))
-* start page after the sternklar mockup ([#34](https://github.com/Mirac61/ayaz/issues/34)) ([745a019](https://github.com/Mirac61/ayaz/commit/745a0192a04d5dba0da8a059d7e52d77b0e0d9c0))
-* start page after the sternklar mockup ([#34](https://github.com/Mirac61/ayaz/issues/34)) ([e53fcc0](https://github.com/Mirac61/ayaz/commit/e53fcc0050c6c5a709a548499f1a088dad467818))
-* start page after the sternklar mockup ([#34](https://github.com/Mirac61/ayaz/issues/34)) ([5f599e2](https://github.com/Mirac61/ayaz/commit/5f599e2d640b136eed04a1e4f25ebd0a7da191bb))
+* Start page after the sternklar mockup ([#34](https://github.com/Mirac61/ayaz/issues/34)) ([fc2fd97](https://github.com/Mirac61/ayaz/commit/fc2fd9767c64b34b11c94ff26f461af895672623))
 
 
 ### Documentation
 
-* **fsserve:** note workspace-wide script grant ([638bec0](https://github.com/Mirac61/ayaz/commit/638bec023957a34f1dde1522118ee05ec7b8c2d6))
-* **fsserve:** note workspace-wide script grant ([745a019](https://github.com/Mirac61/ayaz/commit/745a0192a04d5dba0da8a059d7e52d77b0e0d9c0))
-* **fsserve:** note workspace-wide script grant ([e53fcc0](https://github.com/Mirac61/ayaz/commit/e53fcc0050c6c5a709a548499f1a088dad467818))
-* **fsserve:** note workspace-wide script grant ([5f599e2](https://github.com/Mirac61/ayaz/commit/5f599e2d640b136eed04a1e4f25ebd0a7da191bb))
+* **fsserve:** note that the script grant covers all workspaces ([#35](https://github.com/Mirac61/ayaz/issues/35)) ([5f599e2](https://github.com/Mirac61/ayaz/commit/5f599e2d640b136eed04a1e4f25ebd0a7da191bb))
 
 ## [0.8.0](https://github.com/Mirac61/ayaz/compare/v0.7.0...v0.8.0) (2026-11-15)
 
