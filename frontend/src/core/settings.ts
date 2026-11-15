@@ -221,6 +221,7 @@ export const glassOn = () => glassOverride ?? !!current.glass;
 export const availableThemes = () => themeNames(current.themes);
 
 const VIM_KEY = "ayaz.vim";
+const VIM_FILE_KEY = "ayaz.vim.file"; // settings.json's "vim" at the last load
 export function isVim(): boolean {
   if (vimOverride !== null) return vimOverride;
   try {
@@ -285,7 +286,17 @@ export function loadSettings(text: string) {
   }
   const root = document.documentElement.style;
   glassOverride = null;
-  vimOverride = null;
+  // The vim toggle holds until settings.json changes "vim" (like a picked theme), across restarts too.
+  try {
+    const seen = localStorage.getItem(VIM_FILE_KEY);
+    if (seen !== null && seen !== String(current.vim)) {
+      localStorage.removeItem(VIM_KEY);
+      vimOverride = null;
+    }
+    localStorage.setItem(VIM_FILE_KEY, String(current.vim));
+  } catch {
+    vimOverride = null; // no storage: settings.json wins on every load
+  }
   root.setProperty("--glass", String(current.glassOpacity));
   root.setProperty("--editor-font-size", `${current.fontSize}px`);
   root.removeProperty("--font-mono"); // back to the stylesheet's stack, so a reload doesn't stack fonts

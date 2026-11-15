@@ -18,60 +18,21 @@ export function resolveBaseUrl(href: string, base: string): string {
   }
 }
 
-function findBaseElement(html: string): { exists: boolean; href: string | null } {
-  if (typeof DOMParser !== "undefined") {
-    const doc = new DOMParser().parseFromString(html, "text/html");
-    const baseEl = doc.querySelector("base");
-    if (!baseEl) return { exists: false, href: null };
-    return { exists: true, href: baseEl.getAttribute("href") };
-  }
-  const withoutComments = html.replace(/<!--[\s\S]*?-->/g, "");
-  const m = withoutComments.match(/<base\b([^>]*)>/i);
-  if (!m) return { exists: false, href: null };
-  const hrefMatch = m[1].match(/\bhref\s*=\s*(?:(["'])(.*?)\1|([^\s>]+))/i);
-  return { exists: true, href: hrefMatch ? (hrefMatch[2] ?? hrefMatch[3]) : null };
-}
-
+// Points relative URLs at the file's folder. Works on the parsed document, not the source text,
+// so the base lands in the real <head> and markup-like text inside scripts or comments stays untouched.
 export function prepareHtml(live: string, url: string): string {
-  const baseHref = url.slice(0, url.lastIndexOf("/") + 1);
-  if (!baseHref) return live;
-
-  const base = findBaseElement(live);
-
-  if (!base.exists) {
-    const withoutComments = live.replace(/<!--[\s\S]*?-->/g, "");
-    if (/<head\b[^>]*>/i.test(withoutComments)) {
-      let replaced = false;
-      return live.replace(/<!--[\s\S]*?-->|(<head\b[^>]*>)/gi, (match, headTag) => {
-        if (!headTag || replaced) return match;
-        replaced = true;
-        return `${headTag}<base href="${baseHref}">`;
-      });
-    }
-    return `<base href="${baseHref}">${live}`;
+  const dir = url.slice(0, url.lastIndexOf("/") + 1);
+  if (!dir) return live;
+  const doc = new DOMParser().parseFromString(live, "text/html");
+  const base = doc.querySelector("base[href]"); // the one the browser uses
+  if (base) base.setAttribute("href", resolveBaseUrl(base.getAttribute("href") ?? "", url));
+  else {
+    const b = doc.createElement("base");
+    b.setAttribute("href", dir);
+    doc.head.prepend(b);
   }
-
-  if (base.href === null) {
-    let replaced = false;
-    return live.replace(/<!--[\s\S]*?-->|(<base\b[^>]*>)/gi, (match, baseTag) => {
-      if (!baseTag || replaced) return match;
-      replaced = true;
-      return baseTag.replace(/<base\b/i, `$& href="${baseHref}"`);
-    });
-  }
-
-  const isAbs = /^[a-z][a-z0-9+.-]*:|\/\//i.test(base.href);
-  if (!isAbs) {
-    const resolved = resolveBaseUrl(base.href, url);
-    let replaced = false;
-    return live.replace(/<!--[\s\S]*?-->|(<base\b[^>]*>)/gi, (match, baseTag) => {
-      if (!baseTag || replaced) return match;
-      replaced = true;
-      return baseTag.replace(/\bhref\s*=\s*(?:(["'])(.*?)\1|([^\s>]+))/i, `href="${resolved}"`);
-    });
-  }
-
-  return live;
+  const xml = new XMLSerializer(); // for the doctype and comments outside <html>
+  return Array.from(doc.childNodes, (n) => (n instanceof Element ? n.outerHTML : xml.serializeToString(n))).join("");
 }
 
 export function mountHtml(parent: HTMLElement, ctx: ViewContext): ViewHandle {
