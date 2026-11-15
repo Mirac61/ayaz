@@ -36,8 +36,8 @@
   padding: 0 8px 0 6px;
   font: 500 var(--text-sm) var(--font-ui);
   color: var(--fg-2);
-  background: color-mix(in srgb, var(--accent) 5%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--edge));
+  background: transparent;
+  border: 0;
   border-radius: var(--radius-sm);
   cursor: pointer;
   max-width: 220px;
@@ -58,7 +58,7 @@
   white-space: nowrap;
 }
 .titlebar-project::after {
-  content: "\ea60";
+  content: "\f47c"; /* chevron down, like the open folders in the tree */
   font: 10px var(--font-mono);
   color: var(--fg-4);
   display: inline-flex;
@@ -69,20 +69,17 @@
   transition: color var(--t-fast) var(--ease);
 }
 .titlebar-project:hover {
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  background: var(--hover);
   color: var(--fg-1);
-  border-color: color-mix(in srgb, var(--accent) 35%, var(--edge));
-  box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 .titlebar-project:hover::after {
   color: var(--fg-2);
 }
 .titlebar-project:active {
-  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  background: var(--hover);
 }
 .titlebar-project:focus-visible {
   color: var(--fg-1);
-  border-color: var(--accent);
   box-shadow: 0 0 0 1px var(--accent);
   outline: none;
 }
@@ -1132,6 +1129,7 @@
 /* The clickable fields: subtle ice hover and clean alignment */
 .statusline .seg {
   flex: none;
+  width: max-content; /* WebKit sized a button with a ::before and text to its icon alone, so the next field overlapped it */
   height: 20px;
   display: inline-flex;
   align-items: center;
