@@ -1,3 +1,0 @@
-# Notes
-
-Some **bold** text.
