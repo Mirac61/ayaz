@@ -383,6 +383,9 @@ export const GitChanges: React.FC<Props> = ({
             <button
               type="button"
               className="git-remote-btn"
+              data-glyph={"\ueaa1"}
+              aria-label="Push"
+              aria-busy={busyRemote === "push"}
               disabled={busyRemote !== null}
               onClick={async () => {
                 setBusyRemote("push");
@@ -393,14 +396,15 @@ export const GitChanges: React.FC<Props> = ({
                 }
               }}
               title="Push commits to the remote"
-            >
-              {busyRemote === "push" ? "⇡…" : "⇡ Push"}
-            </button>
+            />
           )}
           {onPull && (
             <button
               type="button"
               className="git-remote-btn"
+              data-glyph={"\uea9a"}
+              aria-label="Pull"
+              aria-busy={busyRemote === "pull"}
               disabled={busyRemote !== null}
               onClick={async () => {
                 setBusyRemote("pull");
@@ -411,14 +415,15 @@ export const GitChanges: React.FC<Props> = ({
                 }
               }}
               title="Pull changes from the remote"
-            >
-              {busyRemote === "pull" ? "⇣…" : "⇣ Pull"}
-            </button>
+            />
           )}
           {onFetch && (
             <button
               type="button"
-              className="git-remote-btn icon-only"
+              className="git-remote-btn"
+              data-glyph={"\uea77"}
+              aria-label="Fetch"
+              aria-busy={busyRemote === "fetch"}
               disabled={busyRemote !== null}
               onClick={async () => {
                 setBusyRemote("fetch");
@@ -429,10 +434,7 @@ export const GitChanges: React.FC<Props> = ({
                 }
               }}
               title="Fetch remote refs"
-              aria-label="Fetch"
-            >
-              {busyRemote === "fetch" ? "⟳…" : "⟳"}
-            </button>
+            />
           )}
         </div>
       </div>
