@@ -174,7 +174,7 @@ export function Shell() {
   if (ws === undefined) return null;
   if (ws) return <Workbench key={ws.id} ws={ws} onSwitch={switchTo} initial={settingsWindow ? "settings.json" : initial} />;
 
-  const recent = recentFolders();
+  const recent = recentFolders().slice(0, MAX_STARS); // the chart shows nine; search and Enter use the same list
   const chart = stars(recent.length);
   const term = query.trim().toLowerCase();
   const hit = chart.map((p) => !term || recent[p.i].name.toLowerCase().includes(term) || recent[p.i].root.toLowerCase().includes(term));
@@ -373,7 +373,7 @@ export function Shell() {
                         onClick={() => void pick(f.root)}
                         onMouseEnter={() => setSel(p.i)}
                         onFocus={() => setSel(p.i)}
-                        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), void pick(f.root))}
+                        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), void pick((curFolder ?? f).root))} // the keys 1-9/j/k move the selection, not the focus
                       >
                         <title>{shorten(f.root)}</title>
                         <circle cx={p.x} cy={p.y} r="20" fill="transparent" />

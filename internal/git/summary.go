@@ -16,7 +16,7 @@ type Summary struct {
 
 // Summarize reads branch, upstream distance and changed paths with one git call and no index lock.
 func Summarize(root string) (Summary, error) {
-	out, ok, err := run(root, "--no-optional-locks", "status", "--porcelain=v1", "-b", "-z", "--untracked-files=normal")
+	out, ok, err := run(root, "--no-optional-locks", "status", "--porcelain=v1", "-b", "-z", "--untracked-files=all")
 	if !ok {
 		return Summary{Changed: []string{}}, err
 	}
@@ -31,7 +31,7 @@ func Summarize(root string) (Summary, error) {
 			continue
 		}
 		s.Changed = append(s.Changed, f[3:])
-		if f[0] == 'R' || f[0] == 'C' {
+		if strings.ContainsAny(f[:2], "RC") { // either column: ` R` is a worktree rename (git add -N)
 			fields[i+1] = "" // the next field is the old path
 		}
 	}
