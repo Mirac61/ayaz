@@ -8,6 +8,7 @@ import { Picker, type PickerSource } from "./Picker";
 import { folderIcon } from "../theme/icons";
 import { setZoom, zoomLevel } from "./zoom";
 import { Workbench } from "./Workbench";
+import { stars } from "./constellation";
 import { AyazLogo } from "./AyazLogo";
 import { DocsHub } from "./DocsHub";
 import { availableThemes, setThemeOverride, themeName } from "../core/settings";
@@ -164,6 +165,7 @@ export function Shell() {
   if (ws) return <Workbench key={ws.id} ws={ws} onSwitch={switchTo} initial={settingsWindow ? "settings.json" : initial} />;
 
   const recent = recentFolders();
+  const chart = stars(recent.length);
 
   const openRecentPicker = () =>
     setPicker({
@@ -278,20 +280,30 @@ export function Shell() {
               {recent.length === 0 ? (
                 <p className="welcome-empty">Nothing here yet. Press o to open a folder.</p>
               ) : (
-                recent.slice(0, 7).map((f, i) => (
-                  <button key={f.root} type="button" className="welcome-row" onClick={() => void pick(f.root)} title={f.root}>
-                    <span className="welcome-avatar" aria-hidden="true">
-                      {f.name.slice(0, 1).toUpperCase()}
-                    </span>
-                    <span className="welcome-row-text">
-                      <span className="welcome-row-main">{f.name}</span>
-                      <span className="welcome-row-path">{shorten(f.root)}</span>
-                    </span>
-                    <kbd className="welcome-row-key" aria-hidden="true">
-                      {i + 1}
-                    </kbd>
-                  </button>
-                ))
+                <div className="welcome-chart">
+                  <svg className="welcome-chart-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                    <polyline points={chart.map((p) => `${p.x},${p.y}`).join(" ")} vectorEffect="non-scaling-stroke" />
+                  </svg>
+                  {chart.map((p) => {
+                    const f = recent[p.i];
+                    return (
+                      <button
+                        key={f.root}
+                        type="button"
+                        className={`welcome-star ${p.side}`}
+                        style={{ left: `${p.x}%`, top: `${p.y}%`, "--size": `${p.size}px`, "--lit": p.opacity } as React.CSSProperties}
+                        onClick={() => void pick(f.root)}
+                        title={shorten(f.root)}
+                      >
+                        <span className="welcome-star-dot" aria-hidden="true" />
+                        <span className="welcome-star-name">{f.name}</span>
+                        <kbd className="welcome-star-key" aria-hidden="true">
+                          {p.i + 1}
+                        </kbd>
+                      </button>
+                    );
+                  })}
+                </div>
               )}
             </nav>
 
