@@ -131,6 +131,7 @@ Ayaz is configured through a single JSON/JSONC file located at \`~/.config/ayaz/
 | \`statusline\` | \`"top" \| "bottom"\` | \`"top"\` | Status line position (in title bar or bottom row). |
 | \`sidebar\` | \`"left" \| "right"\` | \`"left"\` | Position of the file tree sidebar. |
 | \`fontSize\` | \`number\` | \`13\` | Editor and terminal font size in px (6–48). |
+| \`ligatures\` | \`boolean\` | \`true\` | Font ligatures in the editor (\`!=\`, \`:=\`, \`>=\`). The terminal is not affected. |
 | \`font\` | \`string\` | \`""\` | Monospace editor font family. Fallbacks include Nerd Font symbols. |
 | \`tabWidth\` | \`number\` | \`4\` | Tab / indentation width in spaces (1–16). |
 | \`tabs\` | \`boolean\` | \`false\` | Indent with tabs instead of spaces. |
