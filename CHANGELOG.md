@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.7.0](https://github.com/Mirac61/ayaz/compare/v0.6.0...v0.7.0) (2026-11-15)
+
+
+### Features
+
+* **editor:** add non-vim standard mode toggle and statusline mode badge ([#21](https://github.com/Mirac61/ayaz/issues/21)) ([43233ef](https://github.com/Mirac61/ayaz/commit/43233efc73a0aff2ff865a86849f50b7d48272d9))
+* **viewers:** add internal browser preview for html files ([#20](https://github.com/Mirac61/ayaz/issues/20)) ([43233ef](https://github.com/Mirac61/ayaz/commit/43233efc73a0aff2ff865a86849f50b7d48272d9))
+
+
+### Bug Fixes
+
+* address CodeRabbit review findings (preview base handling, workspace isolation, settings reload) ([43233ef](https://github.com/Mirac61/ayaz/commit/43233efc73a0aff2ff865a86849f50b7d48272d9))
+* **git:** show git's reason in error messages and test the error paths ([#22](https://github.com/Mirac61/ayaz/issues/22)) ([43233ef](https://github.com/Mirac61/ayaz/commit/43233efc73a0aff2ff865a86849f50b7d48272d9))
+
 ## [0.6.0](https://github.com/Mirac61/ayaz/compare/v0.5.0...v0.6.0) (2026-11-14)
 
 
