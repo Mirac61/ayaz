@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.2](https://github.com/Mirac61/ayaz/compare/v0.8.1...v0.8.2) (2026-11-15)
+
+
+### Bug Fixes
+
+* **ui:** statusline fields overlapped, flatten the project chip ([01129f1](https://github.com/Mirac61/ayaz/commit/01129f134a08b59b9103ccefd4b40cfdb2a72a98))
+* **ui:** statusline fields overlapped, flatten the project chip ([499fc16](https://github.com/Mirac61/ayaz/commit/499fc1646e4da1c7657a3e45ed62709ba5560d60))
+
 ## [0.8.1](https://github.com/Mirac61/ayaz/compare/v0.8.0...v0.8.1) (2026-11-15)
 
 
