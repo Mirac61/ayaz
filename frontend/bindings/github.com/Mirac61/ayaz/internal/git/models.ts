@@ -43,3 +43,21 @@ export interface FileStatus {
      */
     "unstaged": boolean;
 }
+
+/**
+ * Summary is what the start page shows about a recent folder.
+ */
+export interface Summary {
+    /**
+     * false: no git repository
+     */
+    "repo": boolean;
+    "branch": string;
+    "ahead": number;
+    "behind": number;
+
+    /**
+     * changed and untracked paths, relative to the repository
+     */
+    "changed": string[] | null;
+}

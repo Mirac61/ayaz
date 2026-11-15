@@ -1,18 +1,16 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { backend, type Info } from "../core/backend";
+import { backend, type Info, type Summary } from "../core/backend";
 import { defaultKeymap, isMac } from "../core/keymap";
 import { closeLsp } from "../editor/lsp";
 import { errText } from "./commands/context";
 import { rememberFolder, recentFolders } from "./folders";
 import { Picker, type PickerSource } from "./Picker";
-import { folderIcon } from "../theme/icons";
 import { setZoom, zoomLevel } from "./zoom";
 import { Workbench } from "./Workbench";
-import { stars } from "./constellation";
-import { AyazLogo } from "./AyazLogo";
+import { CHART, MAX_STARS, stars } from "./constellation";
+import { ago, branchText, changedNames, changesText, clip, sky } from "./startPage";
 import { DocsHub } from "./DocsHub";
 import { availableThemes, setThemeOverride, themeName } from "../core/settings";
-import { Folder, GitBranch, AppWindow, Palette, BookOpen, Search, type LucideIcon } from "lucide-react";
 
 interface GitHubItem {
   id: number;
@@ -37,7 +35,8 @@ const FIRST_KEYS: [keys: string[], what: string][] = [
   [[":w", ":q"], "Save, close"],
 ];
 
-const mod = (k: string) => (isMac ? `⌘${k}` : `Ctrl+${k}`);
+const SKY = sky();
+
 const shorten = (root: string) => root.replace(/^\/Users\/[^/]+/, "~").replace(/^\/home\/[^/]+/, "~");
 
 // Opens the folder from the command line (first window only), otherwise shows the start page.
@@ -60,6 +59,11 @@ export function Shell() {
   const [cloneUrl, setCloneUrl] = useState("");
   const [cloning, setCloning] = useState(false);
   const [initial, setInitial] = useState<string | undefined>(); // a file the next workbench opens first
+
+  const [sel, setSel] = useState(0); // the star the detail block shows
+  const [query, setQuery] = useState("");
+  const [info, setInfo] = useState<Record<string, Summary | null>>({}); // git state per recent folder, null: unreadable
+  const field = useRef<HTMLInputElement>(null);
 
   const [repo, setRepo] = useState("Mirac61/ayaz");
   const [issues, setIssues] = useState<GitHubItem[] | "loading" | "failed">("loading");
@@ -114,6 +118,12 @@ export function Shell() {
 
   useEffect(() => {
     void fetchIssues(repo);
+    for (const f of recentFolders().slice(0, MAX_STARS)) {
+      backend.folderSummary(f.root).then(
+        (v) => setInfo((m) => ({ ...m, [f.root]: v })),
+        () => setInfo((m) => ({ ...m, [f.root]: null })),
+      );
+    }
   }, []);
 
   const open = (root: string | null) => (root ? backend.openFolder(root) : backend.openFolderDialog());
@@ -166,19 +176,15 @@ export function Shell() {
 
   const recent = recentFolders();
   const chart = stars(recent.length);
-
-  const openRecentPicker = () =>
-    setPicker({
-      title: "Recent folders",
-      placeholder: "Filter folders",
-      async query(q) {
-        const ql = q.toLowerCase();
-        return recent
-          .map((f) => ({ label: f.name, hint: shorten(f.root), icon: folderIcon(false) }))
-          .filter((it) => !q || it.label.toLowerCase().includes(ql) || it.hint.toLowerCase().includes(ql));
-      },
-      pick: (it) => void pick(recent.find((f) => shorten(f.root) === it.hint)?.root ?? null),
-    });
+  const term = query.trim().toLowerCase();
+  const hit = chart.map((p) => !term || recent[p.i].name.toLowerCase().includes(term) || recent[p.i].root.toLowerCase().includes(term));
+  const cur = hit[sel] ? sel : hit.indexOf(true); // -1: nothing matches
+  const curFolder = recent[cur];
+  const curInfo = curFolder ? info[curFolder.root] : undefined;
+  const move = (d: number) => {
+    const hits = chart.filter((p) => hit[p.i]).map((p) => p.i);
+    if (hits.length) setSel(hits[(Math.max(0, hits.indexOf(cur)) + d + hits.length) % hits.length]);
+  };
 
   const openThemePicker = () =>
     setPicker({
@@ -195,18 +201,15 @@ export function Shell() {
     });
 
   // Single keys like a Neovim dashboard; they only act when no field has focus.
-  const tiles: { key: string; icon: LucideIcon; label: string; sub: string; run: () => void }[] = [
-    { key: "o", icon: Folder, label: "Open folder", sub: mod("O"), run: () => void pick(null) },
-    { key: "c", icon: GitBranch, label: "Clone repository", sub: "Git URL or owner/repo", run: () => setShowClone(true) },
-    { key: "n", icon: AppWindow, label: "New window", sub: mod(isMac ? "⇧N" : "Shift+N"), run: () => void backend.newWindow() },
-    { key: "t", icon: Palette, label: "Theme", sub: theme, run: openThemePicker },
-    { key: "?", icon: BookOpen, label: "Docs", sub: ":help", run: () => setShowDocs(true) },
+  const tiles: { key: string; label: string; sub?: string; run: () => void }[] = [
+    { key: "o", label: "Open folder", run: () => void pick(null) },
+    { key: "t", label: "Theme", sub: theme, run: openThemePicker },
+    { key: "c", label: "Clone repository", run: () => setShowClone(true) },
+    { key: "?", label: "Docs", run: () => setShowDocs(true) },
+    { key: "n", label: "New window", run: () => void backend.newWindow() },
+    { key: ",", label: "Settings", run: () => void backend.openSettings() },
   ];
-  const singleKeys: Record<string, () => void> = {
-    r: openRecentPicker,
-    ",": () => void backend.openSettings(),
-    ...Object.fromEntries(tiles.map((t) => [t.key, t.run])),
-  };
+  const singleKeys = Object.fromEntries(tiles.map((t) => [t.key, t.run]));
 
   const onKey = (e: React.KeyboardEvent) => {
     if (picker || showClone || showDocs) return;
@@ -220,9 +223,31 @@ export function Shell() {
       e.preventDefault();
       return void backend.newWindow();
     }
-    if (e.metaKey || e.ctrlKey || e.altKey || (e.target as HTMLElement).closest("input")) return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const typing = (e.target as HTMLElement).closest("input");
+    if (e.key === "ArrowDown" || (!typing && e.key === "j")) {
+      e.preventDefault();
+      return move(1);
+    }
+    if (e.key === "ArrowUp" || (!typing && e.key === "k")) {
+      e.preventDefault();
+      return move(-1);
+    }
+    if (typing) {
+      if (e.key === "Escape") {
+        setQuery("");
+        field.current?.blur();
+        focusPage();
+      } else if (e.key === "Enter" && e.target === field.current && curFolder) void pick(curFolder.root);
+      return;
+    }
     const num = Number(e.key);
-    if (num >= 1 && num <= 9 && recent[num - 1]) return void pick(recent[num - 1].root);
+    if (num >= 1 && num <= MAX_STARS && recent[num - 1]) return setSel(num - 1);
+    if (e.key === "Enter" && e.target === page.current && curFolder) return void pick(curFolder.root);
+    if (e.key === "r") {
+      e.preventDefault();
+      return field.current?.focus();
+    }
     const run = singleKeys[e.key];
     if (run) {
       e.preventDefault();
@@ -231,85 +256,51 @@ export function Shell() {
   };
 
   const issueList = Array.isArray(issues) ? issues : [];
+  const prs = issueList.filter((it) => it.isPR).length;
+  const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
 
   return (
     <div className="welcome" onKeyDown={onKey} tabIndex={-1} ref={focusOnMount}>
-      <div className="welcome-sky" aria-hidden="true" />
+      <svg className="welcome-sky" viewBox="0 0 1200 720" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        {SKY.map((d, i) => (
+          <circle key={i} cx={d.x} cy={d.y} r={d.r} fill={d.big ? "var(--star)" : "var(--fg-2)"} opacity={d.o} />
+        ))}
+      </svg>
       <div className="titlebar" />
 
       <div className="welcome-scroll">
-        <div className="welcome-page">
-          <header className="welcome-hero">
-            <AyazLogo size={88} variant="frost" className="welcome-crystal" />
-            <h1 className="welcome-title">ayaz</h1>
-            <p className="welcome-tagline">Clear as a frosty night. Neovim at heart, with a real terminal, Markdown and PDFs.</p>
-          </header>
+        <div className="start">
+          <div className="start-left">
+            <h1 className="start-word">ayaz</h1>
+            <p className="start-tag">Clear as a frosty night.</p>
 
-          <button type="button" className="welcome-launch" onClick={openRecentPicker}>
-            <Search size={15} className="welcome-launch-icon" aria-hidden="true" />
-            <span className="welcome-launch-text">Jump to a recent folder…</span>
-            <kbd aria-hidden="true">r</kbd>
-          </button>
+            <label className="start-ask">
+              <input
+                ref={field}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Find a folder"
+                aria-label="Find a folder"
+                autoComplete="off"
+                spellCheck={false}
+              />
+              <kbd aria-hidden="true">r</kbd>
+            </label>
 
-          {err && <div className="welcome-err">{err}</div>}
+            {err && <div className="welcome-err">{err}</div>}
 
-          <section className="welcome-tiles" aria-label="Start">
-            {tiles.map((t) => {
-              const Icon = t.icon;
-              return (
-                <button key={t.key} type="button" className="welcome-tile" onClick={t.run}>
-                  <span className="welcome-tile-icon" aria-hidden="true">
-                    <Icon size={16} />
-                  </span>
-                  <span className="welcome-tile-label">{t.label}</span>
-                  <span className="welcome-tile-sub">{t.sub}</span>
-                  <kbd className="welcome-tile-key" aria-hidden="true">
-                    {t.key}
-                  </kbd>
+            <section className="start-acts" aria-label="Start">
+              {tiles.map((t) => (
+                <button key={t.key} type="button" className="start-act" onClick={t.run}>
+                  <kbd aria-hidden="true">{t.key}</kbd>
+                  {t.label}
+                  {t.sub && <small>{t.sub}</small>}
                 </button>
-              );
-            })}
-          </section>
+              ))}
+            </section>
 
-          <div className="welcome-panels">
-            <nav className="welcome-panel" aria-label="Recent folders">
-              <h2 className="welcome-panel-head">
-                <span>Recent</span>
-                {recent.length > 9 && <span className="welcome-panel-meta">{recent.length} folders</span>}
-              </h2>
-              {recent.length === 0 ? (
-                <p className="welcome-empty">Nothing here yet. Press o to open a folder.</p>
-              ) : (
-                <div className="welcome-chart">
-                  <svg className="welcome-chart-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polyline points={chart.map((p) => `${p.x},${p.y}`).join(" ")} vectorEffect="non-scaling-stroke" />
-                  </svg>
-                  {chart.map((p) => {
-                    const f = recent[p.i];
-                    return (
-                      <button
-                        key={f.root}
-                        type="button"
-                        className={`welcome-star ${p.side}`}
-                        style={{ left: `${p.x}%`, top: `${p.y}%`, "--size": `${p.size}px`, "--lit": p.opacity } as React.CSSProperties}
-                        onClick={() => void pick(f.root)}
-                        title={shorten(f.root)}
-                      >
-                        <span className="welcome-star-dot" aria-hidden="true" />
-                        <span className="welcome-star-name">{f.name}</span>
-                        <kbd className="welcome-star-key" aria-hidden="true">
-                          {p.i + 1}
-                        </kbd>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </nav>
-
-            <section className="welcome-panel" aria-label="Issues">
-              <h2 className="welcome-panel-head">
-                <span>Open issues</span>
+            <section aria-label="Issues">
+              <div className="start-gh">
                 <input
                   className="welcome-repo"
                   value={repo}
@@ -318,7 +309,12 @@ export function Shell() {
                   aria-label="GitHub repository (owner/repo), Enter to load"
                   spellCheck={false}
                 />
-              </h2>
+                {Array.isArray(issues) && issueList.length > 0 && (
+                  <span>
+                    {plural(issueList.length - prs, "issue")}, {plural(prs, "pull request")}
+                  </span>
+                )}
+              </div>
               {issues === "loading" && <p className="welcome-empty">Loading…</p>}
               {issues === "failed" && <p className="welcome-empty">Couldn't reach GitHub. Press Enter in the field to retry.</p>}
               {Array.isArray(issues) && issueList.length === 0 && <p className="welcome-empty">Nothing open. Enjoy the quiet.</p>}
@@ -326,38 +322,132 @@ export function Shell() {
                 <button
                   key={it.id}
                   type="button"
-                  className="welcome-row"
+                  className={`start-iss ${it.isPR ? "pr" : ""}`}
                   onClick={() => void backend.openURL(it.url)}
                   title={`Open ${it.isPR ? "pull request" : "issue"} #${it.number} in the browser`}
                 >
-                  <span className={`welcome-glyph welcome-issue-icon ${it.isPR ? "pr" : ""}`} aria-hidden="true">
-                    {it.isPR ? "" : ""}
-                  </span>
-                  <span className="welcome-row-text">
-                    <span className="welcome-row-main">{it.title}</span>
-                    <span className="welcome-row-path">
-                      #{it.number} · {it.updatedAt}
-                    </span>
-                  </span>
+                  {it.isPR ? (
+                    <svg viewBox="0 0 16 16" aria-hidden="true">
+                      <circle cx="4" cy="4" r="1.6" />
+                      <circle cx="4" cy="12" r="1.6" />
+                      <circle cx="12" cy="12" r="1.6" />
+                      <path d="M4 5.6v4.8M12 10.4V7a2 2 0 0 0-2-2H8" />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 16 16" aria-hidden="true">
+                      <circle cx="8" cy="8" r="5.5" />
+                      <circle cx="8" cy="8" r="1" fill="currentColor" />
+                    </svg>
+                  )}
+                  <span>{it.title}</span>
+                  <small>
+                    #{it.number} {it.updatedAt}
+                  </small>
                 </button>
               ))}
             </section>
           </div>
 
-          <footer className="welcome-keys" aria-label="Keys" role="region">
-            {FIRST_KEYS.map(([keys, what]) => (
-              <span key={what} className="welcome-key">
-                <kbd>{keys[0]}</kbd>
-                <span>{what}</span>
-              </span>
-            ))}
-            <button type="button" className="welcome-key welcome-settings" onClick={() => void backend.openSettings()}>
-              <kbd>{mod(",")}</kbd>
-              <span>Settings</span>
-            </button>
-          </footer>
+          <nav className="start-map" aria-label="Recent folders">
+            {recent.length === 0 ? (
+              <div className="start-none">
+                <p>No folders yet.</p>
+                <p>Open one and it becomes the first star here.</p>
+              </div>
+            ) : (
+              <>
+                <svg viewBox={`0 0 ${CHART.w} ${CHART.h}`}>
+                  <polyline points={chart.map((p) => `${p.x},${p.y}`).join(" ")} opacity={term ? 0.3 : 1} />
+                  {chart.map((p) => {
+                    const f = recent[p.i];
+                    const on = p.i === cur;
+                    const dirty = (info[f.root]?.changed?.length ?? 0) > 0;
+                    return (
+                      <g
+                        key={f.root}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={f.name}
+                        className={on ? "on" : ""}
+                        opacity={hit[p.i] ? 1 : 0.16}
+                        onClick={() => void pick(f.root)}
+                        onMouseEnter={() => setSel(p.i)}
+                        onFocus={() => setSel(p.i)}
+                        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), void pick(f.root))}
+                      >
+                        <title>{shorten(f.root)}</title>
+                        <circle cx={p.x} cy={p.y} r="20" fill="transparent" />
+                        {on ? (
+                          <>
+                            <circle cx={p.x} cy={p.y} r="20" className="halo" />
+                            <path className="star" transform={`translate(${p.x} ${p.y}) scale(1.4)`} d="M0-8 1.7-1.7 8 0 1.7 1.7 0 8-1.7 1.7-8 0-1.7-1.7Z" />
+                          </>
+                        ) : (
+                          <circle cx={p.x} cy={p.y} r={p.r} className="dot" opacity={p.opacity} />
+                        )}
+                        {dirty && <circle cx={p.x} cy={p.y} r={on ? 15 : p.r + 4.5} className="ring" opacity={on ? 0.7 : 1} />}
+                        <text x={p.x + p.dx} y={p.y + p.dy} textAnchor={p.end ? "end" : "start"} className="nm">
+                          {clip(f.name)}
+                          <tspan className="ky" dx="6">
+                            {p.i + 1}
+                          </tspan>
+                        </text>
+                      </g>
+                    );
+                  })}
+                </svg>
+                <p className="start-leg">Brighter was opened more recently. A ring means uncommitted changes.</p>
+                {curFolder && (
+                  <div className="start-det">
+                    <div>
+                      <h3>{curFolder.name}</h3>
+                      <div className="pth">{shorten(curFolder.root)}</div>
+                    </div>
+                    <span className="go">
+                      <kbd>Enter</kbd> opens it
+                    </span>
+                    <dl>
+                      {curInfo && (
+                        <>
+                          <dt>Branch</dt>
+                          <dd>{branchText(curInfo)}</dd>
+                          {curInfo.repo && (
+                            <>
+                              <dt>Changes</dt>
+                              <dd>{changesText(curInfo)}</dd>
+                            </>
+                          )}
+                        </>
+                      )}
+                      {curFolder.at && (
+                        <>
+                          <dt>Opened</dt>
+                          <dd>{ago(curFolder.at)}</dd>
+                        </>
+                      )}
+                      {(curInfo?.changed?.length ?? 0) > 0 && (
+                        <>
+                          <dt>Files</dt>
+                          <dd>{changedNames(curInfo!)}</dd>
+                        </>
+                      )}
+                    </dl>
+                  </div>
+                )}
+              </>
+            )}
+          </nav>
         </div>
       </div>
+
+      <footer className="welcome-keys" aria-label="Keys" role="region">
+        {FIRST_KEYS.map(([keys, what]) => (
+          <span key={what} className="welcome-key">
+            <kbd>{keys[0]}</kbd>
+            <span>{what}</span>
+          </span>
+        ))}
+      </footer>
 
       {showClone && (
         <div className="picker-backdrop" onClick={() => !cloning && closeClone()}>

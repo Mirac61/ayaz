@@ -255,3 +255,34 @@ func TestApplyHunkStagesAndUnstages(t *testing.T) {
 }
 
 func contains(s, sub string) bool { return strings.Contains(s, sub) }
+
+func TestSummarize(t *testing.T) {
+	root := repo(t)
+	s, err := Summarize(root)
+	if err != nil || !s.Repo || s.Branch != "main" || len(s.Changed) != 0 {
+		t.Fatalf("clean repo: %+v, %v", s, err)
+	}
+	write(t, filepath.Join(root, "a.txt"), "changed\n")
+	write(t, filepath.Join(root, "new.txt"), "n\n")
+	if s, _ = Summarize(root); len(s.Changed) != 2 {
+		t.Errorf("changed = %v, want a.txt and new.txt", s.Changed)
+	}
+	if s, _ = Summarize(t.TempDir()); s.Repo {
+		t.Error("a plain folder is no repository")
+	}
+}
+
+func TestParseHeader(t *testing.T) {
+	for in, want := range map[string][3]any{
+		"main":                                 {"main", 0, 0},
+		"dev...origin/dev [ahead 2, behind 1]": {"dev", 2, 1},
+		"dev...origin/dev [behind 3]":          {"dev", 0, 3},
+		"No commits yet on main":               {"main", 0, 0},
+		"HEAD (no branch)":                     {"", 0, 0},
+	} {
+		b, a, bh := parseHeader(in)
+		if b != want[0] || a != want[1] || bh != want[2] {
+			t.Errorf("parseHeader(%q) = %q %d %d, want %v", in, b, a, bh, want)
+		}
+	}
+}
