@@ -1673,6 +1673,12 @@
   width: min(480px, 100%);
 }
 
+/* Hierarchy: the title leads, the field you type in is next, everything else is quiet. */
+.welcome-modal .picker-title {
+  font: 600 15px/1 var(--font-sans);
+  color: var(--fg-1);
+}
+
 .welcome-modal-close {
   margin-left: auto;
   background: transparent;
@@ -1694,15 +1700,15 @@
 }
 
 .welcome-modal-label {
-  font: 500 12px/1 var(--font-sans);
-  color: var(--fg-2);
+  font: 400 12px/1 var(--font-sans);
+  color: var(--fg-3);
 }
 
 .welcome-modal-input {
-  height: 32px;
+  height: 36px;
   padding: 0 10px;
-  background: var(--bg-2);
-  border: 1px solid var(--edge);
+  background: color-mix(in srgb, var(--fg-1) 4%, transparent);
+  border: 1px solid var(--edge-overlay);
   border-radius: var(--radius-sm, 4px);
   color: var(--fg-1);
   font: 12px/1 var(--font-mono);
@@ -1710,7 +1716,7 @@
 }
 
 .welcome-modal-input:focus {
-  border-color: var(--accent);
+  border-color: var(--fg-3);
 }
 
 .welcome-modal-loading {
@@ -1754,8 +1760,9 @@
 }
 
 .welcome-btn.secondary {
-  background: var(--bg-2);
-  color: var(--fg-2);
+  background: none;
+  border-color: transparent;
+  color: var(--fg-3);
 }
 
 .welcome-btn.secondary:hover:not(:disabled) {
@@ -1764,8 +1771,8 @@
 }
 
 .welcome-btn.primary {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--fg-1);
+  border-color: var(--fg-1);
   color: var(--bg-0);
   font-weight: 600;
 }
