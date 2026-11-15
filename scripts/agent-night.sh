@@ -32,7 +32,12 @@ for TARGET_ID in $TODO_IDS; do
     break
   fi
 
+  # Status can change after the snapshot above; skip tasks that are no longer TODO.
   TASK_JSON=$(waypoint -p --json | jq -c ".tasks[] | select(.id==\"$TARGET_ID\" and .status==\"TODO\")")
+  if [ -z "$TASK_JSON" ]; then
+    echo "Task #$TARGET_ID ist nicht mehr TODO, überspringe."
+    continue
+  fi
   TASK_TITLE=$(echo "$TASK_JSON" | jq -r '.title')
   echo "---> Starte Task #$TARGET_ID: $TASK_TITLE"
 
@@ -152,16 +157,12 @@ $(cat "$REPO_ROOT/prompts/runner.md")"
 
   # FALL B: Alles grün -> Commit, Push & PR
   CLEAN_TITLE=$(echo "$TASK_TITLE" | sed -E 's/^\[[^]]+\] *//')
-  git commit -m "feat: $CLEAN_TITLE [task $TARGET_ID]" -m "AI-Assisted: Claude Code"
+  git commit -m "feat: $CLEAN_TITLE [task $TARGET_ID]" -m "Co-Authored-By: Claude <noreply@anthropic.com>"
   git push -u origin "$BRANCH_NAME"
-
-  # Label 'ai-generated' anlegen falls es noch nicht existiert
-  gh label create "ai-generated" --color "0E8A16" --description "Autonomous agent PR" 2>/dev/null || true
 
   gh pr create \
     --base dev \
     --head "$BRANCH_NAME" \
-    --label "ai-generated" \
     --title "feat: $CLEAN_TITLE [#$TARGET_ID]" \
     --body-file "$PR_BODY_FILE"
 

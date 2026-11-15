@@ -22,8 +22,8 @@ fi
 echo ""
 echo "📦 OFFENE AGENT-PRs ZUM REVIEWEN:"
 echo "------------------------------------------"
-PR_LIST=$(gh pr list --label "ai-generated" --state open --json number,title,additions,deletions,headRefName \
-  --template '{{range .}}PR #{{.number}} ({{.headRefName}}): {{.title}} [✨ +{{.additions}} / -{{.deletions}} Zeilen]{{"\n"}}{{end}}')
+PR_LIST=$(gh pr list --state open --json number,title,additions,deletions,headRefName \
+  --jq '.[] | select(.headRefName | startswith("feat/task-")) | "PR #\(.number) (\(.headRefName)): \(.title) [✨ +\(.additions) / -\(.deletions) Zeilen]"')
 
 if [ -z "$PR_LIST" ]; then
   echo "Keine offenen PRs."

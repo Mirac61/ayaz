@@ -147,6 +147,9 @@ func TestRegistry(t *testing.T) {
 	if got, _ := r.Get(w.ID); got != w {
 		t.Fatal("Get after Open")
 	}
+	if w2, _ := r.Open(t.TempDir()); w2.ID == w.ID || len(w.ID) < 20 {
+		t.Fatalf("IDs must be unique and unguessable: %q %q", w.ID, w2.ID)
+	}
 	if _, err := r.Get("nope"); !errors.Is(err, ErrUnknown) {
 		t.Fatalf("Get(nope) = %v", err)
 	}
