@@ -1,6 +1,34 @@
 import { describe, expect, test } from "vitest";
 import type { FileStatus } from "../../bindings/github.com/Mirac61/ayaz/internal/git";
+import { createElement } from "react";
+import { renderToString } from "react-dom/server";
+import { GitChanges } from "./GitChanges";
 import { GIT_BADGE } from "./Tree";
+
+describe("GitChanges remote toolbar and commit field", () => {
+  test("uses English tooltips, a short placeholder and a labelled fetch button", () => {
+    const noop = async () => {};
+    const html = renderToString(
+      createElement(GitChanges, {
+        status: {},
+        branch: "main",
+        onOpen: noop,
+        onDiff: noop,
+        onLeave: noop,
+        onLazygit: noop,
+        onCommit: noop,
+        onPush: noop,
+        onPull: noop,
+        onFetch: noop,
+      }),
+    );
+    expect(html).toContain('title="Push commits to the remote"');
+    expect(html).toContain('title="Pull changes from the remote"');
+    expect(html).toContain('title="Fetch remote refs"');
+    expect(html).toContain('aria-label="Fetch"');
+    expect(html).toContain('placeholder="Commit message"');
+  });
+});
 
 describe("GitChanges data handling", () => {
   test("filters out ignored files and maps git status codes to badges", () => {
