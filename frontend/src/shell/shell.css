@@ -1534,6 +1534,70 @@
   font-weight: 400;
   color: var(--fg-4);
 }
+/* Recent folders as a star chart (positions in constellation.ts). */
+.welcome-chart {
+  position: relative;
+  height: 280px;
+  margin: 4px 16px 8px;
+}
+.welcome-chart-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.welcome-chart-lines polyline {
+  fill: none;
+  stroke: var(--accent);
+  stroke-opacity: 0.22;
+  stroke-width: 1;
+}
+.welcome-star {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px;
+  background: none;
+  border: 0;
+  border-radius: 6px;
+  color: var(--fg-2);
+  font: 400 var(--text-md) var(--font-ui);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.welcome-star.left {
+  flex-direction: row-reverse;
+  transform: translate(-100%, -50%) translateX(10px);
+}
+.welcome-star.right {
+  transform: translate(-10px, -50%);
+}
+.welcome-star-dot {
+  flex: none;
+  width: var(--size);
+  height: var(--size);
+  border-radius: 50%;
+  background: var(--fg-1);
+  opacity: var(--lit);
+}
+.welcome-star-key {
+  font: 500 var(--text-md) var(--font-ui);
+  font-style: italic;
+  color: var(--status-terminal);
+}
+.welcome-star:hover,
+.welcome-star:focus-visible {
+  outline: none;
+  color: var(--fg-1);
+}
+.welcome-star:hover .welcome-star-dot,
+.welcome-star:focus-visible .welcome-star-dot {
+  opacity: 1;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--fg-1) 12%, transparent);
+}
 .welcome-row {
   display: flex;
   align-items: center;
