@@ -656,6 +656,7 @@
   gap: 4px;
   height: 22px;
   padding: 0 6px;
+  white-space: nowrap;
   font: 600 10.5px/1 var(--font-mono);
   color: var(--fg-2);
   background: var(--bg-2);
@@ -673,7 +674,7 @@
   border-color: color-mix(in srgb, var(--accent) 40%, var(--edge));
 }
 .git-remote-btn:active:not(:disabled) {
-  background: var(--bg-active);
+  background: var(--bg-3);
 }
 .git-remote-btn:disabled {
   opacity: 0.5;
