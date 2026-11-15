@@ -81,7 +81,7 @@ test("breakpoints: toggled with <Space>db, kept in the session", async ({ page }
     const k = Object.keys(localStorage).find((x) => x.startsWith("ayaz.session:"));
     return JSON.stringify(k ? JSON.parse(localStorage.getItem(k)!).breakpoints : null);
   });
-  await expect.poll(saved).toBe('{"hello.go":[6]}'); // saved at most 500 ms after the change
+  await expect.poll(saved).toBe('{"hello.go":[{"line":6}]}'); // saved at most 500 ms after the change
 
   await page.reload();
   await expect(page.locator(".cm-content")).toContainText("func hello");
