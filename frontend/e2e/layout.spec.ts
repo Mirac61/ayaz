@@ -30,7 +30,7 @@ test("drag a split border, <C-w>=, panel height and maximize", async ({ page }) 
 
   await page.keyboard.type(" t");
   const panel = page.locator(".panel");
-  await expect(page.locator(".statusline")).toContainText("terminal");
+  await expect(page.locator(".statusline")).toContainText("TERM");
   const before = (await box(panel)).height;
   await drag(page, panel.locator("> .resize"), 0, -150);
   const after = (await box(panel)).height;
@@ -48,7 +48,7 @@ test("drag a split border, <C-w>=, panel height and maximize", async ({ page }) 
   await page.reload();
   await expect(page.getByRole("tree", { name: "Files" })).toBeFocused();
   await page.keyboard.type(" t");
-  await expect(page.locator(".statusline")).toContainText("terminal");
+  await expect(page.locator(".statusline")).toContainText("TERM");
   expect(Math.abs((await box(panel)).height - after)).toBeLessThan(2);
 });
 
