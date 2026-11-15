@@ -3,13 +3,13 @@
 export const SLOTS = [
   { x: 12, y: 17, side: "right" },
   { x: 35, y: 34, side: "right" },
-  { x: 17, y: 57, side: "left" },
+  { x: 24, y: 57, side: "left" },
   { x: 50, y: 66, side: "right" },
-  { x: 68, y: 24, side: "right" },
-  { x: 82, y: 50, side: "right" },
-  { x: 70, y: 84, side: "right" },
+  { x: 62, y: 22, side: "right" },
+  { x: 70, y: 50, side: "right" },
+  { x: 66, y: 82, side: "right" },
   { x: 39, y: 90, side: "right" },
-  { x: 14, y: 83, side: "left" },
+  { x: 22, y: 83, side: "left" },
 ] as const;
 
 export const MAX_STARS = SLOTS.length;
