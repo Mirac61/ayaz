@@ -12,3 +12,13 @@ test('the vim toggle holds across settings saves until settings.json changes "vi
   loadSettings('{"vim": true}');
   expect(isVim()).toBe(true); // the setting takes effect again instead of the old toggle
 });
+
+test('"ligatures" sets --editor-ligatures', () => {
+  const ligatures = () => document.documentElement.style.getPropertyValue("--editor-ligatures");
+  loadSettings('{"ligatures": false}');
+  expect(ligatures()).toBe("none");
+  loadSettings('{"ligatures": true}');
+  expect(ligatures()).toBe("normal");
+  loadSettings("");
+  expect(ligatures()).toBe("normal");
+});

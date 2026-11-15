@@ -383,6 +383,9 @@ export const GitChanges: React.FC<Props> = ({
             <button
               type="button"
               className="git-remote-btn"
+              data-glyph={"\ueaa1"}
+              aria-label="Push"
+              aria-busy={busyRemote === "push"}
               disabled={busyRemote !== null}
               onClick={async () => {
                 setBusyRemote("push");
@@ -392,15 +395,16 @@ export const GitChanges: React.FC<Props> = ({
                   setBusyRemote(null);
                 }
               }}
-              title="Git Push: Lokale Commits auf Remote übertragen"
-            >
-              {busyRemote === "push" ? "⇡…" : "⇡ Push"}
-            </button>
+              title="Push commits to the remote"
+            />
           )}
           {onPull && (
             <button
               type="button"
               className="git-remote-btn"
+              data-glyph={"\uea9a"}
+              aria-label="Pull"
+              aria-busy={busyRemote === "pull"}
               disabled={busyRemote !== null}
               onClick={async () => {
                 setBusyRemote("pull");
@@ -410,15 +414,16 @@ export const GitChanges: React.FC<Props> = ({
                   setBusyRemote(null);
                 }
               }}
-              title="Git Pull: Änderungen von Remote holen"
-            >
-              {busyRemote === "pull" ? "⇣…" : "⇣ Pull"}
-            </button>
+              title="Pull changes from the remote"
+            />
           )}
           {onFetch && (
             <button
               type="button"
-              className="git-remote-btn icon-only"
+              className="git-remote-btn"
+              data-glyph={"\uea77"}
+              aria-label="Fetch"
+              aria-busy={busyRemote === "fetch"}
               disabled={busyRemote !== null}
               onClick={async () => {
                 setBusyRemote("fetch");
@@ -428,10 +433,8 @@ export const GitChanges: React.FC<Props> = ({
                   setBusyRemote(null);
                 }
               }}
-              title="Git Fetch: Remote-Refs abrufen"
-            >
-              {busyRemote === "fetch" ? "⟳…" : "⟳"}
-            </button>
+              title="Fetch remote refs"
+            />
           )}
         </div>
       </div>
@@ -441,11 +444,7 @@ export const GitChanges: React.FC<Props> = ({
           <textarea
             ref={commitInputRef}
             className="git-commit-input"
-            placeholder={
-              stagedItems.length > 0
-                ? "Commit message (Ctrl+Enter to commit)..."
-                : "Commit message (stage changes first)..."
-            }
+            placeholder="Commit message"
             value={commitMsg}
             onChange={(e) => setCommitMsg(e.target.value)}
             onKeyDown={(e) => {

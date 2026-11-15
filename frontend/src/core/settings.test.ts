@@ -42,6 +42,12 @@ test("inlayHints: off by default, a boolean", () => {
   expect(() => parseSettings('{"inlayHints": 1}')).toThrow(/"inlayHints" must be a boolean/);
 });
 
+test("ligatures: on by default, a boolean", () => {
+  expect(parseSettings("{}").ligatures).toBe(true);
+  expect(parseSettings('{"ligatures": false}').ligatures).toBe(false);
+  expect(() => parseSettings('{"ligatures": "no"}')).toThrow('settings.json: "ligatures" must be a boolean');
+});
+
 test("terminalFontSize: optional, same range as fontSize", () => {
   expect(DEFAULTS.terminalFontSize).toBeUndefined();
   expect(parseSettings('{"terminalFontSize": 15}').terminalFontSize).toBe(15);
