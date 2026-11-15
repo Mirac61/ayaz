@@ -5,7 +5,7 @@ import type { Command } from "../../core/commands";
 import { availableThemes, setThemeOverride, themeName, toggleGlass } from "../../core/settings";
 import { LIMIT } from "./context";
 import { SKINS, setSkin, skin } from "../../editor/mdrender";
-import { BROWSER } from "../../core/viewers";
+import { BROWSER, PREVIEW } from "../../core/viewers";
 import { localUrl } from "../../viewers/browser";
 import { toggleDiagText } from "../diagText";
 import { setZoom, zoomLevel, ZOOM_STEP } from "../zoom";
@@ -72,11 +72,40 @@ export function viewCommands({ ed, say, fail, setPicker }: Ctx): Command[] {
       run: () => say(toggleDiagText() ? "Diagnostic text on" : "Diagnostic text off"),
     },
     {
+      id: "editor.toggleVim",
+      title: "Toggle Vim mode (modal / standard)",
+      run() {
+        const on = ed.toggleVim();
+        say(on ? "Vim mode enabled (◈ NORMAL)" : "Standard mode enabled (◇ STANDARD)");
+      },
+    },
+    {
       id: "browser.open",
-      title: "Browser tab for a local page (:browse 3000)",
+      title: "Browser tab for a local page or HTML file (:browse 3000)",
       async run(arg) {
-        const url = localUrl(arg?.trim() || lastBrowse);
-        if (!url) return fail("Only local addresses: localhost, 127.0.0.1, [::1]");
+        const text = arg?.trim();
+        if (text) {
+          const url = localUrl(text);
+          if (url) {
+            lastBrowse = url.slice(url.indexOf("//") + 2);
+            return ed.open(`${BROWSER}${lastBrowse}`).catch((e) => fail(e instanceof Error ? e.message : String(e)));
+          }
+          if (/\.(html|htm)$/i.test(text)) {
+            return ed.open(PREVIEW + text.replace(/^\.\//, "")).catch((e) => fail(e instanceof Error ? e.message : String(e)));
+          }
+          return fail("Only local addresses (localhost:3000) or .html files");
+        }
+
+        const cur = ed.currentTab(ed.active);
+        if (cur?.startsWith(BROWSER) || cur?.startsWith(PREVIEW)) {
+          return ed.open(cur).catch((e) => fail(e instanceof Error ? e.message : String(e)));
+        }
+        if (cur && /\.(html|htm)$/i.test(cur)) {
+          return ed.open(PREVIEW + cur).catch((e) => fail(e instanceof Error ? e.message : String(e)));
+        }
+
+        const url = localUrl(lastBrowse);
+        if (!url) return fail("Only local addresses (localhost:3000) or .html files");
         lastBrowse = url.slice(url.indexOf("//") + 2);
         await ed.open(`${BROWSER}${lastBrowse}`).catch((e) => fail(e instanceof Error ? e.message : String(e)));
       },
@@ -89,8 +118,8 @@ export function viewCommands({ ed, say, fail, setPicker }: Ctx): Command[] {
     { id: "nav.forward", title: "Forward to the next file", run: async () => { if (!(await ed.nav(1))) fail("At the end"); } },
     {
       id: "md.reading",
-      title: "Toggle rendered view and source (Markdown, SVG)",
-      run: () => { if (!ed.toggleRendered()) fail("Rendered view is for Markdown and SVG files"); },
+      title: "Toggle rendered view and source (Markdown, SVG, HTML)",
+      run: () => { if (!ed.toggleRendered()) fail("Rendered view is for Markdown, SVG and HTML files"); },
     },
     {
       id: "md.outline",

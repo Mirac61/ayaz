@@ -104,6 +104,8 @@ export function defaultKeymap(mac = isMac): Binding[] {
     n("<Space>ub", "git.toggleInlineBlame"),
     n("<Space>uz", "view.zen"),
     n("<Space>us", "view.spellcheck"),
+    n("<Space>uv", "editor.toggleVim"),
+    g(`<${mac ? "D" : "C"}-S-m>`, "editor.toggleVim"), // <Space>uv needs Vim mode in the editor; this works in Standard too
     n("<Space>t", "term.panel"),
     n("<Space>tp", "term.panel"),
     n("<Space>tt", "term.tab"),

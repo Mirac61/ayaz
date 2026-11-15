@@ -1,7 +1,7 @@
 import { Compartment, EditorState, type Extension, type Text } from "@codemirror/state";
 import {
   EditorView, GutterMarker, drawSelection, gutter, highlightActiveLine, highlightActiveLineGutter,
-  highlightSpecialChars, keymap,
+  highlightSpecialChars, keymap, lineNumbers,
 } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { bracketMatching, codeFolding, indentOnInput, indentUnit } from "@codemirror/language";
@@ -27,7 +27,7 @@ import { diagnosticText } from "./diagtext";
 import { editorConfigIndent } from "../core/editorconfig";
 import { detectIndent, INDENT_SAMPLE } from "../core/indent";
 import { isVirtual } from "../core/buffers";
-import { fileSettings } from "../core/settings";
+import { fileSettings, isVim } from "../core/settings";
 
 class Num extends GutterMarker {
   constructor(readonly text: string) { super(); }
@@ -49,11 +49,16 @@ const hybridLineNumbers = gutter({
   updateSpacer: (_, u) => new Num(String(u.state.doc.lines)),
 });
 
-// vim() goes first so its keymap wins over the defaults.
+export const vimCompartment = new Compartment();
+export const lineNumbersCompartment = new Compartment();
+
+export const vimExtensions = (on = isVim()): Extension => (on ? [vim(), EditorState.allowMultipleSelections.of(true)] : []);
+export const lineNumbersExtension = (on = isVim()): Extension => (on ? hybridLineNumbers : lineNumbers());
+
+// vim() goes first so its keymap wins over the defaults when enabled.
 export const editorExtensions = (): Extension[] => [
-  vim(),
-  EditorState.allowMultipleSelections.of(true), // vim's block mode is built on multiple selections
-  hybridLineNumbers,
+  vimCompartment.of(vimExtensions()),
+  lineNumbersCompartment.of(lineNumbersExtension()),
   breakpointGutter,
   gitGutter,
   highlightActiveLineGutter(),
@@ -107,6 +112,8 @@ function indentFor(path: string | null, sample = ""): Extension {
 export const settingsEffects = (path: string | null, doc?: Text) => [
   indenting.reconfigure(indentFor(path, doc?.sliceString(0, INDENT_SAMPLE))),
   wrapping.reconfigure(wrapFor(path) ? EditorView.lineWrapping : []),
+  vimCompartment.reconfigure(vimExtensions()),
+  lineNumbersCompartment.reconfigure(lineNumbersExtension()),
 ];
 
 // Builds the state for a file, with its language loaded first so highlighting is there on the first frame.

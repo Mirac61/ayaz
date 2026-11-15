@@ -36,7 +36,7 @@ import { header } from "../editor/sticky";
 import { Waits } from "./waits";
 import { UndoSteps } from "./undoSteps";
 import { HiddenTerms } from "./terminals";
-import { settings } from "../core/settings";
+import { isVim, settings, toggleVim } from "../core/settings";
 import { extOf } from "../lang/registry";
 import { DOCS, docText } from "../docs/docsData";
 
@@ -103,6 +103,7 @@ export class Editors {
   private hidden = new HiddenTerms();
   private terms = 0; // numbers the terminals: "shell 1", "lazygit 2"
   private lastEdits = new Map<string, number>(); // path → timestamp in ms when buffer was last modified
+  private sourceOpened = new Set<string>(); // paths that have been displayed in an editor at least once
   onTermExit: (id: number) => void = () => {}; // the shell in split pane id ended, or its last tab closed: the pane closes (the panel passes its own onExit)
   onPlus: (at: DOMRect, id: number) => void = () => {}; // the + in pane id's tab bar, at the button
   onTabMenu: (at: { x: number; y: number }, path: string, id: number) => void = () => {}; // right click on a tab
@@ -309,8 +310,9 @@ export class Editors {
   // The button at the top right of a Markdown or SVG pane: rendered view and source.
   private renderToggle(id: number, p: Pane) {
     const path = this.currentTab(id) ?? "";
+    const clean = path.startsWith(PREVIEW) ? path.slice(PREVIEW.length) : path;
     let btn = p.el.querySelector<HTMLElement>(":scope > .render-toggle");
-    if (!/\.(md|svg)$/.test(path)) return void btn?.remove();
+    if (!/\.(md|svg|html|htm)$/.test(clean)) return void btn?.remove();
     if (btn) return;
     btn = Object.assign(document.createElement("button"), {
       type: "button", className: "render-toggle", title: "Rendered view / source",
@@ -354,7 +356,8 @@ export class Editors {
     bar.replaceChildren(...list.map((path) => {
       const term = isTermTab(path);
       const web = path.startsWith(BROWSER);
-      const active = path === cur, slash = term || web ? -1 : path.lastIndexOf("/");
+      const isPreview = path.startsWith(PREVIEW);
+      const active = path === cur, slash = term || web || isPreview ? -1 : path.lastIndexOf("/");
       const t = document.createElement("button");
       t.type = "button";
       t.className = active ? "tab active" : "tab";
@@ -363,12 +366,18 @@ export class Editors {
       t.title = path;
       const name = Object.assign(document.createElement("span"), { className: "tab-name" });
       const isHead = path.startsWith("head://");
-      const real = isHead ? path.slice("head://".length) : path;
-      const headSlash = isHead ? real.lastIndexOf("/") : slash;
+      const real = isHead ? path.slice("head://".length) : isPreview ? path.slice(PREVIEW.length) : path;
+      const headSlash = isHead || isPreview ? real.lastIndexOf("/") : slash;
       if (isHead) {
         const badge = document.createElement("span");
         badge.className = "tab-head-badge";
         badge.textContent = "HEAD";
+        const base = Object.assign(document.createElement("span"), { className: "base", textContent: real.slice(headSlash + 1) });
+        name.append(badge, base);
+      } else if (isPreview) {
+        const badge = document.createElement("span");
+        badge.className = "tab-preview-badge";
+        badge.textContent = "BROWSER";
         const base = Object.assign(document.createElement("span"), { className: "base", textContent: real.slice(headSlash + 1) });
         name.append(badge, base);
       } else if (active && slash >= 0) {
@@ -378,7 +387,7 @@ export class Editors {
         const base = Object.assign(document.createElement("span"), { className: "base", textContent: path.slice(slash + 1) });
         name.append(dir, base);
       } else {
-        name.textContent = term ? path.slice(TERM.length) : web ? path.slice(BROWSER.length) : path.slice(slash + 1);
+        name.textContent = term ? path.slice(TERM.length) : web ? path.slice(BROWSER.length) : isPreview ? real.slice(headSlash + 1) : path.slice(slash + 1);
       }
       if (term) t.classList.add("term");
       t.append(name);
@@ -456,9 +465,21 @@ export class Editors {
 
   // Vim is between commands (no count, operator or partial keys), so a key may start a leader sequence.
   vimIdle(id = this.active): boolean {
+    if (!isVim()) return false;
     const v = this.panes.get(id)?.view;
     const vim = v && (getCM(v)?.state.vim as { insertMode?: boolean; visualMode?: boolean; inputState?: { keyBuffer: string[]; operator: unknown } } | undefined);
     return !!vim && !vim.insertMode && !vim.visualMode && !vim.inputState?.keyBuffer.length && !vim.inputState?.operator;
+  }
+
+  // Toggles Vim modal editing on or off across all open editors.
+  toggleVim(): boolean {
+    const next = toggleVim();
+    this.settingsChanged();
+    for (const p of this.panes.values()) {
+      if (p.view) p.mode = next ? "normal" : "standard";
+    }
+    this.emit();
+    return next;
   }
 
   // Runs a line like "w" or "%s/a/b/" in the active editor, as Vim's command line would.
@@ -511,10 +532,20 @@ export class Editors {
     return !!v && isReading(v.state);
   }
 
-  // Rendered view and source: Markdown's reading view, or an SVG's image viewer and its text. False for other files.
+  // Rendered view and source: Markdown's reading view, SVG image viewer/text, or HTML browser preview/source. False for other files.
   toggleRendered(): boolean {
     const p = this.panes.get(this.active), path = this.currentTab(this.active);
-    if (!path?.endsWith(".svg")) return this.toggleReading();
+    if (!path) return false;
+    if (path.startsWith(PREVIEW)) {
+      void this.open(path.slice(PREVIEW.length), this.active, true);
+      return true;
+    }
+    if (/\.html?$/i.test(path)) { // same check as :browse, so INDEX.HTML toggles too
+      if (p?.viewer) void this.open(path, this.active, true);
+      else this.showViewer(this.active, PREVIEW + path);
+      return true;
+    }
+    if (!path.endsWith(".svg")) return this.toggleReading();
     if (p?.viewer) void this.open(path, this.active, true);
     else this.showViewer(this.active, path); // shows the file on disk, unsaved edits stay in the buffer
     return true;
@@ -546,13 +577,21 @@ export class Editors {
       this.jumps.get(id)!.push(from);
     }
     if (!source && viewerFor(path)) {
+      if (path.startsWith(PREVIEW)) {
+        const clean = path.slice(PREVIEW.length);
+        if (!this.buffers.get(clean)) await this.buffers.open(clean).catch(() => {});
+      }
       this.showViewer(id, path);
       return id;
     }
     if (path.startsWith(DOCS)) await this.buffers.virtual(path, docText(path));
-    const fresh = !this.buffers.get(path);
-    const b = await this.buffers.open(path);
-    if (fresh) {
+    const firstDisplay = !this.sourceOpened.has(path);
+    this.sourceOpened.add(path);
+    const b = await this.buffers.open(path).catch((e) => {
+      if (firstDisplay) this.sourceOpened.delete(path); // a retry is still the first display
+      throw e;
+    });
+    if (firstDisplay) {
       void this.loadHead(path);
       const lines = this.bps[path];
       if (lines?.length) b.state = b.state.update({ effects: setBreakpointLines.of(lines) }).state;
@@ -560,7 +599,7 @@ export class Editors {
     if (this.panes.get(id)!.viewer || this.isTerm(id)) this.replace(id, undefined, true); // back to an editor
     this.show(id, b);
     const at = this.cursors[path], v = this.panes.get(id)!.view!;
-    if (fresh && at !== undefined) {
+    if (firstDisplay && at !== undefined) {
       const pos = Math.min(at, v.state.doc.length);
       v.dispatch({ selection: { anchor: pos }, effects: EditorView.scrollIntoView(pos, { y: "center" }) });
     }
@@ -579,7 +618,7 @@ export class Editors {
         const ageSec = lastActiveMs > 0 ? (nowMs - lastActiveMs) / 1000 : 0;
         // Brand new/unsaved file (mtime === 0) or recently edited (< timeout): stay in editor mode.
         // Existing file opened fresh after inactivity (ageSec >= timeout): open in reading mode!
-        if (fresh && fileMtimeMs > 0 && ageSec >= timeoutSec) {
+        if (firstDisplay && fileMtimeMs > 0 && ageSec >= timeoutSec) {
           if (!isReading(v.state)) toggleReading(v);
         }
       }
@@ -878,7 +917,6 @@ export class Editors {
       this.settingsChanged();
     }
     const hit = (p: string) => !paths || paths.some((c) => p === c || p.startsWith(c + "/")); // a folder covers its files
-    for (const p of this.panes.values()) if (p.viewer && hit(p.title!)) p.viewer.reload?.();
     let note: string | null = null;
     for (const b of this.buffers.list().filter((b) => hit(b.path))) {
       const r = await this.buffers.checkDisk(b).catch(() => ({ kind: "same" as const })); // unreadable now: leave it
@@ -893,6 +931,8 @@ export class Editors {
         b.mtime = r.mtime;
       }
     }
+    const viewerPath = (title?: string) => (title?.startsWith(PREVIEW) ? title.slice(PREVIEW.length) : (title ?? ""));
+    for (const p of this.panes.values()) if (p.viewer && hit(viewerPath(p.title))) p.viewer.reload?.();
     this.emit();
     return note;
   }
@@ -900,7 +940,12 @@ export class Editors {
   // A file or folder was renamed to `to`, or trashed (to null). Panes showing it follow, or turn empty;
   // tabs and recent files are rewritten. The caller makes sure no affected buffer is dirty.
   async moved(from: string, to: string | null) {
-    const map = (p: string) => (p === from || p.startsWith(from + "/") ? (to === null ? null : to + p.slice(from.length)) : p);
+    const move = (p: string) => (p === from || p.startsWith(from + "/") ? (to === null ? null : to + p.slice(from.length)) : p);
+    const map = (p: string) => { // a preview tab follows its file
+      if (!p.startsWith(PREVIEW)) return move(p);
+      const m = move(p.slice(PREVIEW.length));
+      return m === null ? null : PREVIEW + m;
+    };
     for (const [id, list] of this.tabs) this.tabs.set(id, list.map(map).filter((p): p is string => p !== null));
     this.mru = this.mru.map(map).filter((p): p is string => p !== null);
     try {
@@ -920,6 +965,13 @@ export class Editors {
       this.renderTabs(id);
     }
     for (const b of this.buffers.list()) if (map(b.path) !== b.path) this.buffers.drop(b.path);
+    for (const p of this.sourceOpened) {
+      const next = map(p);
+      if (next !== p) {
+        this.sourceOpened.delete(p);
+        if (next !== null) this.sourceOpened.add(next);
+      }
+    }
     this.emit();
   }
 
@@ -937,7 +989,7 @@ export class Editors {
     p.buf = b;
     p.view!.setState(b.state);
     if (isReading(b.state)) toggleReading(p.view!); // a preview pane's reading view stays in that pane
-    p.mode = "normal";
+    p.mode = isVim() ? "normal" : "standard";
     this.watchMode(id); // setState recreates the vim plugin
   }
 
@@ -978,11 +1030,14 @@ export class Editors {
     }
     const st = p.view.state, head = st.selection.main.head, l = st.doc.lineAt(head), unit = st.facet(indentUnit);
     const scopes = scopesAt(st, head).slice(-2).map((s) => ({ at: s.from, text: header(st.doc.lineAt(s.from).text) }));
+    const cm = p.view ? getCM(p.view) : null;
+    const vim = cm ? (cm.state.vim as { mode?: string; insertMode?: boolean; visualMode?: boolean } | undefined) : null;
+    const currentVimMode = vim?.insertMode ? "insert" : vim?.visualMode ? "visual" : (vim?.mode || p.mode || "normal");
     this.onStatus({
       pane: this.active,
       path: p.buf?.path ?? null,
       dirty: p.buf ? isDirty(p.buf) : false,
-      mode: isReading(st) ? "read" : p.mode,
+      mode: isReading(st) ? "read" : isVim() ? currentVimMode : "standard",
       line: l.number,
       col: head - l.from + 1,
       lines: st.doc.lines,
@@ -1168,15 +1223,19 @@ export class Editors {
   }
 
   private watchMode(id: number) {
-    const p = this.panes.get(id)!;
-    const cm = getCM(p.view!);
+    const p = this.panes.get(id);
+    if (!p?.view) return;
+    const cm = getCM(p.view);
     cm?.on("vim-mode-change", (e: { mode: string }) => {
-      p.mode = e.mode;
+      p.mode = isVim() ? e.mode : "standard";
       if (id === this.active) this.emit();
     });
     // qq and q change no text and no mode, so the status line hears about a macro starting or ending here.
     cm?.on("vim-command-done", () => {
-      if (id === this.active && recordingRegister() !== this.recording) this.emit();
+      if (id === this.active) {
+        if (recordingRegister() !== this.recording) this.emit();
+        this.emit();
+      }
     });
   }
 

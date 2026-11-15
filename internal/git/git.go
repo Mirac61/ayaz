@@ -25,14 +25,16 @@ func run(dir string, args ...string) (out []byte, ok bool, err error) {
 func runStdin(dir, stdin string, args ...string) (out []byte, ok bool, err error) {
 	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
 	proc.SetHideWindow(cmd)
-	var stdout bytes.Buffer
+	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
 	if stdin != "" {
 		cmd.Stdin = strings.NewReader(stdin)
 	}
 	err = cmd.Run()
 	if _, exit := errors.AsType[*exec.ExitError](err); exit {
-		return nil, false, nil
+		// git's reason for the error message: commit explains itself on stdout, push and pull on stderr
+		return append(stdout.Bytes(), stderr.Bytes()...), false, nil
 	}
 	return stdout.Bytes(), err == nil, err
 }
@@ -43,8 +45,11 @@ func Branch(root string) (string, error) {
 	if err != nil || ok {
 		return strings.TrimSpace(string(out)), err
 	}
-	out, _, err = run(root, "rev-parse", "--short", "HEAD")
-	return strings.TrimSpace(string(out)), err
+	out, ok, err = run(root, "rev-parse", "--short", "HEAD")
+	if !ok {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
 }
 
 // Head is the file's text at HEAD; rel is relative to root, which may be a subfolder of the repository.
@@ -52,7 +57,10 @@ func Branch(root string) (string, error) {
 func Head(root, rel string) (text string, tracked bool, err error) {
 	// "HEAD:./x" is relative to -C, so a subfolder needs no prefix.
 	out, ok, err := run(root, "show", "HEAD:./"+filepath.ToSlash(rel))
-	return string(out), ok, err
+	if !ok {
+		return "", false, err
+	}
+	return string(out), true, nil
 }
 
 // Poll is how often Watch looks at the repository's HEAD, index and reflog.

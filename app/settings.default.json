@@ -54,11 +54,19 @@
     // },
   },
 
-  // Colors of the mode name and the error and warning counts, as hex. They go over the theme. Delete a key to get its default back.
-  // Keys: normal, insert, visual, replace, terminal, read, view, error, warning.
+  // Colors of the mode name and the status line counts as hex. They go over the theme. Delete a key to get its default back.
+  // Keys: normal, insert, visual, replace, standard, terminal, read, view, warning, error.
   "statusColors": {
-    // "normal": "#7e9cd8",
-    // "insert": "#98bb6c",
+    // "normal": "#7e9cd8",    // Normal mode (Sapphire Blue)
+    // "insert": "#98bb6c",    // Insert mode & Clean Git branch icon (Jade Green)
+    // "visual": "#957fb8",    // Visual mode (Amethyst Purple)
+    // "replace": "#e46876",   // Replace mode (Coral Red)
+    // "standard": "#7aa2f7",  // Standard non-Vim mode (Sky Cyan)
+    // "terminal": "#c0a36e",  // Terminal pane mode (Warm Ochre)
+    // "read": "#7aa89f",      // Read-only / Markdown preview mode (Sage Teal)
+    // "view": "#9cabca",      // Custom viewer mode (Slate Blue)
+    // "warning": "#dca561",   // Warning counts & Dirty Git branch icon (Warm Amber / Orange)
+    // "error": "#e46876",     // Error counts and error messages (Coral Red)
   },
 
   // Commands to run in the folder by name: <Space>rr picks one, <Space>rl runs the last again.
@@ -82,6 +90,9 @@
 
   // Inactivity timeout in seconds for smart Markdown reading mode (default 300 = 5 minutes).
   "markdownReadingTimeout": 300,
+
+  // Enable Vim modal editing. Set to false for standard modeless editing (VS Code / Zed style).
+  "vim": true,
 
   // Format through the language server when saving.
   "formatOnSave": false,
