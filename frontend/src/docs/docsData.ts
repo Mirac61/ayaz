@@ -52,7 +52,7 @@ Ayaz is a keyboard-first code editor. Every action is a registered command and c
 | \`<Space>tt\` | \`term.tab\` | Open terminal in current pane tab |
 | \`<Space>uz\` / \`:zen\` | \`view.zen\` | Toggle distraction-free Zen mode |
 | \`<Space>ub\` | \`git.toggleInlineBlame\` | Toggle ghost line Git blame |
-| \`<Space>uv\` | \`editor.toggleVim\` | Toggle modal Vim vs. modeless Standard editing |
+| \`<Space>uv\` (Vim mode) / \`Cmd+Shift+M\` | \`editor.toggleVim\` | Toggle modal Vim vs. modeless Standard editing |
 | \`<F1>\` / \`:help\` / \`:docs\` | \`app.docs\` | Open this interactive Docs Hub |
 
 ---
@@ -112,7 +112,7 @@ Like \`nvim-surround\`:
 
 ## Modal Vim vs. Modeless Standard Mode
 Ayaz supports both full modal Vim editing and modeless standard editing:
-- **Toggle Mode (\`<Space>uv\`):** Instantly switch between Vim mode and Standard mode.
+- **Toggle Mode (\`Cmd+Shift+M\`, Ctrl+Shift+M on Linux/Windows):** Instantly switch between Vim mode and Standard mode. \`<Space>uv\` does the same, but only from Vim's normal mode, since Standard mode types the space.
 - **Configurable in \`settings.json\`:**
   - \`"vim": true\` — Enables Neovim modal editing with relative line numbers.
   - \`"vim": false\` — Modeless standard editing (direct typing, caret navigation, absolute line numbers).
@@ -120,7 +120,7 @@ Ayaz supports both full modal Vim editing and modeless standard editing:
 
 const SETTINGS_DOC = `# Ayaz Configuration & settings.json Reference
 
-Ayaz is configured through a single JSON/JSONC file located at \`~/.config/ayaz/settings.json\` (or workspace \`.ayaz/settings.json\`). Saving the file applies changes immediately without restart.
+Ayaz is configured through a single JSON/JSONC file located at \`~/.config/ayaz/settings.json\`. Saving the file applies changes immediately without restart.
 
 ## Core Options
 

@@ -50,6 +50,23 @@ func TestServe(t *testing.T) {
 			t.Errorf("%s: %d, want 404", p, c)
 		}
 	}
+	cors := func(dest string) string {
+		req := httptest.NewRequest("GET", "/fs/"+w.ID+"/a.txt", nil)
+		req.Header.Set("Origin", "null")
+		req.Header.Set("Sec-Fetch-Dest", dest)
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec.Header().Get("Access-Control-Allow-Origin")
+	}
+	if got := cors("script"); got != "null" {
+		t.Errorf("module script from preview: ACAO %q, want null", got)
+	}
+	if got := cors("empty"); got != "" {
+		t.Errorf("fetch from preview: ACAO %q, want none", got)
+	}
+	if got := get("/fs/"+w.ID+"/a.txt", "").Header().Get("Access-Control-Allow-Origin"); got != "" {
+		t.Errorf("plain request: ACAO %q, want none", got)
+	}
 	if c := get("/index.html", "").Code; c != 418 {
 		t.Errorf("passthrough: %d", c)
 	}

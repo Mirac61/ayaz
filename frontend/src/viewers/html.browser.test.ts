@@ -24,7 +24,7 @@ describe("html preview browser", () => {
     const frame = el.querySelector<HTMLIFrameElement>("iframe");
     expect(frame).not.toBeNull();
     // Fragment HTML gets base href injected
-    expect(frame?.srcdoc).toBe('<base href="/fs/ws1/"><h1>Live HTML</h1>');
+    expect(frame?.srcdoc).toBe('<html><head><base href="/fs/ws1/"></head><body><h1>Live HTML</h1></body></html>');
     expect(frame?.getAttribute("sandbox")).toBe("allow-scripts allow-forms allow-popups allow-modals");
     expect(frame?.getAttribute("sandbox")).not.toContain("allow-same-origin");
     expect(handle.status()).toBe("preview: index.html");
@@ -32,7 +32,7 @@ describe("html preview browser", () => {
     // Live update on reload
     content = "<h2>Updated HTML</h2>";
     handle.reload?.();
-    expect(frame?.srcdoc).toBe('<base href="/fs/ws1/"><h2>Updated HTML</h2>');
+    expect(frame?.srcdoc).toContain('<base href="/fs/ws1/"></head><body><h2>Updated HTML</h2>');
 
     handle.dispose();
     expect(el.children.length).toBe(0);
@@ -55,7 +55,7 @@ describe("html preview browser", () => {
     expect(badge?.textContent).toBe("Browser");
 
     const frame = el.querySelector<HTMLIFrameElement>("iframe");
-    expect(frame?.srcdoc).toContain('<base href="/fs/ws1/sub/">');
+    expect(frame?.srcdoc).toMatch(/^<!DOCTYPE html><html><head><base href="\/fs\/ws1\/sub\/">/);
     expect(frame?.srcdoc).toContain("<title>Test</title>");
 
     handle.dispose();
@@ -64,7 +64,7 @@ describe("html preview browser", () => {
   test("base tag inside an HTML comment does not suppress base injection", () => {
     const raw = '<!-- <base href="comment.html"> --><h1>Commented</h1>';
     const prepared = prepareHtml(raw, "/fs/ws1/index.html");
-    expect(prepared).toBe('<base href="/fs/ws1/"><!-- <base href="comment.html"> --><h1>Commented</h1>');
+    expect(prepared).toBe('<!-- <base href="comment.html"> --><html><head><base href="/fs/ws1/"></head><body><h1>Commented</h1></body></html>');
   });
 
   test("resolves relative base href against ctx.url while preserving attributes", () => {
@@ -74,7 +74,21 @@ describe("html preview browser", () => {
 
     const abs = '<html><head><base href="https://example.com/cdn/" target="_top"></head></html>';
     const preparedAbs = prepareHtml(abs, "/fs/ws1/sub/index.html");
-    expect(preparedAbs).toBe(abs);
+    expect(preparedAbs).toContain('<base href="https://example.com/cdn/" target="_top">');
+  });
+
+  test("head-like text inside a script stays untouched; the base goes into the real head", () => {
+    const raw = '<script>const template = "<head>";</script><p>x</p>';
+    const doc = new DOMParser().parseFromString(prepareHtml(raw, "/fs/ws1/index.html"), "text/html");
+    expect(doc.querySelector("script")?.textContent).toBe('const template = "<head>";');
+    expect(doc.head.querySelector("base")?.getAttribute("href")).toBe("/fs/ws1/");
+  });
+
+  test("rewrites the real href, not data-href", () => {
+    const raw = '<head><base data-href="metadata/" href="assets/"></head>';
+    const base = new DOMParser().parseFromString(prepareHtml(raw, "/fs/ws1/sub/index.html"), "text/html").querySelector("base");
+    expect(base?.getAttribute("href")).toBe("/fs/ws1/sub/assets/");
+    expect(base?.getAttribute("data-href")).toBe("metadata/");
   });
 
   test("external browser button only opens http/https URLs, not /fs/ paths", () => {

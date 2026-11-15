@@ -540,7 +540,7 @@ export class Editors {
       void this.open(path.slice(PREVIEW.length), this.active, true);
       return true;
     }
-    if (path.endsWith(".html") || path.endsWith(".htm")) {
+    if (/\.html?$/i.test(path)) { // same check as :browse, so INDEX.HTML toggles too
       if (p?.viewer) void this.open(path, this.active, true);
       else this.showViewer(this.active, PREVIEW + path);
       return true;
@@ -587,7 +587,10 @@ export class Editors {
     if (path.startsWith(DOCS)) await this.buffers.virtual(path, docText(path));
     const firstDisplay = !this.sourceOpened.has(path);
     this.sourceOpened.add(path);
-    const b = await this.buffers.open(path);
+    const b = await this.buffers.open(path).catch((e) => {
+      if (firstDisplay) this.sourceOpened.delete(path); // a retry is still the first display
+      throw e;
+    });
     if (firstDisplay) {
       void this.loadHead(path);
       const lines = this.bps[path];
@@ -937,7 +940,12 @@ export class Editors {
   // A file or folder was renamed to `to`, or trashed (to null). Panes showing it follow, or turn empty;
   // tabs and recent files are rewritten. The caller makes sure no affected buffer is dirty.
   async moved(from: string, to: string | null) {
-    const map = (p: string) => (p === from || p.startsWith(from + "/") ? (to === null ? null : to + p.slice(from.length)) : p);
+    const move = (p: string) => (p === from || p.startsWith(from + "/") ? (to === null ? null : to + p.slice(from.length)) : p);
+    const map = (p: string) => { // a preview tab follows its file
+      if (!p.startsWith(PREVIEW)) return move(p);
+      const m = move(p.slice(PREVIEW.length));
+      return m === null ? null : PREVIEW + m;
+    };
     for (const [id, list] of this.tabs) this.tabs.set(id, list.map(map).filter((p): p is string => p !== null));
     this.mru = this.mru.map(map).filter((p): p is string => p !== null);
     try {

@@ -32,7 +32,7 @@ for TARGET_ID in $TODO_IDS; do
     break
   fi
 
-  TASK_JSON=$(waypoint -p --json | jq -c ".tasks[] | select(.id==\"$TARGET_ID\")")
+  TASK_JSON=$(waypoint -p --json | jq -c ".tasks[] | select(.id==\"$TARGET_ID\" and .status==\"TODO\")")
   TASK_TITLE=$(echo "$TASK_JSON" | jq -r '.title')
   echo "---> Starte Task #$TARGET_ID: $TASK_TITLE"
 
