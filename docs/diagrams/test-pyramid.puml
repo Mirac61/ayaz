@@ -1,0 +1,20 @@
+@startuml test-pyramid
+!include _style.iuml
+skinparam rectangle {
+  BackgroundColor #FFFFFF
+}
+rectangle "**Manual** per platform\nnative window, dialogs, Wayland" as M
+rectangle "**E2E** · Playwright against the server build" as E
+rectangle "**Vitest browser mode (WebKit)**\nEditorView, Vim, md-live DOM, providers" as B
+rectangle "**Vitest Node**\ncommands, keymap, decoration logic, Lezer-to-DOM logic" as N
+rectangle "**Go**\nunit, table tests, fuzzing, benchmarks, integration with temp dirs" as G
+M -[hidden]-> E
+E -[hidden]-> B
+B -[hidden]-> N
+N -[hidden]-> G
+legend right
+  top: few, slow tests
+  bottom: many, fast tests
+endlegend
+caption Fig. 6 – Test pyramid
+@enduml

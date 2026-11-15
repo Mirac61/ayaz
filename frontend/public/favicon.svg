@@ -1,0 +1,42 @@
+<svg viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="f-amb-start" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#70d6ff" stop-opacity="0.4"/>
+      <stop offset="60%" stop-color="#38bdf8" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#38bdf8" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- Sub-Zero Ambient Frost Glow -->
+  <circle cx="256" cy="256" r="200" fill="url(#f-amb-start)" filter="blur(28px)"/>
+
+  <!-- 16-Faceted Diamond Ice Crystal -->
+  <!-- Vertical Spire (Glacier White vs. Sky Blue) -->
+  <polygon points="256,50 278,236 256,256 256,50" fill="#ffffff"/>
+  <polygon points="256,50 256,256 234,236 256,50" fill="#cbe6ff"/>
+  <polygon points="256,462 278,276 256,256 256,462" fill="#38bdf8"/>
+  <polygon points="256,462 256,256 234,276 256,462" fill="#0284c7"/>
+
+  <!-- Horizontal Spire (Cyan vs. Arctic Navy) -->
+  <polygon points="50,256 236,234 256,256 50,256" fill="#70d6ff"/>
+  <polygon points="50,256 256,256 236,278 50,256" fill="#0284c7"/>
+  <polygon points="462,256 276,234 256,256 462,256" fill="#ffffff"/>
+  <polygon points="462,256 256,256 276,278 462,256" fill="#bae6fd"/>
+
+  <!-- 4 Diagonal Needles -->
+  <!-- Top-Right -->
+  <polygon points="402,110 280,232 256,256 402,110" fill="#e0f2fe"/>
+  <polygon points="402,110 256,256 272,240 402,110" fill="#7dd3fc"/>
+  <!-- Bottom-Right -->
+  <polygon points="402,402 280,280 256,256 402,402" fill="#38bdf8"/>
+  <polygon points="402,402 256,256 272,272 402,402" fill="#0369a1"/>
+  <!-- Top-Left -->
+  <polygon points="110,110 232,232 256,256 110,110" fill="#bae6fd"/>
+  <polygon points="110,110 256,256 240,240 110,110" fill="#38bdf8"/>
+  <!-- Bottom-Left -->
+  <polygon points="110,402 232,280 256,256 110,402" fill="#0284c7"/>
+  <polygon points="110,402 256,256 240,272 110,402" fill="#082f49"/>
+
+  <!-- Center Diamond Heart Facet -->
+  <polygon points="256,216 296,256 256,296 216,256" fill="#ffffff" filter="drop-shadow(0 0 12px #ffffff)"/>
+  <polygon points="256,216 256,296 216,256" fill="#e0f2fe"/>
+</svg>
