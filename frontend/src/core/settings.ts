@@ -16,6 +16,7 @@ export interface Settings extends FileSettings {
   font: string; // put in front of the built-in monospace fonts, which stay as fallbacks (Nerd Font glyphs)
   fontSize: number; // editor and terminal, in px
   terminalFontSize?: number; // the terminal's own, if it should differ from fontSize
+  ligatures: boolean; // the editor font's ligatures (!=, :=, >=); the terminal draws its own glyphs
   inlayHints: boolean; // parameter names and types from the language server, inline
   semanticTokens: boolean; // the language server's token types colour the code over the syntax highlighting
   stickyScroll: boolean; // the functions and classes that scrolled out of view stay on top
@@ -41,6 +42,7 @@ export type StatusColor = (typeof STATUS_COLORS)[number];
 export const DEFAULTS: Settings = {
   font: "",
   fontSize: 13,
+  ligatures: true,
   inlayHints: false,
   semanticTokens: true,
   stickyScroll: true,
@@ -118,12 +120,12 @@ export function parseSettings(json: string): Settings {
   }
   if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("settings.json: expected an object");
   const {
-    font, fontSize, terminalFontSize, inlayHints, semanticTokens, stickyScroll,
+    font, fontSize, terminalFontSize, ligatures, inlayHints, semanticTokens, stickyScroll,
     sidebar, statusline, markdownSkin, markdownReadingMode, markdownReadingTimeout, vim, glass, glassOpacity, theme, themes, statusColors, tasks, languages, ...file
   } = data as Record<string, unknown>;
   if (font !== undefined && typeof font !== "string") throw new Error('settings.json: "font" must be a string');
   if (inlayHints !== undefined && typeof inlayHints !== "boolean") throw new Error('settings.json: "inlayHints" must be a boolean');
-  for (const [name, v] of Object.entries({ semanticTokens, stickyScroll, glass, vim })) {
+  for (const [name, v] of Object.entries({ ligatures, semanticTokens, stickyScroll, glass, vim })) {
     if (v !== undefined && typeof v !== "boolean") throw new Error(`settings.json: "${name}" must be a boolean`);
   }
   if (glassOpacity !== undefined && (typeof glassOpacity !== "number" || glassOpacity < 0.3 || glassOpacity > 1)) {
@@ -188,6 +190,7 @@ export function parseSettings(json: string): Settings {
     ...DEFAULTS, ...(file as Partial<FileSettings>),
     ...(font !== undefined && { font }), ...(fontSize !== undefined && { fontSize: fontSize as number }), // checked above
     ...(terminalFontSize !== undefined && { terminalFontSize: terminalFontSize as number }),
+    ...(ligatures !== undefined && { ligatures: ligatures as boolean }), // checked above
     ...(inlayHints !== undefined && { inlayHints }), ...(semanticTokens !== undefined && { semanticTokens: semanticTokens as boolean }), // checked above
     ...(stickyScroll !== undefined && { stickyScroll: stickyScroll as boolean }),
     ...(sidebar !== undefined && { sidebar }),
@@ -299,6 +302,7 @@ export function loadSettings(text: string) {
   }
   root.setProperty("--glass", String(current.glassOpacity));
   root.setProperty("--editor-font-size", `${current.fontSize}px`);
+  root.setProperty("--editor-ligatures", current.ligatures ? "normal" : "none");
   root.removeProperty("--font-mono"); // back to the stylesheet's stack, so a reload doesn't stack fonts
   const mono = getComputedStyle(document.documentElement).getPropertyValue("--font-mono");
   if (current.font) root.setProperty("--font-mono", `"${current.font}", ${mono}`);
