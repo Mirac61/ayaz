@@ -16,6 +16,7 @@ const theme = EditorView.theme(
     "&": { height: "100%", color: c.fg, backgroundColor: "transparent" },
     ".cm-scroller": {
       fontFamily: "var(--font-mono)",
+      fontVariantLigatures: "var(--editor-ligatures, normal)",
       fontSize: "var(--editor-font-size, 13px)", // settings.json; tests run without tokens.css
       lineHeight: "calc(var(--editor-font-size, 13px) + 11px)",
       paddingTop: "4px",
