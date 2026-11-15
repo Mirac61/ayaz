@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.8.0](https://github.com/Mirac61/ayaz/compare/v0.7.0...v0.8.0) (2026-11-15)
+
+
+### Features
+
+* Add sternklar theme ([1572479](https://github.com/Mirac61/ayaz/commit/15724799a67ab6107c09ec67b000a9576f9bc832))
+* Clear hierarchy in the clone dialog ([e3928f3](https://github.com/Mirac61/ayaz/commit/e3928f3c470671405d053e50aaecc6f9deee13aa))
+* Clear hierarchy in the clone dialog ([abff53a](https://github.com/Mirac61/ayaz/commit/abff53a7db1d08bbe599b95edb96874dbeedc039))
+* Recent folders as a star chart on the start page ([8e6bd3c](https://github.com/Mirac61/ayaz/commit/8e6bd3cb2d267d57ef8a8358f899cd6bbd0a5cf1))
+* Recent folders as a star chart on the start page ([cdb0294](https://github.com/Mirac61/ayaz/commit/cdb02942ae950287c754fc122e7b360050ae49c4))
+* **settings:** add "ligatures" setting for the editor font ([00e95ed](https://github.com/Mirac61/ayaz/commit/00e95ed60db2c1d36fd840e9cfd411e4d8631b9b))
+* **settings:** add "ligatures" setting for the editor font [task 29] ([0c5fbfd](https://github.com/Mirac61/ayaz/commit/0c5fbfd68e87612ad13d8a80dc770fcaf34dae05))
+* Sidebar tabs and git remote actions as icons, visible commit field ([f447ed9](https://github.com/Mirac61/ayaz/commit/f447ed96837c1f5d1b5f925d47f75e77df916296))
+* Sternklar theme, icon sidebar tabs and git actions ([df37879](https://github.com/Mirac61/ayaz/commit/df378797c964c3cfc5142762d83f7137e33f8694))
+* Sternklar theme, star chart start page, ligatures setting ([c25d65e](https://github.com/Mirac61/ayaz/commit/c25d65e355782ac00472286cdd03ea11ac8b6fec))
+
+
+### Bug Fixes
+
+* **git:** english tooltips, short commit placeholder and nowrap remote buttons ([9172eb4](https://github.com/Mirac61/ayaz/commit/9172eb46156c08ffc2af188f2e9a08ba22e9a22b))
+* **git:** english tooltips, short commit placeholder and nowrap remote buttons [task 28] ([18c7077](https://github.com/Mirac61/ayaz/commit/18c70775d8289990a3465eaebbbbed95536857d4))
+* Keep star names inside the chart, plain key numbers ([21a0cf4](https://github.com/Mirac61/ayaz/commit/21a0cf4ba2c45a16b7ea856b8e425feb8b0e3b21))
+
 ## [0.7.0](https://github.com/Mirac61/ayaz/compare/v0.6.0...v0.7.0) (2026-11-15)
 
 
