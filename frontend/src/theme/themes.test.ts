@@ -32,6 +32,10 @@ test("built-in themes include arctic and frost palettes without replacing graphi
   expect(resolveTheme("ayaz-frost").ui.accent).toBe("#7ec4e0");
 });
 
+test("sternklar is built in", () => {
+  expect(resolveTheme("sternklar").ui.overlay).toBe("#131722");
+});
+
 test("a custom theme changes what it names and keeps the rest of its base", () => {
   const specs = parseThemeSpecs({
     mine: { extends: "kanagawa", ui: { bg0: "#000000" }, syntax: { keyword: "#ff0000" }, terminal: { red: "#00ff00" } },

@@ -853,6 +853,60 @@ const ayazFrost: Theme = {
   },
 };
 
+// Near-black with a slight blue, neutral greys for lines and text; the mode colors come from the star-chart mockups.
+const sternklar: Theme = {
+  ui: {
+    bg0: "#0d1017",
+    bgSidebar: "#0d1017",
+    bgTabs: "#0d1017",
+    tab: "transparent",
+    tabActive: "#0a0c12",
+    bg1: "#0a0c12",
+    bg2: "#0a0c12",
+    bg3: "#262a36",
+    hover: "rgb(255 255 255 / 0.06)",
+    overlay: "#131722",
+    edge: "rgb(255 255 255 / 0.08)",
+    edgeSplit: "rgb(255 255 255 / 0.08)",
+    edgeOverlay: "rgb(255 255 255 / 0.14)",
+    fg1: "#ececee",
+    fg2: "#a8a8ae",
+    fg3: "#8c8c94",
+    fg4: "#7c7c84",
+    accent: "#b9cdf5",
+    insert: "#9fe0c0",
+    visual: "#c9b6f2",
+    error: "#f09aa5",
+    warning: "#ecd08a",
+    gitAdd: "#9fe0c0",
+    gitMod: "#d9c795",
+    gitDel: "#f09aa5",
+    statusNormal: "#b9cdf5",
+    statusInsert: "#9fe0c0",
+    statusVisual: "#c9b6f2",
+    statusReplace: "#f09aa5",
+    statusTerminal: "#f2b98a",
+    statusRead: "#8fcfe6",
+    statusView: "#9fb4f5",
+    statusError: "#f09aa5",
+    statusWarning: "#ecd08a",
+  },
+  syntax: {
+    ...ayazFrost.syntax,
+    fg: "#ececee",
+    comment: "#6f7482",
+    keyword: "#9fb4f5",
+    fn: "#8fcfe6",
+    string: "#9fd4b4",
+    number: "#e3cfa1",
+    type: "#e3cfa1",
+    constant: "#e3cfa1",
+    special: "#e3cfa1",
+    selection: "rgb(185 205 245 / 0.2)",
+  },
+  terminal: ayazFrost.terminal,
+};
+
 export const BUILTIN_THEMES: Record<string, Theme> = {
   graphite,
   kanagawa,
@@ -864,6 +918,7 @@ export const BUILTIN_THEMES: Record<string, Theme> = {
   nord,
   poimandres,
   "ayaz-frost": ayazFrost,
+  sternklar,
 };
 
 const COLOR = /^(#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})|(rgb|hsl)a?\([^()]*\)|transparent)$/i;
