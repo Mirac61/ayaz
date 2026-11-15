@@ -395,7 +395,7 @@ export const GitChanges: React.FC<Props> = ({
                   setBusyRemote(null);
                 }
               }}
-              title="Git Push: Lokale Commits auf Remote übertragen"
+              title="Push commits to the remote"
             />
           )}
           {onPull && (
@@ -414,7 +414,7 @@ export const GitChanges: React.FC<Props> = ({
                   setBusyRemote(null);
                 }
               }}
-              title="Git Pull: Änderungen von Remote holen"
+              title="Pull changes from the remote"
             />
           )}
           {onFetch && (
@@ -433,7 +433,7 @@ export const GitChanges: React.FC<Props> = ({
                   setBusyRemote(null);
                 }
               }}
-              title="Git Fetch: Remote-Refs abrufen"
+              title="Fetch remote refs"
             />
           )}
         </div>
@@ -444,11 +444,7 @@ export const GitChanges: React.FC<Props> = ({
           <textarea
             ref={commitInputRef}
             className="git-commit-input"
-            placeholder={
-              stagedItems.length > 0
-                ? "Commit message (Ctrl+Enter to commit)..."
-                : "Commit message (stage changes first)..."
-            }
+            placeholder="Commit message"
             value={commitMsg}
             onChange={(e) => setCommitMsg(e.target.value)}
             onKeyDown={(e) => {
