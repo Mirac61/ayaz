@@ -1,15 +1,18 @@
 // Recent folders as a star chart: the newest folder is the brightest star, a line joins them in the order they were opened.
-// Slots are fixed so the chart looks the same every time; x and y are percent of the chart, side is where the name sits.
+// Slots are fixed so the chart looks the same every time. x and y are in the chart's own 580 x 372 box;
+// dx and dy put the name next to the star, end means the name sits left of it.
+export const CHART = { w: 580, h: 372 };
+
 export const SLOTS = [
-  { x: 12, y: 17, side: "right" },
-  { x: 35, y: 34, side: "right" },
-  { x: 24, y: 57, side: "left" },
-  { x: 50, y: 66, side: "right" },
-  { x: 62, y: 22, side: "right" },
-  { x: 70, y: 50, side: "right" },
-  { x: 66, y: 82, side: "right" },
-  { x: 39, y: 90, side: "right" },
-  { x: 22, y: 83, side: "left" },
+  { x: 70, y: 60, dx: 14, dy: -8 },
+  { x: 205, y: 124, dx: 14, dy: 5 },
+  { x: 140, y: 206, dx: -14, dy: 5, end: true },
+  { x: 292, y: 238, dx: 14, dy: 18 },
+  { x: 392, y: 88, dx: 12, dy: -10 },
+  { x: 440, y: 180, dx: 14, dy: 5 },
+  { x: 404, y: 306, dx: 14, dy: 5 },
+  { x: 226, y: 324, dx: 12, dy: -12 },
+  { x: 130, y: 300, dx: -14, dy: 5, end: true },
 ] as const;
 
 export const MAX_STARS = SLOTS.length;
@@ -18,16 +21,22 @@ export interface Star {
   i: number;
   x: number;
   y: number;
-  side: "left" | "right";
-  size: number; // px, the newest is biggest
+  dx: number;
+  dy: number;
+  end: boolean;
+  r: number; // the newest is biggest
   opacity: number;
 }
 
 export function stars(count: number): Star[] {
   return SLOTS.slice(0, Math.min(count, MAX_STARS)).map((s, i) => ({
     i,
-    ...s,
-    size: 7 - i * 0.4,
-    opacity: 1 - i * 0.07,
+    x: s.x,
+    y: s.y,
+    dx: s.dx,
+    dy: s.dy,
+    end: "end" in s,
+    r: 3.2 - i * 0.18,
+    opacity: 1 - i * 0.06,
   }));
 }

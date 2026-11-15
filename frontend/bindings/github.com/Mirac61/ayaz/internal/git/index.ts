@@ -3,5 +3,6 @@
 
 export type {
     Blame,
-    FileStatus
+    FileStatus,
+    Summary
 } from "./models.js";

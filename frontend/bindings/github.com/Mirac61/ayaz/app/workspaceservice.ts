@@ -63,6 +63,13 @@ export function Find(ws: string, query: string, limit: number, ignored: boolean)
 }
 
 /**
+ * FolderSummary is branch, upstream distance and changed paths of a folder that is not open, for the start page.
+ */
+export function FolderSummary(root: string): $CancellablePromise<git$0.Summary> {
+    return $Call.ByID(1117754863, root);
+}
+
+/**
  * GitApplyHunk stages one hunk of a file in the index, or with reverse takes it out again (see git.ApplyHunk).
  */
 export function GitApplyHunk(ws: string, path: string, hunk: string, reverse: boolean): $CancellablePromise<void> {

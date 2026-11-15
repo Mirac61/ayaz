@@ -306,6 +306,11 @@ func (s *WorkspaceService) emit(name string, data any) {
 	}
 }
 
+// FolderSummary is branch, upstream distance and changed paths of a folder that is not open, for the start page.
+func (s *WorkspaceService) FolderSummary(root string) (git.Summary, error) {
+	return git.Summarize(root)
+}
+
 // GitBranch is the folder's branch, a short SHA when detached, "" outside a repository.
 func (s *WorkspaceService) GitBranch(ws string) (string, error) {
 	w, err := s.reg.Get(ws)
