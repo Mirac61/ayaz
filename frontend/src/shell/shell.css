@@ -1584,6 +1584,11 @@
   opacity: var(--lit);
 }
 .welcome-star-key {
+  min-width: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  box-shadow: none;
   font: 500 var(--text-md) var(--font-ui);
   font-style: italic;
   color: var(--status-terminal);
