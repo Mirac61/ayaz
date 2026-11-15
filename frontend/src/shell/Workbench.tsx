@@ -1378,17 +1378,20 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
           <div className="sidebar-tabs">
             <button
               type="button"
-              className={`sidebar-tab ${sideTab === "files" ? "active" : ""}`}
+              className={`sidebar-tab files ${sideTab === "files" ? "active" : ""}`}
+              data-glyph={"\uea83"}
+              title="Files"
+              aria-label="Files"
               onClick={() => setSideTab("files")}
-            >
-              Files
-            </button>
+            />
             <button
               type="button"
-              className={`sidebar-tab ${sideTab === "git" ? "active" : ""}`}
+              className={`sidebar-tab git ${sideTab === "git" ? "active" : ""}`}
+              data-glyph={"\ue725"}
+              title="Git"
+              aria-label="Git"
               onClick={() => setSideTab("git")}
             >
-              Git
               {changes > 0 && <span className="sidebar-tab-badge">{changes}</span>}
             </button>
           </div>
