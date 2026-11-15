@@ -523,39 +523,40 @@
 .sidebar-tabs {
   display: inline-flex;
   align-items: center;
-  background: color-mix(in srgb, var(--accent) 4%, var(--bg-0));
-  border: 1px solid var(--edge);
-  border-radius: var(--radius-sm);
-  padding: 2px;
   gap: 2px;
   flex: none;
 }
 .sidebar-tab {
-  background: transparent;
-  border: 1px solid transparent;
-  padding: 2px 8px;
-  font: 500 11px/16px var(--font-ui);
-  color: var(--fg-3);
-  cursor: pointer;
-  border-radius: var(--radius-sm);
+  height: var(--row-sm);
+  padding: 0 8px;
   display: inline-flex;
   align-items: center;
-  white-space: nowrap;
+  gap: 4px;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--fg-3);
+  cursor: pointer;
   transition:
     color var(--t-fast) var(--ease),
-    border-color var(--t-fast) var(--ease),
-    background-color var(--t-fast) var(--ease),
-    box-shadow var(--t-fast) var(--ease);
+    background-color var(--t-fast) var(--ease);
+}
+.sidebar-tab::before {
+  content: attr(data-glyph);
+  font: var(--text-md) var(--font-mono);
 }
 .sidebar-tab:hover {
-  color: var(--fg-1);
+  color: var(--fg-2);
 }
+/* The tab you are on takes a colour; the others stay grey. */
 .sidebar-tab.active {
-  color: var(--fg-1);
-  background: var(--bg-tabs);
-  font-weight: 600;
-  border-color: color-mix(in srgb, var(--accent) 22%, var(--edge));
-  box-shadow: 0 1px 4px color-mix(in srgb, var(--bg-0) 60%, transparent);
+  background: var(--hover);
+}
+.sidebar-tab.files.active {
+  color: var(--warning);
+}
+.sidebar-tab.git.active {
+  color: var(--status-terminal);
 }
 .sidebar-tab-badge {
   display: inline-flex;
@@ -575,7 +576,7 @@
 }
 .sidebar-tab.active .sidebar-tab-badge {
   background: var(--bg-1);
-  color: var(--git-mod);
+  color: var(--fg-2);
 }
 .sidebar-tools {
   display: flex;
@@ -642,45 +643,45 @@
 .git-remote-toolbar {
   display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 6px 12px;
+  gap: 2px;
+  padding: 6px 12px 2px;
   background: var(--bg-1);
-  border-bottom: 1px solid var(--edge);
   flex: none;
 }
 .git-remote-btn {
-  flex: 1;
+  width: 28px;
+  height: 24px;
+  padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  height: 22px;
-  padding: 0 6px;
-  font: 600 10.5px/1 var(--font-mono);
-  color: var(--fg-2);
-  background: var(--bg-2);
-  border: 1px solid var(--edge);
-  border-radius: 4px;
+  color: var(--fg-3);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition:
     background-color var(--t-fast) var(--ease),
-    border-color var(--t-fast) var(--ease),
     color var(--t-fast) var(--ease);
+}
+.git-remote-btn::before {
+  content: attr(data-glyph);
+  font: var(--text-md) var(--font-mono);
 }
 .git-remote-btn:hover:not(:disabled) {
   color: var(--fg-1);
   background: var(--hover);
-  border-color: color-mix(in srgb, var(--accent) 40%, var(--edge));
-}
-.git-remote-btn:active:not(:disabled) {
-  background: var(--bg-active);
 }
 .git-remote-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
+.git-remote-btn[aria-busy="true"] {
+  opacity: 1;
+  color: var(--accent);
+}
 .git-commit-box {
-  padding: 8px 12px;
+  padding: 6px 12px 12px;
   border-bottom: 1px solid var(--edge);
   background: var(--bg-1);
   display: flex;
@@ -691,28 +692,28 @@
 .git-commit-input {
   width: 100%;
   box-sizing: border-box;
-  background: var(--bg-2);
+  background: color-mix(in srgb, var(--fg-1) 4%, transparent);
   color: var(--fg-1);
-  border: 1px solid var(--edge);
-  border-radius: 4px;
-  padding: 6px 8px;
+  border: 1px solid var(--edge-overlay);
+  border-radius: 6px;
+  padding: 8px 10px;
   font-family: var(--font-sans);
   font-size: 11px;
   line-height: 1.4;
   resize: vertical;
-  min-height: 48px;
+  min-height: 72px;
   outline: none;
 }
 .git-commit-input:focus {
-  border-color: var(--accent);
+  border-color: var(--fg-3);
 }
 .git-commit-input::placeholder {
   color: var(--fg-4);
 }
 .git-commit-actions {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column-reverse;
+  gap: 6px;
 }
 .git-commit-meta {
   font-size: 10px;
@@ -720,12 +721,12 @@
   font-family: var(--font-mono);
 }
 .git-commit-btn {
-  padding: 3px 10px;
-  font-size: 11px;
-  font-weight: 500;
-  border-radius: 3px;
-  border: 1px solid var(--edge);
-  background: var(--accent);
+  height: 30px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 0;
+  background: var(--fg-1);
   color: var(--bg-0);
   cursor: pointer;
   transition:
