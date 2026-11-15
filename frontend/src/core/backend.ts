@@ -2,12 +2,12 @@
 import { Application, Browser, Call, Clipboard, Events, Stream, Window } from "@wailsio/runtime";
 import { ConfigService, PingService, UpdateService, WorkspaceService } from "../../bindings/github.com/Mirac61/ayaz/app";
 import type { HeadFile, Info, Match, OpenEvent, Swap, UpdateInfo, Version } from "../../bindings/github.com/Mirac61/ayaz/app";
-import type { Blame, FileStatus } from "../../bindings/github.com/Mirac61/ayaz/internal/git";
+import type { Blame, FileStatus, Summary } from "../../bindings/github.com/Mirac61/ayaz/internal/git";
 import type { Entry, Preview, TextFile } from "../../bindings/github.com/Mirac61/ayaz/internal/workspace";
 import type { Match as FileMatch } from "../../bindings/github.com/Mirac61/ayaz/internal/index";
 import type { Loc } from "./quickfix";
 
-export type { Blame, Entry, FileMatch, FileStatus, HeadFile, Info, Match, OpenEvent, Preview, Swap, TextFile, UpdateInfo, Version };
+export type { Blame, Entry, FileMatch, FileStatus, HeadFile, Info, Match, OpenEvent, Preview, Summary, Swap, TextFile, UpdateInfo, Version };
 
 // A batch of changes on disk. Paths are workspace-relative, files or folders; rescan: events were lost, check everything.
 // A file in the config folder the app watches.
@@ -29,6 +29,7 @@ export interface Backend {
   initialWorkspace(): Promise<Info | null>;
   openFolderDialog(): Promise<Info | null>;
   openFolder(root: string): Promise<Info | null>;
+  folderSummary(root: string): Promise<Summary>; // branch and changes of a folder that is not open
   clone(repoURL: string): Promise<Info | null>;
   closeWorkspace(ws: string): Promise<void>; // watcher, index, shells, servers (ADR-0014)
   closeWindow(): Promise<void>; // this window; a no-op in the server build
@@ -127,6 +128,7 @@ export const backend: Backend = {
   initialWorkspace: () => WorkspaceService.Initial(),
   openFolderDialog: () => WorkspaceService.OpenDialog(),
   openFolder: (root) => WorkspaceService.Open(root),
+  folderSummary: (root) => WorkspaceService.FolderSummary(root),
   clone: (repoURL) => Call.ByName("github.com/Mirac61/ayaz/app.WorkspaceService.Clone", repoURL),
   closeWorkspace: (ws) => WorkspaceService.Close(ws),
   closeWindow: () => WorkspaceService.CloseWindow(),

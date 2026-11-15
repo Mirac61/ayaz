@@ -46,6 +46,7 @@ func Middleware(reg *workspace.Registry) func(http.Handler) http.Handler {
 			w.Header().Set("X-Content-Type-Options", "nosniff")
 			// The HTML preview iframe is sandboxed (origin "null") and module scripts load in CORS mode.
 			// Allow only script loads: fetch() stays blocked, and nosniff keeps non-JS files from loading as scripts.
+			// shortcut: the grant covers every workspace; the only guard is the unguessable 128-bit ID (rand.Text). Upgrade to a per-preview token if previews ever show untrusted pages.
 			if r.Header.Get("Origin") == "null" && r.Header.Get("Sec-Fetch-Dest") == "script" {
 				w.Header().Set("Access-Control-Allow-Origin", "null")
 			}

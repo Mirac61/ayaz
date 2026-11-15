@@ -1,24 +1,24 @@
 {
-  "objective": "Modernisierung \u0026 Erweiterung des Startbildschirms (Ayaz Welcome Hub)",
+  "objective": "Modernisierung & Erweiterung des Startbildschirms (Ayaz Welcome Hub)",
   "tasks": [
     {
       "id": "1",
-      "title": "Konzeption \u0026 Bento-Grid-Architektur: Schnellstart, gefilterte Projekte, GitHub-Hub, Themes \u0026 Extensions",
+      "title": "Konzeption & Bento-Grid-Architektur: Schnellstart, gefilterte Projekte, GitHub-Hub, Themes & Extensions",
       "status": "DONE"
     },
     {
       "id": "2",
-      "title": "GitHub \u0026 Git Integration im Startbildschirm (Clone-Dialog, GitHub Issues/PR-Quicklinks, Auth-Status)",
+      "title": "GitHub & Git Integration im Startbildschirm (Clone-Dialog, GitHub Issues/PR-Quicklinks, Auth-Status)",
       "status": "DONE"
     },
     {
       "id": "3",
-      "title": "Interaktive Theme-Live-Palette \u0026 Extensions-Hub (Direkt-Umschalter, Extension-Architektur-Vorbereitung)",
+      "title": "Interaktive Theme-Live-Palette & Extensions-Hub (Direkt-Umschalter, Extension-Architektur-Vorbereitung)",
       "status": "DONE"
     },
     {
       "id": "4",
-      "title": "Strukturierte Keyboard-Cheatsheet-Tabs (Essentials, Navigation, Vim) \u0026 Recent-Filter",
+      "title": "Strukturierte Keyboard-Cheatsheet-Tabs (Essentials, Navigation, Vim) & Recent-Filter",
       "status": "DONE"
     },
     {
@@ -83,12 +83,12 @@
     },
     {
       "id": "17",
-      "title": "Tabbar \u0026 Sidebar-Header Höhenausrichtung (exakt 36px) und Tab bündig links ohne Einrückung",
+      "title": "Tabbar & Sidebar-Header Höhenausrichtung (exakt 36px) und Tab bündig links ohne Einrückung",
       "status": "DONE"
     },
     {
       "id": "19",
-      "title": "UI vereinheitlichen: PRs #8–#11 in dev gemergt, PR #12 (dev -\u003e main) erstellt",
+      "title": "UI vereinheitlichen: PRs #8–#11 in dev gemergt, PR #12 (dev -> main) erstellt",
       "status": "DONE"
     },
     {
@@ -103,7 +103,7 @@
     },
     {
       "id": "22",
-      "title": "DocsHub 12-Punkte Design-Feinschliff, Light-Mode \u0026 einklappbares TOC (PR #14 erstellt)",
+      "title": "DocsHub 12-Punkte Design-Feinschliff, Light-Mode & einklappbares TOC (PR #14 erstellt)",
       "status": "DONE"
     },
     {
@@ -113,19 +113,24 @@
     },
     {
       "id": "24",
-      "title": "Release-Please Setup: Automatisierte Releases \u0026 Version-Bumping via Conventional Commits",
+      "title": "Release-Please Setup: Automatisierte Releases & Version-Bumping via Conventional Commits",
       "status": "DONE"
     },
     {
       "id": "25",
-      "title": "Non-Vim Modus \u0026 Crystalline Vim Mode Badge Redesign",
+      "title": "Non-Vim Modus & Crystalline Vim Mode Badge Redesign",
       "status": "DONE"
     },
     {
       "id": "24",
-      "title": "HTML-Dateien im internen Browser öffnen (Sidebar Tree Action/Context-Menu, Render-Toggle \u0026 :browse Integration)",
+      "title": "HTML-Dateien im internen Browser öffnen (Sidebar Tree Action/Context-Menu, Render-Toggle & :browse Integration)",
       "status": "TODO"
+    },
+    {
+      "id": "26",
+      "title": "Startseite nach Sternklar-Mockup: zwei Spalten, Sternenkarte mit Ringen, Detailblock aus git",
+      "status": "DONE"
     }
   ],
-  "updated_at": "2026-11-14T22:46:08.918511Z"
+  "updated_at": "2026-11-15T17:32:04.835646+00:00"
 }
