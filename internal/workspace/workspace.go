@@ -3,6 +3,7 @@ package workspace
 
 import (
 	"bytes"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"io"
@@ -11,7 +12,6 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"unicode/utf8"
@@ -307,9 +307,8 @@ func (w *Workspace) Abs(rel string) (string, error) { return w.entry(rel) }
 
 // Registry maps workspace IDs to workspaces. IDs are checked on every call, a window only knows its own.
 type Registry struct {
-	mu   sync.Mutex
-	next int
-	ws   map[string]*Workspace
+	mu sync.Mutex
+	ws map[string]*Workspace
 }
 
 func NewRegistry() *Registry { return &Registry{ws: map[string]*Workspace{}} }
@@ -317,8 +316,8 @@ func NewRegistry() *Registry { return &Registry{ws: map[string]*Workspace{}} }
 func (r *Registry) Open(root string) (*Workspace, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.next++
-	w, err := New(strconv.Itoa(r.next), root)
+	// Unguessable ID: the sandboxed HTML preview may import /fs/<id>/ scripts and only knows its own ID.
+	w, err := New(rand.Text(), root)
 	if err != nil {
 		return nil, err
 	}

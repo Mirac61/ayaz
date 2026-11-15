@@ -22,10 +22,19 @@ Du hast vollen Zugriff auf die Test-Suite. Nutze sie aktiv nach jeder Änderung:
 Wenn alle Tests grün sind, schreibe die PR-Beschreibung auf Deutsch in die im Prompt genannte `PR_BODY_FILE`-Datei exakt nach diesem Template:
 
 ### Was wurde geändert?
-- (2–4 kurze Bulletpoints zur Umsetzung)
+- (2–4 kurze Bulletpoints in normalen Sätzen, was sich für mich ändert)
 
 ### Wie wurde getestet?
-- (Nenne die neu geschriebenen/ausgeführten Go-, Unit- oder Browser-Tests)
+- (1–3 Bulletpoints: welche Tests neu sind und was grün ist)
+
+### Offen
+- (Nur wenn etwas rot bleibt: ein Satz pro Problem, sonst Abschnitt weglassen)
 
 ### Manual Check (für das Review am Morgen)
-- (Exakte, kurze Prüfanweisung, was ich in der App anklicken/prüfen soll)
+- (1–3 Schritte, was ich in der App anklicken/prüfen soll)
+
+Lesbarkeit geht vor Vollständigkeit, ich lese das morgens im Browser:
+- Kurze Sätze. Pro Bulletpoint höchstens ein `Code`-Stück (Dateiname oder Wert), keine Testnamen-Ketten, keine Fehlermeldungen oder Expected/Received-Werte im Fließtext.
+- Befehle nur als eigener ```bash-Block, nie inline im Satz.
+- Schon vorher rote Tests nicht einzeln auflisten, nur zählen („3 bekannte rote e2e-Tests, unverändert“). Neu rote Tests mit Datei:Zeile und einem Satz zur vermuteten Ursache.
+- Details, die nur für Debugging taugen, gehören ins Log, nicht in den PR.

@@ -31,6 +31,8 @@ export function prepareHtml(live: string, url: string): string {
     b.setAttribute("href", dir);
     doc.head.prepend(b);
   }
+  // Parsing drops one leading newline in these, serializing does not add it back: re-add so the preview keeps the value.
+  for (const n of doc.querySelectorAll("pre, textarea, listing")) if (n.firstChild?.textContent?.startsWith("\n")) n.prepend("\n");
   const xml = new XMLSerializer(); // for the doctype and comments outside <html>
   return Array.from(doc.childNodes, (n) => (n instanceof Element ? n.outerHTML : xml.serializeToString(n))).join("");
 }

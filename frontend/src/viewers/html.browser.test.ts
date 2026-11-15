@@ -84,6 +84,13 @@ describe("html preview browser", () => {
     expect(doc.head.querySelector("base")?.getAttribute("href")).toBe("/fs/ws1/");
   });
 
+  test("keeps leading newlines in textarea and pre", () => {
+    const raw = "<textarea>\n\nvalue</textarea><pre>\n\ncode</pre>";
+    const doc = new DOMParser().parseFromString(prepareHtml(raw, "/fs/ws1/index.html"), "text/html");
+    expect(doc.querySelector("textarea")?.value).toBe("\nvalue");
+    expect(doc.querySelector("pre")?.textContent).toBe("\ncode");
+  });
+
   test("rewrites the real href, not data-href", () => {
     const raw = '<head><base data-href="metadata/" href="assets/"></head>';
     const base = new DOMParser().parseFromString(prepareHtml(raw, "/fs/ws1/sub/index.html"), "text/html").querySelector("base");
