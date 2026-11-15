@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Ayaz
+GenericName=Code Editor
+Comment=Keyboard-first code editor with an nvim feel
+Exec=ayaz %f
+Icon=ayaz
+Terminal=false
+Categories=Development;TextEditor;
+Keywords=editor;vim;markdown;pdf;terminal;
+StartupNotify=true

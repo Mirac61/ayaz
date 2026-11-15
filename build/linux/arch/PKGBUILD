@@ -1,0 +1,43 @@
+# Arch package from the Git repository (Q14: binary + .desktop, no AppImage). Build: makepkg -si
+pkgname=ayaz-git
+pkgver=r0
+pkgrel=1
+pkgdesc="Keyboard-first code editor with an nvim feel, Markdown, PDF, images and a real terminal"
+arch=('x86_64' 'aarch64')
+url="https://github.com/Mirac61/ayaz"
+license=('LicenseRef-unknown') # the repo has no LICENSE yet
+depends=('gtk4' 'webkitgtk-6.0')
+makedepends=('go' 'bun' 'git')
+optdepends=(
+  'gopls: Go language features'
+  'clang: C/C++ language features (clangd)'
+  'typescript-language-server: TypeScript/JavaScript language features'
+  'vscode-langservers-extracted: HTML/CSS/JSON language features'
+  'jdtls: Java language features'
+  'lazygit: <Space>gg'
+)
+provides=('ayaz')
+conflicts=('ayaz')
+source=("git+https://github.com/Mirac61/ayaz.git")
+sha256sums=('SKIP')
+
+pkgver() {
+  cd ayaz
+  printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+build() {
+  cd ayaz/frontend
+  bun install --frozen-lockfile
+  bun run build
+  cd ..
+  export CGO_ENABLED=1 GOFLAGS="-buildmode=pie -trimpath -mod=readonly -modcacherw"
+  go build -tags production -buildvcs=false -ldflags="-w -s -linkmode=external" -o bin/ayaz
+}
+
+package() {
+  cd ayaz
+  install -Dm755 bin/ayaz "$pkgdir/usr/bin/ayaz"
+  install -Dm644 build/linux/ayaz.desktop "$pkgdir/usr/share/applications/ayaz.desktop"
+  install -Dm644 build/appicon.png "$pkgdir/usr/share/icons/hicolor/1024x1024/apps/ayaz.png"
+}

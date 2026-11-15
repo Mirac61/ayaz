@@ -1,0 +1,195 @@
+// The debugger (M48, M70): breakpoints, starting, stepping, stopping and the variables of the stopped program.
+import type { Command } from "../../core/commands";
+import { pickAdapter } from "../../debug/adapters";
+import { formatBreakpointPrompt, parseBreakpointPrompt } from "../../editor/breakpoints";
+import { lines, type Row } from "../../debug/variables";
+import { installHint } from "../../editor/lsp";
+import type { Item, PickerSource } from "../Picker";
+import { errText, type Ctx } from "./context";
+
+export function debugCommands(c: Ctx): Command[] {
+  // The variables as a list: Enter opens a variable that has something below it (the list comes back with it open),
+  // on any other it says its whole value. Typing filters.
+  const variables = (rows: Row[], start = 0): PickerSource => {
+    const shown = lines(rows), byItem = new WeakMap<Item, Row>();
+    const items = shown.map((l): Item => {
+      const hint = l.row.isWatch
+        ? (l.row.ref > 0 ? `${l.hint} · Enter to open` : `${l.hint} · Enter to remove`)
+        : l.hint;
+      const item = { label: l.label, hint };
+      byItem.set(item, l.row);
+      return item;
+    });
+    return {
+      title: "Variables of the stopped program",
+      start,
+      query: async (q) => items.filter((i) => i.label.toLowerCase().includes(q.toLowerCase())),
+      pick(item) {
+        const row = byItem.get(item);
+        if (!row) return;
+        if (row.isWatchScope) return;
+        if (row.isWatch && row.ref <= 0) {
+          c.dbg.removeWatch(row.name);
+          c.say(`Removed watch: ${row.name}`);
+          void c.dbg.variables().then(
+            (newRows) => (newRows ? c.setPicker(variables(newRows)) : null),
+            (e) => c.fail(errText(e)),
+          );
+          return;
+        }
+        if (row.ref <= 0) return c.say(`${row.name} = ${row.value}`);
+        void c.dbg.toggleRow(row).then(
+          () => c.setPicker(variables(rows, shown.findIndex((l) => l.row === row))),
+          (e) => c.fail(errText(e)),
+        );
+      },
+    };
+  };
+
+  // The adapter ending before it launched usually means the debugger isn't installed; the stream's "missing" status said so too.
+  const startFailed = (e: unknown, binary = "dlv") => {
+    const text = errText(e);
+    c.fail(text.includes("ended") ? `${text}. Is ${binary} installed? ${installHint(binary)}` : text);
+  };
+
+  return [
+    {
+      id: "debug.toggleBreakpoint",
+      title: "Toggle breakpoint on this line (<Space>db)",
+      run() {
+        const on = c.ed.toggleBreakpoint();
+        if (on === null) return c.fail("No editor here to put a breakpoint in");
+        c.say(on ? "Breakpoint set" : "Breakpoint removed");
+        const path = c.ed.current()?.path;
+        if (path) c.dbg.breakpointsChanged(path, c.ed.breakpoints()[path] ?? []); // a running session learns of it
+      },
+    },
+    {
+      id: "debug.conditionalBreakpoint",
+      title: "Edit conditional breakpoint (<Space>dB)",
+      run() {
+        const cur = c.ed.getBreakpoint();
+        const initial = cur ? formatBreakpointPrompt(cur) : "";
+        c.prompt("Breakpoint condition (plain text = condition, log: text = logpoint, hits: 5 = hit count)", initial, async (text) => {
+          const parsed = parseBreakpointPrompt(text);
+          const bp = c.ed.setBreakpoint(parsed);
+          if (!bp) return c.fail("No editor here to put a breakpoint in");
+          const kind = bp.logMessage ? "Logpoint" : (bp.condition || bp.hitCondition ? "Conditional breakpoint" : "Breakpoint");
+          c.say(`${kind} set on line ${bp.line}`);
+          const path = c.ed.current()?.path;
+          if (path) c.dbg.breakpointsChanged(path, c.ed.breakpoints()[path] ?? []);
+        });
+      },
+    },
+    {
+      id: "debug.start",
+      title: "Debug the active file or Go package (<Space>dd)",
+      run: () => {
+        const { adapter } = pickAdapter(c.ed.activePath());
+        return c.dbg.start().catch((e) => startFailed(e, adapter.binary));
+      },
+    },
+    {
+      id: "debug.continue",
+      title: "Debug: continue, or start (F5, <Space>dc)",
+      run: () => {
+        if (c.dbg.status === "idle") {
+          const { adapter } = pickAdapter(c.ed.activePath());
+          return c.dbg.start().catch((e) => startFailed(e, adapter.binary));
+        }
+        return c.dbg.step("continue");
+      },
+    },
+    { id: "debug.next", title: "Debug: step over (F10, <Space>dn)", run: () => void c.dbg.step("next") },
+    { id: "debug.stepIn", title: "Debug: step into (F11, <Space>ds)", run: () => void c.dbg.step("stepIn") },
+    { id: "debug.stepOut", title: "Debug: step out (Shift+F11, <Space>do)", run: () => void c.dbg.step("stepOut") },
+    {
+      id: "debug.callstack",
+      title: "Debug: call stack (<Space>dk)",
+      run() {
+        if (c.dbg.status !== "paused") {
+          return c.say(c.dbg.status === "idle" ? "Not debugging: <Space>dd starts" : "The program isn't stopped");
+        }
+        const frames = c.dbg.frames;
+        if (!frames.length) return c.say("No call stack frames available");
+        const items = frames.map((f, i): Item => {
+          const loc = f.source?.path ? `${c.dbg.relative(f.source.path)}:${f.line}` : `line ${f.line}`;
+          const activeMark = f.id === c.dbg.activeFrameId ? "▶ " : "";
+          return {
+            label: `${activeMark}${f.name || `frame #${i}`}`,
+            hint: loc,
+          };
+        });
+        c.setPicker({
+          title: "Call stack",
+          query: async (q) => items.filter((item) => item.label.toLowerCase().includes(q.toLowerCase()) || (item.hint && item.hint.toLowerCase().includes(q.toLowerCase()))),
+          pick(item) {
+            const idx = items.indexOf(item);
+            if (idx < 0) return;
+            const frame = frames[idx];
+            c.dbg.selectFrame(frame.id);
+            if (frame.source?.path) {
+              const rel = c.dbg.relative(frame.source.path);
+              void c.ed.openAt(rel, frame.line, frame.column || 0).then(() => {
+                c.ed.setDebugLine(rel, frame.line);
+              });
+              c.say(`Jumped to frame ${frame.name} (${rel}:${frame.line})`);
+            } else {
+              c.say(`Frame ${frame.name} has no source location`);
+            }
+          },
+        });
+      },
+    },
+    {
+      id: "debug.variables",
+      title: "Debug: variables of the stopped program (<Space>dv)",
+      run: () => void c.dbg.variables().then((rows) => (rows ? c.setPicker(variables(rows)) : c.say("The program isn't stopped")),
+        (e) => c.fail(errText(e))),
+    },
+    {
+      id: "debug.addWatch",
+      title: "Debug: add watch expression (<Space>dw)",
+      run() {
+        c.prompt("Add watch expression", "", async (expr) => {
+          const trimmed = expr.trim();
+          if (!trimmed) return;
+          c.dbg.addWatch(trimmed);
+          c.say(`Watch expression added: ${trimmed}`);
+          if (c.dbg.status === "paused") {
+            void c.dbg.variables().then(
+              (rows) => (rows ? c.setPicker(variables(rows)) : null),
+              (e) => c.fail(errText(e)),
+            );
+          }
+        });
+      },
+    },
+    {
+      id: "debug.evaluate",
+      title: "Debug: evaluate expression at cursor (<Space>de)",
+      run() {
+        const cur = c.ed.current();
+        if (!cur) return c.fail("No editor here to evaluate");
+        const v = c.ed.activeView();
+        let word = "";
+        if (v) {
+          const sel = v.state.selection.main;
+          if (!sel.empty) word = v.state.sliceDoc(sel.from, sel.to);
+          else {
+            const w = v.state.wordAt(sel.head);
+            if (w) word = v.state.sliceDoc(w.from, w.to);
+          }
+        }
+        word = word.trim();
+        if (!word) return c.say("No word under cursor to evaluate");
+        void c.dbg.evaluate(word, "hover").then(
+          (res) => c.say(`${word} = ${res.result}`),
+          (e) => c.fail(errText(e)),
+        );
+      },
+    },
+    { id: "debug.stop", title: "Debug: stop (<Space>dq)", run: () => void c.dbg.stop() },
+    { id: "debug.output", title: "Debug: show the program's output (<Space>dl)", run: () => void c.ed.showOutput() },
+  ];
+}

@@ -1,0 +1,47 @@
+@startuml roadmap
+!include _style.iuml
+skinparam linetype ortho
+package "Phase 1 · Daily editor" {
+  rectangle "M0\nSkeleton, spikes" as M0
+  rectangle "M1\nEditor, Vim" as M1
+  rectangle "M2\nCommands, fuzzy, splits" as M2
+  rectangle "M3\nFile watching" as M3
+  rectangle "M4\nTerminal" as M4
+  rectangle "M5\nMarkdown inline" as M5
+  rectangle "M6\nMarkdown blocks" as M6
+}
+package "Phase 2 · Code intelligence" {
+  rectangle "M7\nLSP Go" as M7
+  rectangle "M8\nProject search" as M8
+  rectangle "M9\nLSP C/C++, web, Java" as M9
+}
+package "Phase 3 · Viewers" {
+  rectangle "M10\nImages" as M10
+  rectangle "M11\nPDF" as M11
+  rectangle "M12\nMD preview, tabs" as M12
+}
+package "Phase 4 · Shipping" {
+  rectangle "M13\nMultiple windows" as M13
+  rectangle "M14\nPackaging" as M14
+}
+rectangle "Later\nTasks, Git, DAP" as L #line.dashed
+M0 -down-> M1
+M1 -down-> M2
+M2 -down-> M3
+M3 -down-> M4
+M4 -down-> M5
+M5 -down-> M6
+M6 -[norank]-> M7
+M0 -[hidden]right- M7
+M7 -down-> M8
+M8 -down-> M9
+M9 -[norank]-> M10
+M7 -[hidden]right- M10
+M10 -down-> M11
+M11 -down-> M12
+M12 -[norank]-> M13
+M10 -[hidden]right- M13
+M13 -down-> M14
+M14 -down-> L
+caption Fig. 7 – Milestones in order
+@enduml

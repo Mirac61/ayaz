@@ -1,0 +1,82 @@
+@startuml system-overview
+!include _style.iuml
+skinparam linetype ortho
+skinparam nodesep 40
+skinparam ranksep 45
+skinparam packageFontSize 11
+package "Presentation (WebView)" {
+  rectangle "Shell" as SH
+  rectangle "Command registry" as CR
+  rectangle "Viewer providers" as VP
+  rectangle "Editor\n<size:10>CodeMirror 6, Vim, LSP client</size>" as ED
+  rectangle "Terminal\n<size:10>xterm.js</size>" as TE
+  rectangle "File viewers\n<size:10>PDF (pdf.js), image, Markdown preview</size>" as DV
+  rectangle "Backend adapter\n<size:10>backend.ts</size>" as BE
+}
+
+package "Runtime (Wails v3)" {
+  rectangle "<color:#F6F6F6>MMMMMMMM</color>" as PH2 #transparent;line:transparent
+  rectangle "Bindings\n<size:10>Request/Response</size>" as IB #ECECEC
+  rectangle "Events\n<size:10>Go to frontend</size>" as IE #ECECEC
+  rectangle "Streams\n<size:10>bidirectional, bytes</size>" as IS #ECECEC
+  rectangle "HTTP /fs/\n<size:10>custom scheme</size>" as IH #ECECEC
+}
+
+package "Application (Go)" {
+  rectangle "<color:#F6F6F6>MMMMMMMM</color>" as PH3 #transparent;line:transparent
+  rectangle "Services\n<size:10>workspace, index, search, config</size>" as SVC
+  rectangle "Stream handlers\n<size:10>PTY, LSP, search</size>" as STR
+  rectangle "fsserve\n<size:10>http.Handler for /fs/<ws>/<path></size>" as FS
+  rectangle "Workspace registry\n<size:10>one ID per window, path checks</size>" as WS
+}
+
+package "Platform" {
+  rectangle "<color:#F6F6F6>MMMMMMMM</color>" as PH4 #transparent;line:transparent
+  database "File system" as DISK
+  rectangle "External processes\n<size:10>shell, LSP servers</size>" as PROC
+}
+
+' Fix left-to-right order
+' Invisible placeholders keep layer titles free of lines
+PH2 -[hidden]right- IB
+PH3 -[hidden]right- SVC
+PH4 -[hidden]right- DISK
+SH -right-> CR
+CR -right-> VP
+ED -[hidden]right- TE
+TE -[hidden]right- DV
+IB -[hidden]right- IE
+IE -[hidden]right- IS
+IS -[hidden]right- IH
+SVC -[hidden]right- STR
+STR -[hidden]right- FS
+DISK -[hidden]right- PROC
+
+VP -down-> ED
+VP -down-> TE
+VP -down-> DV
+ED -down-> BE
+TE -down-> BE
+
+BE -down-> IB
+BE <.down. IE
+BE <-down-> IS
+DV -down-> IH
+
+IB -down-> SVC
+IE <.down. SVC
+IS <-down-> STR
+IH -down-> FS
+
+SVC -down-> WS
+STR -down-> WS
+FS -down-> WS
+WS -down-> DISK
+WS -down-> PROC
+
+legend right
+  solid: call  ·  dashed: event  ·  arrows on both ends: stream  ·  grey: runtime interface
+endlegend
+
+caption Fig. 1 – System overview: components and channels
+@enduml
