@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { filterRows, GIT_BADGE, isHtmlPath } from "./Tree";
+import { cleanRel, filterRows, GIT_BADGE, isHtmlPath } from "./Tree";
 
 test("GIT_BADGE maps git status codes to readable letters", () => {
   expect(GIT_BADGE["M"]).toBe("M");
@@ -24,4 +24,11 @@ test("filter matches become a tree: folders first, by name, each folder once", (
   ]);
   expect(rows[2].path).toBe("src/a/x.go");
   expect(filterRows([])).toEqual([]);
+});
+
+test("cleanRel spells a path like the backend: no ./, empty or .. parts", () => {
+  expect(cleanRel("./b.go")).toBe("b.go");
+  expect(cleanRel("a//b.go")).toBe("a/b.go");
+  expect(cleanRel("a/../b.go")).toBe("b.go");
+  expect(cleanRel("a/b.go")).toBe("a/b.go");
 });
