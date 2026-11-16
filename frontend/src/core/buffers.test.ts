@@ -15,6 +15,7 @@ function fakeFiles(init: Record<string, string>) {
     create: async () => {},
     writeNew: async () => {},
     rename: async () => {},
+    duplicate: async () => {},
     trash: async () => {},
     reveal: async () => {},
     gitBranch: async () => "",
