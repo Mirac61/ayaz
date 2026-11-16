@@ -1315,6 +1315,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
         {status.words !== undefined && <Seg title="Words in this file">{plural(status.words, "word")}</Seg>}
         {status.indent && <Seg onPress={palette} title="Indentation of this file">{status.indent}</Seg>}
         {status.eol && <Seg onPress={palette} title="Line endings of this file are kept on save">{status.eol}</Seg>}
+        {status.plain && <Seg title="A line over 20,000 characters: syntax highlighting is off for this file">plain text</Seg>}
         {updateState === "ready" ? (
           <Seg className="update-ready" onPress={() => setShowUpdateDialog(true)} title="Update ready! Click to restart Ayaz">
             ↻ Restart to update

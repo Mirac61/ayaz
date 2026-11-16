@@ -7,12 +7,25 @@ export interface Buffer {
   mtime: number; // mtime the buffer was read or last written with, 0 = not on disk yet
   saved: Text; // doc as on disk, for the dirty flag
   eol: Eol; // the file's line ending: the doc holds "\n" only, save writes eol back
+  plain: boolean; // a line over LONG_LINE: opened without highlighting. Set where the text is read, not per status update.
 }
 
 export type Eol = "\n" | "\r\n";
 
 // shortcut: a file mixing both endings is written back with the first line's, upgrade when someone minds.
 export const eolOf = (text: string): Eol => (/\r\n/.test(text.slice(0, text.indexOf("\n") + 1)) ? "\r\n" : "\n");
+// M51 (lives here so Buffer can use it without importing the editor): from a line of ~32 KB on, highlighting costs
+// 15–25 ms per key (16 KB: 6 ms). Such files (minified code, one-line JSON) open as plain text.
+export const LONG_LINE = 20_000;
+export function hasLongLine(doc: string): boolean {
+  for (let at = 0; at < doc.length;) {
+    const nl = doc.indexOf("\n", at);
+    if ((nl < 0 ? doc.length : nl) - at > LONG_LINE) return true;
+    if (nl < 0) break;
+    at = nl + 1;
+  }
+  return false;
+}
 export const lf = (text: string) => text.replace(/\r\n/g, "\n");
 
 // Buffers with no file: the debugger's output, git HEAD snapshots, or the in-app docs.
@@ -58,7 +71,7 @@ export class Buffers {
       const head = await this.files.gitHead(real);
       const content = head.tracked ? head.text : "";
       const state = await this.makeState(real, lf(content));
-      const b: Buffer = { path, state, mtime: 0, saved: state.doc, eol: "\n" };
+      const b: Buffer = { path, state, mtime: 0, saved: state.doc, eol: "\n", plain: false };
       this.m.set(path, b);
       return b;
     }
@@ -70,7 +83,7 @@ export class Buffers {
     const have = this.m.get(path);
     if (have) return have;
     const state = await this.makeState(path, doc);
-    const b: Buffer = { path, state, mtime: 0, saved: state.doc, eol: "\n" };
+    const b: Buffer = { path, state, mtime: 0, saved: state.doc, eol: "\n", plain: false };
     this.m.set(path, b);
     return b;
   }
@@ -85,7 +98,7 @@ export class Buffers {
     }
     const eol = eolOf(content);
     const state = await this.makeState(path, lf(content));
-    const b: Buffer = { path, state, mtime, saved: state.doc, eol };
+    const b: Buffer = { path, state, mtime, saved: state.doc, eol, plain: hasLongLine(content) };
     this.m.set(path, b);
     return b;
   }
@@ -108,6 +121,7 @@ export class Buffers {
     }
     if (isDirty(b)) return { kind: "conflict" };
     b.eol = eolOf(f.content);
+    b.plain = hasLongLine(content);
     return { kind: "reload", content, mtime: f.mtime };
   }
 

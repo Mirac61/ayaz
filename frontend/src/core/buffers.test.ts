@@ -214,3 +214,15 @@ test("head:// virtual buffer loads text from gitHead and is marked virtual", asy
   // Cannot be saved
   await expect(bufs.save(b)).rejects.toThrow();
 });
+
+describe("plain (a line too long to highlight)", () => {
+  test("is set on load and on reload, not for normal files", async () => {
+    const { bufs, touch } = make({ "long.json": "x".repeat(20_001), "a.go": "package a\n" });
+    expect((await bufs.open("long.json")).plain).toBe(true);
+    expect((await bufs.open("a.go")).plain).toBe(false);
+    touch("long.json", "short\n");
+    const b = bufs.get("long.json")!;
+    expect(await bufs.checkDisk(b)).toMatchObject({ kind: "reload" });
+    expect(b.plain).toBe(false);
+  });
+});
