@@ -156,9 +156,12 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
   useEffect(() => {
     const i = rows.findIndex((r) => r.path === (revealing.current ?? cursorPath.current));
     if (i >= 0 && revealing.current) revealing.current = null;
+    // The path is kept here, not from the cursor index: right after a reveal that index is still the old row, and a
+    // second rows update before the next render would pull the cursor back to it.
+    cursorPath.current = rows[i >= 0 ? i : cur]?.path;
     if (i >= 0) setCursor(i);
   }, [rows]);
-  useEffect(() => { cursorPath.current = rows[cur]?.path; }, [rows, cur]);
+  useEffect(() => { cursorPath.current = rows[cur]?.path; }, [cur]); // the user moved the cursor
 
   // Keep the cursor row inside the viewport.
   useEffect(() => {
