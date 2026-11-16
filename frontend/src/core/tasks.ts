@@ -29,8 +29,11 @@ export function parseProblems(output: string, root: string): Loc[] {
 // root) and the 1-based cursor line. Any other ${...} stays (${HOME} is shell syntax). Null when the task needs a file
 // and none is open.
 // Values are escaped for the quotes the placeholder sits in, so a path stays literal in `cat ${file}`, `'${file}'`
-// and `"${file}"` alike.
-// shortcut: POSIX sh quoting only and no nesting ($(...) inside "...", heredocs), Windows shells need their own
+// and `"${file}"` alike. Where the scan can't tell the quoting (after $(, `, <<, $', ${x:-..}, a # comment, or with
+// unbalanced quotes) a ${file} or ${dir} throws instead of guessing.
+// shortcut: POSIX sh/bash/zsh quoting only; commands that re-parse their argument (sh -c "…${file}", eval, ssh) and
+// Windows shells are not covered
+const UNMODELLED = /\$\(|`|<<|\$'|\$\{(?![A-Za-z_]\w*\})|(?:^|\s)#/y;
 const escape = {
   none: (s: string) => `'${s.replace(/'/g, "'\\''")}'`,
   single: (s: string) => s.replace(/'/g, "'\\''"),
@@ -42,16 +45,21 @@ export function expandTask(cmd: string, at: { file?: string; line?: number }): s
   const { file } = at, slash = file.lastIndexOf("/");
   const vals = { file, dir: slash < 0 ? "." : file.slice(0, slash), line: String(at.line ?? 1) };
   const ph = /\$\{(file|dir|line)\}/y;
-  let out = "", ctx: keyof typeof escape = "none";
+  let out = "", ctx: keyof typeof escape = "none", unmodelled = "", path = false;
   for (let i = 0; i < cmd.length; ) {
     ph.lastIndex = i;
     const m = ph.exec(cmd);
     if (m) {
       const k = m[1] as keyof typeof vals;
+      if (k !== "line" && unmodelled) throw new Error(`\${${k}} can't follow ${unmodelled.trim()} in a task, put it outside`);
+      path ||= k !== "line";
       out += k === "line" ? vals.line : escape[ctx](vals[k]);
       i = ph.lastIndex;
       continue;
     }
+    UNMODELLED.lastIndex = i;
+    const u = ctx === "single" ? null : UNMODELLED.exec(cmd);
+    if (u && (ctx === "none" || u[0] === "$(" || u[0] === "`" || u[0].startsWith("${"))) unmodelled ||= u[0];
     const c = cmd[i];
     if (c === "\\" && ctx !== "single") {
       out += cmd.slice(i, i + 2); // an escaped character stays as written
@@ -63,6 +71,7 @@ export function expandTask(cmd: string, at: { file?: string; line?: number }): s
     out += c;
     i++;
   }
+  if (path && ctx !== "none") throw new Error("A task with ${file} or ${dir} needs balanced quotes");
   return out;
 }
 

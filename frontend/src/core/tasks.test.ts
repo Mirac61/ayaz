@@ -117,6 +117,43 @@ test("expandTask escapes for the quotes around the placeholder", () => {
   expect(expandTask('cat "${file}" ${file}', { file: 'a"b' })).toBe(`cat "a\\"b" 'a"b'`);
 });
 
+test("expandTask refuses placeholders where it can't tell the quoting", () => {
+  const at = { file: "a.go", line: 2 };
+  for (const cmd of [
+    `printf '%s\\n' "$(printf '%s' "\${file}")"`,
+    "echo `cat ${file}`",
+    "echo $(ls) ${dir}",
+    "cat <<EOF\n${file}\nEOF",
+    "echo $'it\\'s' ${file}",
+    'echo "${x:-"${file}"}"',
+    "true # it's\necho ${file}",
+    "echo '${file}",
+  ]) {
+    expect(() => expandTask(cmd, at), cmd).toThrow();
+  }
+  // ${line} is a number, safe anywhere; plain ${NAME}, a quoted #, $( or << in single quotes don't count
+  expect(expandTask("echo $(seq ${line})", at)).toBe("echo $(seq 2)");
+  expect(expandTask(`echo "\${HOME}#" '$(<<' \${file}`, at)).toBe(`echo "\${HOME}#" '$(<<' 'a.go'`);
+});
+
+// The shell, not string equality, decides whether a hostile name stays literal. No /bin/sh (Windows) skips it.
+// Node modules load through a string so tsc, which has no Node types here, sees them as any.
+const node = (m: string) => import(m);
+const { execFileSync } = await node("node:child_process");
+const { existsSync, mkdtempSync, readdirSync } = await node("node:fs");
+const shells = ["/bin/sh", "/bin/bash", "/bin/zsh"].filter((s) => existsSync(s));
+test.skipIf(!shells.length)("expanded tasks pass hostile names through literally", () => {
+  const file = "$(touch PWNED) `touch PWNED` \"q\" it's\\n.txt";
+  for (const sh of shells) {
+    for (const tpl of ["printf %s ${file}", "printf %s \"${file}\"", "printf %s '${file}'", `printf %s "x"'\${file}'`]) {
+      const dir = mkdtempSync("/tmp/ayaz-task-");
+      const got = execFileSync(sh, ["-c", expandTask(tpl, { file })!], { cwd: dir, encoding: "utf8" });
+      expect(got, `${sh}: ${tpl}`).toBe(tpl.includes('"x"') ? "x" + file : file);
+      expect(readdirSync(dir), `${sh}: ${tpl}`).toEqual([]);
+    }
+  }
+});
+
 test("expandTask: dir of a root file is '.', other ${} stays, no placeholder needs no file", () => {
   expect(expandTask("ls ${dir}", { file: "main.go" })).toBe("ls '.'");
   expect(expandTask("echo ${HOME} ${file}", { file: "a.go" })).toBe("echo ${HOME} 'a.go'");
