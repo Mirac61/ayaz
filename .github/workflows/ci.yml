@@ -49,4 +49,5 @@ jobs:
         run: |
           bun install --frozen-lockfile
           bun run typecheck
+          bun run lint:ts
           bun run test

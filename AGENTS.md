@@ -21,5 +21,6 @@
 - Kleinste saubere Lösung: Keine ungefragten Refactorings oder Umbenennungen außerhalb des Tasks.
 
 ## Bekannte Fallen
-- `bun run lint` prüft nur CSS. Verlasse dich auf `bun run --cwd frontend typecheck`.
+- `bun run lint` prüft nur CSS. `bun run --cwd frontend lint:ts` (oxlint) erzwingt geschweifte Klammern bei if/else/for/while (`curly`), dazu `typecheck`.
+- Immer Klammern: `if (x) {\n  return;\n}`, nie `if (x) return;`.
 - `frontend/dist` wird per `//go:embed` in Go eingebunden. Ohne vorhandenen Build schlägt `go test ./...` fehl.
