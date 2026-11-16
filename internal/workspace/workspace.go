@@ -290,6 +290,55 @@ func (w *Workspace) Rename(from, to string) error {
 	return os.Rename(src, dst)
 }
 
+// Copy duplicates a file inside the workspace, with its permissions and missing parent folders of the target. It never
+// replaces an existing target. shortcut: files only, folders need a recursive walk
+func (w *Workspace) Copy(from, to string) (err error) {
+	src, err := w.entry(from)
+	if err != nil {
+		return err
+	}
+	st, err := os.Lstat(src)
+	if err != nil {
+		return err
+	}
+	if !st.Mode().IsRegular() {
+		return errors.New("only files can be duplicated")
+	}
+	// Create makes the target exclusively (O_EXCL) and its parents, so a race cannot replace anything.
+	if err := w.Create(to, false); err != nil {
+		if errors.Is(err, fs.ErrExist) {
+			return fmt.Errorf("%s already exists", to)
+		}
+		return err
+	}
+	dst, err := w.entry(to) // after Create: its parent folders exist now
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			os.Remove(dst)
+		}
+	}()
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_TRUNC, 0)
+	if err != nil {
+		return err
+	}
+	if _, err = io.Copy(out, in); err != nil {
+		out.Close()
+		return err
+	}
+	if err = out.Close(); err != nil {
+		return err
+	}
+	return os.Chmod(dst, st.Mode().Perm())
+}
+
 // Trash moves a file or folder to the system trash.
 func (w *Workspace) Trash(rel string) error {
 	p, err := w.entry(rel)

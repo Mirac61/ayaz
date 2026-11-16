@@ -60,7 +60,7 @@ export const GIT_BADGE: Record<string, string> = { M: "M", A: "A", D: "D", R: "R
 export const isHtmlPath = (p: string) => !p.endsWith("/") && (p.endsWith(".html") || p.endsWith(".htm"));
 
 const KEYS: Record<string, string> = {
-  a: "file.new", r: "file.rename", d: "file.trash", y: "file.copyPath", Y: "file.copyAbsPath", s: "file.reveal",
+  a: "file.new", r: "file.rename", c: "file.duplicate", d: "file.trash", y: "file.copyPath", Y: "file.copyAbsPath", s: "file.reveal",
 };
 
 // Virtualized file tree: folders load when first expanded, only the visible rows are in the DOM.
@@ -227,6 +227,7 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
         cmd("New file…", "file.new", "a"),
         cmd("New folder…", "file.new", undefined, "dir"),
         cmd("Rename…", "file.rename", "r"),
+        ...(r.dir ? [] : [cmd("Duplicate…", "file.duplicate", "c")]),
         cmd("Copy relative path", "file.copyPath", "y"),
         cmd("Copy absolute path", "file.copyAbsPath", "Y"),
         cmd("Reveal in Finder", "file.reveal", "s"),

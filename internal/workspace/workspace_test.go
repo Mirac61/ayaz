@@ -255,3 +255,52 @@ func TestWriteNew(t *testing.T) {
 		t.Fatal("a path outside the workspace must fail")
 	}
 }
+
+func TestCopy(t *testing.T) {
+	w := newTestWS(t)
+	script := filepath.Join(w.Root, "run.sh")
+	must(t, os.WriteFile(script, []byte("#!/bin/sh\n"), 0o755))
+	must(t, os.Chmod(script, 0o755))
+
+	must(t, w.Copy("run.sh", "copies/deep/run2.sh")) // a missing target folder is created
+	got, err := os.ReadFile(filepath.Join(w.Root, "copies/deep/run2.sh"))
+	must(t, err)
+	if string(got) != "#!/bin/sh\n" {
+		t.Errorf("content = %q", got)
+	}
+	if runtime.GOOS != "windows" {
+		if st, _ := os.Stat(filepath.Join(w.Root, "copies/deep/run2.sh")); st.Mode().Perm() != 0o755 {
+			t.Errorf("mode = %v, want 0755", st.Mode().Perm())
+		}
+	}
+
+	// An existing target stays as it was.
+	if err := w.Copy("run.sh", "a.txt"); err == nil || !strings.Contains(err.Error(), "already exists") {
+		t.Errorf("Copy onto a file = %v, want already exists", err)
+	}
+	if b, _ := os.ReadFile(filepath.Join(w.Root, "a.txt")); string(b) != "a" {
+		t.Errorf("a.txt was changed: %q", b)
+	}
+
+	// A folder or a link is no source, and nothing is left behind.
+	for _, src := range []string{"sub", "in"} {
+		if err := w.Copy(src, "x-"+src); err == nil || !strings.Contains(err.Error(), "only files") {
+			t.Errorf("Copy(%q) = %v, want only files", src, err)
+		}
+		if _, err := os.Lstat(filepath.Join(w.Root, "x-"+src)); err == nil {
+			t.Errorf("x-%s was created", src)
+		}
+	}
+
+	for _, bad := range []string{"", ".", "..", "../x", "/etc/x", "out/secret", "sub/../../x"} {
+		if err := w.Copy("a.txt", bad); err == nil {
+			t.Errorf("Copy to %q succeeded", bad)
+		}
+		if err := w.Copy(bad, "ok.txt"); err == nil {
+			t.Errorf("Copy from %q succeeded", bad)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(w.Root, "ok.txt")); err == nil {
+		t.Error("a rejected source left a target")
+	}
+}

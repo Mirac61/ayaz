@@ -607,6 +607,14 @@ func (s *WorkspaceService) Rename(ws, from, to string) error {
 	return w.Rename(from, to)
 }
 
+func (s *WorkspaceService) Copy(ws, from, to string) error {
+	w, err := s.reg.Get(ws)
+	if err != nil {
+		return err
+	}
+	return w.Copy(from, to)
+}
+
 func (s *WorkspaceService) Trash(ws, path string) error {
 	w, err := s.reg.Get(ws)
 	if err != nil {
