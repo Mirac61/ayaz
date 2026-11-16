@@ -1,1 +1,48 @@
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" data-diagram-type="DESCRIPTION" style="width:387px;height:487px;background:#FFFFFF;" width="387px" height="487px" viewBox="0 0 387 487" zoomAndPan="magnify" preserveAspectRatio="none" contentStyleType="text/css"><?plantuml 1.2026.9?><defs/><g font-family="sans-serif" lengthAdjust="spacing"><!--entity M--><g class="entity" data-qualified-name="M" id="ent0001" data-source-line="5"><rect x="94.03" y="12" width="197.426" height="48" fill="#FFF" style="stroke:#333;stroke-width:1;"/><text x="138.394" y="33.24" fill="#000" font-size="12" textLength="41.338" font-weight="700" font-family="Helvetica">Manual</text><text x="183.066" y="33.24" fill="#000" font-size="12" textLength="64.025" font-family="Helvetica">per platform</text><text x="106.03" y="45.24" fill="#000" font-size="12" textLength="173.426" font-family="Helvetica">native window, dialogs, Wayland</text></g><!--entity E--><g class="entity" data-qualified-name="E" id="ent0002" data-source-line="6"><rect x="73.03" y="100" width="239.443" height="36" fill="#FFF" style="stroke:#333;stroke-width:1;"/><text x="85.03" y="121.24" fill="#000" font-size="12" textLength="22.682" font-weight="700" font-family="Helvetica">E2E</text><text x="111.046" y="121.24" fill="#000" font-size="12" textLength="189.428" font-family="Helvetica">· Playwright against the server build</text></g><!--entity B--><g class="entity" data-qualified-name="B" id="ent0003" data-source-line="7"><rect x="72.06" y="176" width="241.383" height="48" fill="#FFF" style="stroke:#333;stroke-width:1;"/><text x="107.41" y="197.24" fill="#000" font-size="12" textLength="170.684" font-weight="700" font-family="Helvetica">Vitest browser mode (WebKit)</text><text x="84.06" y="209.24" fill="#000" font-size="12" textLength="217.383" font-family="Helvetica">EditorView, Vim, md-live DOM, providers</text></g><!--entity N--><g class="entity" data-qualified-name="N" id="ent0004" data-source-line="8"><rect x="26.35" y="264" width="332.789" height="48" fill="#FFF" style="stroke:#333;stroke-width:1;"/><text x="159.739" y="285.24" fill="#000" font-size="12" textLength="66.012" font-weight="700" font-family="Helvetica">Vitest Node</text><text x="38.35" y="297.24" fill="#000" font-size="12" textLength="308.789" font-family="Helvetica">commands, keymap, decoration logic, Lezer-to-DOM logic</text></g><!--entity G--><g class="entity" data-qualified-name="G" id="ent0005" data-source-line="9"><rect x="12" y="352" width="361.494" height="48" fill="#FFF" style="stroke:#333;stroke-width:1;"/><text x="184.415" y="373.24" fill="#000" font-size="12" textLength="16.664" font-weight="700" font-family="Helvetica">Go</text><text x="24" y="385.24" fill="#000" font-size="12" textLength="337.494" font-family="Helvetica">unit, table tests, fuzzing, benchmarks, integration with temp dirs</text></g><!--link M to E--><!--link E to B--><!--link B to N--><!--link N to G--><g class="legend" data-source-line="14"><rect x="244.727" y="413" width="130.768" height="36" fill="none" style="stroke:#888;stroke-width:1;"/><text x="263.648" y="428.47" fill="#000" font-size="11" textLength="92.925" font-family="Helvetica">top: few, slow tests</text><text x="251.727" y="439.47" fill="#000" font-size="11" textLength="116.768" font-family="Helvetica">bottom: many, fast tests</text></g><g class="caption" data-source-line="18"><text x="142.318" y="470.47" fill="#000" font-size="11" textLength="100.858" font-family="Helvetica">Fig. 6 - Test pyramid</text></g><?plantuml-src RPAnZjH038RxF8Kv6eYIAoWehg1OBhV5iGi5sYiuX9oCDx5sPZoQJ3RA8fwBdYV3oPw48f7E7i_d__yphzWtTZ04F_eqMRhbmTciFx4F6D51f2QXRot1pmnWWysfZJ9uyr6iH7Zzi7pPh-pVt4sUxz0FQFCS0aK85jDHedls7XEV2KRsHiO23AELjY_W2IUBtjm0zh1RawftbMB-_8Ol5gSnSjibm1RPzmbIHz1JFEkEUc1xlL-jxnyuaOxMKKOT1ITgzCqJrO-StkRviwyC9ua79jLpO5U0CwMTHTv_tXKGefpPKEmNzEQ_wBqYPr8Zpga9jNEYoM5GVzH8LClYGNroKy0dkb0iavHAl_OMy7uDtihC6pod0XBMsfmNAVWuN2xism9gyatdC9wqoJvH-x9cvDJfi0kQxOleRRQ3ybl7nf3_NdxGVAfLlSasgtgVxLVrDhFKaZUmPAzF84cuW-ESLszbl4hJTYqfYRi3pM1IfJZ_d-L8xru9MODXKVd0xIsyXnA-plc5IPyPcxy0?></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 472" role="img" aria-labelledby="t d">
+  <title id="t">Test pyramid</title>
+  <desc id="d">Five test layers as a pyramid, few and slow at the top, many and fast at the bottom. Green layers run in CI: Node tests and Go tests. Orange layers you run yourself: E2E and browser tests. Grey: manual checks.</desc>
+  <style>
+    :root { --ink:#1f2328; --mute:#59636e; --c-hand:#d0d4da; --c-you1:#f6c98a; --c-you2:#f1b25f; --c-ci1:#8fd19e; --c-ci2:#5fbf78; --ci:#1a7f37; --you:#b35900; --hand:#59636e; }
+    @media (prefers-color-scheme: dark) { :root { --ink:#f0f3f6; --mute:#9198a1; --c-hand:#454a53; --c-you1:#8a6030; --c-you2:#a36d28; --c-ci1:#2f6a42; --c-ci2:#25804a; --ci:#56d364; --you:#f0a050; --hand:#9198a1; } }
+    text { font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: var(--ink); }
+    .in { font-size: 17px; font-weight: 700; text-anchor: middle; }
+    .insub { font-size: 13px; text-anchor: middle; }
+    .badge { font-size: 16px; font-weight: 700; }
+    .cmd { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 13px; fill: var(--mute); }
+    .ci { fill: var(--ci); } .you { fill: var(--you); } .hand { fill: var(--hand); }
+    .axis { font-size: 13px; fill: var(--mute); }
+    .lead { stroke: var(--mute); stroke-width: 1; stroke-dasharray: 2 4; opacity: .55; }
+  </style>
+
+  <polygon points="300.0,20 300.0,20 355.2,100 244.8,100" fill="var(--c-hand)"/>
+  <text class="in" x="300" y="86">Manual</text>
+  <line class="lead" x1="337.6" y1="60" x2="636" y2="60"/>
+  <text class="badge hand" x="652" y="57">by hand</text>
+  <text class="cmd" x="652" y="77">docs/07-manual-checks.md</text>
+  <polygon points="242.0,104 358.0,104 413.2,184 186.8,184" fill="var(--c-you1)"/>
+  <text class="in" x="300" y="144">E2E</text>
+  <text class="insub" x="300" y="164">whole app</text>
+  <line class="lead" x1="395.6" y1="144" x2="636" y2="144"/>
+  <text class="badge you" x="652" y="141">you run it</text>
+  <text class="cmd" x="652" y="161">task build:server, then bun run e2e</text>
+  <polygon points="184.0,188 416.0,188 471.2,268 128.8,268" fill="var(--c-you2)"/>
+  <text class="in" x="300" y="228">Browser tests</text>
+  <text class="insub" x="300" y="248">EditorView, xterm, pdf.js</text>
+  <line class="lead" x1="453.6" y1="228" x2="636" y2="228"/>
+  <text class="badge you" x="652" y="225">you run it</text>
+  <text class="cmd" x="652" y="245">bun run test:browser</text>
+  <polygon points="126.0,272 474.0,272 529.2,352 70.8,352" fill="var(--c-ci1)"/>
+  <text class="in" x="300" y="312">Node tests</text>
+  <text class="insub" x="300" y="332">pure logic, no DOM</text>
+  <line class="lead" x1="511.6" y1="312" x2="636" y2="312"/>
+  <text class="badge ci" x="652" y="309">✓ runs in CI</text>
+  <text class="cmd" x="652" y="329">bun run test</text>
+  <polygon points="68.0,356 532.0,356 587.2,436 12.8,436" fill="var(--c-ci2)"/>
+  <text class="in" x="300" y="396">Go tests</text>
+  <text class="insub" x="300" y="416">services, fuzzing, benchmarks</text>
+  <line class="lead" x1="569.6" y1="396" x2="636" y2="396"/>
+  <text class="badge ci" x="652" y="393">✓ runs in CI</text>
+  <text class="cmd" x="652" y="413">go test -race ./...</text>
+  <text class="axis" x="20" y="34">▲ few, slow</text>
+  <text class="axis" x="20" y="462">▼ many, fast</text>
+</svg>

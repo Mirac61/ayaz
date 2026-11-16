@@ -1,6 +1,6 @@
 # 07 – Manual checks
 
-Updated 2026-11-10
+Updated 2026-11-16
 
 What no automated test reaches: the native window, system dialogs, the real clipboard, other shells and servers, and the Hyprland machine. Tick them off here; a finding goes to the milestone's "Still open" in `05-roadmap.md`.
 
@@ -38,7 +38,6 @@ What no automated test reaches: the native window, system dialogs, the real clip
 
 ## Before a release
 
-- [ ] `LICENSE`: the author picks it (none is in the repository yet).
-- [ ] CI is green on a pull request (Go on macOS and Linux, Vitest, browser tests and E2E on both).
+- [ ] `task test` and `bun run --cwd frontend test:browser` are green, and `bun run --cwd frontend e2e` against `task build:server` (the last two don't run in CI).
+- [ ] CI is green on the release pull request.
 - [ ] The two lists above are ticked off.
-- [ ] Push only after the author says so: the local branch is far ahead of `origin`.

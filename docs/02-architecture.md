@@ -195,9 +195,9 @@ func (s *LspService) Ensure(ws, lang string) (streamName string, err error) // s
 - Global shortcuts for places where Vim doesn't apply (terminal, insert mode): `Cmd+…` on macOS, `Ctrl+Shift+…` on Linux.
 - Every key is configurable; the above are only defaults (Q22).
 
-### Default keymap (from my nvim config)
+### Default keymap
 
-Leader is `<Space>`. All of these are only defaults and can be changed in the config.
+Leader is `<Space>`. A selection of the defaults; the full list is in the command palette (`<Space>fk`) and `frontend/src/core/keymap.ts`. All of them can be changed in `keymap.json`.
 
 | Keys | Command |
 |---|---|
@@ -215,11 +215,10 @@ Leader is `<Space>`. All of these are only defaults and can be changed in the co
 | `<Space>t` | terminal in the bottom panel |
 | `<Space>tc` | terminal as a split on the right |
 | `<Space>gg` | lazygit in a terminal |
-| `<Space>cf` | format buffer |
 | `gd` / `gr` | go to definition / references |
 | `<Space>ca` | code action |
-| `<Space>rn` | rename |
-| `<Space>ds` / `<Space>ws` | document / workspace symbols |
+| `<Space>cr` | rename |
+| `<Space>fs` / `<Space>fS` | document / workspace symbols |
 
 Also in M2: `<C-w>s` / `<C-w>v` split, `<C-w>c` / `<C-w>q` close a pane, `<C-w>h/j/k/l` like `Ctrl-h/j/k/l`, `:sp`, `:vs`.
 Outside Vim: find files `Cmd+P` (macOS) / `Ctrl+Shift+P` (Linux), command palette `Cmd+Shift+P` (macOS) and `F1` (both). Linux has no `Ctrl+Shift+P` palette because that chord is the file finder there (Q22 rule).

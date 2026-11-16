@@ -13,7 +13,7 @@ Updated 2026-11-16 · Each question has a recommendation and a reason. All of th
 | Q5 | Organizing files | splits + buffer list, tab bar optional |
 | Q6 | Saving | explicit (`:w`, `Cmd/Ctrl+S`) |
 | Q20 | Daily Vim features | the basics, list in [04 – Vim core list](04-testing.md#vim-core-list-q20) |
-| Q21 | Leader mappings | taken from my nvim config as defaults (see [02 – Default keymap](02-architecture.md#default-keymap-from-my-nvim-config)) |
+| Q21 | Leader mappings | taken from my nvim config as defaults (see [02 – Default keymap](02-architecture.md#default-keymap)) |
 | Q22 | Shortcuts | every key configurable. Defaults: `<Space>` leader in Vim normal mode (insert mode types a normal space), plus `Cmd+…` on macOS / `Ctrl+Shift+…` on Linux where Vim doesn't apply (terminal, insert mode) |
 | Q23 | Terminal | both, like VS Code/Zed: bottom panel toggled with `Cmd+J` / `Ctrl+Shift+J`, or a normal pane in the splits |
 | Q24 | Leave terminal insert mode | `Ctrl-\ Ctrl-n` like nvim, plus a configurable alternative |

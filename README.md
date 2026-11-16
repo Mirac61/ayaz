@@ -1,160 +1,99 @@
 # Ayaz
 
-A keyboard-first code editor with a Neovim feel. It shows Markdown, PDFs and images properly and has a real terminal built in. Built with [Wails v3](https://v3.wails.io) (Go) and CodeMirror 6 (TypeScript), for macOS, Linux and Windows.
-
 [![CI](https://github.com/Mirac61/ayaz/actions/workflows/ci.yml/badge.svg)](https://github.com/Mirac61/ayaz/actions/workflows/ci.yml)
-[![Release](https://github.com/Mirac61/ayaz/actions/workflows/release.yml/badge.svg)](https://github.com/Mirac61/ayaz/actions/workflows/release.yml)
-[![Download](https://img.shields.io/badge/download-latest%20release-2ea44f?logo=github)](https://github.com/Mirac61/ayaz/releases/latest)
-[![Go](https://img.shields.io/badge/Go-Wails%20v3-00ADD8?logo=go&logoColor=white)](https://v3.wails.io)
-[![Platforms](https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows-555)](#install)
+[![Release](https://img.shields.io/github/v/release/Mirac61/ayaz)](https://github.com/Mirac61/ayaz/releases/latest)
 
-![Screenshot of Ayaz: Go code on the left, a rendered Markdown document on the right, a terminal with git log below](docs/screenshot.png)
+A code editor that feels like Neovim, but shows Markdown, PDFs and images properly and has a real terminal built in. Written in Go ([Wails v3](https://v3.wails.io)) and TypeScript ([CodeMirror 6](https://codemirror.net)), for macOS, Linux and Windows.
 
-## Contents
+![Ayaz on a laptop: Go code and the rendered README of a small project side by side, a terminal below showing a program run and git log](docs/screenshot.png)
 
-- [Features](#features)
-- [Install](#install)
-- [Use](#use)
-- [Configuration files](#configuration-files)
-- [Develop](#develop)
-- [Contributing](#contributing)
-- [Docs](#docs)
-- [Status and license](#status-and-license)
+I built it because the editors I use each miss one thing. VSCodium is heavy and its Vim mode is an emulation. Neovim can't show a PDF or an image, and has no Markdown that renders while you type. Obsidian wants a vault and isn't a code editor. Ayaz opens any folder, keeps your hands on the keyboard, and keeps its own state (session, history, unsaved changes) outside your project.
 
-## Features
-
-- **Vim, not an imitation of it:** motions, text objects (also structural ones: functions, arguments), operators, `.`, registers, macros, visual and block mode, `:` commands, surround.
-- **Language servers** for Go, C/C++, TypeScript/JavaScript, HTML/CSS/JSON and Java: diagnostics, completion, hover, go to definition, rename, code actions, semantic colours, call hierarchy.
-- **Debugging** Go programs with Delve (breakpoints, stepping, variables).
-- **Markdown** that renders while you type, a reading view, and a side-by-side preview. A button at the top right of a Markdown or SVG pane switches between rendered view and source.
-- **PDF and images** (PNG, JPG, GIF, WebP, SVG) in the same panes as text.
-- **A real terminal** (xterm.js on a PTY): TUI programs such as `htop`, `lazygit` and `nvim` work.
-- **Git** in the editor: gutter marks, status in the tree, diff against HEAD, inline blame, stage and reset hunks, merge-conflict helpers.
-- **Project search and replace**, fuzzy file finder, command palette, quickfix list, project tasks.
-- **One folder per window**, session and unsaved changes restored per folder, local file history.
-- **Colour swatches** before hex colours; click one to pick a new colour.
-- Everything is a command and has a key. Bindings, settings and snippets are plain JSON files you edit in the app.
+Daily-driven on macOS and Arch Linux/Hyprland. Windows builds ship with every release but are barely tested. Free to download and use; the source is closed to forks and redistribution, see [License](#license).
 
 ## Install
 
-### Download a release
+Grab the archive for your system from the [latest release](https://github.com/Mirac61/ayaz/releases/latest) (checksums in `SHA256SUMS`):
 
-Every `v*` tag builds the three archives below ([latest release](https://github.com/Mirac61/ayaz/releases/latest)):
-
-| File | Platform | What's inside | How to start it |
-|---|---|---|---|
-| `ayaz-windows-amd64.zip` | Windows 10/11, x64 | `ayaz.exe` | Unzip anywhere and run `ayaz.exe`. SmartScreen warns because the exe isn't signed: *More info → Run anyway*. Needs WebView2 (part of Windows 11, on Windows 10 usually installed with Edge). |
-| `ayaz-macos-arm64.zip` | macOS, Apple silicon | `ayaz.app` | Unzip, move to `/Applications`. The app isn't notarized: right-click → Open on the first start, or `xattr -dr com.apple.quarantine /Applications/ayaz.app`. |
-| `ayaz-linux-amd64.tar.gz` | Linux, x64 | `ayaz` binary, `ayaz.desktop` | Put `ayaz` on your `PATH`, the desktop file in `~/.local/share/applications`. Needs `gtk4` and `webkitgtk-6.0`. |
-
-### Build from source
-
-Each platform needs **Go**, **[Bun](https://bun.sh)**, **[Task](https://taskfile.dev)** and the Wails CLI:
-
-```sh
-go install github.com/wailsapp/wails/v3/cmd/wails3@v3.1.0
-git clone https://github.com/Mirac61/ayaz && cd ayaz
-task install
-```
-
-`task install` builds the app and installs it for the current user:
-
-| Platform | What it does | Extra requirements |
+| File | Platform | First start |
 |---|---|---|
-| macOS | builds `bin/ayaz.app`, copies it to `/Applications/Ayaz.app` | Xcode Command Line Tools |
-| Linux | binary to `~/.local/bin/ayaz`, launcher entry to `~/.local/share/applications` | `gtk4`, `webkitgtk-6.0` and their `-dev` packages |
-| Windows | `ayaz.exe` to `%LOCALAPPDATA%\Ayaz` and a Start menu shortcut | WebView2 (part of Windows 11) |
+| `ayaz-macos-arm64.zip` | macOS, Apple silicon | Move `ayaz.app` to `/Applications`. It isn't notarized: right-click → Open once, or `xattr -dr com.apple.quarantine /Applications/ayaz.app`. |
+| `ayaz-linux-amd64.tar.gz` | Linux, x64 | Put `ayaz` on your `PATH` and `ayaz.desktop` in `~/.local/share/applications`. Needs `gtk4` and `webkitgtk-6.0`. |
+| `ayaz-windows-amd64.zip` | Windows 10/11, x64 | Unzip and run `ayaz.exe`. SmartScreen warns about the unsigned exe: *More info → Run anyway*. Needs WebView2. |
 
-Arch Linux can use the package instead: `cd build/linux/arch && makepkg -si`.
-
-### Language servers (optional)
-
-Ayaz starts them through your login shell (on Windows: from `PATH`), so whatever you have installed works. A missing server shows a hint in the status line.
-
-| Language | Server |
-|---|---|
-| Go | `go install golang.org/x/tools/gopls@latest` (debugging: `dlv`) |
-| C/C++ | `clangd` (Xcode Command Line Tools, or `clang` on Arch); a `compile_commands.json` gives it the real flags |
-| TS/JS | `bun add -g typescript typescript-language-server` |
-| HTML/CSS/JSON | `bun add -g vscode-langservers-extracted` |
-| Java | `jdtls` (Homebrew or AUR) |
+Building from source requires Go, Bun, Task and the Wails CLI; then `task install` does the rest. Details, plus the language servers to install, are in [docs/building.md](docs/building.md).
 
 ## Use
 
 ```sh
-ayaz ~/code/project        # open a folder (macOS: /Applications/Ayaz.app/Contents/MacOS/ayaz)
-ayaz main.go:12            # with Ayaz running: open the file at that line in the window of its folder
-EDITOR="ayaz --wait" git commit   # git waits until the buffer is closed
+ayaz ~/code/project               # open a folder
+ayaz main.go:12                   # jump to a line in the running window of that folder
+EDITOR="ayaz --wait" git commit   # git waits until you close the buffer
 ```
 
-The leader key is `Space`. A few bindings to start with:
+The leader key is `Space`. Everything is a command with an ID, and `<Space>fk` lists them all.
 
 | Keys | Does |
 |---|---|
 | `<Space>ff` / `fw` / `fk` | find files / search text / command palette |
-| `<Space>e` | focus the file tree |
-| `<Space>t` | terminal panel |
+| `<Space>e` / `t` | file tree / terminal panel |
 | `<Space>mr` / `mp` | Markdown reading view / preview split |
 | `<Space>cr` / `ca` | rename / code action |
 | `<Space>gb` / `gd` / `gg` | blame / diff / lazygit |
 | `<Space>dd` / `db` / `dc` | start debugging / breakpoint / continue |
 | `<C-w>v` / `s` | split right / down |
 
-The welcome page lists more. Everything is a command ID: `<Space>fk` shows them all, and the keymap file rebinds any of them.
+## Features
 
-## Configuration files
+| Area | What you get |
+|---|---|
+| Vim | motions, text objects (also structural ones such as functions and arguments), operators, `.`, registers, macros, visual and block mode, `:` commands, surround |
+| Languages | language servers for Go, C/C++, TypeScript/JavaScript, HTML/CSS/JSON, Java, Python, Rust, Lua, YAML, TOML, Dockerfile, LaTeX and Typst: diagnostics, completion, hover, go to definition, rename, code actions, semantic colours, call hierarchy. A missing server shows an install hint instead of failing |
+| Debugging | Go (Delve), Python (debugpy), C, C++ and Rust (lldb-dap): breakpoints, stepping, variables |
+| Documents | Markdown renders while you type, with a reading view and a side-by-side preview. PDFs and images (PNG, JPG, GIF, WebP, SVG) open in the same panes as text |
+| Terminal | a real PTY (xterm.js), so `htop`, `lazygit` and `nvim` work; `file:line:col` in the output opens the file |
+| Git | gutter marks, status in the tree, diff against HEAD, inline blame, stage and reset hunks, merge-conflict helpers |
+| Navigation | project search and replace, fuzzy file finder, command palette, quickfix list, project tasks |
+| Folders | one per window, session and unsaved changes restored, local file history, a start page with your recent folders. Updates come from the GitHub releases |
 
-Ayaz creates three JSON files on the first start, each with comments that explain the format. `Cmd+,` (Linux and Windows: `Ctrl+,`) opens them in a settings window; a saved file applies without a restart.
+## Configure
 
-| File | What it controls | Defaults, explained |
+Three JSON files, created on first start with comments that explain the format. `Cmd+,` (Linux and Windows: `Ctrl+,`) opens them in a settings window; a saved file applies without a restart.
+
+| File | Controls | Defaults |
 |---|---|---|
-| `settings.json` | font and size, theme and colours, tab width, wrapping, format on save, sidebar and status line, project tasks, per-language overrides | [`app/settings.default.json`](app/settings.default.json) |
-| `keymap.json` | extra or changed key bindings, by mode and command ID | [`app/keymap.default.json`](app/keymap.default.json) |
-| `snippets.json` | your own snippets per language | [`app/snippets.default.json`](app/snippets.default.json) |
+| `settings.json` | font, theme and colours, tab width, wrapping, format on save, sidebar, project tasks, per-language overrides | [`settings.default.json`](app/settings.default.json) |
+| `keymap.json` | key bindings by mode and command ID | [`keymap.default.json`](app/keymap.default.json) |
+| `snippets.json` | your own snippets per language | [`snippets.default.json`](app/snippets.default.json) |
 
 They live in `~/Library/Application Support/ayaz` (macOS), `~/.config/ayaz` (Linux) or `%AppData%\ayaz` (Windows).
 
 ## Develop
 
 ```sh
-wails3 dev                        # hot reload
-task build                        # binary in bin/
-go test ./...                     # Go tests
-cd frontend
-bun install
-bun run typecheck && bun run lint
-bun run test                      # unit tests (Vitest, Node)
-bun run test:browser              # component tests (Vitest browser mode, WebKit)
-bun run e2e                       # Playwright against the server build (see docs/04-testing.md)
+wails3 dev                            # hot reload
+task test                             # Go, typecheck and Node tests
+bun run --cwd frontend test:browser   # browser tests (WebKit), not run in CI
+bun run --cwd frontend e2e            # Playwright against the server build, not run in CI
 ```
 
-| Workflow | Runs on | What it does |
-|---|---|---|
-| [`ci.yml`](.github/workflows/ci.yml) | every push | Go vet and tests on macOS and Linux, a Windows cross-build, the frontend checks, browser and E2E tests |
-| [`release.yml`](.github/workflows/release.yml) | `v*` tags, manual | builds the macOS, Windows and Linux archives; a tag also publishes them as a GitHub release |
+The code is split into Wails services in `app/`, Go packages in `internal/` and the React and CodeMirror frontend in `frontend/src/`. Where to read on:
 
-The code is split like this:
-
-| Folder | Contents |
+| Read | For |
 |---|---|
-| `app/` | Wails services: workspace, terminal, language servers, debugger, settings |
-| `internal/` | Go packages: `workspace` (path jail, file ops), `lsp`, `dap`, `pty`, `proc`, `git`, `search`, `index`, `watch`, `fsserve` |
-| `frontend/src/` | `editor/` (CodeMirror, Vim, Markdown), `shell/` (panes, tree, picker), `viewers/` (images, PDF, browser), `terminal/`, `debug/`, `core/`, `theme/` |
-| `build/` | per-platform packaging (`darwin`, `linux`, `windows`) |
-| `docs/` | vision, research, architecture, ADRs, roadmap, test strategy |
+| [Architecture](docs/02-architecture.md) | how the Go services, the frontend and Wails fit together, with diagrams |
+| [Testing](docs/04-testing.md) | what runs where, and what you have to run yourself |
+| [Decisions](docs/adr/) | one short record per big choice: Wails, CodeMirror, the terminal, search and more |
+| [Building](docs/building.md) | building from source, installing the language servers and debug adapters |
+| [Vision](docs/00-vision.md) | why Ayaz exists and what it leaves out on purpose |
+| [Performance](docs/03-performance.md) | the budgets and how they are measured |
+| [Roadmap](docs/05-roadmap.md) | every milestone and what is still open |
+| [Manual checks](docs/07-manual-checks.md) and [Windows](docs/08-windows.md) | what no automated test reaches |
 
 ## Contributing
 
-Bug reports and ideas go into [issues](https://github.com/Mirac61/ayaz/issues). For a pull request, keep it to one change, add a test next to the code you touch, and run the checks from [Develop](#develop) before pushing; CI runs the same on macOS and Linux. Reports from Windows are especially welcome: [docs/08-windows.md](docs/08-windows.md) lists what to check first.
+Bug reports and ideas go into [issues](https://github.com/Mirac61/ayaz/issues). A pull request should be one change with a test next to the code it touches; run the checks from [Develop](#develop) first, since CI only covers the Go and Node ones. Reports from Windows are especially welcome: [docs/08-windows.md](docs/08-windows.md) lists what to check first.
 
-## Docs
+## License
 
-[Vision](docs/00-vision.md) · [Architecture](docs/02-architecture.md) · [Performance](docs/03-performance.md) · [Testing](docs/04-testing.md) · [Roadmap](docs/05-roadmap.md) · [Manual checks](docs/07-manual-checks.md) · [Windows](docs/08-windows.md) · [Decisions (ADRs)](docs/adr/)
-
-## Status and license
-
-Daily-usable on macOS and Arch Linux/Hyprland. Windows builds come with every release but haven't been tested much on real machines yet.
-
-Copyright © 2026 Mirac. All rights reserved.
-
-Ayaz is free to download, build from source, and use for personal and professional software development. However, the software and source code are proprietary: **forking, modifying, copying, or redistributing the software or its code is strictly prohibited** without prior written permission. See [LICENSE](LICENSE) for details.
+Copyright © 2026 Mirac. All rights reserved. Ayaz is free to download, build from source and use for personal and professional software development. The software and its source code are proprietary: forking, modifying, copying or redistributing them is prohibited without prior written permission. See [LICENSE](LICENSE).
