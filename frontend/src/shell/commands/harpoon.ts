@@ -8,7 +8,9 @@ export function harpoonCommands(c: Ctx): Command[] {
   const gotoSlot = (slot: number) => () => {
     const items = loadHarpoon(c.ws.root);
     const path = items[slot - 1];
-    if (!path) return c.say(`Harpoon slot ${slot} is empty (pin with <Space>a)`);
+    if (!path) {
+      return c.say(`Harpoon slot ${slot} is empty (pin with <Space>a)`);
+    }
     c.run("file.open", path);
   };
 
@@ -31,7 +33,9 @@ export function harpoonCommands(c: Ctx): Command[] {
       title: "Harpoon: show pinned files (<Space>fa, :harpoon)",
       run() {
         const items = loadHarpoon(c.ws.root);
-        if (!items.length) return c.say("No harpooned files yet (pin with <Space>a)");
+        if (!items.length) {
+          return c.say("No harpooned files yet (pin with <Space>a)");
+        }
         c.setPicker({
           title: "Harpoon",
           async query(q) {

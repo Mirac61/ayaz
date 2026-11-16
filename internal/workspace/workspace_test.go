@@ -87,10 +87,8 @@ func TestList(t *testing.T) {
 
 func TestWriteText(t *testing.T) {
 	w := newTestWS(t)
-	f, err := w.ReadText("a.txt")
-	must(t, err)
 	must(t, os.Chmod(filepath.Join(w.Root, "a.txt"), 0o600))
-	f, err = w.ReadText("a.txt") // chmod changes ctime only, but read again to be safe
+	f, err := w.ReadText("a.txt") // chmod changes ctime only, but read again to be safe
 	must(t, err)
 
 	m, err := w.WriteText("a.txt", "new", f.Mtime)

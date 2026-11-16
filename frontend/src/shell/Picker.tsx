@@ -41,14 +41,19 @@ export function Picker(props: { source: PickerSource; onClose(): void; onQuery?(
 const keys = new WeakMap<PickerSource, number>();
 let lastKey = 0;
 const sourceKey = (s: PickerSource) => {
-  if (!keys.has(s)) keys.set(s, ++lastKey);
+  if (!keys.has(s)) {
+    keys.set(s, ++lastKey);
+  }
   return keys.get(s)!;
 };
 
 function PickerBox({ source, onClose: closeNow, onQuery }: { source: PickerSource; onClose(): void; onQuery?(q: string): void }) {
   // Once closing, the focus trap lets go: what a pick opened (a terminal) must keep the focus it took.
   const closing = useRef(false);
-  const onClose = () => { closing.current = true; closeNow(); };
+  const onClose = () => {
+    closing.current = true;
+    closeNow();
+  };
   const [q, setQ] = useState(source.initial ?? "");
   const [items, setItems] = useState<Item[]>([]);
   const [cur, setCur] = useState(0);
@@ -65,23 +70,34 @@ function PickerBox({ source, onClose: closeNow, onQuery }: { source: PickerSourc
     onQuery?.(q);
     // A streamed list is the answer too; it only grows, so cur -1 means "the cursor row stays the one to pick".
     const stream = (r: Item[]) => {
-      if (n !== seq.current) return;
+      if (n !== seq.current) {
+        return;
+      }
       answer.current = { q, items: r, cur: -1 };
       setItems(r);
     };
-    source.query(q, stream).then((r) => {
-      if (n !== seq.current) return;
-      const c = q ? 0 : Math.min(source.start ?? 0, Math.max(r.length - 1, 0));
-      answer.current = { q, items: r, cur: c };
-      setItems(r);
-      setCur(c);
-      if (early.current) pick(c, r, early.current.side);
-    }, () => {
-      if (n !== seq.current) return;
-      answer.current = { q, items: [], cur: 0 };
-      setItems([]);
-      early.current = false;
-    });
+    source.query(q, stream).then(
+      (r) => {
+        if (n !== seq.current) {
+          return;
+        }
+        const c = q ? 0 : Math.min(source.start ?? 0, Math.max(r.length - 1, 0));
+        answer.current = { q, items: r, cur: c };
+        setItems(r);
+        setCur(c);
+        if (early.current) {
+          pick(c, r, early.current.side);
+        }
+      },
+      () => {
+        if (n !== seq.current) {
+          return;
+        }
+        answer.current = { q, items: [], cur: 0 };
+        setItems([]);
+        early.current = false;
+      },
+    );
   }, [q, source]);
   useEffect(() => () => source.close?.(), [source]);
 
@@ -94,41 +110,64 @@ function PickerBox({ source, onClose: closeNow, onQuery }: { source: PickerSourc
   const row = it ? `${cur}\n${it.label}` : "";
   useEffect(() => {
     source.cursor?.(it);
-    if (!source.preview) return;
-    if (!it) return void setShown(null);
+    if (!source.preview) {
+      return;
+    }
+    if (!it) {
+      return void setShown(null);
+    }
     let stale = false;
     const t = setTimeout(() => {
-      source.preview!(it, cur).then((p) => !stale && setShown(p), () => !stale && setShown(null));
+      source.preview!(it, cur).then(
+        (p) => !stale && setShown(p),
+        () => !stale && setShown(null),
+      );
     }, 60);
-    return () => { stale = true; clearTimeout(t); };
+    return () => {
+      stale = true;
+      clearTimeout(t);
+    };
   }, [row, source]);
 
   const pick = (i: number, from = items, side = false) => {
     const it = from[i];
     early.current = false;
     onClose();
-    if (it) source.pick(it, i, side);
+    if (it) {
+      source.pick(it, i, side);
+    }
   };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     const move = (d: number) => setCur((c) => Math.max(0, Math.min(items.length - 1, c + d)));
     const ctrl = e.ctrlKey && !e.metaKey && !e.altKey;
-    if (e.key === "ArrowDown" || ctrl && (e.key === "n" || e.key === "j") || e.key === "Tab" && !e.shiftKey) move(1);
-    else if (e.key === "ArrowUp" || ctrl && (e.key === "p" || e.key === "k") || e.key === "Tab" && e.shiftKey) move(-1);
-    else if (e.key === "PageDown") move(PAGE);
-    else if (e.key === "PageUp") move(-PAGE);
+    if (e.key === "ArrowDown" || (ctrl && (e.key === "n" || e.key === "j")) || (e.key === "Tab" && !e.shiftKey)) {
+      move(1);
+    } else if (e.key === "ArrowUp" || (ctrl && (e.key === "p" || e.key === "k")) || (e.key === "Tab" && e.shiftKey)) {
+      move(-1);
+    } else if (e.key === "PageDown") {
+      move(PAGE);
+    } else if (e.key === "PageUp") {
+      move(-PAGE);
+    }
     // Like Telescope: <C-d> and <C-u> scroll the preview by half a page.
     else if (ctrl && (e.key === "d" || e.key === "u") && code.current) {
-      code.current.scrollBy({ top: (e.key === "d" ? 1 : -1) * code.current.clientHeight / 2 });
-    }
-    else if (e.key === "Enter") {
+      code.current.scrollBy({ top: ((e.key === "d" ? 1 : -1) * code.current.clientHeight) / 2 });
+    } else if (e.key === "Enter") {
       const a = answer.current;
-      if (a.q !== q) early.current = { side: e.metaKey || e.ctrlKey };
-      else pick(a.items === items || a.cur < 0 ? cur : a.cur, a.items, e.metaKey || e.ctrlKey); // not rendered yet: its first item
+      if (a.q !== q) {
+        early.current = { side: e.metaKey || e.ctrlKey };
+      } else {
+        pick(a.items === items || a.cur < 0 ? cur : a.cur, a.items, e.metaKey || e.ctrlKey);
+      } // not rendered yet: its first item
+    } else if (ctrl && e.key === "q" && source.all) {
+      onClose();
+      source.all();
+    } else if (e.key === "Escape" || (ctrl && e.key === "c")) {
+      onClose();
+    } else {
+      return;
     }
-    else if (ctrl && e.key === "q" && source.all) { onClose(); source.all(); }
-    else if (e.key === "Escape" || ctrl && e.key === "c") onClose();
-    else return;
     e.preventDefault();
   };
 
@@ -156,10 +195,15 @@ function PickerBox({ source, onClose: closeNow, onQuery }: { source: PickerSourc
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={onKeyDown}
             // Modal: focus stays here until Enter, Esc or a click outside (focus trap).
-            onBlur={(e) => { const el = e.currentTarget; requestAnimationFrame(() => el.isConnected && !closing.current && el.focus()); }}
+            onBlur={(e) => {
+              const el = e.currentTarget;
+              requestAnimationFrame(() => el.isConnected && !closing.current && el.focus());
+            }}
           />
           <span className="picker-hint">
-            {items.length === 1 ? "1 result" : `${items.length}${source.limit && items.length >= source.limit ? "+" : ""} results`}
+            {items.length === 1
+              ? "1 result"
+              : `${items.length}${source.limit && items.length >= source.limit ? "+" : ""} results`}
           </span>
         </div>
         <div className="picker-body">
@@ -170,9 +214,12 @@ function PickerBox({ source, onClose: closeNow, onQuery }: { source: PickerSourc
                 id={`picker-${i}`}
                 role="option"
                 aria-selected={i === cur}
-              aria-label={it.label} // the label is split into spans for the dim part; the name stays one string
+                aria-label={it.label} // the label is split into spans for the dim part; the name stays one string
                 className={i === cur ? "picker-item cursor" : "picker-item"}
-                onMouseDown={(e) => { e.preventDefault(); pick(i); }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  pick(i);
+                }}
               >
                 {it.icon && <Glyph icon={it.icon} />}
                 <span className={it.dir ? "picker-label split" : "picker-label"}>{highlight(it)}</span>
@@ -190,13 +237,21 @@ function PickerBox({ source, onClose: closeNow, onQuery }: { source: PickerSourc
 }
 
 function highlight({ label, positions, dim }: Item) {
-  if (!positions?.length && !dim) return label;
+  if (!positions?.length && !dim) {
+    return label;
+  }
   const at = new Set(positions);
   const chars = Array.from(label).map((ch, i) => (at.has(i) ? <b key={i}>{ch}</b> : ch));
-  if (!dim) return chars;
+  if (!dim) {
+    return chars;
+  }
   return [
-    <span key="dim" className="picker-dim">{chars.slice(0, dim)}</span>,
-    <span key="rest" className="picker-rest">{chars.slice(dim)}</span>,
+    <span key="dim" className="picker-dim">
+      {chars.slice(0, dim)}
+    </span>,
+    <span key="rest" className="picker-rest">
+      {chars.slice(dim)}
+    </span>,
   ];
 }
 
@@ -206,10 +261,15 @@ const PREVIEW_LINES = 200;
 function PreviewPane({ preview, box }: { preview: Preview | null; box: React.RefObject<HTMLDivElement> }) {
   // Point at the hit: scroll it to the middle, or back to the top for a file's start.
   useEffect(() => {
-    const el = box.current, hit = el?.querySelector<HTMLElement>(".hit");
-    if (el) el.scrollTop = hit ? hit.offsetTop - el.clientHeight / 2 : 0;
+    const el = box.current,
+      hit = el?.querySelector<HTMLElement>(".hit");
+    if (el) {
+      el.scrollTop = hit ? hit.offsetTop - el.clientHeight / 2 : 0;
+    }
   }, [preview]);
-  if (!preview) return <div className="picker-preview empty">No preview</div>;
+  if (!preview) {
+    return <div className="picker-preview empty">No preview</div>;
+  }
   const lines = (preview.spans ?? preview.text.split("\n").map((l): Span[] => [[l, ""]])).slice(0, PREVIEW_LINES);
   return (
     <div className="picker-preview" aria-hidden>
@@ -218,7 +278,11 @@ function PreviewPane({ preview, box }: { preview: Preview | null; box: React.Ref
         {lines.map((l, i) => (
           <div key={i} className={preview.first + i === preview.line ? "hit" : undefined}>
             <i>{preview.first + i}</i>
-            {l.map(([text, cls], j) => <span key={j} className={cls || undefined}>{text}</span>)}
+            {l.map(([text, cls], j) => (
+              <span key={j} className={cls || undefined}>
+                {text}
+              </span>
+            ))}
             {!l.length && " "}
           </div>
         ))}

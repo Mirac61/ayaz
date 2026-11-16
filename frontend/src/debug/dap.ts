@@ -47,7 +47,9 @@ export class DapClient {
 
   // Sends a request; resolves with the response's body, rejects with the adapter's message when it says no.
   request<T = unknown>(command: string, args?: object): Promise<T> {
-    if (this.done) return Promise.reject(new Error("The debug adapter ended"));
+    if (this.done) {
+      return Promise.reject(new Error("The debug adapter ended"));
+    }
     const seq = this.seq++;
     return new Promise<T>((resolve, reject) => {
       this.pending.set(seq, { resolve: resolve as (b: unknown) => void, reject, command });
@@ -79,9 +81,13 @@ export class DapClient {
   }
 
   private end(why: string) {
-    if (this.done) return;
+    if (this.done) {
+      return;
+    }
     this.done = true;
-    for (const p of this.pending.values()) p.reject(new Error(why));
+    for (const p of this.pending.values()) {
+      p.reject(new Error(why));
+    }
     this.pending.clear();
     this.emit("closed", { reason: why });
   }
@@ -89,10 +95,15 @@ export class DapClient {
   private handle(m: Message) {
     if (m.type === "response") {
       const p = this.pending.get(m.request_seq ?? -1);
-      if (!p) return;
+      if (!p) {
+        return;
+      }
       this.pending.delete(m.request_seq!);
-      if (m.success) p.resolve(m.body);
-      else p.reject(new Error(m.message || `${p.command} failed`));
+      if (m.success) {
+        p.resolve(m.body);
+      } else {
+        p.reject(new Error(m.message || `${p.command} failed`));
+      }
     } else if (m.type === "event") {
       this.emit(m.event ?? "", m.body);
     } else if (m.type === "request") {
@@ -104,12 +115,26 @@ export class DapClient {
             this.t.send(JSON.stringify(resp));
           },
           (err) => {
-            const resp = { seq, type: "response", request_seq: m.seq, command: m.command, success: false, message: err instanceof Error ? err.message : String(err) };
+            const resp = {
+              seq,
+              type: "response",
+              request_seq: m.seq,
+              command: m.command,
+              success: false,
+              message: err instanceof Error ? err.message : String(err),
+            };
             this.t.send(JSON.stringify(resp));
           },
         );
       } else {
-        const refusal = { seq, type: "response", request_seq: m.seq, command: m.command, success: false, message: "not supported" };
+        const refusal = {
+          seq,
+          type: "response",
+          request_seq: m.seq,
+          command: m.command,
+          success: false,
+          message: "not supported",
+        };
         this.t.send(JSON.stringify(refusal));
       }
     }
@@ -128,13 +153,35 @@ export interface Breakpoint {
   logMessage?: string;
   hitCondition?: string;
 }
-export interface StackFrame { id: number; name: string; line: number; column: number; source?: { path?: string; name?: string } }
-export interface Scope { name: string; variablesReference: number; expensive?: boolean }
-export interface Variable { name: string; value: string; type?: string; variablesReference: number }
-export interface StoppedEvent {
-  reason: string; threadId?: number; allThreadsStopped?: boolean; description?: string; text?: string;
+export interface StackFrame {
+  id: number;
+  name: string;
+  line: number;
+  column: number;
+  source?: { path?: string; name?: string };
 }
-export interface OutputEvent { category?: string; output: string }
+export interface Scope {
+  name: string;
+  variablesReference: number;
+  expensive?: boolean;
+}
+export interface Variable {
+  name: string;
+  value: string;
+  type?: string;
+  variablesReference: number;
+}
+export interface StoppedEvent {
+  reason: string;
+  threadId?: number;
+  allThreadsStopped?: boolean;
+  description?: string;
+  text?: string;
+}
+export interface OutputEvent {
+  category?: string;
+  output: string;
+}
 
 export interface LaunchOptions {
   root: string; // absolute path of the folder
@@ -148,7 +195,12 @@ export interface LaunchOptions {
 export async function launch(client: DapClient, opts: LaunchOptions): Promise<void> {
   const adapter = opts.adapter ?? goAdapter;
   await client.request("initialize", {
-    clientID: "ayaz", clientName: "Ayaz", adapterID: adapter.adapterId, linesStartAt1: true, columnsStartAt1: true, pathFormat: "path",
+    clientID: "ayaz",
+    clientName: "Ayaz",
+    adapterID: adapter.adapterId,
+    linesStartAt1: true,
+    columnsStartAt1: true,
+    pathFormat: "path",
     supportsVariableType: true,
     supportsRunInTerminalRequest: true,
   });
@@ -166,11 +218,15 @@ export async function launch(client: DapClient, opts: LaunchOptions): Promise<vo
 export function setBreakpoints(client: DapClient, root: string, path: string, bps: (number | Breakpoint)[]) {
   return client.request("setBreakpoints", {
     source: { path: `${root}/${path}` },
-    breakpoints: bps.map((b) => (typeof b === "number" ? { line: b } : {
-      line: b.line,
-      ...(b.condition && { condition: b.condition }),
-      ...(b.logMessage && { logMessage: b.logMessage }),
-      ...(b.hitCondition && { hitCondition: b.hitCondition }),
-    })),
+    breakpoints: bps.map((b) =>
+      typeof b === "number"
+        ? { line: b }
+        : {
+            line: b.line,
+            ...(b.condition && { condition: b.condition }),
+            ...(b.logMessage && { logMessage: b.logMessage }),
+            ...(b.hitCondition && { hitCondition: b.hitCondition }),
+          },
+    ),
   });
 }

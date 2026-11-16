@@ -20,16 +20,25 @@ export interface Preview {
 // string and color a little wrong; the lines around a hit are the point, not the exact parse.
 export async function colorLines(path: string, text: string): Promise<Span[][] | null> {
   const lang = await loadLanguage(path).catch(() => null);
-  if (!lang) return null;
+  if (!lang) {
+    return null;
+  }
   const lines: Span[][] = [[]];
   let pos = 0;
   const put = (to: number, cls: string) => {
     const [first, ...rest] = text.slice(pos, to).split("\n");
-    if (first) lines[lines.length - 1].push([first, cls]);
-    for (const line of rest) lines.push(line ? [[line, cls]] : []);
+    if (first) {
+      lines[lines.length - 1].push([first, cls]);
+    }
+    for (const line of rest) {
+      lines.push(line ? [[line, cls]] : []);
+    }
     pos = to;
   };
-  highlightTree(lang.language.parser.parse(text), highlightStyle, (from, to, cls) => { put(from, ""); put(to, cls); });
+  highlightTree(lang.language.parser.parse(text), highlightStyle, (from, to, cls) => {
+    put(from, "");
+    put(to, cls);
+  });
   put(text.length, "");
   return lines;
 }
@@ -47,7 +56,9 @@ export async function previewFile(files: Files, path: string, line?: number): Pr
   // A hit can sit anywhere, so the head won't do. Library files (absolute paths: the stdlib) are read whole, as a jump does.
   const read = path.startsWith("/") ? (await files.readText(path)).content : (await files.preview(path, HIT_BYTES)).text;
   const lines = read.split(/\r?\n/);
-  if (line > lines.length) return null;
+  if (line > lines.length) {
+    return null;
+  }
   const first = Math.max(1, line - BEFORE);
   const last = Math.min(lines.length, line + AFTER);
   const text = lines.slice(first - 1, last).join("\n");

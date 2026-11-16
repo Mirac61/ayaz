@@ -75,9 +75,15 @@ test("continue, next, step in and step out go to the stopped thread and set runn
 test("active frame selection switches scope and evaluate target frame", async () => {
   const { f, session } = setup({
     answer: (m) => {
-      if (m.command === "stackTrace") return { stackFrames: [MAIN, { id: 2, name: "helper", line: 5, column: 1, source: { path: "/p/helper.go" } }] };
-      if (m.command === "scopes") return { scopes: [{ name: `Scope for ${m.arguments?.frameId}`, variablesReference: 10 }] };
-      if (m.command === "evaluate") return { result: `val-${m.arguments?.frameId}`, variablesReference: 0 };
+      if (m.command === "stackTrace") {
+        return { stackFrames: [MAIN, { id: 2, name: "helper", line: 5, column: 1, source: { path: "/p/helper.go" } }] };
+      }
+      if (m.command === "scopes") {
+        return { scopes: [{ name: `Scope for ${m.arguments?.frameId}`, variablesReference: 10 }] };
+      }
+      if (m.command === "evaluate") {
+        return { result: `val-${m.arguments?.frameId}`, variablesReference: 0 };
+      }
       return undefined;
     },
   });

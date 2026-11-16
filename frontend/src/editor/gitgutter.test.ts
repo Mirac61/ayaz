@@ -10,7 +10,10 @@ test("added, changed and deleted lines", () => {
   expect(of("a\nb\nc\n", "a\nb\nc\n")).toEqual([]);
   expect(of("a\nc\n", "a\nb\nc\n")).toEqual([{ line: 2, sign: "add" }]);
   expect(of("a\nb\nc\n", "a\nB\nc\n")).toEqual([{ line: 2, sign: "mod" }]);
-  expect(of("a\nb\nc\n", "a\nX\nY\nc\n")).toEqual([{ line: 2, sign: "mod" }, { line: 3, sign: "mod" }]);
+  expect(of("a\nb\nc\n", "a\nX\nY\nc\n")).toEqual([
+    { line: 2, sign: "mod" },
+    { line: 3, sign: "mod" },
+  ]);
   expect(of("a\nb\nc\n", "a\nc\n")).toEqual([{ line: 1, sign: "del" }]);
   expect(of("a\nb\nc\n", "b\nc\n")).toEqual([{ line: 1, sign: "deltop" }]);
 });

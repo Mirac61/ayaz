@@ -30,10 +30,7 @@ const HIGHLIGHTS = [
   },
 ];
 
-export const WhatsNewDialog: React.FC<WhatsNewDialogProps> = ({
-  version = "v0.5.0",
-  onClose,
-}) => {
+export const WhatsNewDialog: React.FC<WhatsNewDialogProps> = ({ version = "v0.5.0", onClose }) => {
   const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -70,19 +67,15 @@ export const WhatsNewDialog: React.FC<WhatsNewDialogProps> = ({
             <span>Was ist neu in Ayaz {version}</span>
             <span className="welcome-version-badge">{version}</span>
           </div>
-          <button
-            type="button"
-            className="welcome-modal-close"
-            onClick={onClose}
-            aria-label="Schließen"
-          >
+          <button type="button" className="welcome-modal-close" onClick={onClose} aria-label="Schließen">
             ✕
           </button>
         </div>
 
         <div className="welcome-modal-body" style={{ gap: 12 }}>
           <p style={{ margin: 0, fontSize: 13, color: "var(--fg-3)" }}>
-            Ayaz {version} bringt umfassende Neuerungen für eine noch schnellere, kristalline und tastatur-zentrierte Entwicklungserfahrung:
+            Ayaz {version} bringt umfassende Neuerungen für eine noch schnellere, kristalline und tastatur-zentrierte
+            Entwicklungserfahrung:
           </p>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 4 }}>
@@ -98,16 +91,10 @@ export const WhatsNewDialog: React.FC<WhatsNewDialogProps> = ({
                   borderRadius: "var(--radius)",
                 }}
               >
-                <span style={{ fontSize: 18, color: "var(--accent)", lineHeight: 1 }}>
-                  {h.icon}
-                </span>
+                <span style={{ fontSize: 18, color: "var(--accent)", lineHeight: 1 }}>{h.icon}</span>
                 <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                  <span style={{ font: "600 13px var(--font-sans)", color: "var(--fg-1)" }}>
-                    {h.title}
-                  </span>
-                  <span style={{ font: "400 11px/15px var(--font-mono)", color: "var(--fg-3)" }}>
-                    {h.desc}
-                  </span>
+                  <span style={{ font: "600 13px var(--font-sans)", color: "var(--fg-1)" }}>{h.title}</span>
+                  <span style={{ font: "400 11px/15px var(--font-mono)", color: "var(--fg-3)" }}>{h.desc}</span>
                 </div>
               </div>
             ))}
@@ -122,11 +109,7 @@ export const WhatsNewDialog: React.FC<WhatsNewDialogProps> = ({
           >
             GitHub Release Notes ↗
           </button>
-          <button
-            type="button"
-            className="welcome-btn primary"
-            onClick={onClose}
-          >
+          <button type="button" className="welcome-btn primary" onClick={onClose}>
             Verstanden & Schließen
           </button>
         </div>

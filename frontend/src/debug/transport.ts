@@ -6,7 +6,8 @@ import type { Transport } from "./dap";
 export function dapStream(ws: string, adapter: string): Transport {
   const sock = backend.stream("dap");
   sock.binaryType = "arraybuffer";
-  const enc = new TextEncoder(), dec = new TextDecoder();
+  const enc = new TextEncoder(),
+    dec = new TextDecoder();
   const queue: string[] = [];
   let open = false;
   let onMessage: (json: string) => void = () => {};
@@ -14,14 +15,20 @@ export function dapStream(ws: string, adapter: string): Transport {
   sock.onopen = () => {
     open = true;
     sock.send(enc.encode(JSON.stringify({ ws, adapter })));
-    for (const m of queue.splice(0)) sock.send(enc.encode(m));
+    for (const m of queue.splice(0)) {
+      sock.send(enc.encode(m));
+    }
   };
   sock.onmessage = (ev) => onMessage(typeof ev.data === "string" ? ev.data : dec.decode(ev.data as ArrayBuffer));
   sock.onclose = () => onClose();
   return {
     send: (json) => (open ? sock.send(enc.encode(json)) : void queue.push(json)),
-    onMessage: (fn) => { onMessage = fn; },
-    onClose: (fn) => { onClose = fn; },
+    onMessage: (fn) => {
+      onMessage = fn;
+    },
+    onClose: (fn) => {
+      onClose = fn;
+    },
     close: () => sock.close(),
   };
 }

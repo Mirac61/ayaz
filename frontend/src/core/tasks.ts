@@ -15,7 +15,9 @@ export function parseProblems(output: string, root: string): Loc[] {
   const out: Loc[] = [];
   for (const raw of output.split(/\r?\n/)) {
     const m = colon.exec(raw) ?? paren.exec(raw);
-    if (!m) continue;
+    if (!m) {
+      continue;
+    }
     let path = m[1].replace(/\\/g, "/").replace(/^\.\//, "");
     if (normRoot && path.toLowerCase().startsWith(normRoot.toLowerCase() + "/")) {
       path = path.slice(normRoot.length + 1);
@@ -40,18 +42,28 @@ const escape = {
   double: (s: string) => s.replace(/[$`"\\]/g, "\\$&"),
 };
 export function expandTask(cmd: string, at: { file?: string; line?: number }): string | null {
-  if (!/\$\{(file|dir|line)\}/.test(cmd)) return cmd;
-  if (at.file === undefined) return null;
-  const { file } = at, slash = file.lastIndexOf("/");
+  if (!/\$\{(file|dir|line)\}/.test(cmd)) {
+    return cmd;
+  }
+  if (at.file === undefined) {
+    return null;
+  }
+  const { file } = at,
+    slash = file.lastIndexOf("/");
   const vals = { file, dir: slash < 0 ? "." : file.slice(0, slash), line: String(at.line ?? 1) };
   const ph = /\$\{(file|dir|line)\}/y;
-  let out = "", ctx: keyof typeof escape = "none", unmodelled = "", path = false;
-  for (let i = 0; i < cmd.length; ) {
+  let out = "",
+    ctx: keyof typeof escape = "none",
+    unmodelled = "",
+    path = false;
+  for (let i = 0; i < cmd.length;) {
     ph.lastIndex = i;
     const m = ph.exec(cmd);
     if (m) {
       const k = m[1] as keyof typeof vals;
-      if (k !== "line" && unmodelled) throw new Error(`\${${k}} can't follow ${unmodelled.trim()} in a task, put it outside`);
+      if (k !== "line" && unmodelled) {
+        throw new Error(`\${${k}} can't follow ${unmodelled.trim()} in a task, put it outside`);
+      }
       path ||= k !== "line";
       out += k === "line" ? vals.line : escape[ctx](vals[k]);
       i = ph.lastIndex;
@@ -59,19 +71,26 @@ export function expandTask(cmd: string, at: { file?: string; line?: number }): s
     }
     UNMODELLED.lastIndex = i;
     const u = ctx === "single" ? null : UNMODELLED.exec(cmd);
-    if (u && (ctx === "none" || u[0] === "$(" || u[0] === "`" || u[0].startsWith("${"))) unmodelled ||= u[0];
+    if (u && (ctx === "none" || u[0] === "$(" || u[0] === "`" || u[0].startsWith("${"))) {
+      unmodelled ||= u[0];
+    }
     const c = cmd[i];
     if (c === "\\" && ctx !== "single") {
       out += cmd.slice(i, i + 2); // an escaped character stays as written
       i += 2;
       continue;
     }
-    if (c === "'" && ctx !== "double") ctx = ctx === "single" ? "none" : "single";
-    else if (c === '"' && ctx !== "single") ctx = ctx === "double" ? "none" : "double";
+    if (c === "'" && ctx !== "double") {
+      ctx = ctx === "single" ? "none" : "single";
+    } else if (c === '"' && ctx !== "single") {
+      ctx = ctx === "double" ? "none" : "double";
+    }
     out += c;
     i++;
   }
-  if (path && ctx !== "none") throw new Error("A task with ${file} or ${dir} needs balanced quotes");
+  if (path && ctx !== "none") {
+    throw new Error("A task with ${file} or ${dir} needs balanced quotes");
+  }
   return out;
 }
 
@@ -82,7 +101,9 @@ export function parseWatcherProblems(output: string, root: string): Loc[] {
   const typstIdx = Math.max(output.lastIndexOf("compiling ..."), output.lastIndexOf("compiling"));
   if (typstIdx !== -1) {
     const after = output.slice(typstIdx);
-    if (after.includes("compiled successfully")) return [];
+    if (after.includes("compiled successfully")) {
+      return [];
+    }
     return parseProblems(after, root);
   }
 
@@ -90,7 +111,9 @@ export function parseWatcherProblems(output: string, root: string): Loc[] {
   const markerIdx = output.lastIndexOf("--- compiling ---");
   if (markerIdx !== -1) {
     const after = output.slice(markerIdx);
-    if (after.includes("--- success ---")) return [];
+    if (after.includes("--- success ---")) {
+      return [];
+    }
     return parseProblems(after, root);
   }
 
@@ -102,7 +125,9 @@ export function parseWatcherProblems(output: string, root: string): Loc[] {
   );
   if (tscWatchIdx !== -1) {
     const after = output.slice(tscWatchIdx);
-    if (after.includes("Found 0 errors")) return [];
+    if (after.includes("Found 0 errors")) {
+      return [];
+    }
     return parseProblems(after, root);
   }
 

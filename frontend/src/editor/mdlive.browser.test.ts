@@ -7,7 +7,11 @@ import { installVim } from "./vim/setup";
 import { defaultKeymap } from "../core/keymap";
 
 const ran: string[] = [];
-installVim((id) => void ran.push(id), defaultKeymap().filter((b) => b.context === "normal"), () => {});
+installVim(
+  (id) => void ran.push(id),
+  defaultKeymap().filter((b) => b.context === "normal"),
+  () => {},
+);
 
 let view: EditorView | null = null;
 afterEach(() => {
@@ -46,14 +50,17 @@ test("markers follow the cursor with j/k", async () => {
 test("the cursor column survives a trip over a line with hidden markers", async () => {
   await mount("abcdefghij\n**ab** cdefgh\nabcdefghij");
   await userEvent.keyboard("5ljj");
-  const st = view!.state, head = st.selection.main.head;
+  const st = view!.state,
+    head = st.selection.main.head;
   expect([st.doc.lineAt(head).number, head - st.doc.lineAt(head).from]).toEqual([3, 5]);
 });
 
 test("gx, gf and the resize keys run their commands", async () => {
   await mount("[a](b.md)");
   await userEvent.keyboard("gxgf");
-  await userEvent.keyboard("{Control>}w{/Control}<{Control>}w{/Control}>{Control>}w{/Control}+{Control>}w{/Control}-{Control>}w{/Control}=");
+  await userEvent.keyboard(
+    "{Control>}w{/Control}<{Control>}w{/Control}>{Control>}w{/Control}+{Control>}w{/Control}-{Control>}w{/Control}=",
+  );
   expect(ran).toEqual(["link.browser", "link.file", "pane.narrower", "pane.wider", "pane.taller", "pane.shorter", "pane.equal"]);
 });
 

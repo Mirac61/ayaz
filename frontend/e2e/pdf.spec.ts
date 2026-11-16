@@ -76,17 +76,26 @@ test("pdf: pages come from the render worker", async ({ page }) => {
   await expect(status).toContainText("page 1/200");
   const renders = () => page.evaluate(() => performance.getEntriesByName("pdf:worker-render").length);
   await expect.poll(renders).toBeGreaterThan(0);
-  const dark = () => page.evaluate(() => {
-    const c = document.querySelector<HTMLCanvasElement>('.page[data-page-number="1"] canvas');
-    if (!c?.width) return 0;
-    const px = c.getContext("2d")!.getImageData(0, 0, c.width, c.height).data;
-    let n = 0;
-    for (let i = 0; i < px.length; i += 4) if (px[i] < 100) n++;
-    return n;
-  });
+  const dark = () =>
+    page.evaluate(() => {
+      const c = document.querySelector<HTMLCanvasElement>('.page[data-page-number="1"] canvas');
+      if (!c?.width) {
+        return 0;
+      }
+      const px = c.getContext("2d")!.getImageData(0, 0, c.width, c.height).data;
+      let n = 0;
+      for (let i = 0; i < px.length; i += 4) {
+        if (px[i] < 100) {
+          n++;
+        }
+      }
+      return n;
+    });
   await expect.poll(dark).toBeGreaterThan(1000);
 
-  for (let i = 0; i < 5; i++) await page.keyboard.press("J");
+  for (let i = 0; i < 5; i++) {
+    await page.keyboard.press("J");
+  }
   await page.keyboard.press("F1");
   await page.keyboard.type("close tab");
   await page.keyboard.press("Enter");
@@ -110,7 +119,9 @@ test.describe("retina", () => {
     const settle = async () => {
       for (let last = -1; ; await page.waitForTimeout(500)) {
         const n = await renders();
-        if (n > 0 && n === last) return n;
+        if (n > 0 && n === last) {
+          return n;
+        }
         last = n;
       }
     };
@@ -122,8 +133,11 @@ test.describe("retina", () => {
     // 15 px per frame for 30 frames stays inside page 1, so only the detail canvas would redraw.
     const during = await page.evaluate(async () => {
       const box = document.querySelector<HTMLElement>(".pdf-viewer")!;
-      const count = () => performance.getEntriesByName("pdf:worker-render").length, n0 = count();
-      for (let i = 0; i < 30; i++) await new Promise((f) => requestAnimationFrame(() => f((box.scrollTop += 15))));
+      const count = () => performance.getEntriesByName("pdf:worker-render").length,
+        n0 = count();
+      for (let i = 0; i < 30; i++) {
+        await new Promise((f) => requestAnimationFrame(() => f((box.scrollTop += 15))));
+      }
       return count() - n0;
     });
     expect(during).toBe(0);

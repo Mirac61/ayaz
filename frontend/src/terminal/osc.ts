@@ -1,7 +1,9 @@
 // OSC 7 carries the shell's folder as file://host/path with the path percent-encoded; "" for anything else.
 export function parseOsc7(data: string): string {
   const m = /^file:\/\/[^/]*(\/.*)$/.exec(data);
-  if (!m) return "";
+  if (!m) {
+    return "";
+  }
   try {
     return decodeURIComponent(m[1]);
   } catch {

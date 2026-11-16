@@ -1,19 +1,36 @@
 // Semantic tokens (LSP 3.16): the server sends every token as five numbers relative to the one before.
 
-export interface Legend { tokenTypes: string[]; tokenModifiers: string[] }
-export interface Token { line: number; start: number; length: number; type: string; modifiers: string[] }
-export interface DataEdit { start: number; deleteCount: number; data?: number[] }
+export interface Legend {
+  tokenTypes: string[];
+  tokenModifiers: string[];
+}
+export interface Token {
+  line: number;
+  start: number;
+  length: number;
+  type: string;
+  modifiers: string[];
+}
+export interface DataEdit {
+  start: number;
+  deleteCount: number;
+  data?: number[];
+}
 
 // Columns are UTF-16 units, what the client asks for and CodeMirror counts in.
 export function decodeTokens(data: number[], legend: Legend): Token[] {
   const out: Token[] = [];
-  let line = 0, start = 0;
+  let line = 0,
+    start = 0;
   for (let i = 0; i + 4 < data.length; i += 5) {
     line += data[i];
     start = data[i] === 0 ? start + data[i + 1] : data[i + 1];
     const mods = data[i + 4];
     out.push({
-      line, start, length: data[i + 2], type: legend.tokenTypes[data[i + 3]] ?? "",
+      line,
+      start,
+      length: data[i + 2],
+      type: legend.tokenTypes[data[i + 3]] ?? "",
       modifiers: legend.tokenModifiers.filter((_, bit) => mods & (1 << bit)),
     });
   }

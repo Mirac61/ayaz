@@ -4,10 +4,7 @@ import { Commands } from "./commands";
 test("register, run with arg, list by title, unregister", () => {
   const c = new Commands();
   const got: (string | undefined)[] = [];
-  const off = c.register(
-    { id: "b", title: "Beta", run: (a) => got.push(a) },
-    { id: "a", title: "Alpha", run: () => 1 },
-  );
+  const off = c.register({ id: "b", title: "Beta", run: (a) => got.push(a) }, { id: "a", title: "Alpha", run: () => 1 });
   c.run("b", "!");
   expect(got).toEqual(["!"]);
   expect(c.list().map((x) => x.id)).toEqual(["a", "b"]);

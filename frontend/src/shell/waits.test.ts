@@ -2,7 +2,8 @@ import { expect, test } from "vitest";
 import { Waits } from "./waits";
 
 test("a callback fires once, when its file is no longer open", () => {
-  const w = new Waits(), fired: string[] = [];
+  const w = new Waits(),
+    fired: string[] = [];
   w.add("COMMIT_EDITMSG", () => fired.push("a"));
   w.add("other.go", () => fired.push("b"));
   w.check(() => true);

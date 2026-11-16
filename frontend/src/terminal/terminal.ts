@@ -63,13 +63,16 @@ export function termZoom(): number {
   }
 }
 export function setTermZoom(z: number) {
-  try { localStorage.setItem(ZOOM_KEY, String(Math.min(24, Math.max(-6, z)))); } catch { /* a convenience */ }
+  try {
+    localStorage.setItem(ZOOM_KEY, String(Math.min(24, Math.max(-6, z))));
+  } catch {
+    /* a convenience */
+  }
 }
 // settings.json's terminalFontSize (else fontSize), plus the terminal zoom.
 export const termFontSize = () => Math.max(6, (settings().terminalFontSize ?? settings().fontSize) + termZoom());
 
-const defaultRenderer = () =>
-  new URLSearchParams(location.search).get("renderer") === "dom" || !isMac ? "dom" : "webgl";
+const defaultRenderer = () => (new URLSearchParams(location.search).get("renderer") === "dom" || !isMac ? "dom" : "webgl");
 
 // The buffer as text; a line the terminal wrapped joins the one before it.
 function bufferText(t: Terminal): string {
@@ -93,14 +96,20 @@ export function fileLinkProvider(
   return {
     provideLinks(y, callback) {
       const line = term.buffer.active.getLine(y - 1);
-      if (line?.isWrapped) return callback(undefined);
-      if (!line) return callback(undefined);
+      if (line?.isWrapped) {
+        return callback(undefined);
+      }
+      if (!line) {
+        return callback(undefined);
+      }
       const text = line.translateToString(true);
       // The cell column of each UTF-16 index: a wide character takes two cells, an emoji two code units.
       const cols: number[] = [];
       for (let x = 0; x < line.length; x++) {
         const c = line.getCell(x)!;
-        if (c.getWidth()) cols.push(...Array<number>((c.getChars() || " ").length).fill(x));
+        if (c.getWidth()) {
+          cols.push(...Array<number>((c.getChars() || " ").length).fill(x));
+        }
       }
       const links: ILink[] = fileLinks(text).map((l) => ({
         range: { start: { x: cols[l.start] + 1, y }, end: { x: cols[l.end - 1] + 1, y } },
@@ -114,7 +123,8 @@ export function fileLinkProvider(
 
 // OSC 7 as it arrives, kept per row: a link in old output resolves against where the shell was then.
 export function trackCwd(term: Terminal) {
-  let base = "", now = "";
+  let base = "",
+    now = "";
   const marks: { m: IMarker; cwd: string; x: number }[] = []; // x: the column the shell was at when it said so
   term.parser.registerOscHandler(7, (data) => {
     const c = parseOsc7(data);
@@ -124,7 +134,8 @@ export function trackCwd(term: Terminal) {
       if (m) {
         const k = { m, cwd: c, x: term.buffer.active.cursorX };
         marks.push(k);
-        m.onDispose(() => { // scrolled out of the scrollback
+        m.onDispose(() => {
+          // scrolled out of the scrollback
           base = k.cwd;
           marks.splice(marks.indexOf(k), 1);
         });
@@ -136,7 +147,11 @@ export function trackCwd(term: Terminal) {
     now: () => now,
     at(row: number, col = 0) {
       let c = base;
-      for (const k of marks) if (k.m.line < row || (k.m.line === row && k.x <= col)) c = k.cwd;
+      for (const k of marks) {
+        if (k.m.line < row || (k.m.line === row && k.x <= col)) {
+          c = k.cwd;
+        }
+      }
       return c || now;
     },
   };
@@ -158,9 +173,13 @@ export function openTerminal(el: HTMLElement, opts: TermOptions = {}): TermHandl
   term.unicode.activeVersion = "11";
   term.loadAddon(new WebLinksAddon((_e, uri) => void backend.openURL(uri)));
   const cwd = trackCwd(term);
-  if (opts.onOpenFile) term.registerLinkProvider(fileLinkProvider(term, opts.onOpenFile, cwd.at));
+  if (opts.onOpenFile) {
+    term.registerLinkProvider(fileLinkProvider(term, opts.onOpenFile, cwd.at));
+  }
   term.open(el);
-  if ((opts.renderer ?? defaultRenderer()) === "webgl") term.loadAddon(new WebglAddon());
+  if ((opts.renderer ?? defaultRenderer()) === "webgl") {
+    term.loadAddon(new WebglAddon());
+  }
   el.dataset.term = "";
 
   const ws = backend.stream("pty");
@@ -174,20 +193,30 @@ export function openTerminal(el: HTMLElement, opts: TermOptions = {}): TermHandl
   ws.onmessage = (ev) => {
     term.write(new Uint8Array(ev.data as ArrayBuffer), () => {
       if (opts.onLiveOutput && !disposed) {
-        if (liveTimer) clearTimeout(liveTimer);
+        if (liveTimer) {
+          clearTimeout(liveTimer);
+        }
         liveTimer = setTimeout(() => {
-          if (!disposed && opts.onLiveOutput) opts.onLiveOutput(bufferText(term));
+          if (!disposed && opts.onLiveOutput) {
+            opts.onLiveOutput(bufferText(term));
+          }
         }, 150);
       }
     });
   };
   let disposed = false;
   ws.onclose = () => {
-    if (disposed) return;
+    if (disposed) {
+      return;
+    }
     // After the write callback, the last output is in the buffer too.
     term.write("\r\n[process exited]\r\n", () => {
-      if (disposed) return;
-      if (opts.onOutput) opts.onOutput(bufferText(term));
+      if (disposed) {
+        return;
+      }
+      if (opts.onOutput) {
+        opts.onOutput(bufferText(term));
+      }
       opts.onExit?.();
     });
   };
@@ -201,7 +230,9 @@ export function openTerminal(el: HTMLElement, opts: TermOptions = {}): TermHandl
     mode = m;
     el.dataset.mode = m;
     term.options.disableStdin = m === "normal"; // also blocks paste
-    if (m === "terminal") term.scrollToBottom();
+    if (m === "terminal") {
+      term.scrollToBottom();
+    }
     opts.onMode?.(m);
   };
   setMode("terminal");
@@ -210,22 +241,60 @@ export function openTerminal(el: HTMLElement, opts: TermOptions = {}): TermHandl
   let last = "";
   const half = () => Math.max(1, Math.floor(term.rows / 2));
   term.attachCustomKeyEventHandler((e) => {
-    if (mode === "terminal") return true;
-    if (e.metaKey || (e.ctrlKey && e.shiftKey && (e.key === "C" || e.key === "V" || e.key === "c" || e.key === "v"))) return true; // Cmd+C/V on macOS, Ctrl+Shift+C/V on Windows/Linux
-    if (e.type !== "keydown") return false;
+    if (mode === "terminal") {
+      return true;
+    }
+    if (e.metaKey || (e.ctrlKey && e.shiftKey && (e.key === "C" || e.key === "V" || e.key === "c" || e.key === "v"))) {
+      return true;
+    } // Cmd+C/V on macOS, Ctrl+Shift+C/V on Windows/Linux
+    if (e.type !== "keydown") {
+      return false;
+    }
     const k = e.ctrlKey ? `C-${e.key}` : e.key;
     switch (k) {
-      case "i": case "a": case "I": case "A": setMode("terminal"); break;
-      case "j": case "ArrowDown": term.scrollLines(1); break;
-      case "k": case "ArrowUp": term.scrollLines(-1); break;
-      case "C-d": term.scrollLines(half()); break;
-      case "C-u": term.scrollLines(-half()); break;
-      case "g": term.scrollToTop(); break;
-      case "G": term.scrollToBottom(); break;
-      case "y": void navigator.clipboard.writeText(term.getSelection()).catch(() => {}); term.clearSelection(); break;
-      case "/": ask(); break;
-      case "n": if (last) search.findNext(last); break;
-      case "N": if (last) search.findPrevious(last); break;
+      case "i":
+      case "a":
+      case "I":
+      case "A":
+        setMode("terminal");
+        break;
+      case "j":
+      case "ArrowDown":
+        term.scrollLines(1);
+        break;
+      case "k":
+      case "ArrowUp":
+        term.scrollLines(-1);
+        break;
+      case "C-d":
+        term.scrollLines(half());
+        break;
+      case "C-u":
+        term.scrollLines(-half());
+        break;
+      case "g":
+        term.scrollToTop();
+        break;
+      case "G":
+        term.scrollToBottom();
+        break;
+      case "y":
+        void navigator.clipboard.writeText(term.getSelection()).catch(() => {});
+        term.clearSelection();
+        break;
+      case "/":
+        ask();
+        break;
+      case "n":
+        if (last) {
+          search.findNext(last);
+        }
+        break;
+      case "N":
+        if (last) {
+          search.findPrevious(last);
+        }
+        break;
     }
     e.preventDefault();
     return false;
@@ -242,7 +311,9 @@ export function openTerminal(el: HTMLElement, opts: TermOptions = {}): TermHandl
     box.select();
     box.onkeydown = (e) => {
       e.stopPropagation();
-      if (e.key === "Enter" && box.value) search.findPrevious((last = box.value)); // from the bottom up, like ?
+      if (e.key === "Enter" && box.value) {
+        search.findPrevious((last = box.value));
+      } // from the bottom up, like ?
       if (e.key === "Enter" || e.key === "Escape") {
         box.remove();
         term.focus();
@@ -254,10 +325,17 @@ export function openTerminal(el: HTMLElement, opts: TermOptions = {}): TermHandl
   const ready = new Promise<void>((resolve, reject) => {
     ws.onopen = () => {
       fit.fit();
-      ws.send(JSON.stringify({
-        cols: term.cols, rows: term.rows, ws: opts.ws ?? "", cmd: opts.cmd ?? "", dir: opts.dir ?? "",
-        windowMs: opts.windowMs ?? 0, maxBytes: opts.maxBytes ?? 0,
-      }));
+      ws.send(
+        JSON.stringify({
+          cols: term.cols,
+          rows: term.rows,
+          ws: opts.ws ?? "",
+          cmd: opts.cmd ?? "",
+          dir: opts.dir ?? "",
+          windowMs: opts.windowMs ?? 0,
+          maxBytes: opts.maxBytes ?? 0,
+        }),
+      );
       started = true;
       resolve();
     };
@@ -276,11 +354,15 @@ export function openTerminal(el: HTMLElement, opts: TermOptions = {}): TermHandl
       term.options.theme = terminalTheme(); // a changed theme in settings.json reaches open terminals here too
       term.options.fontFamily = getComputedStyle(document.documentElement).getPropertyValue("--font-mono");
       term.options.fontSize = termFontSize();
-      if (el.clientWidth && el.clientHeight) fit.fit();
+      if (el.clientWidth && el.clientHeight) {
+        fit.fit();
+      }
     },
     dispose: () => {
       disposed = true;
-      if (liveTimer) clearTimeout(liveTimer);
+      if (liveTimer) {
+        clearTimeout(liveTimer);
+      }
       ro.disconnect();
       ws.close(); // Go hangs up the shell's process group
       term.dispose();

@@ -8,8 +8,12 @@ const CLOSE: Record<string, string> = { ")": "(", "]": "[", "}": "{", ">": "<", 
 
 // The text to put around a selection for char; null for a key that isn't a surround char.
 export function wrapWith(char: string): [string, string] | null {
-  if (PAIRS[char]) return [PAIRS[char][0] + " ", " " + PAIRS[char][1]];
-  if (CLOSE[char]) return PAIRS[CLOSE[char]];
+  if (PAIRS[char]) {
+    return [PAIRS[char][0] + " ", " " + PAIRS[char][1]];
+  }
+  if (CLOSE[char]) {
+    return PAIRS[CLOSE[char]];
+  }
   return char.length === 1 && /[^\w\s]/.test(char) ? [char, char] : null;
 }
 
@@ -30,21 +34,39 @@ export function findPair(text: string, pos: number, char: string): [number, numb
   const close = PAIRS[open][1];
   let from = -1;
   for (let i = text[pos] === close ? pos - 1 : pos, depth = 0; i >= 0; i--) {
-    if (text[i] === close) depth++;
-    else if (text[i] === open && depth-- === 0) { from = i; break; }
+    if (text[i] === close) {
+      depth++;
+    } else if (text[i] === open && depth-- === 0) {
+      from = i;
+      break;
+    }
   }
-  if (from < 0) return null;
+  if (from < 0) {
+    return null;
+  }
   for (let i = from + 1, depth = 0; i < text.length; i++) {
-    if (text[i] === open) depth++;
-    else if (text[i] === close && depth-- === 0) return [from, i];
+    if (text[i] === open) {
+      depth++;
+    } else if (text[i] === close && depth-- === 0) {
+      return [from, i];
+    }
   }
   return null;
 }
 
 function wrap(view: EditorView, from: number, to: number, char: string) {
   const w = wrapWith(char);
-  if (!w) return;
-  view.dispatch({ changes: [{ from, insert: w[0] }, { from: to, insert: w[1] }], selection: { anchor: from }, userEvent: "input" });
+  if (!w) {
+    return;
+  }
+  view.dispatch({
+    changes: [
+      { from, insert: w[0] },
+      { from: to, insert: w[1] },
+    ],
+    selection: { anchor: from },
+    userEvent: "input",
+  });
 }
 
 // Replaces the pair around the cursor; with no new char it removes it, and the spaces an opening bracket put inside.
@@ -52,21 +74,38 @@ function change(view: EditorView, old: string, char: string | null) {
   const text = view.state.doc.toString();
   const p = findPair(text, view.state.selection.main.head, old);
   const w = char === null ? ["", ""] : wrapWith(char);
-  if (!p || !w) return;
+  if (!p || !w) {
+    return;
+  }
   let [from, to] = p;
-  let fromEnd = from + 1, toStart = to;
-  if (PAIRS[old] && text[fromEnd] === " " && text[toStart - 1] === " " && fromEnd < toStart - 1) { fromEnd++; toStart--; }
-  view.dispatch({ changes: [{ from, to: fromEnd, insert: w[0] }, { from: toStart, to: to + 1, insert: w[1] }], selection: { anchor: from }, userEvent: "input" });
+  let fromEnd = from + 1,
+    toStart = to;
+  if (PAIRS[old] && text[fromEnd] === " " && text[toStart - 1] === " " && fromEnd < toStart - 1) {
+    fromEnd++;
+    toStart--;
+  }
+  view.dispatch({
+    changes: [
+      { from, to: fromEnd, insert: w[0] },
+      { from: toStart, to: to + 1, insert: w[1] },
+    ],
+    selection: { anchor: from },
+    userEvent: "input",
+  });
 }
 
 // The chars after ds, cs and ys{motion}: Vim's keymap has no such commands, so the next key press is read here.
 function nextKey(view: EditorView, then: (key: string) => void) {
   const on = (e: KeyboardEvent) => {
-    if (["Shift", "Control", "Alt", "Meta"].includes(e.key)) return;
+    if (["Shift", "Control", "Alt", "Meta"].includes(e.key)) {
+      return;
+    }
     e.preventDefault();
     e.stopPropagation();
     view.contentDOM.removeEventListener("keydown", on, true);
-    if (e.key.length === 1) then(e.key);
+    if (e.key.length === 1) {
+      then(e.key);
+    }
   };
   view.contentDOM.addEventListener("keydown", on, true);
 }
@@ -81,16 +120,23 @@ export function installSurround() {
   Vim.defineMotion("surroundPending", (cm, _head, _args, vim, input) => {
     const view = cm.cm6!;
     const keys = repeatKeys.get(input);
-    if (keys) change(view, keys[0], keys[1] ?? null);
-    else if (input.operator === "delete") nextKey(view, (old) => {
-      repeatKeys.set(input, [old]);
-      change(view, old, null);
-    });
-    else if (input.operator === "change") nextKey(view, (old) => nextKey(view, (c) => {
-      repeatKeys.set(input, [old, c]);
-      change(view, old, c);
-    }));
-    else if (input.operator === "yank") Object.assign(vim.inputState, { operator: "surround", operatorArgs: {}, operatorShortcut: "ys" });
+    if (keys) {
+      change(view, keys[0], keys[1] ?? null);
+    } else if (input.operator === "delete") {
+      nextKey(view, (old) => {
+        repeatKeys.set(input, [old]);
+        change(view, old, null);
+      });
+    } else if (input.operator === "change") {
+      nextKey(view, (old) =>
+        nextKey(view, (c) => {
+          repeatKeys.set(input, [old, c]);
+          change(view, old, c);
+        }),
+      );
+    } else if (input.operator === "yank") {
+      Object.assign(vim.inputState, { operator: "surround", operatorArgs: {}, operatorShortcut: "ys" });
+    }
     return null;
   });
   Vim.mapCommand("s", "motion", "surroundPending", {}, { context: "operatorPending" });
@@ -105,7 +151,9 @@ export function installSurround() {
     from += s.length - s.trimStart().length;
     to -= s.length - s.trimEnd().length;
     const keys = repeatKeys.get(args);
-    if (keys) return void wrap(view, from, to, keys[0]);
+    if (keys) {
+      return void wrap(view, from, to, keys[0]);
+    }
     nextKey(view, (k) => {
       repeatKeys.set(args, [k]);
       wrap(view, from, to, k);

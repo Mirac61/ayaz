@@ -13,7 +13,19 @@ afterEach(() => {
 });
 
 const SRC = [
-  "top", "<<<<<<< HEAD", "ours", "=======", "theirs", ">>>>>>> feature", "mid", "<<<<<<< HEAD", "x", "=======", "y", ">>>>>>> f", "end",
+  "top",
+  "<<<<<<< HEAD",
+  "ours",
+  "=======",
+  "theirs",
+  ">>>>>>> feature",
+  "mid",
+  "<<<<<<< HEAD",
+  "x",
+  "=======",
+  "y",
+  ">>>>>>> f",
+  "end",
 ].join("\n");
 
 function mount(doc = SRC) {

@@ -38,7 +38,10 @@ test("rects follow sizes; borders sit between children", () => {
   const l2 = setBorder(l, [], 0, 0.25);
   expect(rects(l2).get(1)).toEqual({ x: 0, y: 0, w: 0.25, h: 1 });
   expect(rects(l2).get(3)).toEqual({ x: 0.25, y: 0.5, w: 0.75, h: 0.5 });
-  expect(borders(l2).map((b) => [b.path, b.i, b.dir, b.at.x, b.at.y])).toEqual([[[], 0, "row", 0.25, 0], [[1], 0, "col", 0.25, 0.5]]);
+  expect(borders(l2).map((b) => [b.path, b.i, b.dir, b.at.x, b.at.y])).toEqual([
+    [[], 0, "row", 0.25, 0],
+    [[1], 0, "col", 0.25, 0.5],
+  ]);
 });
 
 test("setBorder moves only its two children and keeps a minimum", () => {

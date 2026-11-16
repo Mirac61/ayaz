@@ -4,62 +4,105 @@ import { mergeBreakpoints, mergeCursors, parseSession } from "./session";
 const layout = { dir: "row", children: [{ pane: 1 }, { pane: 2 }], sizes: [0.3, 0.7] };
 
 test("parseSession keeps a valid session and drops entries of panes that aren't in the layout", () => {
-  const s = parseSession(JSON.stringify({
-    layout,
-    panes: { 1: "a.go", 2: 7, 5: "gone.go" },
-    tabs: { 1: ["a.go", 3, "b.go"], 9: ["x"] },
-    active: 2,
-    cursors: { "a.go": 12, "b.go": -1, "c.go": 1.5 },
-  }));
+  const s = parseSession(
+    JSON.stringify({
+      layout,
+      panes: { 1: "a.go", 2: 7, 5: "gone.go" },
+      tabs: { 1: ["a.go", 3, "b.go"], 9: ["x"] },
+      active: 2,
+      cursors: { "a.go": 12, "b.go": -1, "c.go": 1.5 },
+    }),
+  );
   expect(s).toEqual({
-    layout, panes: { 1: "a.go" }, tabs: { 1: ["a.go", "b.go"] }, active: 2, cursors: { "a.go": 12 }, breakpoints: {},
-    previews: [], terms: {},
+    layout,
+    panes: { 1: "a.go" },
+    tabs: { 1: ["a.go", "b.go"] },
+    active: 2,
+    cursors: { "a.go": 12 },
+    breakpoints: {},
+    previews: [],
+    terms: {},
   });
 });
 
 test("parseSession keeps previews and terminals of panes in the layout", () => {
-  const s = parseSession(JSON.stringify({
-    layout, panes: { 1: "a.md" }, tabs: {}, active: 1, cursors: {},
-    previews: [1, 9, "x"], terms: { 2: "", 7: "lazygit", 1: 3 },
-  }));
+  const s = parseSession(
+    JSON.stringify({
+      layout,
+      panes: { 1: "a.md" },
+      tabs: {},
+      active: 1,
+      cursors: {},
+      previews: [1, 9, "x"],
+      terms: { 2: "", 7: "lazygit", 1: 3 },
+    }),
+  );
   expect(s?.previews).toEqual([1]);
   expect(s?.terms).toEqual({ 2: "" });
 });
 
 test("parseSession accepts legacy number[] breakpoints and migrates to Breakpoint[]", () => {
-  const s = parseSession(JSON.stringify({
-    layout, panes: {}, tabs: {}, cursors: {}, breakpoints: { "a.go": [9, 3, 3, 0, 1.5, "x"], "b.go": [], "c.go": "no" },
-  }));
+  const s = parseSession(
+    JSON.stringify({
+      layout,
+      panes: {},
+      tabs: {},
+      cursors: {},
+      breakpoints: { "a.go": [9, 3, 3, 0, 1.5, "x"], "b.go": [], "c.go": "no" },
+    }),
+  );
   expect(s?.breakpoints).toEqual({ "a.go": [{ line: 3 }, { line: 9 }] });
 });
 
 test("parseSession accepts Breakpoint[] with conditions, logMessage, and hitCondition", () => {
-  const s = parseSession(JSON.stringify({
-    layout, panes: {}, tabs: {}, cursors: {}, breakpoints: {
-      "a.go": [{ line: 5, condition: "i == 2" }, { line: 8, logMessage: "msg" }, { line: 12, hitCondition: "3" }],
-      "b.go": [{ line: 0 }, { line: 2.5 }],
-    },
-  }));
+  const s = parseSession(
+    JSON.stringify({
+      layout,
+      panes: {},
+      tabs: {},
+      cursors: {},
+      breakpoints: {
+        "a.go": [
+          { line: 5, condition: "i == 2" },
+          { line: 8, logMessage: "msg" },
+          { line: 12, hitCondition: "3" },
+        ],
+        "b.go": [{ line: 0 }, { line: 2.5 }],
+      },
+    }),
+  );
   expect(s?.breakpoints).toEqual({
-    "a.go": [{ line: 5, condition: "i == 2" }, { line: 8, logMessage: "msg" }, { line: 12, hitCondition: "3" }],
+    "a.go": [
+      { line: 5, condition: "i == 2" },
+      { line: 8, logMessage: "msg" },
+      { line: 12, hitCondition: "3" },
+    ],
   });
 });
 
 test("mergeBreakpoints: loaded files replace theirs (an empty list clears it), the others stay", () => {
   const old = { "a.go": [{ line: 1 }], "b.go": [{ line: 2 }], "c.go": [{ line: 3 }] };
   expect(mergeBreakpoints(old, { "a.go": [{ line: 5 }, { line: 6 }], "b.go": [] })).toEqual({
-    "a.go": [{ line: 5 }, { line: 6 }], "c.go": [{ line: 3 }],
+    "a.go": [{ line: 5 }, { line: 6 }],
+    "c.go": [{ line: 3 }],
   });
 });
 
 test("parseSession rejects broken input and falls back to the first pane", () => {
   const ok = { layout, panes: {}, tabs: {}, cursors: {} };
-  for (const bad of [null, "", "{", "[]", JSON.stringify({ ...ok, layout: { pane: -1 } }),
+  for (const bad of [
+    null,
+    "",
+    "{",
+    "[]",
+    JSON.stringify({ ...ok, layout: { pane: -1 } }),
     JSON.stringify({ ...ok, layout: { dir: "row", children: [{ pane: 1 }] } }),
     JSON.stringify({ ...ok, layout: { dir: "row", children: [{ pane: 1 }, { pane: 1 }] } }),
     JSON.stringify({ ...ok, layout: { ...layout, sizes: [1] } }),
-    JSON.stringify({ ...ok, panes: [] })])
+    JSON.stringify({ ...ok, panes: [] }),
+  ]) {
     expect(parseSession(bad)).toBeNull();
+  }
   expect(parseSession(JSON.stringify({ ...ok, active: 99 }))?.active).toBe(1);
 });
 

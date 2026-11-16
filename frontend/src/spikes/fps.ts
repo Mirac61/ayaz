@@ -6,7 +6,13 @@ import { stats } from "./stats";
 
 const SPEED = 8000; // px per second, like K8
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-const until = async (find: () => HTMLElement | null) => { for (let el; ; await sleep(100)) if ((el = find())) return el; };
+const until = async (find: () => HTMLElement | null) => {
+  for (let el; ; await sleep(100)) {
+    if ((el = find())) {
+      return el;
+    }
+  }
+};
 
 async function scroll(view: string, box: HTMLElement) {
   box.scrollTop = 0;
@@ -18,14 +24,19 @@ async function scroll(view: string, box: HTMLElement) {
       frames.push(now - last);
       box.scrollTop += (SPEED * (now - last)) / 1000;
       last = now;
-      if (box.scrollTop + box.clientHeight < box.scrollHeight - 1) requestAnimationFrame(tick);
-      else done();
+      if (box.scrollTop + box.clientHeight < box.scrollHeight - 1) {
+        requestAnimationFrame(tick);
+      } else {
+        done();
+      }
     };
     requestAnimationFrame(tick);
   });
   const s = stats(frames);
-  await backend.report(`fps: ${view} (${box.scrollHeight} px, ${frames.length} frames, p50 ${s.p50.toFixed(1)} · p95 ${s.p95.toFixed(1)} · ` +
-    `max ${s.max.toFixed(1)} ms, ${frames.filter((f) => f > 17).length} over 17 ms)`);
+  await backend.report(
+    `fps: ${view} (${box.scrollHeight} px, ${frames.length} frames, p50 ${s.p50.toFixed(1)} · p95 ${s.p95.toFixed(1)} · ` +
+      `max ${s.max.toFixed(1)} ms, ${frames.filter((f) => f > 17).length} over 17 ms)`,
+  );
 }
 
 export async function runFps() {

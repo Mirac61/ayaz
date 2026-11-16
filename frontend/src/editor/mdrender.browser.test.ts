@@ -8,7 +8,9 @@ const html = (md: string, ctx: { ws: string; file: string } | null = null) => {
 };
 
 test("raw HTML shows, scripts and inline styles do not", () => {
-  const d = html('<p align="center"><a href="https://x.y"><img src="https://a.b/c.svg" alt="B"></a></p>\n\n<script>alert(1)</script><b style="color:red">x</b>');
+  const d = html(
+    '<p align="center"><a href="https://x.y"><img src="https://a.b/c.svg" alt="B"></a></p>\n\n<script>alert(1)</script><b style="color:red">x</b>',
+  );
   expect(d.querySelector("p[align=center] a img")).not.toBeNull();
   expect(d.querySelector("script")).toBeNull();
   expect(d.querySelector("[style]")).toBeNull();

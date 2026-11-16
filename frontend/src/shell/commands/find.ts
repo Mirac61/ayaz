@@ -38,7 +38,9 @@ export function findCommands(c: Ctx, q: QuickfixTools): Command[] {
     resumable: true,
     async query(query) {
       const all = list();
-      const ms = query.trim() ? await backend.rank(all, query, LIMIT) : all.slice(0, LIMIT).map((path) => ({ path, positions: [] }));
+      const ms = query.trim()
+        ? await backend.rank(all, query, LIMIT)
+        : all.slice(0, LIMIT).map((path) => ({ path, positions: [] }));
       return ms.map((m) => fileItem(m.path, m.positions, hint?.(m.path)));
     },
     pick: (it, _i, side) => run(openIn(it, side), it.label),
@@ -49,7 +51,9 @@ export function findCommands(c: Ctx, q: QuickfixTools): Command[] {
 
   // `regex` overrides the toggle for this picker only; `initial` is searched at once.
   const grepPicker = (o: { initial?: string; regex?: boolean; title?: string } = {}): PickerSource => {
-    let g: Grep | null = null, hits: Loc[] = [], text = "";
+    let g: Grep | null = null,
+      hits: Loc[] = [],
+      text = "";
     const regex = o.regex ?? grepRegex; // the quickfix list remembers it for :Replace's $1, $2
     return {
       title: o.title ?? `Search in files${regex ? " (regex)" : ""} · <C-q> to quickfix`,
@@ -59,7 +63,9 @@ export function findCommands(c: Ctx, q: QuickfixTools): Command[] {
         g?.cancel();
         hits = [];
         text = query;
-        if (!query.trim()) return Promise.resolve([]);
+        if (!query.trim()) {
+          return Promise.resolve([]);
+        }
         const cur = (g = files.grep(query, { regex, ignored: showIgnored }, (h) => {
           hits.push(...h);
           update(hits.slice(0, SHOWN).map(q.locItem));
@@ -92,15 +98,23 @@ export function findCommands(c: Ctx, q: QuickfixTools): Command[] {
             at = target;
             const ms = await files.find(target.text, LIMIT, showIgnored);
             const found = ms.map((m) => fileItem(m.path, m.positions, target.line ? `line ${target.line}` : undefined));
-            if (query.trim()) return found;
+            if (query.trim()) {
+              return found;
+            }
             // Nothing typed yet: the files you were just in come first, so <Space>ff Enter is "back to where I was".
             const here = ed.current()?.path;
-            const recent = ed.recent().filter((p) => p !== here).slice(0, RECENT_SHOWN);
+            const recent = ed
+              .recent()
+              .filter((p) => p !== here)
+              .slice(0, RECENT_SHOWN);
             return [...recent.map((p) => fileItem(p, [], "recent")), ...found.filter((it) => !recent.includes(it.label))];
           },
           pick(it, _i, side) {
-            if (at.line && !side) void ed.openAt(it.label, at.line, (at.col ?? 1) - 1);
-            else run(openIn(it, side), it.label);
+            if (at.line && !side) {
+              void ed.openAt(it.label, at.line, (at.col ?? 1) - 1);
+            } else {
+              run(openIn(it, side), it.label);
+            }
           },
           preview: (it) => (it.label.includes("://") ? Promise.resolve(null) : previewFile(files, it.label, at.line)),
           footer: FILE_KEYS,
@@ -118,7 +132,10 @@ export function findCommands(c: Ctx, q: QuickfixTools): Command[] {
     {
       id: "find.todos",
       title: "List TODO, FIXME and HACK comments",
-      run: () => setPicker(grepPicker({ initial: "\\b(TODO|FIXME|HACK|XXX)\\b", regex: true, title: "TODO comments · <C-q> to quickfix" })),
+      run: () =>
+        setPicker(
+          grepPicker({ initial: "\\b(TODO|FIXME|HACK|XXX)\\b", regex: true, title: "TODO comments · <C-q> to quickfix" }),
+        ),
     },
     {
       id: "find.toggleRegex",
@@ -130,33 +147,49 @@ export function findCommands(c: Ctx, q: QuickfixTools): Command[] {
       title: "Resume the last picker",
       run: () => {
         const p = resumed();
-        if (p) setPicker(p);
-        else fail("No picker to resume yet");
+        if (p) {
+          setPicker(p);
+        } else {
+          fail("No picker to resume yet");
+        }
       },
     },
     { id: "find.recent", title: "Recent files", run: () => setPicker(filePicker("Recent files", () => ed.recent())) },
     {
       id: "find.buffers",
       title: "Buffers",
-      run: () => setPicker(filePicker("Buffers", () => [...ed.bufferList().map((b) => b.path), ...ed.hiddenTerms()],
-        (p) => (ed.buffers.get(p) && isDirty(ed.buffers.get(p)!) ? "[+]" : undefined))),
+      run: () =>
+        setPicker(
+          filePicker(
+            "Buffers",
+            () => [...ed.bufferList().map((b) => b.path), ...ed.hiddenTerms()],
+            (p) => (ed.buffers.get(p) && isDirty(ed.buffers.get(p)!) ? "[+]" : undefined),
+          ),
+        ),
     },
     { id: "qf.next", title: "Next quickfix entry (:cn)", run: () => q.move(1) },
     { id: "qf.prev", title: "Previous quickfix entry (:cp)", run: () => q.move(-1) },
-    { id: "qf.open", title: "Quickfix list (:copen)", run: () => (qf.items.length ? setPicker(q.picker()) : fail("No quickfix list")) },
+    {
+      id: "qf.open",
+      title: "Quickfix list (:copen)",
+      run: () => (qf.items.length ? setPicker(q.picker()) : fail("No quickfix list")),
+    },
     {
       id: "qf.replace",
       title: "Replace quickfix matches (:Replace text)",
       run(a) {
-        if (!qf.items.length) return fail("No quickfix list; search first (<Space>fw, then <C-q>)");
+        if (!qf.items.length) {
+          return fail("No quickfix list; search first (<Space>fw, then <C-q>)");
+        }
         const to = a ?? "";
         const paths = new Set(qf.items.map((l) => l.path)).size;
         setPicker({
           title: `Replace ${qf.items.length} matches in ${paths} files with "${to}" · Enter applies all, Esc cancels`,
-          query: async () => qf.items.map((l) => ({
-            label: `${l.path}:${l.line}: ${(l.text.slice(0, l.col) + replacement(l, to, qf.regex) + l.text.slice(l.col + l.len)).trim()}`,
-            icon: fileIcon(l.path),
-          })),
+          query: async () =>
+            qf.items.map((l) => ({
+              label: `${l.path}:${l.line}: ${(l.text.slice(0, l.col) + replacement(l, to, qf.regex) + l.text.slice(l.col + l.len)).trim()}`,
+              icon: fileIcon(l.path),
+            })),
           pick: () => run("qf.replaceNow", to),
         });
       },

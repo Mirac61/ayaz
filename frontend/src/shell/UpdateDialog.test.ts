@@ -33,7 +33,7 @@ describe("UpdateDialog", () => {
     expect(html).toContain("update-dialog-logo");
     // Verify markdown rendered into rich HTML
     expect(html).toContain("<h2>Changes</h2>");
-    expect(html).toContain("href=\"https://github.com/Mirac61/ayaz/pull/42\"");
+    expect(html).toContain('href="https://github.com/Mirac61/ayaz/pull/42"');
     // Verify status card with dot
     expect(html).toContain("update-dialog-status-card ready");
     expect(html).toContain("status-dot ready");

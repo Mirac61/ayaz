@@ -5,7 +5,9 @@ let last: { source: PickerSource; q: string } | null = null;
 
 // Only sources that opt in are kept: prompts, confirmations and the command palette must not come back.
 export function remember(source: PickerSource, q: string) {
-  if (source.resumable) last = { source, q };
+  if (source.resumable) {
+    last = { source, q };
+  }
 }
 
 // A new object, so the Picker mounts afresh instead of reusing the one that closed.

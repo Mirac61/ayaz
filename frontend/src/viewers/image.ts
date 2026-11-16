@@ -4,7 +4,8 @@ import "./image.css";
 
 const STEP = 1.25;
 const PAN = 0.1; // share of the pane per h/j/k/l
-const MIN = 0.02, MAX = 32;
+const MIN = 0.02,
+  MAX = 32;
 
 export function mountImage(el: HTMLElement, ctx: ViewContext): ViewHandle {
   const box = document.createElement("div");
@@ -18,7 +19,11 @@ export function mountImage(el: HTMLElement, ctx: ViewContext): ViewHandle {
   box.append(img);
   el.append(box);
 
-  let fit = true, scale = 1, x = 0, y = 0, failed = false;
+  let fit = true,
+    scale = 1,
+    x = 0,
+    y = 0,
+    failed = false;
   const size = () => ({ w: img.naturalWidth || 300, h: img.naturalHeight || 150 }); // SVG without a size: like a browser
   const fitScale = () => {
     const { w, h } = size();
@@ -26,9 +31,14 @@ export function mountImage(el: HTMLElement, ctx: ViewContext): ViewHandle {
   };
   // Keeps the image centered when smaller than the pane, else clamps the pan so no empty space shows.
   const layout = () => {
-    if (fit) scale = fitScale();
+    if (fit) {
+      scale = fitScale();
+    }
     const { w, h } = size();
-    const sw = w * scale, sh = h * scale, bw = box.clientWidth, bh = box.clientHeight;
+    const sw = w * scale,
+      sh = h * scale,
+      bw = box.clientWidth,
+      bh = box.clientHeight;
     x = sw <= bw ? (bw - sw) / 2 : Math.min(0, Math.max(bw - sw, x));
     y = sh <= bh ? (bh - sh) / 2 : Math.min(0, Math.max(bh - sh, y));
     img.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
@@ -37,7 +47,8 @@ export function mountImage(el: HTMLElement, ctx: ViewContext): ViewHandle {
   // Zooms around the pane's center.
   const zoom = (s: number) => {
     const next = Math.min(MAX, Math.max(MIN, s));
-    const cx = box.clientWidth / 2, cy = box.clientHeight / 2;
+    const cx = box.clientWidth / 2,
+      cy = box.clientHeight / 2;
     x = cx - ((cx - x) * next) / scale;
     y = cy - ((cy - y) * next) / scale;
     scale = next;
@@ -45,19 +56,47 @@ export function mountImage(el: HTMLElement, ctx: ViewContext): ViewHandle {
     layout();
   };
   const keys: Record<string, () => void> = {
-    "+": () => zoom(scale * STEP), "=": () => zoom(scale * STEP), "-": () => zoom(scale / STEP),
-    "0": () => { fit = true; layout(); }, "1": () => zoom(1),
-    h: () => { x += box.clientWidth * PAN; layout(); }, l: () => { x -= box.clientWidth * PAN; layout(); },
-    k: () => { y += box.clientHeight * PAN; layout(); }, j: () => { y -= box.clientHeight * PAN; layout(); },
+    "+": () => zoom(scale * STEP),
+    "=": () => zoom(scale * STEP),
+    "-": () => zoom(scale / STEP),
+    "0": () => {
+      fit = true;
+      layout();
+    },
+    "1": () => zoom(1),
+    h: () => {
+      x += box.clientWidth * PAN;
+      layout();
+    },
+    l: () => {
+      x -= box.clientWidth * PAN;
+      layout();
+    },
+    k: () => {
+      y += box.clientHeight * PAN;
+      layout();
+    },
+    j: () => {
+      y -= box.clientHeight * PAN;
+      layout();
+    },
   };
   box.addEventListener("keydown", (e) => {
     const f = !e.ctrlKey && !e.metaKey && !e.altKey && keys[e.key];
-    if (!f) return;
+    if (!f) {
+      return;
+    }
     e.preventDefault();
     f();
   });
-  img.addEventListener("load", () => { failed = false; layout(); });
-  img.addEventListener("error", () => { failed = true; ctx.onStatus(); });
+  img.addEventListener("load", () => {
+    failed = false;
+    layout();
+  });
+  img.addEventListener("error", () => {
+    failed = true;
+    ctx.onStatus();
+  });
   const ro = new ResizeObserver(() => layout());
   ro.observe(box);
 
@@ -79,8 +118,16 @@ export function mountImage(el: HTMLElement, ctx: ViewContext): ViewHandle {
 
   return {
     focus: () => box.focus(),
-    dispose: () => { ro.disconnect(); box.remove(); },
-    status: () => (failed ? "can't show this image" : img.naturalWidth ? `${Math.round(scale * 100)}%${fit ? " fit" : ""}  ${img.naturalWidth}×${img.naturalHeight}` : ""),
+    dispose: () => {
+      ro.disconnect();
+      box.remove();
+    },
+    status: () =>
+      failed
+        ? "can't show this image"
+        : img.naturalWidth
+          ? `${Math.round(scale * 100)}%${fit ? " fit" : ""}  ${img.naturalWidth}×${img.naturalHeight}`
+          : "",
     reload: loadSource,
   };
 }

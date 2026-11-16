@@ -22,6 +22,11 @@ test("other files have no build", () => {
 });
 
 test("the compilers' error lines are problems for the quickfix list", () => {
-  const out = "main.typ:3:5: error: unknown variable: x\nerror: main.tex:12: Undefined control sequence\n./c.tex:7: Missing $ inserted.";
-  expect(parseProblems(out, "/ws").map((l) => [l.path, l.line])).toEqual([["main.typ", 3], ["main.tex", 12], ["c.tex", 7]]);
+  const out =
+    "main.typ:3:5: error: unknown variable: x\nerror: main.tex:12: Undefined control sequence\n./c.tex:7: Missing $ inserted.";
+  expect(parseProblems(out, "/ws").map((l) => [l.path, l.line])).toEqual([
+    ["main.typ", 3],
+    ["main.tex", 12],
+    ["c.tex", 7],
+  ]);
 });

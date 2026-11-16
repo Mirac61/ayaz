@@ -11,11 +11,10 @@ export function debugCommands(c: Ctx): Command[] {
   // The variables as a list: Enter opens a variable that has something below it (the list comes back with it open),
   // on any other it says its whole value. Typing filters.
   const variables = (rows: Row[], start = 0): PickerSource => {
-    const shown = lines(rows), byItem = new WeakMap<Item, Row>();
+    const shown = lines(rows),
+      byItem = new WeakMap<Item, Row>();
     const items = shown.map((l): Item => {
-      const hint = l.row.isWatch
-        ? (l.row.ref > 0 ? `${l.hint} · Enter to open` : `${l.hint} · Enter to remove`)
-        : l.hint;
+      const hint = l.row.isWatch ? (l.row.ref > 0 ? `${l.hint} · Enter to open` : `${l.hint} · Enter to remove`) : l.hint;
       const item = { label: l.label, hint };
       byItem.set(item, l.row);
       return item;
@@ -26,8 +25,12 @@ export function debugCommands(c: Ctx): Command[] {
       query: async (q) => items.filter((i) => i.label.toLowerCase().includes(q.toLowerCase())),
       pick(item) {
         const row = byItem.get(item);
-        if (!row) return;
-        if (row.isWatchScope) return;
+        if (!row) {
+          return;
+        }
+        if (row.isWatchScope) {
+          return;
+        }
         if (row.isWatch && row.ref <= 0) {
           c.dbg.removeWatch(row.name);
           c.say(`Removed watch: ${row.name}`);
@@ -37,9 +40,17 @@ export function debugCommands(c: Ctx): Command[] {
           );
           return;
         }
-        if (row.ref <= 0) return c.say(`${row.name} = ${row.value}`);
+        if (row.ref <= 0) {
+          return c.say(`${row.name} = ${row.value}`);
+        }
         void c.dbg.toggleRow(row).then(
-          () => c.setPicker(variables(rows, shown.findIndex((l) => l.row === row))),
+          () =>
+            c.setPicker(
+              variables(
+                rows,
+                shown.findIndex((l) => l.row === row),
+              ),
+            ),
           (e) => c.fail(errText(e)),
         );
       },
@@ -58,10 +69,14 @@ export function debugCommands(c: Ctx): Command[] {
       title: "Toggle breakpoint on this line (<Space>db)",
       run() {
         const on = c.ed.toggleBreakpoint();
-        if (on === null) return c.fail("No editor here to put a breakpoint in");
+        if (on === null) {
+          return c.fail("No editor here to put a breakpoint in");
+        }
         c.say(on ? "Breakpoint set" : "Breakpoint removed");
         const path = c.ed.current()?.path;
-        if (path) c.dbg.breakpointsChanged(path, c.ed.breakpoints()[path] ?? []); // a running session learns of it
+        if (path) {
+          c.dbg.breakpointsChanged(path, c.ed.breakpoints()[path] ?? []);
+        } // a running session learns of it
       },
     },
     {
@@ -70,15 +85,23 @@ export function debugCommands(c: Ctx): Command[] {
       run() {
         const cur = c.ed.getBreakpoint();
         const initial = cur ? formatBreakpointPrompt(cur) : "";
-        c.prompt("Breakpoint condition (plain text = condition, log: text = logpoint, hits: 5 = hit count)", initial, async (text) => {
-          const parsed = parseBreakpointPrompt(text);
-          const bp = c.ed.setBreakpoint(parsed);
-          if (!bp) return c.fail("No editor here to put a breakpoint in");
-          const kind = bp.logMessage ? "Logpoint" : (bp.condition || bp.hitCondition ? "Conditional breakpoint" : "Breakpoint");
-          c.say(`${kind} set on line ${bp.line}`);
-          const path = c.ed.current()?.path;
-          if (path) c.dbg.breakpointsChanged(path, c.ed.breakpoints()[path] ?? []);
-        });
+        c.prompt(
+          "Breakpoint condition (plain text = condition, log: text = logpoint, hits: 5 = hit count)",
+          initial,
+          async (text) => {
+            const parsed = parseBreakpointPrompt(text);
+            const bp = c.ed.setBreakpoint(parsed);
+            if (!bp) {
+              return c.fail("No editor here to put a breakpoint in");
+            }
+            const kind = bp.logMessage ? "Logpoint" : bp.condition || bp.hitCondition ? "Conditional breakpoint" : "Breakpoint";
+            c.say(`${kind} set on line ${bp.line}`);
+            const path = c.ed.current()?.path;
+            if (path) {
+              c.dbg.breakpointsChanged(path, c.ed.breakpoints()[path] ?? []);
+            }
+          },
+        );
       },
     },
     {
@@ -111,7 +134,9 @@ export function debugCommands(c: Ctx): Command[] {
           return c.say(c.dbg.status === "idle" ? "Not debugging: <Space>dd starts" : "The program isn't stopped");
         }
         const frames = c.dbg.frames;
-        if (!frames.length) return c.say("No call stack frames available");
+        if (!frames.length) {
+          return c.say("No call stack frames available");
+        }
         const items = frames.map((f, i): Item => {
           const loc = f.source?.path ? `${c.dbg.relative(f.source.path)}:${f.line}` : `line ${f.line}`;
           const activeMark = f.id === c.dbg.activeFrameId ? "▶ " : "";
@@ -122,10 +147,17 @@ export function debugCommands(c: Ctx): Command[] {
         });
         c.setPicker({
           title: "Call stack",
-          query: async (q) => items.filter((item) => item.label.toLowerCase().includes(q.toLowerCase()) || (item.hint && item.hint.toLowerCase().includes(q.toLowerCase()))),
+          query: async (q) =>
+            items.filter(
+              (item) =>
+                item.label.toLowerCase().includes(q.toLowerCase()) ||
+                (item.hint && item.hint.toLowerCase().includes(q.toLowerCase())),
+            ),
           pick(item) {
             const idx = items.indexOf(item);
-            if (idx < 0) return;
+            if (idx < 0) {
+              return;
+            }
             const frame = frames[idx];
             c.dbg.selectFrame(frame.id);
             if (frame.source?.path) {
@@ -144,8 +176,11 @@ export function debugCommands(c: Ctx): Command[] {
     {
       id: "debug.variables",
       title: "Debug: variables of the stopped program (<Space>dv)",
-      run: () => void c.dbg.variables().then((rows) => (rows ? c.setPicker(variables(rows)) : c.say("The program isn't stopped")),
-        (e) => c.fail(errText(e))),
+      run: () =>
+        void c.dbg.variables().then(
+          (rows) => (rows ? c.setPicker(variables(rows)) : c.say("The program isn't stopped")),
+          (e) => c.fail(errText(e)),
+        ),
     },
     {
       id: "debug.addWatch",
@@ -153,7 +188,9 @@ export function debugCommands(c: Ctx): Command[] {
       run() {
         c.prompt("Add watch expression", "", async (expr) => {
           const trimmed = expr.trim();
-          if (!trimmed) return;
+          if (!trimmed) {
+            return;
+          }
           c.dbg.addWatch(trimmed);
           c.say(`Watch expression added: ${trimmed}`);
           if (c.dbg.status === "paused") {
@@ -170,19 +207,26 @@ export function debugCommands(c: Ctx): Command[] {
       title: "Debug: evaluate expression at cursor (<Space>de)",
       run() {
         const cur = c.ed.current();
-        if (!cur) return c.fail("No editor here to evaluate");
+        if (!cur) {
+          return c.fail("No editor here to evaluate");
+        }
         const v = c.ed.activeView();
         let word = "";
         if (v) {
           const sel = v.state.selection.main;
-          if (!sel.empty) word = v.state.sliceDoc(sel.from, sel.to);
-          else {
+          if (!sel.empty) {
+            word = v.state.sliceDoc(sel.from, sel.to);
+          } else {
             const w = v.state.wordAt(sel.head);
-            if (w) word = v.state.sliceDoc(w.from, w.to);
+            if (w) {
+              word = v.state.sliceDoc(w.from, w.to);
+            }
           }
         }
         word = word.trim();
-        if (!word) return c.say("No word under cursor to evaluate");
+        if (!word) {
+          return c.say("No word under cursor to evaluate");
+        }
         void c.dbg.evaluate(word, "hover").then(
           (res) => c.say(`${word} = ${res.result}`),
           (e) => c.fail(errText(e)),

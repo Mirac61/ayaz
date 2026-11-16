@@ -9,7 +9,12 @@ test('reveal of "./b.go" from a filtered tree leaves the filter and selects b.go
   style.textContent = ".tree { height: 300px; overflow: auto; } .tree-row { position: absolute; }";
   document.head.append(style);
   const host = document.body.appendChild(document.createElement("div"));
-  const listed: Record<string, { name: string; dir: boolean }[]> = { "": [{ name: "a.go", dir: false }, { name: "b.go", dir: false }] };
+  const listed: Record<string, { name: string; dir: boolean }[]> = {
+    "": [
+      { name: "a.go", dir: false },
+      { name: "b.go", dir: false },
+    ],
+  };
   const files = {
     list: async (dir: string) => listed[dir] ?? [],
     find: async () => [{ path: "a.go", positions: [] }], // the filter shows a.go only, "b.go" is no row of it

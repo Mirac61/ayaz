@@ -6,7 +6,8 @@ import { e2eWorkspace } from "../playwright.config";
 
 // Commits only this file: other tests run in parallel and change theirs.
 const commit = (file: string) => {
-  const git = (...a: string[]) => execFileSync("git", ["-C", e2eWorkspace, "-c", "user.name=e2e", "-c", "user.email=e2e@ayaz", ...a]);
+  const git = (...a: string[]) =>
+    execFileSync("git", ["-C", e2eWorkspace, "-c", "user.name=e2e", "-c", "user.email=e2e@ayaz", ...a]);
   git("add", file);
   git("commit", "-q", "-m", file, "--", file);
 };

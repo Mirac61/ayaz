@@ -8,7 +8,10 @@ export interface Published {
 }
 // raw: as the server sent it, for the context of a code action request.
 export interface Diag {
-  line: number; character: number; severity: number; message: string;
+  line: number;
+  character: number;
+  severity: number;
+  message: string;
   raw: Published["diagnostics"][number];
 }
 
@@ -19,22 +22,36 @@ export class DiagStore {
   // A server's list replaces its earlier one for that URI; an empty list clears it. Other servers' lists stay.
   publish(p: Published, server = "") {
     const ds = p.diagnostics.map((d) => ({
-      line: d.range.start.line, character: d.range.start.character, severity: d.severity ?? 1, message: d.message, raw: d,
+      line: d.range.start.line,
+      character: d.range.start.character,
+      severity: d.severity ?? 1,
+      message: d.message,
+      raw: d,
     }));
     const lists = this.byUri.get(p.uri) ?? new Map<string, Diag[]>();
-    if (ds.length) lists.set(server, ds);
-    else if (!lists.delete(server)) return;
-    if (lists.size) this.byUri.set(p.uri, lists);
-    else this.byUri.delete(p.uri);
+    if (ds.length) {
+      lists.set(server, ds);
+    } else if (!lists.delete(server)) {
+      return;
+    }
+    if (lists.size) {
+      this.byUri.set(p.uri, lists);
+    } else {
+      this.byUri.delete(p.uri);
+    }
     this.fns.forEach((f) => f());
   }
 
   counts() {
-    let errors = 0, warnings = 0;
+    let errors = 0,
+      warnings = 0;
     for (const uri of this.byUri.keys()) {
       for (const d of this.forUri(uri)) {
-        if (d.severity === 1) errors++;
-        else if (d.severity === 2) warnings++;
+        if (d.severity === 1) {
+          errors++;
+        } else if (d.severity === 2) {
+          warnings++;
+        }
       }
     }
     return { errors, warnings };
@@ -44,13 +61,19 @@ export class DiagStore {
   all(): (Diag & { uri: string })[] {
     const out = [...this.byUri.keys()].flatMap((uri) => this.forUri(uri).map((d) => ({ ...d, uri })));
     return out.sort((a, b) => {
-      if (a.severity !== b.severity) return a.severity - b.severity;
-      if (a.uri !== b.uri) return a.uri < b.uri ? -1 : 1;
+      if (a.severity !== b.severity) {
+        return a.severity - b.severity;
+      }
+      if (a.uri !== b.uri) {
+        return a.uri < b.uri ? -1 : 1;
+      }
       return a.line - b.line || a.character - b.character;
     });
   }
 
-  forUri(uri: string): Diag[] { return [...this.byUri.get(uri)?.values() ?? []].flat(); }
+  forUri(uri: string): Diag[] {
+    return [...(this.byUri.get(uri)?.values() ?? [])].flat();
+  }
 
   onChange(fn: () => void) {
     this.fns.add(fn);
@@ -61,7 +84,9 @@ export class DiagStore {
 const stores = new Map<string, DiagStore>();
 export function diagnosticsFor(ws: string): DiagStore {
   let s = stores.get(ws);
-  if (!s) stores.set(ws, (s = new DiagStore()));
+  if (!s) {
+    stores.set(ws, (s = new DiagStore()));
+  }
   return s;
 }
 export const dropDiagnostics = (ws: string) => void stores.delete(ws);

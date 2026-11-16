@@ -16,7 +16,11 @@ export function zoomLevel(): number {
 
 export async function setZoom(z: number) {
   z = Math.round(Math.min(2, Math.max(0.5, z)) * 10) / 10;
-  try { localStorage.setItem(ZOOM_KEY, String(z)); } catch { /* a convenience */ }
+  try {
+    localStorage.setItem(ZOOM_KEY, String(z));
+  } catch {
+    /* a convenience */
+  }
   await backend.zoom(z);
   return z;
 }

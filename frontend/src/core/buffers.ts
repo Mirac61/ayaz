@@ -20,8 +20,12 @@ export const LONG_LINE = 20_000;
 export function hasLongLine(doc: string): boolean {
   for (let at = 0; at < doc.length;) {
     const nl = doc.indexOf("\n", at);
-    if ((nl < 0 ? doc.length : nl) - at > LONG_LINE) return true;
-    if (nl < 0) break;
+    if ((nl < 0 ? doc.length : nl) - at > LONG_LINE) {
+      return true;
+    }
+    if (nl < 0) {
+      break;
+    }
     at = nl + 1;
   }
   return false;
@@ -40,9 +44,14 @@ export type DiskState = { kind: "same" | "deleted" | "conflict" } | { kind: "rel
 
 // The smallest single replacement that turns a into b, so cursors and folds outside it stay put.
 export function diff(a: string, b: string) {
-  let s = 0, e = 0;
-  while (s < a.length && s < b.length && a[s] === b[s]) s++;
-  while (e < a.length - s && e < b.length - s && a[a.length - 1 - e] === b[b.length - 1 - e]) e++;
+  let s = 0,
+    e = 0;
+  while (s < a.length && s < b.length && a[s] === b[s]) {
+    s++;
+  }
+  while (e < a.length - s && e < b.length - s && a[a.length - 1 - e] === b[b.length - 1 - e]) {
+    e++;
+  }
   return { from: s, to: a.length - e, insert: b.slice(s, b.length - e) };
 }
 
@@ -56,16 +65,26 @@ export class Buffers {
     private makeState: (path: string, doc: string) => Promise<EditorState>,
   ) {}
 
-  get(path: string) { return this.m.get(path); }
-  list() { return [...this.m.values()]; }
-  dirty() { return this.list().filter(isDirty); }
+  get(path: string) {
+    return this.m.get(path);
+  }
+  list() {
+    return [...this.m.values()];
+  }
+  dirty() {
+    return this.list().filter(isDirty);
+  }
   // Forgets a buffer whose file was renamed or trashed.
-  drop(path: string) { this.m.delete(path); }
+  drop(path: string) {
+    this.m.delete(path);
+  }
 
   // Returns the loaded buffer, or reads the file. A missing file gives an empty new buffer (like `:e new.txt`).
   async open(path: string): Promise<Buffer> {
     const have = this.m.get(path);
-    if (have) return have;
+    if (have) {
+      return have;
+    }
     if (path.startsWith("head://")) {
       const real = path.slice("head://".length);
       const head = await this.files.gitHead(real);
@@ -81,7 +100,9 @@ export class Buffers {
   // A buffer with no file behind it (the debugger's output, docs): read-only, never dirty, never read from disk or swapped.
   async virtual(path: string, doc = ""): Promise<Buffer> {
     const have = this.m.get(path);
-    if (have) return have;
+    if (have) {
+      return have;
+    }
     const state = await this.makeState(path, doc);
     const b: Buffer = { path, state, mtime: 0, saved: state.doc, eol: "\n", plain: false };
     this.m.set(path, b);
@@ -90,11 +111,14 @@ export class Buffers {
 
   // Re-reads from disk and drops unsaved changes (`:e!`).
   async load(path: string): Promise<Buffer> {
-    let content = "", mtime = 0;
+    let content = "",
+      mtime = 0;
     try {
       ({ content, mtime } = await this.files.readText(path));
     } catch (e) {
-      if (!notFound(e)) throw e;
+      if (!notFound(e)) {
+        throw e;
+      }
     }
     const eol = eolOf(content);
     const state = await this.makeState(path, lf(content));
@@ -109,17 +133,23 @@ export class Buffers {
     try {
       f = await this.files.readText(b.path);
     } catch (e) {
-      if (!notFound(e)) throw e;
+      if (!notFound(e)) {
+        throw e;
+      }
       return { kind: b.mtime ? "deleted" : "same" };
     }
-    if (f.mtime === b.mtime) return { kind: "same" };
+    if (f.mtime === b.mtime) {
+      return { kind: "same" };
+    }
     const content = lf(f.content);
     if (content === b.state.doc.toString()) {
       b.mtime = f.mtime;
       b.saved = b.state.doc;
       return { kind: "same" };
     }
-    if (isDirty(b)) return { kind: "conflict" };
+    if (isDirty(b)) {
+      return { kind: "conflict" };
+    }
     b.eol = eolOf(f.content);
     b.plain = hasLongLine(content);
     return { kind: "reload", content, mtime: f.mtime };
@@ -129,7 +159,9 @@ export class Buffers {
   // clean again (:w, undo, :e!) or no longer loaded (renamed, trashed) loses its swap. Library files have none.
   async syncSwaps(): Promise<void> {
     for (const b of this.list()) {
-      if (b.path.startsWith("/") || isVirtual(b.path)) continue;
+      if (b.path.startsWith("/") || isVirtual(b.path)) {
+        continue;
+      }
       const kept = this.swapped.get(b.path);
       if (isDirty(b) && !(kept && kept.eq(b.state.doc))) {
         const doc = b.state.doc;
@@ -141,28 +173,45 @@ export class Buffers {
       }
     }
     for (const path of this.swapped.keys()) {
-      if (this.m.has(path)) continue;
+      if (this.m.has(path)) {
+        continue;
+      }
       await this.files.swapRemove(path);
       this.swapped.delete(path);
     }
   }
 
   // b's text came from its swap (a restore): the swap file is ours to update or remove from now on.
-  adoptSwap(b: Buffer) { this.swapped.set(b.path, b.state.doc); }
+  adoptSwap(b: Buffer) {
+    this.swapped.set(b.path, b.state.doc);
+  }
 
   // Drops the swaps of every dirty buffer: the user threw the changes away (:qa!).
   async discardSwaps(): Promise<void> {
-    for (const path of this.swapped.keys()) await this.files.swapRemove(path);
+    for (const path of this.swapped.keys()) {
+      await this.files.swapRemove(path);
+    }
     this.swapped.clear();
   }
 
   // Writes the buffer. Without force, a file changed on disk since reading rejects ("file changed on disk").
   async save(b: Buffer, force = false): Promise<void> {
-    if (isVirtual(b.path)) throw new Error(`Cannot save virtual buffer: ${b.path}`);
+    if (isVirtual(b.path)) {
+      throw new Error(`Cannot save virtual buffer: ${b.path}`);
+    }
     const doc = b.state.doc;
     let expected = b.mtime;
-    if (force) expected = await this.files.readText(b.path).then((f) => f.mtime, (e) => (notFound(e) ? 0 : Promise.reject(e)));
-    b.mtime = await this.files.writeText(b.path, b.eol === "\n" ? doc.toString() : doc.toString().replace(/\n/g, b.eol), expected);
+    if (force) {
+      expected = await this.files.readText(b.path).then(
+        (f) => f.mtime,
+        (e) => (notFound(e) ? 0 : Promise.reject(e)),
+      );
+    }
+    b.mtime = await this.files.writeText(
+      b.path,
+      b.eol === "\n" ? doc.toString() : doc.toString().replace(/\n/g, b.eol),
+      expected,
+    );
     b.saved = doc;
   }
 }

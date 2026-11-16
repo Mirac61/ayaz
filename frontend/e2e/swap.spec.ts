@@ -30,9 +30,13 @@ test("hot exit: typed text comes back after a reload, or is discarded", async ({
   // One file at a time, in no fixed order: restore swap-a, discard swap-b.
   for (let i = 0; i < 2; i++) {
     const a = (await picker.textContent())!.includes("swap-a.txt");
-    if (!a) await page.keyboard.press("ArrowDown"); // Discard
+    if (!a) {
+      await page.keyboard.press("ArrowDown");
+    } // Discard
     await page.keyboard.press("Enter");
-    if (i === 0) await expect(picker).toContainText(a ? "swap-b.txt" : "swap-a.txt");
+    if (i === 0) {
+      await expect(picker).toContainText(a ? "swap-b.txt" : "swap-a.txt");
+    }
   }
   await expect(picker).toHaveCount(0);
   await page.keyboard.type(":e swap-a.txt");

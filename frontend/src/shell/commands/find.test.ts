@@ -17,7 +17,15 @@ function setup() {
       return { done: Promise.resolve(null), cancel() {} };
     },
   } as unknown as Files;
-  const c = { files, ed: {}, qf: {}, run() {}, say() {}, fail: (m: string) => fails.push(m), setPicker: (p: PickerSource | null) => p && pickers.push(p) } as unknown as Ctx;
+  const c = {
+    files,
+    ed: {},
+    qf: {},
+    run() {},
+    say() {},
+    fail: (m: string) => fails.push(m),
+    setPicker: (p: PickerSource | null) => p && pickers.push(p),
+  } as unknown as Ctx;
   const cmds = findCommands(c, {} as QuickfixTools);
   const run = (id: string) => cmds.find((x) => x.id === id)!.run();
   return { greps, pickers, fails, run };

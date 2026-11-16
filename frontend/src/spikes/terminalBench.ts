@@ -11,9 +11,13 @@ function waitFor(read: () => string, marker: string, timeoutMs: number): Promise
   return new Promise((resolve, reject) => {
     const t0 = performance.now();
     const check = () => {
-      if (read().includes(marker)) resolve();
-      else if (performance.now() - t0 > timeoutMs) reject(new Error(`timeout waiting for ${marker}`));
-      else setTimeout(check, 5);
+      if (read().includes(marker)) {
+        resolve();
+      } else if (performance.now() - t0 > timeoutMs) {
+        reject(new Error(`timeout waiting for ${marker}`));
+      } else {
+        setTimeout(check, 5);
+      }
     };
     check();
   });
@@ -25,7 +29,9 @@ export async function runS6(el: HTMLElement, opts: TermOptions): Promise<string>
   const buffer = h.term.buffer;
   const screen = () => {
     let s = "";
-    for (let y = 0; y < h.term.rows; y++) s += buffer.active.getLine(buffer.active.viewportY + y)?.translateToString(true) + "\n";
+    for (let y = 0; y < h.term.rows; y++) {
+      s += buffer.active.getLine(buffer.active.viewportY + y)?.translateToString(true) + "\n";
+    }
     return s;
   };
   try {
@@ -36,7 +42,10 @@ export async function runS6(el: HTMLElement, opts: TermOptions): Promise<string>
     for (let i = 0; i < 100; i++) {
       const t0 = performance.now();
       const rendered = new Promise<void>((resolve) => {
-        const sub = h.term.onRender(() => { sub.dispose(); resolve(); });
+        const sub = h.term.onRender(() => {
+          sub.dispose();
+          resolve();
+        });
       });
       h.input("a");
       await rendered;
@@ -61,10 +70,17 @@ export async function runS6(el: HTMLElement, opts: TermOptions): Promise<string>
 // K16: LSP-sized messages through the "echo" stream and back, timed in batches of 20 (1 ms timer resolution).
 export async function runS7(): Promise<string> {
   const ws = backend.stream("echo");
-  await new Promise((r, j) => { ws.onopen = r; ws.onerror = j; });
+  await new Promise((r, j) => {
+    ws.onopen = r;
+    ws.onerror = j;
+  });
   let pending: (() => void) | null = null;
   ws.onmessage = () => pending?.();
-  const roundTrip = (msg: string) => new Promise<void>((r) => { pending = r; ws.send(msg); });
+  const roundTrip = (msg: string) =>
+    new Promise<void>((r) => {
+      pending = r;
+      ws.send(msg);
+    });
 
   const lsp = (bytes: number) => {
     const body = JSON.stringify({ jsonrpc: "2.0", id: 1, result: { text: "x".repeat(bytes) } });
@@ -73,11 +89,15 @@ export async function runS7(): Promise<string> {
   const out: string[] = [];
   for (const size of [200, 10_000, 200_000]) {
     const msg = lsp(size);
-    for (let i = 0; i < 20; i++) await roundTrip(msg);
+    for (let i = 0; i < 20; i++) {
+      await roundTrip(msg);
+    }
     const samples: number[] = [];
     for (let b = 0; b < 50; b++) {
       const t0 = performance.now();
-      for (let i = 0; i < 20; i++) await roundTrip(msg);
+      for (let i = 0; i < 20; i++) {
+        await roundTrip(msg);
+      }
       samples.push((performance.now() - t0) / 20);
     }
     out.push(`${size / 1000}KB ${fmt(stats(samples))}`);

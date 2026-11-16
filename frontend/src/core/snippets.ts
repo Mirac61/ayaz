@@ -5,14 +5,20 @@ import { stripJsonc } from "./settings";
 //   { "go": { "iferr": { "prefix": "iferr", "body": ["if err != nil {", "\treturn err", "}"], "description": "..." } } }
 // The body is a CodeMirror snippet template: $1, ${1:name} and $0 work; VS Code's variables like $TM_FILENAME don't.
 
-export interface Snippet { prefix: string; body: string; description: string }
+export interface Snippet {
+  prefix: string;
+  body: string;
+  description: string;
+}
 
 let byExt = new Map<string, Snippet[]>();
 let problem = "";
 
 export function parseSnippets(json: string): Map<string, Snippet[]> {
   const out = new Map<string, Snippet[]>();
-  if (!json.trim()) return out;
+  if (!json.trim()) {
+    return out;
+  }
   let data: unknown;
   try {
     data = JSON.parse(stripJsonc(json));
@@ -39,7 +45,9 @@ export function parseSnippets(json: string): Map<string, Snippet[]> {
       }
       const text = (lines as string[]).join("\n").replace(/\$(\d+)/g, "${$1}");
       const about = typeof description === "string" ? description : name;
-      for (const p of prefixes as string[]) list.push({ prefix: p, body: text, description: about });
+      for (const p of prefixes as string[]) {
+        list.push({ prefix: p, body: text, description: about });
+      }
     }
     out.set(ext.toLowerCase(), list);
   }

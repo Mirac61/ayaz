@@ -4,7 +4,10 @@ import { mountImage } from "./image";
 import { viewerFor } from "../core/viewers";
 
 const svg = (w: number, h: number) =>
-  "data:image/svg+xml," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect width="${w}" height="${h}" fill="red"/></svg>`);
+  "data:image/svg+xml," +
+  encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect width="${w}" height="${h}" fill="red"/></svg>`,
+  );
 
 let el: HTMLElement;
 afterEach(() => el?.remove());
@@ -19,7 +22,9 @@ function mount(url: string) {
 }
 
 test("viewerFor: images only", () => {
-  for (const p of ["a.png", "b/c.JPG", "d.jpeg", "e.gif", "f.webp", "g.svg"]) expect(viewerFor(p)?.id).toBe("image");
+  for (const p of ["a.png", "b/c.JPG", "d.jpeg", "e.gif", "f.webp", "g.svg"]) {
+    expect(viewerFor(p)?.id).toBe("image");
+  }
   expect(viewerFor("a.go")).toBeUndefined();
 });
 

@@ -15,12 +15,19 @@ test("own state, strongest state below a folder, inherited from ignored and untr
 });
 
 test("single: calls during a run start one more run afterwards, never two at once", async () => {
-  let running = 0, max = 0, runs = 0;
+  let running = 0,
+    max = 0,
+    runs = 0;
   const release: (() => void)[] = [];
   const load = single(() => {
     runs++;
     max = Math.max(max, ++running);
-    return new Promise<void>((r) => release.push(() => { running--; r(); }));
+    return new Promise<void>((r) =>
+      release.push(() => {
+        running--;
+        r();
+      }),
+    );
   });
   load();
   load();

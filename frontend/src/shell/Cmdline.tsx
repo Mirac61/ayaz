@@ -60,7 +60,9 @@ function loadHistory(): string[] {
 }
 
 function saveHistory(item: string) {
-  if (!item.trim()) return;
+  if (!item.trim()) {
+    return;
+  }
   try {
     const hist = loadHistory().filter((x) => x !== item);
     hist.unshift(item);
@@ -68,14 +70,7 @@ function saveHistory(item: string) {
   } catch {}
 }
 
-export function Cmdline({
-  initial = "",
-  mode = "ex",
-  commands = [],
-  onExecuteEx,
-  onExecuteCommand,
-  onClose,
-}: CmdlineProps) {
+export function Cmdline({ initial = "", mode = "ex", commands = [], onExecuteEx, onExecuteCommand, onClose }: CmdlineProps) {
   const [val, setVal] = useState(initial);
   const [cursor, setCursor] = useState(0);
   const history = useRef<string[]>(loadHistory());
@@ -204,12 +199,7 @@ export function Cmdline({
 
   return (
     <div className="cmdline-backdrop" onMouseDown={onClose}>
-      <div
-        className="cmdline-window"
-        role="dialog"
-        aria-label="Command Line"
-        onMouseDown={(e) => e.stopPropagation()}
-      >
+      <div className="cmdline-window" role="dialog" aria-label="Command Line" onMouseDown={(e) => e.stopPropagation()}>
         <div className="cmdline-bar">
           <div className={`cmdline-badge mode-${mode}`}>
             <span className="cmdline-icon">{mode === "ex" ? ":" : "/"}</span>

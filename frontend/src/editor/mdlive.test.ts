@@ -8,7 +8,8 @@ import { browsable, imageSrc, linkAt, mdDecorations, mdTables, mdlive, resolveLi
 
 // "|" marks the cursor; "«" and "»" a selection instead. No marker: cursor at the very end.
 function state(src: string) {
-  const s = src.indexOf("«"), at = src.indexOf("|");
+  const s = src.indexOf("«"),
+    at = src.indexOf("|");
   const doc = src.replace(/[|«»]/g, "");
   const sel = s >= 0 ? EditorSelection.single(s, src.indexOf("»") - 1) : EditorSelection.cursor(at >= 0 ? at : doc.length);
   const st = EditorState.create({ doc, selection: sel, extensions: markdown({ base: markdownLanguage }) });
@@ -20,7 +21,9 @@ function state(src: string) {
 function shown(src: string) {
   const st = state(src);
   const doc = st.doc.toString();
-  return mdDecorations(st).hide.sort((x, y) => x[0] - y[0]).reduceRight((d, [a, b]) => d.slice(0, a) + d.slice(b), doc);
+  return mdDecorations(st)
+    .hide.sort((x, y) => x[0] - y[0])
+    .reduceRight((d, [a, b]) => d.slice(0, a) + d.slice(b), doc);
 }
 
 const cases: [src: string, want: string][] = [
@@ -63,16 +66,25 @@ test.each(cases)("%j reads as %j", (src, want) => expect(shown(src)).toBe(want))
 test("headings get a line class, code and link text a mark", () => {
   const d = mdDecorations(state("## H\n`c` [l](u)\n|"));
   expect(d.lines).toEqual([{ at: 0, cls: "cm-md-h2" }]);
-  expect(d.marks).toEqual([{ from: 6, to: 7, cls: "cm-md-code" }, { from: 10, to: 11, cls: "cm-md-link" }]);
+  expect(d.marks).toEqual([
+    { from: 6, to: 7, cls: "cm-md-code" },
+    { from: 10, to: 11, cls: "cm-md-link" },
+  ]);
 });
 
 test("a range limits the work to it", () => {
   const st = state("*a*\n*b*\n|");
-  expect(mdDecorations(st, 4, 7).hide).toEqual([[4, 5], [6, 7]]);
+  expect(mdDecorations(st, 4, 7).hide).toEqual([
+    [4, 5],
+    [6, 7],
+  ]);
 });
 
 test("linkAt finds the URL of links, autolinks and bare URLs", () => {
-  const at = (src: string) => { const st = state(src); return linkAt(st, st.selection.main.head); };
+  const at = (src: string) => {
+    const st = state(src);
+    return linkAt(st, st.selection.main.head);
+  };
   expect(at("see [te|xt](https://x.org) now")).toBe("https://x.org");
   expect(at("see [text](https://x.|org) now")).toBe("https://x.org");
   expect(at("see [text](|a.md#top)")).toBe("a.md#top");
@@ -102,12 +114,25 @@ test("browsable: only real URLs go to the browser", () => {
 });
 
 test("reading view hides the markers of the cursor line too", () => {
-  const view = { state: null as unknown as EditorState, dispatch(tr: { effects: StateEffect<unknown> }) { this.state = this.state.update(tr).state; } };
-  view.state = EditorState.create({ doc: "# H\n**b**", selection: { anchor: 6 }, extensions: [markdown({ base: markdownLanguage }), mdlive] });
+  const view = {
+    state: null as unknown as EditorState,
+    dispatch(tr: { effects: StateEffect<unknown> }) {
+      this.state = this.state.update(tr).state;
+    },
+  };
+  view.state = EditorState.create({
+    doc: "# H\n**b**",
+    selection: { anchor: 6 },
+    extensions: [markdown({ base: markdownLanguage }), mdlive],
+  });
   ensureSyntaxTree(view.state, 10, 5000);
   expect(mdDecorations(view.state).hide).toEqual([[0, 2]]); // the cursor line stays raw
   expect(toggleReading(view as never)).toBe(true);
-  expect(mdDecorations(view.state).hide).toEqual([[0, 2], [4, 6], [7, 9]]);
+  expect(mdDecorations(view.state).hide).toEqual([
+    [0, 2],
+    [4, 6],
+    [7, 9],
+  ]);
   expect(view.state.readOnly).toBe(true);
   expect(toggleReading(view as never)).toBe(false);
   expect(view.state.readOnly).toBe(false);
@@ -121,8 +146,11 @@ test("toggleReading is null without live preview", () => {
 const codeLines = (src: string) => mdDecorations(state(src)).lines.map((l) => `${l.at}:${l.cls.replace(/cm-md-/g, "")}`);
 
 test("fenced code: every line gets the code class, the fences are the card's top and bottom", () => {
-  expect(codeLines("```go\nx := 1\n```\n|"))
-    .toEqual(["0:code-line fence code-top", "6:code-line", "13:code-line fence code-bottom"]);
+  expect(codeLines("```go\nx := 1\n```\n|")).toEqual([
+    "0:code-line fence code-top",
+    "6:code-line",
+    "13:code-line fence code-bottom",
+  ]);
 });
 
 test("an unclosed fence has only a top", () => {
@@ -132,12 +160,18 @@ test("an unclosed fence has only a top", () => {
 test("tilde fences, empty blocks and fences with text around", () => {
   expect(codeLines("~~~\na\n~~~\n|")).toEqual(["0:code-line fence code-top", "4:code-line", "6:code-line fence code-bottom"]);
   expect(codeLines("```\n```\n|")).toEqual(["0:code-line fence code-top", "4:code-line fence code-bottom"]);
-  expect(codeLines("a\n\n```\nb\n```\nc\n|").map((l) => l.split(":")[1]))
-    .toEqual(["code-line fence code-top", "code-line", "code-line fence code-bottom"]);
+  expect(codeLines("a\n\n```\nb\n```\nc\n|").map((l) => l.split(":")[1])).toEqual([
+    "code-line fence code-top",
+    "code-line",
+    "code-line fence code-bottom",
+  ]);
 });
 
 test("an opening fence gets a copy button with the code, without the fences", () => {
-  const copy = (src: string) => mdDecorations(state(src)).widgets.filter((w) => w.kind === "copy").map((w) => `${w.from}:${w.text}`);
+  const copy = (src: string) =>
+    mdDecorations(state(src))
+      .widgets.filter((w) => w.kind === "copy")
+      .map((w) => `${w.from}:${w.text}`);
   expect(copy("```sh\nmake\n./shell\n```\n|")).toEqual(["5:make\n./shell"]);
   expect(copy("```\n```\n|")).toEqual(["3:"]);
   expect(copy("    indented\n|")).toEqual([]);
@@ -161,8 +195,14 @@ test("info strings find their language, c and cpp share one parser", () => {
   expect(find("brainfuck")).toBeNull();
 });
 
-const quoteLines = (src: string) => mdDecorations(state(src)).lines.filter((l) => l.cls === "cm-md-quote").map((l) => l.at);
-const bullets = (src: string) => mdDecorations(state(src)).widgets.filter((w) => w.kind === "bullet").map((w) => `${w.kind}@${w.from}`);
+const quoteLines = (src: string) =>
+  mdDecorations(state(src))
+    .lines.filter((l) => l.cls === "cm-md-quote")
+    .map((l) => l.at);
+const bullets = (src: string) =>
+  mdDecorations(state(src))
+    .widgets.filter((w) => w.kind === "bullet")
+    .map((w) => `${w.kind}@${w.from}`);
 
 test.each<[string, string]>([
   ["> quote\n|", "quote\n"],
@@ -195,7 +235,10 @@ test("bullet markers - * + become a widget, ordered ones stay", () => {
   expect(bullets("```\n- x\n```\n|")).toEqual([]);
 });
 
-const checks = (src: string) => mdDecorations(state(src)).widgets.filter((w) => w.kind === "check").map((w) => `${w.checked ? "x" : "_"}@${w.from}`);
+const checks = (src: string) =>
+  mdDecorations(state(src))
+    .widgets.filter((w) => w.kind === "check")
+    .map((w) => `${w.checked ? "x" : "_"}@${w.from}`);
 
 test("task items show a checkbox and no bullet", () => {
   expect(checks("- [ ] a\n- [x] b\n- [X] c\n|")).toEqual(["_@2", "x@10", "x@18"]);
@@ -225,7 +268,16 @@ const tbl = (src: string) => {
 
 test("a table becomes head, alignment and rows", () => {
   const [t] = tbl("| a | b |\n|---|---|\n| 1 | 2 |\n| 3 | 4 |\n");
-  expect(t).toEqual({ from: 0, to: 39, head: ["a", "b"], align: [null, null], rows: [["1", "2"], ["3", "4"]] });
+  expect(t).toEqual({
+    from: 0,
+    to: 39,
+    head: ["a", "b"],
+    align: [null, null],
+    rows: [
+      ["1", "2"],
+      ["3", "4"],
+    ],
+  });
 });
 
 test("alignment comes from the colons", () => {
@@ -239,7 +291,10 @@ test("pipes at the edges are optional", () => {
 
 test("short rows are padded, long rows cut", () => {
   const [t] = tbl("| a | b |\n|---|---|\n| 1 |\n| 1 | 2 | 3 |\n");
-  expect(t.rows).toEqual([["1", ""], ["1", "2"]]);
+  expect(t.rows).toEqual([
+    ["1", ""],
+    ["1", "2"],
+  ]);
 });
 
 test("empty cells and escaped pipes", () => {
@@ -284,7 +339,10 @@ test.each<[string, string]>([
 ])("rule %j reads as %j", (src, want) => expect(shown(src)).toBe(want));
 
 test("a rule gets a line class only while it is hidden", () => {
-  const rules = (src: string) => mdDecorations(state(src)).lines.filter((l) => l.cls === "cm-md-hr").map((l) => l.at);
+  const rules = (src: string) =>
+    mdDecorations(state(src))
+      .lines.filter((l) => l.cls === "cm-md-hr")
+      .map((l) => l.at);
   expect(rules("a\n\n---\n|")).toEqual([3]);
   expect(rules("a\n\n|---")).toEqual([]);
 });
@@ -298,6 +356,8 @@ test("imageSrc maps a relative target next to the file onto /fs/", () => {
 });
 
 test("an image is a widget off the cursor line, raw on it", () => {
-  expect(mdDecorations(state("![alt text](pic.png)\n|")).widgets).toEqual([{ from: 0, to: 20, kind: "image", alt: "alt text", url: "pic.png" }]);
+  expect(mdDecorations(state("![alt text](pic.png)\n|")).widgets).toEqual([
+    { from: 0, to: 20, kind: "image", alt: "alt text", url: "pic.png" },
+  ]);
   expect(mdDecorations(state("![a](pic.png)|")).widgets).toEqual([]);
 });

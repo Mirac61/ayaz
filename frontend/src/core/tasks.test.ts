@@ -35,7 +35,9 @@ test("gcc/clang with absolute paths inside the folder, and tsc in both styles", 
 });
 
 test("lines that only look like locations stay out", () => {
-  const out = ["listening on http://localhost:8080/", "12:30:01 started", "ok  \texample.com/e2e\t0.2s", "[process exited]"].join("\n");
+  const out = ["listening on http://localhost:8080/", "12:30:01 started", "ok  \texample.com/e2e\t0.2s", "[process exited]"].join(
+    "\n",
+  );
   expect(parseProblems(out, "/ws")).toEqual([]);
 });
 
@@ -74,19 +76,12 @@ test("parseWatcherProblems: typst watch cycle extracts only current cycle and cl
     "[10:00:05] compiled with errors",
     "sub/chapter.typ:12:4: error: unknown import",
   ].join("\n");
-  expect(parseWatcherProblems(failedCycle, "/ws")).toEqual([
-    loc("sub/chapter.typ", 12, 3, "error: unknown import"),
-  ]);
+  expect(parseWatcherProblems(failedCycle, "/ws")).toEqual([loc("sub/chapter.typ", 12, 3, "error: unknown import")]);
 });
 
 test("parseWatcherProblems: LaTeX watcher loop with delimiters", () => {
-  const failed = [
-    "--- compiling ---",
-    "error: ./paper.tex:24: Undefined control sequence \\badcmd",
-  ].join("\n");
-  expect(parseWatcherProblems(failed, "/ws")).toEqual([
-    loc("paper.tex", 24, 0, "Undefined control sequence \\badcmd"),
-  ]);
+  const failed = ["--- compiling ---", "error: ./paper.tex:24: Undefined control sequence \\badcmd"].join("\n");
+  expect(parseWatcherProblems(failed, "/ws")).toEqual([loc("paper.tex", 24, 0, "Undefined control sequence \\badcmd")]);
 
   const success = [
     "--- compiling ---",
@@ -145,9 +140,9 @@ const { execFileSync } = await node("node:child_process");
 const { existsSync, mkdtempSync, readdirSync } = await node("node:fs");
 const shells = ["/bin/sh", "/bin/bash", "/bin/zsh"].filter((s) => existsSync(s));
 test.skipIf(!shells.length)("expanded tasks pass hostile names through literally", () => {
-  const file = "$(touch PWNED) `touch PWNED` \"q\" it's\\n.txt";
+  const file = '$(touch PWNED) `touch PWNED` "q" it\'s\\n.txt';
   for (const sh of shells) {
-    for (const tpl of ["printf %s ${file}", "printf %s \"${file}\"", "printf %s '${file}'", `printf %s "x"'\${file}'`]) {
+    for (const tpl of ["printf %s ${file}", 'printf %s "${file}"', "printf %s '${file}'", `printf %s "x"'\${file}'`]) {
       const dir = mkdtempSync("/tmp/ayaz-task-");
       const got = execFileSync(sh, ["-c", expandTask(tpl, { file })!], { cwd: dir, encoding: "utf8" });
       expect(got, `${sh}: ${tpl}`).toBe(tpl.includes('"x"') ? "x" + file : file);

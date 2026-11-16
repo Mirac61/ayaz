@@ -64,7 +64,9 @@ describe("html preview browser", () => {
   test("base tag inside an HTML comment does not suppress base injection", () => {
     const raw = '<!-- <base href="comment.html"> --><h1>Commented</h1>';
     const prepared = prepareHtml(raw, "/fs/ws1/index.html");
-    expect(prepared).toBe('<!-- <base href="comment.html"> --><html><head><base href="/fs/ws1/"></head><body><h1>Commented</h1></body></html>');
+    expect(prepared).toBe(
+      '<!-- <base href="comment.html"> --><html><head><base href="/fs/ws1/"></head><body><h1>Commented</h1></body></html>',
+    );
   });
 
   test("resolves relative base href against ctx.url while preserving attributes", () => {

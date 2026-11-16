@@ -9,11 +9,15 @@ export type { Stats };
 const BATCH = 20;
 
 async function measure(call: () => Promise<unknown>, batches: number): Promise<Stats> {
-  for (let i = 0; i < 50; i++) await call(); // warm-up
+  for (let i = 0; i < 50; i++) {
+    await call();
+  } // warm-up
   const samples: number[] = [];
   for (let b = 0; b < batches; b++) {
     const t = performance.now();
-    for (let i = 0; i < BATCH; i++) await call();
+    for (let i = 0; i < BATCH; i++) {
+      await call();
+    }
     samples.push((performance.now() - t) / BATCH);
   }
   return stats(samples);

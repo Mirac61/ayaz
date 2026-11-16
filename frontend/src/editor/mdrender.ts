@@ -17,13 +17,20 @@ const boxes = new Set<HTMLElement>();
 export const skin = (): Skin => picked ?? settings().markdownSkin;
 export function setSkin(s: Skin) {
   picked = s;
-  for (const b of boxes) b.dataset.skin = s;
+  for (const b of boxes) {
+    b.dataset.skin = s;
+  }
 }
 
 // Opens a workspace file a link points at; the shell sets it.
 export const mdLinks = { open: (_path: string) => {} };
 
-const slug = (t: string) => t.toLowerCase().trim().replace(/[^\p{L}\p{N}\s_-]/gu, "").replace(/\s/g, "-");
+const slug = (t: string) =>
+  t
+    .toLowerCase()
+    .trim()
+    .replace(/[^\p{L}\p{N}\s_-]/gu, "")
+    .replace(/\s/g, "-");
 
 const md = new MarkdownIt({ html: true, linkify: true });
 md.renderer.rules.heading_open = (tokens, i, o, _env, self) => {
@@ -36,7 +43,9 @@ md.core.ruler.after("inline", "tasks", (state) => {
   for (let i = 2; i < t.length; i++) {
     const first = t[i].type === "inline" && t[i - 2].type === "list_item_open" ? t[i].children?.[0] : undefined;
     const m = first?.type === "text" && /^\[([ xX])\] /.exec(first.content);
-    if (!first || !m) continue;
+    if (!first || !m) {
+      continue;
+    }
     const box = new state.Token("html_inline", "", 0);
     box.content = `<input type="checkbox" disabled${m[1] === " " ? "" : " checked"}> `;
     first.content = first.content.slice(m[0].length);
@@ -51,40 +60,53 @@ export function renderMarkdown(text: string, ctx: { ws: string; file: string } |
   t.innerHTML = DOMPurify.sanitize(md.render(text), { FORBID_ATTR: ["style"], FORBID_TAGS: ["style", "form"] });
   for (const img of t.content.querySelectorAll("img")) {
     const src = ctx && imageSrc(ctx.ws, ctx.file, img.getAttribute("src") ?? "");
-    if (src) img.setAttribute("src", src);
+    if (src) {
+      img.setAttribute("src", src);
+    }
   }
   return t;
 }
 
 function onClick(e: MouseEvent, box: HTMLElement, ctx: { ws: string; file: string } | null) {
   const a = (e.target as HTMLElement).closest("a");
-  if (!a) return;
+  if (!a) {
+    return;
+  }
   e.preventDefault();
   const href = a.getAttribute("href") ?? "";
-  if (href.startsWith("#")) box.querySelector(`[id="${CSS.escape(decodeURIComponent(href.slice(1)))}"]`)?.scrollIntoView();
-  else if (browsable(href)) void backend.openURL(href);
-  else if (ctx) {
+  if (href.startsWith("#")) {
+    box.querySelector(`[id="${CSS.escape(decodeURIComponent(href.slice(1)))}"]`)?.scrollIntoView();
+  } else if (browsable(href)) {
+    void backend.openURL(href);
+  } else if (ctx) {
     const p = resolveLink(ctx.file, href);
-    if (p) mdLinks.open(p);
+    if (p) {
+      mdLinks.open(p);
+    }
   }
 }
 
 class Render {
   box: HTMLElement | null = null;
   timer = 0;
-  constructor(readonly view: EditorView) { this.sync(); }
+  constructor(readonly view: EditorView) {
+    this.sync();
+  }
 
   update(u: ViewUpdate) {
     const on = isReading(u.state);
-    if (on !== isReading(u.startState)) this.sync();
-    else if (on && u.docChanged) {
+    if (on !== isReading(u.startState)) {
+      this.sync();
+    } else if (on && u.docChanged) {
       clearTimeout(this.timer);
       this.timer = window.setTimeout(() => this.draw(), 120);
     }
   }
 
   sync() {
-    if (!isReading(this.view.state)) return this.destroy();
+    if (!isReading(this.view.state)) {
+      return this.destroy();
+    }
     if (!this.box) {
       this.box = Object.assign(document.createElement("div"), { className: "md-render" });
       this.box.append(Object.assign(document.createElement("div"), { className: "md-body" }));
@@ -97,7 +119,9 @@ class Render {
 
   draw() {
     const body = this.box?.firstElementChild;
-    if (!this.box || !body) return;
+    if (!this.box || !body) {
+      return;
+    }
     this.box.dataset.skin = skin();
     const top = this.box.scrollTop; // a redraw while typing in the source pane keeps the place
     body.replaceChildren(renderMarkdown(this.view.state.doc.toString(), this.view.state.facet(mdImages)).content);
@@ -106,7 +130,9 @@ class Render {
 
   destroy() {
     clearTimeout(this.timer);
-    if (this.box) boxes.delete(this.box);
+    if (this.box) {
+      boxes.delete(this.box);
+    }
     this.box?.remove();
     this.box = null;
   }

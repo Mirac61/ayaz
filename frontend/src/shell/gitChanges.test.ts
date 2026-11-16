@@ -51,12 +51,7 @@ describe("GitChanges data handling", () => {
       ["src/main.ts", "M"],
     ]);
 
-    expect(entries.map(([_, code]) => GIT_BADGE[code] ?? code)).toEqual([
-      "C",
-      "U",
-      "M",
-      "M",
-    ]);
+    expect(entries.map(([_, code]) => GIT_BADGE[code] ?? code)).toEqual(["C", "U", "M", "M"]);
   });
 
   test("empty working tree has 0 entries", () => {
@@ -80,12 +75,7 @@ describe("GitChanges data handling", () => {
     const unstaged = files.filter((f) => f.unstaged);
 
     expect(staged.map((f) => f.path)).toEqual(["src/staged.ts", "src/both.ts"]);
-    expect(unstaged.map((f) => f.path)).toEqual([
-      "src/both.ts",
-      "src/worktree.ts",
-      "deleted.txt",
-      "untracked.ts",
-    ]);
+    expect(unstaged.map((f) => f.path)).toEqual(["src/both.ts", "src/worktree.ts", "deleted.txt", "untracked.ts"]);
 
     // both.ts appears in both sections
     expect(staged.some((f) => f.path === "src/both.ts")).toBe(true);
