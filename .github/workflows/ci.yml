@@ -47,7 +47,10 @@ jobs:
           version: v2.15.0
 
       - name: Go Unit Tests
-        run: go test ./...
+        run: go test -race ./...
+
+      - name: Go Vulnerability Check
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
 
       - name: Frontend Tests & Typecheck
         working-directory: frontend
