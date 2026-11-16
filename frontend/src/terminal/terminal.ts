@@ -85,11 +85,11 @@ function bufferText(t: Terminal): string {
 // path:line:col in the output as links. Plain clicks, like the URLs next to them.
 // A row that continues a wrapped line is no link: its path would be cut off at the wrap.
 // shortcut: columns are string indices, a wide character earlier in the row shifts the link
-// cwdAt(row): the directory the shell was in when that row was written.
+// cwdAt(row, col): the directory the shell was in when the text there was written.
 export function fileLinkProvider(
   term: Terminal,
   onOpenFile: (path: string, line: number, col?: number, cwd?: string) => void,
-  cwdAt: (row: number) => string = () => "",
+  cwdAt: (row: number, col: number) => string = () => "",
 ): ILinkProvider {
   return {
     provideLinks(y, callback) {
@@ -99,7 +99,7 @@ export function fileLinkProvider(
       const links: ILink[] = fileLinks(text).map((l) => ({
         range: { start: { x: l.start + 1, y }, end: { x: l.end, y } },
         text: text.slice(l.start, l.end),
-        activate: () => onOpenFile(l.path, l.line, l.col, cwdAt(y - 1)),
+        activate: () => onOpenFile(l.path, l.line, l.col, cwdAt(y - 1, l.start)),
       }));
       callback(links.length ? links : undefined);
     },
@@ -109,14 +109,14 @@ export function fileLinkProvider(
 // OSC 7 as it arrives, kept per row: a link in old output resolves against where the shell was then.
 export function trackCwd(term: Terminal) {
   let base = "", now = "";
-  const marks: { m: IMarker; cwd: string; after: number }[] = []; // after: 1 if text came first on its row
+  const marks: { m: IMarker; cwd: string; x: number }[] = []; // x: the column the shell was at when it said so
   term.parser.registerOscHandler(7, (data) => {
     const c = parseOsc7(data);
     if (c && c !== now) {
       now = c;
       const m = term.registerMarker(0);
       if (m) {
-        const k = { m, cwd: c, after: term.buffer.active.cursorX > 0 ? 1 : 0 };
+        const k = { m, cwd: c, x: term.buffer.active.cursorX };
         marks.push(k);
         m.onDispose(() => { // scrolled out of the scrollback
           base = k.cwd;
@@ -128,9 +128,9 @@ export function trackCwd(term: Terminal) {
   });
   return {
     now: () => now,
-    at(row: number) {
+    at(row: number, col = 0) {
       let c = base;
-      for (const k of marks) if (k.m.line + k.after <= row) c = k.cwd;
+      for (const k of marks) if (k.m.line < row || (k.m.line === row && k.x <= col)) c = k.cwd;
       return c || now;
     },
   };

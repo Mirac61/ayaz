@@ -63,16 +63,17 @@ test("a link resolves against the directory the output was written in", async ()
   term.dispose();
 });
 
-test("output and a cwd change on the same row keep the cwd the output had", async () => {
+test("two links on one row each get the cwd of their own position", async () => {
   const el = document.createElement("div");
   document.body.append(el);
   const term = new Terminal({ theme: terminalTheme() });
   term.open(el);
   const cwd = trackCwd(term);
-  const w = (d: string) => new Promise<void>((r) => term.write(d, r));
-  await w("\x1b]7;file:///ws/one\x07a.go:3:1");
-  await w("\x1b]7;file:///ws/two\x07");
-  expect(cwd.at(0)).toBe("/ws/one");
-  expect(cwd.at(1)).toBe("/ws/two");
+  await new Promise<void>((r) => term.write("\x1b]7;file:///ws/one\x07a.go:3:1 \x1b]7;file:///ws/two\x07b.go:3:1", r));
+  const opened: unknown[][] = [];
+  const links = await new Promise<{ activate(e: MouseEvent, t: string): void }[] | undefined>((r) =>
+    fileLinkProvider(term, (...a) => opened.push(a), cwd.at).provideLinks(1, r));
+  links!.forEach((l) => l.activate(new MouseEvent("click"), ""));
+  expect(opened).toEqual([["a.go", 3, 1, "/ws/one"], ["b.go", 3, 1, "/ws/two"]]);
   term.dispose();
 });
