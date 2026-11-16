@@ -77,7 +77,7 @@ Ayaz is a keyboard-first code editor. Every action is a registered command and c
 
 const VIM_DOC = `# Neovim Motions & Text Objects in Ayaz
 
-Ayaz embeds Codemirror Vim with native extensions tailored to daily Neovim muscle memory.
+Ayaz embeds \`@replit/codemirror-vim\` with its own extensions (structural text objects, surround, more \`:\` commands) for daily Neovim muscle memory. It is an emulation, not Neovim: there is no Vimscript, no Lua config, no plugins, and it is not 100 % compatible with Vim.
 
 ## Core Motions & Operators
 
@@ -98,10 +98,10 @@ Like \`nvim-surround\`:
 - \`]\` / \`[\` jumps: \`]f\` / \`[f\` jump to next/previous function start; \`]d\` / \`[d\` jump between LSP diagnostics; \`]c\` / \`[c\` jump between git change hunks.
 
 ## Modal Vim vs. Modeless Standard Mode
-Ayaz supports both full modal Vim editing and modeless standard editing:
+Ayaz supports both modal Vim editing and modeless standard editing:
 - **Toggle Mode (\`Cmd+Shift+M\`, Ctrl+Shift+M on Linux/Windows):** Instantly switch between Vim mode and Standard mode. \`<Space>uv\` does the same, but only from Vim's normal mode, since Standard mode types the space.
 - **Configurable in \`settings.json\`:**
-  - \`"vim": true\` — Enables Neovim modal editing with relative line numbers.
+  - \`"vim": true\` — Enables modal Vim editing with relative line numbers.
   - \`"vim": false\` — Modeless standard editing (direct typing, caret navigation, absolute line numbers).
 `;
 
