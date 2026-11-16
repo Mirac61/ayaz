@@ -459,6 +459,11 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       splitPane("row", { ws: ws.id, cmd, dir, ...more });
     };
 
+    ed.onTermLink = (rel, path, line, col) => {
+      if (rel === null) return fail(`"${path}" is outside this folder`);
+      ed.openAt(rel, line, (col ?? 1) - 1).catch((e) => fail(errText(e)));
+    };
+
     ed.onRunInTerminal = async (args) => {
       const quote = (a: string) => (/^[a-zA-Z0-9_\-\.\/]+$/.test(a) ? a : JSON.stringify(a));
       const cmd = args.args.map(quote).join(" ");

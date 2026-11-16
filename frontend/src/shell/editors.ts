@@ -10,6 +10,7 @@ import { setLspHost, formatBeforeSave, fileOps, toChanges, type WorkspaceEdit } 
 import { createState, editorExtensions, isProse, isWrapped, setWrap, settingsEffects, spellchecking, spellcheckAttr, noSpellcheckAttr } from "../editor/editor";
 import { cleanupChanges } from "../editor/cleanup";
 import { isReading, linkAt, toggleReading } from "../editor/mdlive";
+import { resolveLink } from "../terminal/links";
 import { openTerminal, setTermZoom, termFontSize, termZoom, type TermHandle, type TermOptions } from "../terminal/terminal";
 import { BROWSER, PREVIEW, fsUrl, viewerFor, type ViewHandle } from "../core/viewers";
 import "../viewers/browser";
@@ -174,6 +175,7 @@ export class Editors {
       handle = openTerminal(box, {
         ...term,
         onMode: (m) => this.termMode(handle, m),
+        onOpenFile: (path, line, col) => this.onTermLink?.(resolveLink(path, handle!.cwd(), this.root), path, line, col),
         onExit: () => this.termExited(handle!, term.onExit),
       });
       this.showTerm(id, parent, { term: handle, box, title: `${term.cmd ?? "shell"} ${++this.terms}`, cmd: term.cmd ?? "" });
@@ -776,6 +778,9 @@ export class Editors {
     const v = this.activeView();
     return v ? getBreakpointOf(v) : null;
   }
+
+  // A click on file:line in a terminal: rel is the workspace-relative path, null when the file is outside the folder.
+  onTermLink?: (rel: string | null, path: string, line: number, col?: number) => void;
 
   onRunInTerminal?: (args: { args: string[]; cwd?: string; env?: Record<string, string>; title?: string }) => Promise<{ processId?: number; shellProcessId?: number } | void>;
 

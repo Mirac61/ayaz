@@ -1,5 +1,5 @@
 // xterm.js on a Wails "pty" stream (ADR-0013): the terminal provider for panes and the bottom panel.
-import { Terminal } from "@xterm/xterm";
+import { Terminal, type ILink, type ILinkProvider } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { SearchAddon } from "@xterm/addon-search";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
@@ -10,6 +10,7 @@ import { backend } from "../core/backend";
 import { isMac } from "../core/keymap";
 import { settings } from "../core/settings";
 import { terminalTheme } from "../theme/themes";
+import { fileLinks } from "./links";
 import { parseOsc7 } from "./osc";
 
 // "terminal": keys go to the shell (nvim's terminal mode); "normal": scrollback, search, copy (Ctrl-\ Ctrl-n).
@@ -23,6 +24,7 @@ export interface TermOptions {
   cmd?: string; // run this instead of an interactive shell, e.g. "lazygit"
   dir?: string; // start here instead of the workspace root (a folder the shell of another terminal had cd'ed to)
   onExit?(): void;
+  onOpenFile?(path: string, line: number, col?: number): void; // a click on path:line:col in the output
   onOutput?(text: string): void; // at exit, everything it printed (scrollback included), for tasks' problem lines
   onLiveOutput?(text: string): void; // while running, debounced live output for watchers
   onMode?(m: TermMode): void;
@@ -80,6 +82,23 @@ function bufferText(t: Terminal): string {
   return out;
 }
 
+// path:line:col in the output as links. Plain clicks, like the URLs next to them.
+// shortcut: a path the terminal wrapped onto two rows is no link, upgrade with isWrapped like bufferText
+// shortcut: columns are string indices, a wide character earlier in the row shifts the link
+export function fileLinkProvider(term: Terminal, onOpenFile: (path: string, line: number, col?: number) => void): ILinkProvider {
+  return {
+    provideLinks(y, callback) {
+      const text = term.buffer.active.getLine(y - 1)?.translateToString(true) ?? "";
+      const links: ILink[] = fileLinks(text).map((l) => ({
+        range: { start: { x: l.start + 1, y }, end: { x: l.end, y } },
+        text: text.slice(l.start, l.end),
+        activate: () => onOpenFile(l.path, l.line, l.col),
+      }));
+      callback(links.length ? links : undefined);
+    },
+  };
+}
+
 export function openTerminal(el: HTMLElement, opts: TermOptions = {}): TermHandle {
   const term = new Terminal({
     theme: terminalTheme(),
@@ -95,6 +114,7 @@ export function openTerminal(el: HTMLElement, opts: TermOptions = {}): TermHandl
   term.loadAddon(new Unicode11Addon());
   term.unicode.activeVersion = "11";
   term.loadAddon(new WebLinksAddon((_e, uri) => void backend.openURL(uri)));
+  if (opts.onOpenFile) term.registerLinkProvider(fileLinkProvider(term, opts.onOpenFile));
   term.open(el);
   if ((opts.renderer ?? defaultRenderer()) === "webgl") term.loadAddon(new WebglAddon());
   el.dataset.term = "";
