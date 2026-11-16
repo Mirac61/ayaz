@@ -9,7 +9,7 @@ A code editor that feels like Neovim, but shows Markdown, PDFs and images proper
 
 I built it because the editors I use each miss one thing. VSCodium is heavy. Neovim can't show a PDF or an image, and has no Markdown that renders while you type. Obsidian wants a vault and isn't a code editor. Ayaz opens any folder, keeps your hands on the keyboard, and keeps its own state (session, history, unsaved changes) outside your project.
 
-Daily-driven on macOS and Arch Linux/Hyprland. Windows builds ship with every release but are barely tested. Free to download and use; the source is closed to forks and redistribution, see [License](#license).
+Daily-driven on macOS and Arch Linux/Hyprland. Windows builds ship with every release but are barely tested. Free to use, also at work. The source is available, but not open source: you may not offer Ayaz as a competing product, see [License](#license).
 
 ## Install
 
@@ -92,8 +92,8 @@ The code is split into Wails services in `app/`, Go packages in `internal/` and 
 
 ## Contributing
 
-Bug reports and ideas go into [issues](https://github.com/Mirac61/ayaz/issues). A pull request should be one change with a test next to the code it touches; run the checks from [Develop](#develop) first, since CI only covers the Go and Node ones. Reports from Windows are especially welcome: [docs/08-windows.md](docs/08-windows.md) lists what to check first.
+Bug reports and ideas go into [issues](https://github.com/Mirac61/ayaz/issues). A pull request should be one change with a test next to the code it touches; run the checks from [Develop](#develop) first, since CI only covers the Go and Node ones. Reports from Windows are especially welcome: [docs/08-windows.md](docs/08-windows.md) lists what to check first. Forking to prepare a pull request is fine. I decide what gets merged. By sending a pull request you agree that your contribution is licensed under the same terms as Ayaz and that I may relicense it together with the rest of the project.
 
 ## License
 
-Copyright © 2026 Mirac. All rights reserved. Ayaz is free to download, build from source and use for personal and professional software development. The software and its source code are proprietary: forking, modifying, copying or redistributing them is prohibited without prior written permission. See [LICENSE](LICENSE).
+Copyright © 2026 Mirac. Ayaz is under the [PolyForm Shield License 1.0.0](LICENSE). You may use, change and share it, privately and commercially. The one thing you may not do is offer Ayaz or a modified version as a product that competes with it. The source is available but the license is not an open-source license. Notices for bundled third-party software are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
