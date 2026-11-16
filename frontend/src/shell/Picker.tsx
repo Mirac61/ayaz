@@ -53,7 +53,7 @@ function PickerBox({ source, onClose: closeNow }: { source: PickerSource; onClos
   const [cur, setCur] = useState(0);
   // The latest full answer, set before React renders it: an Enter right after it must not count as early.
   const answer = useRef<{ q: string | null; items: Item[]; cur: number }>({ q: null, items: [], cur: 0 });
-  const early = useRef(false); // Enter came before the answer to q: pick once it's there
+  const early = useRef<false | { side: boolean }>(false); // Enter came before the answer to q: pick once it's there (side: with Cmd/Ctrl)
   const seq = useRef(0);
   const list = useRef<HTMLUListElement>(null);
   const [shown, setShown] = useState<Preview | null>(null);
@@ -73,7 +73,7 @@ function PickerBox({ source, onClose: closeNow }: { source: PickerSource; onClos
       answer.current = { q, items: r, cur: c };
       setItems(r);
       setCur(c);
-      if (early.current) pick(c, r);
+      if (early.current) pick(c, r, early.current.side);
     }, () => {
       if (n !== seq.current) return;
       answer.current = { q, items: [], cur: 0 };
@@ -121,7 +121,7 @@ function PickerBox({ source, onClose: closeNow }: { source: PickerSource; onClos
     }
     else if (e.key === "Enter") {
       const a = answer.current;
-      if (a.q !== q) early.current = true;
+      if (a.q !== q) early.current = { side: e.metaKey || e.ctrlKey };
       else pick(a.items === items || a.cur < 0 ? cur : a.cur, a.items, e.metaKey || e.ctrlKey); // not rendered yet: its first item
     }
     else if (ctrl && e.key === "q" && source.all) { onClose(); source.all(); }

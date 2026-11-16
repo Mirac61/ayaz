@@ -1,4 +1,4 @@
-import { EditorState } from "@codemirror/state";
+import { EditorState, type Text } from "@codemirror/state";
 import { afterEach, expect, test, vi } from "vitest";
 import type { Buffer } from "../../core/buffers";
 import type { Files } from "../../core/backend";
@@ -9,7 +9,7 @@ import { fileCommands } from "./file";
 afterEach(() => vi.unstubAllGlobals());
 
 // A Ctx with just what file.history touches: one open buffer, two saves in the history.
-async function history(old: string, current = "new text\n") {
+async function history(old: string, current = "new text\n", editFails = false) {
   const log: string[] = [];
   const doc = EditorState.create({ doc: current }).doc;
   const b = { path: "a.txt", state: { doc } } as unknown as Buffer;
@@ -22,10 +22,11 @@ async function history(old: string, current = "new text\n") {
     ed: {
       current: () => b,
       edit: async (_p: string, ch: { from: number; to: number; insert: string }[]) => {
+        if (editFails) throw new Error("boom");
         const next = ch.reduce((t, x) => t.slice(0, x.from) + x.insert + t.slice(x.to), current);
         log.push(`edit -> ${JSON.stringify(next)}`);
       },
-      diffWith: () => void log.push("diffWith"),
+      diffWith: (t: Text) => void log.push(`diffWith ${JSON.stringify(t.toString())}`),
     },
     say: (t: string) => void log.push(`say ${t}`),
     fail: (t: string) => void log.push(`fail ${t}`),
@@ -44,12 +45,12 @@ test("Cmd/Ctrl+Enter restores the old text as an edit; Enter still only diffs", 
   expect(h.picker().footer).toContain("Cmd/Ctrl+Enter restore");
   await h.pick(true);
   expect(h.log[0]).toBe('edit -> "old text\\n"');
-  expect(h.log).not.toContain("diffWith");
+  expect(h.log.some((l) => l.startsWith("diffWith"))).toBe(false);
   expect(h.log[1]).toMatch(/^say Restored the save before .*: unsaved, u undoes it$/);
 
   const d = await history("old text\n");
   await d.pick(false);
-  expect(d.log[0]).toBe("diffWith");
+  expect(d.log[0]).toBe('diffWith "old text\\n"');
   expect(d.log.some((l) => l.startsWith("edit"))).toBe(false);
 });
 
@@ -96,4 +97,22 @@ test("file.duplicate refuses folders and files with unsaved changes", async () =
   expect(await setup({ path: "a.go", dir: false }, "b.go", ["a.go"])()).toEqual([
     'fail "a.go" has unsaved changes: save first (:w)',
   ]);
+});
+
+test("Enter diffs a CRLF save against the LF buffer, without stray \\r", async () => {
+  const h = await history("one\r\ntwo\r\n");
+  await h.pick(false);
+  expect(h.log[0]).toBe('diffWith "one\\ntwo\\n"');
+});
+
+test("restoring a save that equals the buffer changes nothing", async () => {
+  const h = await history("same\n", "same\n");
+  await h.pick(true);
+  expect(h.log).toEqual(["say Already identical to that save"]);
+});
+
+test("a failing restore is reported, not swallowed", async () => {
+  const h = await history("old\n", "new\n", true);
+  await h.pick(true);
+  expect(h.log).toEqual(["fail boom"]);
 });
