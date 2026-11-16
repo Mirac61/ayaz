@@ -89,6 +89,8 @@ export function defaultKeymap(mac = isMac): Binding[] {
     n("<Space>gb", "git.blame"),
     n("<Space>gs", "git.status"),
     n("<Space>gp", "git.push"),
+    n("<Space>go", "git.browse"),
+    n("<Space>gy", "git.copyLink"),
     n("<Space>gl", "git.pull"),
     n("<Space>gf", "git.fetch"),
     n("<Space>grb", "git.rebase"),

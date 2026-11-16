@@ -106,6 +106,7 @@ export interface Files {
   gitUnstageAll(): Promise<void>;
   gitCommit(msg: string): Promise<void>;
   gitPush(): Promise<void>;
+  gitBrowseURL(path: string, line: number, permalink: boolean): Promise<string>; // the file line on origin's web view
   gitPull(): Promise<void>;
   gitFetch(): Promise<void>;
   gitRebase(): Promise<void>;
@@ -212,6 +213,7 @@ export const backend: Backend = {
     gitUnstageAll: () => WorkspaceService.GitUnstageAll(ws),
     gitCommit: (msg) => WorkspaceService.GitCommit(ws, msg),
     gitPush: () => Call.ByName("github.com/Mirac61/ayaz/app.WorkspaceService.GitPush", ws),
+    gitBrowseURL: (path, line, permalink) => Call.ByName("github.com/Mirac61/ayaz/app.WorkspaceService.GitBrowseURL", ws, path, line, permalink),
     gitPull: () => Call.ByName("github.com/Mirac61/ayaz/app.WorkspaceService.GitPull", ws),
     gitFetch: () => Call.ByName("github.com/Mirac61/ayaz/app.WorkspaceService.GitFetch", ws),
     gitRebase: () => Call.ByName("github.com/Mirac61/ayaz/app.WorkspaceService.GitRebase", ws),
