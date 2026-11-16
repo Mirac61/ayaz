@@ -304,3 +304,16 @@ func TestCopy(t *testing.T) {
 		t.Error("a rejected source left a target")
 	}
 }
+
+func TestCopyReadOnlySource(t *testing.T) {
+	w := newTestWS(t)
+	must(t, os.WriteFile(filepath.Join(w.Root, "ro.txt"), []byte("x"), 0o400))
+	must(t, w.Copy("ro.txt", "ro2.txt"))
+	if runtime.GOOS != "windows" {
+		st, err := os.Stat(filepath.Join(w.Root, "ro2.txt"))
+		must(t, err)
+		if st.Mode().Perm() != 0o400 {
+			t.Errorf("mode = %v, want 0400", st.Mode().Perm())
+		}
+	}
+}

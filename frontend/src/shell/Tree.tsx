@@ -101,6 +101,9 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
     collapseAll: () => setExpanded(new Set()),
     selected: () => (current.current ? { path: current.current.path, dir: current.current.dir } : null),
     async reveal(path) {
+      // Like the backend's path.Clean ("./b.go" is "b.go"), and out of the filter: its rows may not include the target.
+      path = path.split("/").reduce<string[]>((a, s) => (s === ".." ? (a.pop(), a) : s && s !== "." ? [...a, s] : a), []).join("/");
+      setFilter(null);
       const dirs = path.split("/").slice(0, -1).map((_, i, a) => a.slice(0, i + 1).join("/"));
       await Promise.all(["", ...dirs].map((d) => load(d))); // fresh lists: the file may be new
       setExpanded((s) => new Set([...s, ...dirs]));

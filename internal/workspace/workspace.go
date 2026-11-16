@@ -218,10 +218,17 @@ func (w *Workspace) WriteText(rel, content string, expectedMtime int64) (int64, 
 	return st.ModTime().UnixMicro(), nil
 }
 
+// winSep: on Windows "\" separates for filepath but not for path, so a rel holding one is refused.
+func winSep(rel string) bool { return filepath.Separator == '\\' && strings.ContainsRune(rel, '\\') }
+
 // entry resolves rel's folder but not rel itself, so a symlink is renamed or trashed as a link, never its target.
 // The root is no entry.
 func (w *Workspace) entry(rel string) (string, error) {
 	clean := path.Clean(rel)
+	// On Windows filepath.Join reads "\" as a separator that path.Dir ignores: "..\x" would escape the workspace.
+	if winSep(rel) {
+		return "", ErrOutside
+	}
 	if clean == "." || clean == ".." || strings.ContainsRune(clean, 0) {
 		return "", ErrOutside
 	}
@@ -233,7 +240,13 @@ func (w *Workspace) entry(rel string) (string, error) {
 }
 
 // Create makes an empty file, or a folder with dir. Missing parent folders are created too; an existing rel is an error.
-func (w *Workspace) Create(rel string, dir bool) error {
+func (w *Workspace) Create(rel string, dir bool) error { return w.create(rel, dir, 0o644) }
+
+// create is Create with the file's mode, so a copy never exists wider than its source (before the umask).
+func (w *Workspace) create(rel string, dir bool, perm os.FileMode) error {
+	if winSep(rel) { // before any parent folder is made
+		return ErrOutside
+	}
 	parts := strings.Split(path.Clean(rel), "/")
 	for i := 1; i < len(parts); i++ {
 		p, err := w.entry(strings.Join(parts[:i], "/"))
@@ -251,7 +264,7 @@ func (w *Workspace) Create(rel string, dir bool) error {
 	if dir {
 		return os.Mkdir(p, 0o755)
 	}
-	f, err := os.OpenFile(p, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
+	f, err := os.OpenFile(p, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm)
 	if err != nil {
 		return err
 	}
@@ -304,8 +317,8 @@ func (w *Workspace) Copy(from, to string) (err error) {
 	if !st.Mode().IsRegular() {
 		return errors.New("only files can be duplicated")
 	}
-	// Create makes the target exclusively (O_EXCL) and its parents, so a race cannot replace anything.
-	if err := w.Create(to, false); err != nil {
+	// Owner-writable until the content is in (a 0400 source), the final Chmod sets the real mode. Create makes the target exclusively (O_EXCL) and its parents, so a race cannot replace anything.
+	if err := w.create(to, false, st.Mode().Perm()|0o200); err != nil {
 		if errors.Is(err, fs.ErrExist) {
 			return fmt.Errorf("%s already exists", to)
 		}
