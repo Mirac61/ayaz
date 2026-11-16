@@ -317,3 +317,19 @@ func TestCopyReadOnlySource(t *testing.T) {
 		}
 	}
 }
+
+func TestBackslashPathsOnWindows(t *testing.T) {
+	old := pathSep
+	pathSep = '\\' // pretend to be Windows
+	defer func() { pathSep = old }()
+	w := newTestWS(t)
+	before, _ := os.ReadDir(w.Root)
+	for _, c := range [][2]string{{"a.txt", `..\outside.txt`}, {"a.txt", `new\..\..\outside.txt`}, {`..\a.txt`, "b.txt"}} {
+		if err := w.Copy(c[0], c[1]); !errors.Is(err, ErrOutside) {
+			t.Errorf("Copy(%q, %q) = %v, want ErrOutside", c[0], c[1], err)
+		}
+	}
+	if es, _ := os.ReadDir(w.Root); len(es) != len(before) { // no file and no parent folder was made
+		t.Errorf("workspace has %d entries after refused copies, was %d", len(es), len(before))
+	}
+}

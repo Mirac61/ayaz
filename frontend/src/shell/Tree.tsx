@@ -21,6 +21,9 @@ export interface TreeHandle {
 
 const parent = (p: string) => p.slice(0, Math.max(p.lastIndexOf("/"), 0));
 
+// A workspace path the way the backend's path.Clean spells it: "./b.go" and "a//b" are "b.go" and "a/b".
+export const cleanRel = (p: string) => p.split("/").reduce<string[]>((a, s) => (s === ".." ? (a.pop(), a) : s && s !== "." ? [...a, s] : a), []).join("/");
+
 // The filter's matches as tree rows: each file under its folders, all open, folders first and by name like the list.
 export function filterRows(paths: string[]): Row[] {
   const kids = new Map<string, Map<string, boolean>>(); // folder → name → is a folder
@@ -101,9 +104,8 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
     collapseAll: () => setExpanded(new Set()),
     selected: () => (current.current ? { path: current.current.path, dir: current.current.dir } : null),
     async reveal(path) {
-      // Like the backend's path.Clean ("./b.go" is "b.go"), and out of the filter: its rows may not include the target.
-      path = path.split("/").reduce<string[]>((a, s) => (s === ".." ? (a.pop(), a) : s && s !== "." ? [...a, s] : a), []).join("/");
-      setFilter(null);
+      path = cleanRel(path);
+      setFilter(null); // the filter's rows may not include the target
       const dirs = path.split("/").slice(0, -1).map((_, i, a) => a.slice(0, i + 1).join("/"));
       await Promise.all(["", ...dirs].map((d) => load(d))); // fresh lists: the file may be new
       setExpanded((s) => new Set([...s, ...dirs]));
