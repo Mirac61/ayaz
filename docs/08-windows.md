@@ -1,6 +1,6 @@
 # Windows
 
-Status: cross-compiles from macOS, **never run on Windows**. Test notes for whoever tries it first.
+Status: cross-compiles from macOS and ships with every release, but is barely tested on Windows. Test notes for whoever tries it.
 
 ## Build
 
