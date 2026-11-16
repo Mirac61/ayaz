@@ -218,10 +218,19 @@ func (w *Workspace) WriteText(rel, content string, expectedMtime int64) (int64, 
 	return st.ModTime().UnixMicro(), nil
 }
 
+// winSep: on Windows "\" separates for filepath but not for path, so a rel holding one is refused.
+var pathSep = filepath.Separator // a var so a test can pretend to be Windows
+
+func winSep(rel string) bool { return pathSep == '\\' && strings.ContainsRune(rel, '\\') }
+
 // entry resolves rel's folder but not rel itself, so a symlink is renamed or trashed as a link, never its target.
 // The root is no entry.
 func (w *Workspace) entry(rel string) (string, error) {
 	clean := path.Clean(rel)
+	// On Windows filepath.Join reads "\" as a separator that path.Dir ignores: "..\x" would escape the workspace.
+	if winSep(rel) {
+		return "", ErrOutside
+	}
 	if clean == "." || clean == ".." || strings.ContainsRune(clean, 0) {
 		return "", ErrOutside
 	}
@@ -234,28 +243,37 @@ func (w *Workspace) entry(rel string) (string, error) {
 
 // Create makes an empty file, or a folder with dir. Missing parent folders are created too; an existing rel is an error.
 func (w *Workspace) Create(rel string, dir bool) error {
+	f, err := w.create(rel, dir, 0o644)
+	if f != nil {
+		return f.Close()
+	}
+	return err
+}
+
+// create is Create with the file's mode and the new file left open for writing (nil for a folder), so a copy never
+// exists wider than its source (before the umask) and needs no second open.
+func (w *Workspace) create(rel string, dir bool, perm os.FileMode) (*os.File, error) {
+	if winSep(rel) { // before any parent folder is made
+		return nil, ErrOutside
+	}
 	parts := strings.Split(path.Clean(rel), "/")
 	for i := 1; i < len(parts); i++ {
 		p, err := w.entry(strings.Join(parts[:i], "/"))
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if err := os.Mkdir(p, 0o755); err != nil && !errors.Is(err, fs.ErrExist) {
-			return err
+			return nil, err
 		}
 	}
 	p, err := w.entry(rel)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if dir {
-		return os.Mkdir(p, 0o755)
+		return nil, os.Mkdir(p, 0o755)
 	}
-	f, err := os.OpenFile(p, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
-	if err != nil {
-		return err
-	}
-	return f.Close()
+	return os.OpenFile(p, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm)
 }
 
 // WriteNew creates a file with data, with its missing parent folders; an existing rel is an error (pasted images never replace one).
@@ -288,6 +306,53 @@ func (w *Workspace) Rename(from, to string) error {
 		return fmt.Errorf("%s already exists", to)
 	}
 	return os.Rename(src, dst)
+}
+
+// Copy duplicates a file inside the workspace, with its permissions and missing parent folders of the target. It never
+// replaces an existing target. shortcut: files only, folders need a recursive walk
+func (w *Workspace) Copy(from, to string) (err error) {
+	src, err := w.entry(from)
+	if err != nil {
+		return err
+	}
+	st, err := os.Lstat(src)
+	if err != nil {
+		return err
+	}
+	if !st.Mode().IsRegular() {
+		return errors.New("only files can be duplicated")
+	}
+	// create makes the target exclusively (O_EXCL) and its parents, so a race cannot replace anything. It stays open
+	// for the content, so even a 0400 source copies; the final Chmod sets the exact mode (the umask may have cut it).
+	out, err := w.create(to, false, st.Mode().Perm())
+	if err != nil {
+		if errors.Is(err, fs.ErrExist) {
+			return fmt.Errorf("%s already exists", to)
+		}
+		return err
+	}
+	defer out.Close()
+	dst, err := w.entry(to) // after create: its parent folders exist now
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			os.Remove(dst)
+		}
+	}()
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	if _, err = io.Copy(out, in); err != nil {
+		return err
+	}
+	if err = out.Close(); err != nil {
+		return err
+	}
+	return os.Chmod(dst, st.Mode().Perm())
 }
 
 // Trash moves a file or folder to the system trash.

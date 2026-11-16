@@ -255,3 +255,84 @@ func TestWriteNew(t *testing.T) {
 		t.Fatal("a path outside the workspace must fail")
 	}
 }
+
+func TestCopy(t *testing.T) {
+	w := newTestWS(t)
+	script := filepath.Join(w.Root, "run.sh")
+	must(t, os.WriteFile(script, []byte("#!/bin/sh\n"), 0o755))
+	must(t, os.Chmod(script, 0o755))
+
+	must(t, w.Copy("run.sh", "copies/deep/run2.sh")) // a missing target folder is created
+	got, err := os.ReadFile(filepath.Join(w.Root, "copies/deep/run2.sh"))
+	must(t, err)
+	if string(got) != "#!/bin/sh\n" {
+		t.Errorf("content = %q", got)
+	}
+	if runtime.GOOS != "windows" {
+		if st, _ := os.Stat(filepath.Join(w.Root, "copies/deep/run2.sh")); st.Mode().Perm() != 0o755 {
+			t.Errorf("mode = %v, want 0755", st.Mode().Perm())
+		}
+	}
+
+	// An existing target stays as it was.
+	if err := w.Copy("run.sh", "a.txt"); err == nil || !strings.Contains(err.Error(), "already exists") {
+		t.Errorf("Copy onto a file = %v, want already exists", err)
+	}
+	if b, _ := os.ReadFile(filepath.Join(w.Root, "a.txt")); string(b) != "a" {
+		t.Errorf("a.txt was changed: %q", b)
+	}
+
+	// A folder or a link is no source, and nothing is left behind.
+	for _, src := range []string{"sub", "in"} {
+		if err := w.Copy(src, "x-"+src); err == nil || !strings.Contains(err.Error(), "only files") {
+			t.Errorf("Copy(%q) = %v, want only files", src, err)
+		}
+		if _, err := os.Lstat(filepath.Join(w.Root, "x-"+src)); err == nil {
+			t.Errorf("x-%s was created", src)
+		}
+	}
+
+	for _, bad := range []string{"", ".", "..", "../x", "/etc/x", "out/secret", "sub/../../x"} {
+		if err := w.Copy("a.txt", bad); err == nil {
+			t.Errorf("Copy to %q succeeded", bad)
+		}
+		if err := w.Copy(bad, "ok.txt"); err == nil {
+			t.Errorf("Copy from %q succeeded", bad)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(w.Root, "ok.txt")); err == nil {
+		t.Error("a rejected source left a target")
+	}
+}
+
+func TestCopyReadOnlySource(t *testing.T) {
+	w := newTestWS(t)
+	must(t, os.WriteFile(filepath.Join(w.Root, "ro.txt"), []byte("x"), 0o400))
+	must(t, w.Copy("ro.txt", "ro2.txt"))
+	if runtime.GOOS != "windows" {
+		st, err := os.Stat(filepath.Join(w.Root, "ro2.txt"))
+		must(t, err)
+		if st.Mode().Perm() != 0o400 {
+			t.Errorf("mode = %v, want 0400", st.Mode().Perm())
+		}
+	}
+}
+
+func TestBackslashPathsOnWindows(t *testing.T) {
+	old := pathSep
+	pathSep = '\\' // pretend to be Windows
+	defer func() { pathSep = old }()
+	w := newTestWS(t)
+	before, _ := os.ReadDir(w.Root)
+	for _, c := range [][2]string{{"a.txt", `..\outside.txt`}, {"a.txt", `new\..\..\outside.txt`}, {"a.txt", `new/sub\..\..\outside.txt`}, {`..\a.txt`, "b.txt"}} {
+		if err := w.Copy(c[0], c[1]); !errors.Is(err, ErrOutside) {
+			t.Errorf("Copy(%q, %q) = %v, want ErrOutside", c[0], c[1], err)
+		}
+	}
+	if _, err := os.Lstat(filepath.Join(w.Root, "new")); err == nil { // the guard runs before any parent folder is made
+		t.Error(`refused copy created the parent folder "new"`)
+	}
+	if es, _ := os.ReadDir(w.Root); len(es) != len(before) { // no file and no parent folder was made
+		t.Errorf("workspace has %d entries after refused copies, was %d", len(es), len(before))
+	}
+}

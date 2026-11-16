@@ -98,6 +98,23 @@ export function fileCommands({ ws, files, ed, tree, say, fail, setPicker, prompt
       },
     },
     {
+      id: "file.duplicate",
+      title: "Duplicate file",
+      run() {
+        const t = target();
+        if (!t) return fail("No file to duplicate");
+        if (t.dir) return fail("Only files can be duplicated");
+        const d = unsavedUnder(t.path);
+        if (d) return fail(`"${d.path}" has unsaved changes: save first (:w)`);
+        prompt(`Duplicate "${t.path}" as`, t.path, async (to) => {
+          if (to === t.path) return;
+          await files.duplicate(t.path, to);
+          await tree.current?.reveal(to);
+          say(`Duplicated to "${to}"`);
+        });
+      },
+    },
+    {
       id: "file.trash",
       title: "Move file to trash",
       run() {

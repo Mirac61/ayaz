@@ -21,6 +21,9 @@ export interface TreeHandle {
 
 const parent = (p: string) => p.slice(0, Math.max(p.lastIndexOf("/"), 0));
 
+// A workspace path the way the backend's path.Clean spells it: "./b.go" and "a//b" are "b.go" and "a/b".
+export const cleanRel = (p: string) => p.split("/").reduce<string[]>((a, s) => (s === ".." ? (a.pop(), a) : s && s !== "." ? [...a, s] : a), []).join("/");
+
 // The filter's matches as tree rows: each file under its folders, all open, folders first and by name like the list.
 export function filterRows(paths: string[]): Row[] {
   const kids = new Map<string, Map<string, boolean>>(); // folder → name → is a folder
@@ -60,7 +63,7 @@ export const GIT_BADGE: Record<string, string> = { M: "M", A: "A", D: "D", R: "R
 export const isHtmlPath = (p: string) => !p.endsWith("/") && (p.endsWith(".html") || p.endsWith(".htm"));
 
 const KEYS: Record<string, string> = {
-  a: "file.new", r: "file.rename", d: "file.trash", y: "file.copyPath", Y: "file.copyAbsPath", s: "file.reveal",
+  a: "file.new", r: "file.rename", c: "file.duplicate", d: "file.trash", y: "file.copyPath", Y: "file.copyAbsPath", s: "file.reveal",
 };
 
 // Virtualized file tree: folders load when first expanded, only the visible rows are in the DOM.
@@ -101,6 +104,8 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
     collapseAll: () => setExpanded(new Set()),
     selected: () => (current.current ? { path: current.current.path, dir: current.current.dir } : null),
     async reveal(path) {
+      path = cleanRel(path);
+      setFilter(null); // the filter's rows may not include the target
       const dirs = path.split("/").slice(0, -1).map((_, i, a) => a.slice(0, i + 1).join("/"));
       await Promise.all(["", ...dirs].map((d) => load(d))); // fresh lists: the file may be new
       setExpanded((s) => new Set([...s, ...dirs]));
@@ -151,9 +156,12 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
   useEffect(() => {
     const i = rows.findIndex((r) => r.path === (revealing.current ?? cursorPath.current));
     if (i >= 0 && revealing.current) revealing.current = null;
+    // The path is kept here, not from the cursor index: right after a reveal that index is still the old row, and a
+    // second rows update before the next render would pull the cursor back to it.
+    cursorPath.current = rows[i >= 0 ? i : cur]?.path;
     if (i >= 0) setCursor(i);
   }, [rows]);
-  useEffect(() => { cursorPath.current = rows[cur]?.path; }, [rows, cur]);
+  useEffect(() => { cursorPath.current = rows[cur]?.path; }, [cur]); // the user moved the cursor
 
   // Keep the cursor row inside the viewport.
   useEffect(() => {
@@ -227,6 +235,7 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
         cmd("New file…", "file.new", "a"),
         cmd("New folder…", "file.new", undefined, "dir"),
         cmd("Rename…", "file.rename", "r"),
+        ...(r.dir ? [] : [cmd("Duplicate…", "file.duplicate", "c")]),
         cmd("Copy relative path", "file.copyPath", "y"),
         cmd("Copy absolute path", "file.copyAbsPath", "Y"),
         cmd("Reveal in Finder", "file.reveal", "s"),
