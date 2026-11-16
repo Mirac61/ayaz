@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -105,6 +106,29 @@ func TestMaxHitsAndCancel(t *testing.T) {
 	Run(ctx, root, paths, re, func(h []Hit) { n.Add(int64(len(h))) })
 	if n.Load() >= MaxHits {
 		t.Fatalf("cancelled search still found %d", n.Load())
+	}
+}
+
+// Cancelling from inside emit, while other workers are still emitting, stops the feed: only the files already
+// in hand are finished. The margin is wide on purpose: the feed's select picks at random once both cases are ready.
+func TestCancelDuringHits(t *testing.T) {
+	root := t.TempDir()
+	total := 64 * runtime.GOMAXPROCS(0)
+	files := map[string]string{}
+	for i := range total {
+		files[fmt.Sprintf("f%d", i)] = "x\n"
+	}
+	paths := write(t, root, files)
+	re, _ := Compile(Options{Query: "x"})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	var n atomic.Int64 // emit runs on several goroutines
+	Run(ctx, root, paths, re, func(h []Hit) {
+		n.Add(int64(len(h)))
+		cancel()
+	})
+	if got := n.Load(); got == 0 || got > int64(total/2) {
+		t.Fatalf("got %d hits from %d files; want some, but far fewer than all", got, total)
 	}
 }
 
