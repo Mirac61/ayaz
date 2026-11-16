@@ -28,15 +28,42 @@ export function parseProblems(output: string, root: string): Loc[] {
 // Fills ${file}, ${dir} and ${line} of a task for the active file: its workspace-relative path, its folder ("." in the
 // root) and the 1-based cursor line. Any other ${...} stays (${HOME} is shell syntax). Null when the task needs a file
 // and none is open.
-// shortcut: POSIX sh quoting only, Windows shells need their own
-const quote = (s: string) => `'${s.replace(/'/g, "'\\''")}'`;
+// Values are escaped for the quotes the placeholder sits in, so a path stays literal in `cat ${file}`, `'${file}'`
+// and `"${file}"` alike.
+// shortcut: POSIX sh quoting only and no nesting ($(...) inside "...", heredocs), Windows shells need their own
+const escape = {
+  none: (s: string) => `'${s.replace(/'/g, "'\\''")}'`,
+  single: (s: string) => s.replace(/'/g, "'\\''"),
+  double: (s: string) => s.replace(/[$`"\\]/g, "\\$&"),
+};
 export function expandTask(cmd: string, at: { file?: string; line?: number }): string | null {
-  const re = /\$\{(file|dir|line)\}/g;
-  if (!re.test(cmd)) return cmd;
+  if (!/\$\{(file|dir|line)\}/.test(cmd)) return cmd;
   if (at.file === undefined) return null;
   const { file } = at, slash = file.lastIndexOf("/");
-  const vals = { file: quote(file), dir: quote(slash < 0 ? "." : file.slice(0, slash)), line: String(at.line ?? 1) };
-  return cmd.replace(/\$\{(file|dir|line)\}/g, (_, k: keyof typeof vals) => vals[k]);
+  const vals = { file, dir: slash < 0 ? "." : file.slice(0, slash), line: String(at.line ?? 1) };
+  const ph = /\$\{(file|dir|line)\}/y;
+  let out = "", ctx: keyof typeof escape = "none";
+  for (let i = 0; i < cmd.length; ) {
+    ph.lastIndex = i;
+    const m = ph.exec(cmd);
+    if (m) {
+      const k = m[1] as keyof typeof vals;
+      out += k === "line" ? vals.line : escape[ctx](vals[k]);
+      i = ph.lastIndex;
+      continue;
+    }
+    const c = cmd[i];
+    if (c === "\\" && ctx !== "single") {
+      out += cmd.slice(i, i + 2); // an escaped character stays as written
+      i += 2;
+      continue;
+    }
+    if (c === "'" && ctx !== "double") ctx = ctx === "single" ? "none" : "single";
+    else if (c === '"' && ctx !== "single") ctx = ctx === "double" ? "none" : "double";
+    out += c;
+    i++;
+  }
+  return out;
 }
 
 // parseWatcherProblems parses problem locations from long-running watcher output (typst watch, tectonic loops, etc.).

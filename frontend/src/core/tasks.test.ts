@@ -109,6 +109,14 @@ test("expandTask quotes paths for the shell", () => {
   expect(expandTask("cat ${file}", { file: "a b/it's; rm.txt" })).toBe("cat 'a b/it'\\''s; rm.txt'");
 });
 
+test("expandTask escapes for the quotes around the placeholder", () => {
+  const at = { file: "$(id) it's.txt", line: 3 };
+  expect(expandTask('cat "${file}"', at)).toBe('cat "\\$(id) it\'s.txt"');
+  expect(expandTask("cat '${file}'", at)).toBe("cat '$(id) it'\\''s.txt'");
+  expect(expandTask(`echo "a \\" '\${dir}'" \${line}`, at)).toBe(`echo "a \\" '.'" 3`);
+  expect(expandTask('cat "${file}" ${file}', { file: 'a"b' })).toBe(`cat "a\\"b" 'a"b'`);
+});
+
 test("expandTask: dir of a root file is '.', other ${} stays, no placeholder needs no file", () => {
   expect(expandTask("ls ${dir}", { file: "main.go" })).toBe("ls '.'");
   expect(expandTask("echo ${HOME} ${file}", { file: "a.go" })).toBe("echo ${HOME} 'a.go'");

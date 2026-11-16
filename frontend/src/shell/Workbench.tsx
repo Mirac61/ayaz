@@ -536,12 +536,14 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
     const q = quickfixTools(c);
 
     // M52: a task runs in a split that stays open when it ends; file:line lines it printed go to the quickfix list.
-    let lastTask: ProjectTask | null = null;
+    let lastTask: (() => void) | null = null;
     const loadTasks = () => projectTasks(() => files.list(""), async (n) => (await files.readText(n)).content, settings().tasks);
-    const runTask = ({ name, cmd: raw }: ProjectTask) => {
-      lastTask = { name, cmd: raw }; // unexpanded, so <Space>rl uses the file that is active then
+    // expand is off for generated commands, whose quoted file names may contain ${line} themselves
+    const runTask = ({ name, cmd: raw }: ProjectTask, expand = true) => {
+      lastTask = () => runTask({ name, cmd: raw }, expand); // unexpanded, so <Space>rl uses the file that is active then
       const path = ed.current()?.path;
-      const cmd = expandTask(raw, { file: path && !path.startsWith("/") ? path : undefined, line: ed.cursorLine() ?? undefined });
+      const at = { file: path && !path.startsWith("/") ? path : undefined, line: ed.cursorLine() ?? undefined };
+      const cmd = expand ? expandTask(raw, at) : raw;
       if (cmd === null) return fail(`Task "${name}" needs an open file`);
       say(`Task "${name}": ${cmd}`);
       let hadLiveProblems = false;
@@ -577,7 +579,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       const [dir, name] = [pdf.slice(0, Math.max(slash, 0)), pdf.slice(slash + 1)];
       const alreadyExists = (await files.list(dir).catch(() => [])).some((e) => e.name === name);
 
-      runTask({ name: `Build ${path}`, cmd });
+      runTask({ name: `Build ${path}`, cmd }, false);
 
       if (alreadyExists) {
         return void openNext.current.set(splitPane("row", undefined, from), pdf);
@@ -901,7 +903,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
           });
         },
       },
-      { id: "task.last", title: "Run the last task again", run: () => (lastTask ? runTask(lastTask) : fail("No task run yet: <Space>rr")) },
+      { id: "task.last", title: "Run the last task again", run: () => (lastTask ? lastTask() : fail("No task run yet: <Space>rr")) },
       { id: "term.normal", title: "Terminal normal mode", run: () => ed.termNormal() },
       {
         id: "find.commands",
