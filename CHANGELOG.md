@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.9.0](https://github.com/Mirac61/ayaz/compare/v0.8.2...v0.9.0) (2026-11-16)
+
+
+### Features
+
+* **git:** &lt;Space&gt;go opens the line on GitHub, &lt;Space&gt;gy copies a permalink ([f30a3f4](https://github.com/Mirac61/ayaz/commit/f30a3f4a1ec732383e273ed251d0331c9b2002c1))
+* **git:** &lt;Space&gt;go opens the line on GitHub, &lt;Space&gt;gy copies a permalink ([f8e586f](https://github.com/Mirac61/ayaz/commit/f8e586f712827ff534f5070d3d56c84e45e8a9c5))
+* **tree:** c duplicates a file ([92404eb](https://github.com/Mirac61/ayaz/commit/92404eb7d84575a549f8c71a02af2dd3e5e36306))
+* **tree:** c duplicates a file ([83e0ecb](https://github.com/Mirac61/ayaz/commit/83e0ecb186eb5f34dc805c18fe3cdfe4a94e9fe9))
+
+
+### Bug Fixes
+
+* **git:** keep the token out of bad remotes, keep a leading space in the prefix, strip head:// from links ([247231a](https://github.com/Mirac61/ayaz/commit/247231a965a904a80eebd1aa9aaccfa9a827ac5a))
+* **tree:** copy writes through the handle it created, tests for backslash paths, umask and path cleaning ([4cb183e](https://github.com/Mirac61/ayaz/commit/4cb183e3b8694f95a9c7cbd2bd471208ea3a482e))
+* **tree:** duplicate reveals the canonical path out of the filter, copy never exists wider than its source, refuse backslash paths on Windows ([687c307](https://github.com/Mirac61/ayaz/commit/687c30724f74f904d5ca06566254be4270b9b131))
+* **tree:** reveal keeps the cursor on the revealed file, with a browser test for a filtered duplicate ([0146f9b](https://github.com/Mirac61/ayaz/commit/0146f9b1b7ce30c378d546ba808a8bb8a97ff325))
+* **window:** ask about the current workspace when the close button is clicked ([167fd3c](https://github.com/Mirac61/ayaz/commit/167fd3c263c7469ab0a0ac98f3fb85971cba6ea2))
+* **window:** close button does nothing after Switch folder ([191cbe2](https://github.com/Mirac61/ayaz/commit/191cbe2e43486d51ee79a79a015f7ea3e5ee3dec))
+
 ## [0.8.2](https://github.com/Mirac61/ayaz/compare/v0.8.1...v0.8.2) (2026-11-15)
 
 
