@@ -79,7 +79,7 @@ func (s *WorkspaceService) HandleDAP(c *application.StreamConn) {
 		ev, _ := json.Marshal(map[string]any{"type": "event", "event": "output", "body": map[string]string{"category": category, "output": text}})
 		mu.Lock()
 		defer mu.Unlock()
-		c.Send(ev)
+		_ = c.Send(ev)
 	}
 	var a *dap.Adapter
 	if spec.stdio {

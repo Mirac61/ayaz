@@ -63,7 +63,7 @@ func (s *WorkspaceService) HandleTerminal(c *application.StreamConn) {
 	defer sess.Close()
 
 	go func() {
-		pty.Batch(sess.Output(), c.Send, time.Duration(cfg.WindowMs)*time.Millisecond, cfg.MaxBytes)
+		_ = pty.Batch(sess.Output(), c.Send, time.Duration(cfg.WindowMs)*time.Millisecond, cfg.MaxBytes)
 		c.Close() // shell exited: tell the frontend
 	}()
 
@@ -74,11 +74,11 @@ func (s *WorkspaceService) HandleTerminal(c *application.StreamConn) {
 		}
 		switch f[0] {
 		case frameInput:
-			sess.Write(f[1:])
+			_, _ = sess.Write(f[1:])
 		case frameResize:
 			var sz termConfig
 			if json.Unmarshal(f[1:], &sz) == nil && sz.Cols > 0 && sz.Rows > 0 {
-				sess.Resize(sz.Cols, sz.Rows)
+				_ = sess.Resize(sz.Cols, sz.Rows)
 			}
 		}
 	}

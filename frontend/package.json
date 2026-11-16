@@ -10,9 +10,9 @@
     "preview": "vite preview",
     "test": "vitest run --project node",
     "typecheck": "tsc --noEmit",
-    "format": "prettier --write \"src/**/*.css\"",
-    "lint:ts": "oxlint -c .oxlintrc.json src",
-    "lint": "prettier --check \"src/**/*.css\" && stylelint \"src/**/*.css\"",
+    "format": "prettier --write \"{src,e2e}/**/*.{ts,tsx,css}\" \"*.ts\"",
+    "lint": "prettier --check \"{src,e2e}/**/*.{ts,tsx,css}\" \"*.ts\" && oxlint -c .oxlintrc.json src",
+    "lint:css": "stylelint \"src/**/*.css\"",
     "test:browser": "vitest run --project browser",
     "e2e": "playwright test"
   },
