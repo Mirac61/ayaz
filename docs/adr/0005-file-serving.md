@@ -1,6 +1,6 @@
 # ADR-0005: Files via asset middleware `/fs/` with a workspace jail
 
-Status: proposed · 2026-11-08
+Status: accepted · 2026-11-08
 
 ## Context
 - Images, PDFs and images in Markdown must get from the open folder into the WebView.

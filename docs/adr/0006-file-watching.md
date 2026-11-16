@@ -1,6 +1,6 @@
 # ADR-0006: File watching with sgtdi/fswatcher v2 behind our own interface
 
-Status: proposed · 2026-11-08
+Status: accepted · 2026-11-08
 
 ## Context
 - File tree, index and open buffers must notice external changes (git checkout, another editor).

@@ -1,6 +1,6 @@
 # 06 – Open questions
 
-Updated 2026-11-08 · Each question has a recommendation and a reason.
+Updated 2026-11-16 · Each question has a recommendation and a reason. All of them are settled by now; the text stays as the reasoning behind the code.
 
 ## Decided
 
@@ -13,7 +13,7 @@ Updated 2026-11-08 · Each question has a recommendation and a reason.
 | Q5 | Organizing files | splits + buffer list, tab bar optional |
 | Q6 | Saving | explicit (`:w`, `Cmd/Ctrl+S`) |
 | Q20 | Daily Vim features | the basics, list in [04 – Vim core list](04-testing.md#vim-core-list-q20) |
-| Q21 | Leader mappings | taken from my nvim config as defaults (see [02 – Default keymap](02-architecture.md#default-keymap-from-my-nvim-config)) |
+| Q21 | Leader mappings | taken from my nvim config as defaults (see [02 – Default keymap](02-architecture.md#default-keymap)) |
 | Q22 | Shortcuts | every key configurable. Defaults: `<Space>` leader in Vim normal mode (insert mode types a normal space), plus `Cmd+…` on macOS / `Ctrl+Shift+…` on Linux where Vim doesn't apply (terminal, insert mode) |
 | Q23 | Terminal | both, like VS Code/Zed: bottom panel toggled with `Cmd+J` / `Ctrl+Shift+J`, or a normal pane in the splits |
 | Q24 | Leave terminal insert mode | `Ctrl-\ Ctrl-n` like nvim, plus a configurable alternative |
@@ -24,7 +24,7 @@ Updated 2026-11-08 · Each question has a recommendation and a reason.
 | – | Languages | Go → C/C++ → web (TS/JS, HTML, CSS, JSON) → Java |
 | – | Later | tasks/build, Git, debugger (DAP) |
 
-## Open: Markdown (M5–M6, M12)
+## Settled: Markdown (M5–M6, M12)
 
 **Q7 – Which Markdown flavor?**
 - Recommendation: CommonMark + GFM (tables, strikethrough, task lists, autolinks) + YAML front matter (highlighted only). No wiki links, no math in v1.
@@ -46,9 +46,9 @@ Updated 2026-11-08 · Each question has a recommendation and a reason.
 - Recommendation: yes, Lezer tree → DOM (ADR-0003).
 - Why: one parser, no differences, no extra package.
 
-## Open: later
+## Settled: later
 
-**Q13 – Config format?** JSON in `os.UserConfigDir()/ayaz/config.json`. Why: stdlib, no dependency.
+**Q13 – Config format?** JSON in `os.UserConfigDir()/ayaz/`, as three files: `settings.json`, `keymap.json`, `snippets.json` (defaults in `app/*.default.json`). Why: stdlib, no dependency.
 
 **Q14 – Linux package?** Binary + `.desktop`, then a PKGBUILD. No AppImage. Why: WebKitGTK is a system dependency anyway, so AppImage gains nothing.
 
@@ -58,8 +58,8 @@ Updated 2026-11-08 · Each question has a recommendation and a reason.
 
 **Q17 – Minimum versions?** macOS as on my Mac, Linux GTK ≥ 4.10 + WebKitGTK 6.0. Why: Wails v3 needs GTK ≥ 4.10.
 
-**Q18 – Large files?** Above 10 MB no live preview and no LSP, above 100 MB only after confirming. Numbers measured in M9.
+**Q18 – Large files?** Measured in M51 instead of fixed up front: a line over 20,000 characters opens as plain text, the rest has no size limit (numbers in [perf-log](perf-log.md)).
 
-**Q19 – Name?** "Ayaz" is the working title, decide before M14. Why: it ends up in the config path, bundle ID and package names.
+**Q19 – Name?** "Ayaz". It is in the config path, bundle ID and package names.
 
 **Q28 – Install LSP servers automatically?** No, use `PATH` (ADR-0015). Why: no download and trust logic in the editor; a hint with the install command is enough for four languages.
