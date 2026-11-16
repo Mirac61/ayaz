@@ -186,12 +186,9 @@ func (s *WorkspaceService) bindWindow(ctx context.Context, ws string) {
 		return
 	}
 	win.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {
-		s.mu.Lock()
-		ok := s.closing[id]
-		s.mu.Unlock()
-		if !ok {
+		if cur, ask := s.closeRequest(id); ask {
 			e.Cancel()
-			win.EmitEvent("app:close-request", ws) // events reach every window: the payload says whose it is
+			win.EmitEvent("app:close-request", cur) // events reach every window: the payload says whose it is
 		}
 	})
 	win.OnWindowEvent(events.Common.WindowClosing, func(*application.WindowEvent) {
@@ -203,6 +200,15 @@ func (s *WorkspaceService) bindWindow(ctx context.Context, ws string) {
 		s.releaseWaits(id)
 		s.Close(ws)
 	})
+}
+
+// closeRequest decides what a close of window id means: ask is false once CloseWindow let it through, otherwise the
+// frontend is asked about ws, the window's current workspace. It is not the one the window was hooked with: switching
+// folders rebinds the window, and the frontend only answers for the workspace it shows now.
+func (s *WorkspaceService) closeRequest(id uint) (ws string, ask bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.windows[id], !s.closing[id]
 }
 
 // ShouldQuit runs on Cmd+Q. It quits only once no window is left; otherwise each window with a workspace gets the
@@ -438,6 +444,15 @@ func (s *WorkspaceService) GitPush(ws string) error {
 	return nil
 }
 
+// GitBrowseURL is the web address of a file line on origin (the current branch, or the commit with permalink).
+func (s *WorkspaceService) GitBrowseURL(ws, path string, line int, permalink bool) (string, error) {
+	w, err := s.reg.Get(ws)
+	if err != nil {
+		return "", err
+	}
+	return git.BrowseURL(w.Root, path, line, permalink)
+}
+
 // GitPull pulls changes from the remote.
 func (s *WorkspaceService) GitPull(ws string) error {
 	w, err := s.reg.Get(ws)
@@ -605,6 +620,14 @@ func (s *WorkspaceService) Rename(ws, from, to string) error {
 		return err
 	}
 	return w.Rename(from, to)
+}
+
+func (s *WorkspaceService) Copy(ws, from, to string) error {
+	w, err := s.reg.Get(ws)
+	if err != nil {
+		return err
+	}
+	return w.Copy(from, to)
 }
 
 func (s *WorkspaceService) Trash(ws, path string) error {

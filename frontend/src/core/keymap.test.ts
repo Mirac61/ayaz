@@ -163,3 +163,13 @@ test("defaultKeymap binds tree revealCurrent and md outline", () => {
   expect(km.find((b) => b.keys === "<Space>er")?.command).toBe("tree.revealCurrent");
   expect(km.find((b) => b.keys === "<Space>mh")?.command).toBe("md.outline");
 });
+
+test("defaultKeymap binds <Space>fT to the TODO list", () => {
+  expect(defaultKeymap().find((b) => b.keys === "<Space>fT")?.command).toBe("find.todos");
+});
+
+test("defaultKeymap binds <Space>go and <Space>gy to the GitHub line links", () => {
+  const km = defaultKeymap();
+  expect(km.find((b) => b.keys === "<Space>go")?.command).toBe("git.browse");
+  expect(km.find((b) => b.keys === "<Space>gy")?.command).toBe("git.copyLink");
+});
