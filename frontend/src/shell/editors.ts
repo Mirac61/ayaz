@@ -49,6 +49,7 @@ export interface Status {
   col: number;
   lines: number;
   eol?: "LF" | "CRLF";
+  plain?: boolean; // a line too long to highlight
   indent?: string; // "Tabs" or "Spaces 4"
   words?: number; // prose files only (Markdown, text, Typst, LaTeX)
   recording?: string; // the register of the macro being recorded ("q" for qq)
@@ -1042,6 +1043,7 @@ export class Editors {
       col: head - l.from + 1,
       lines: st.doc.lines,
       eol: p.buf ? (p.buf.eol === "\r\n" ? "CRLF" : "LF") : undefined,
+      plain: p.buf?.plain || undefined,
       indent: unit.includes("\t") ? "Tabs" : `Spaces ${unit.length}`,
       words: (p.buf && isProse(p.buf.path) ? countWords(st.doc) : null) ?? undefined,
       selected: selectionSize(st.doc, st.selection.main.from, st.selection.main.to) || undefined,
