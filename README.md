@@ -7,7 +7,7 @@ A code editor that feels like Neovim, but shows Markdown, PDFs and images proper
 
 ![Ayaz on a laptop: Go code and the rendered README of a small project side by side, a terminal below showing a program run and git log](docs/screenshot.png)
 
-I built it because the editors I use each miss one thing. VSCodium is heavy and its Vim mode is an emulation. Neovim can't show a PDF or an image, and has no Markdown that renders while you type. Obsidian wants a vault and isn't a code editor. Ayaz opens any folder, keeps your hands on the keyboard, and keeps its own state (session, history, unsaved changes) outside your project.
+I built it because the editors I use each miss one thing. VSCodium is heavy. Neovim can't show a PDF or an image, and has no Markdown that renders while you type. Obsidian wants a vault and isn't a code editor. Ayaz opens any folder, keeps your hands on the keyboard, and keeps its own state (session, history, unsaved changes) outside your project.
 
 Daily-driven on macOS and Arch Linux/Hyprland. Windows builds ship with every release but are barely tested. Free to download and use; the source is closed to forks and redistribution, see [License](#license).
 
@@ -47,7 +47,7 @@ The leader key is `Space`. Everything is a command with an ID, and `<Space>fk` l
 
 | Area | What you get |
 |---|---|
-| Vim | motions, text objects (also structural ones such as functions and arguments), operators, `.`, registers, macros, visual and block mode, `:` commands, surround |
+| Vim | An emulation, not Neovim: [`@replit/codemirror-vim`](https://github.com/replit/codemirror-vim) plus Ayaz's own extensions. Supported: motions, text objects (also structural ones such as functions and arguments), operators, `.`, registers, macros, visual and block mode, `:` commands, surround. Not supported: Vimscript, Lua config, plugins, and 100 % compatibility with Vim |
 | Languages | language servers for Go, C/C++, TypeScript/JavaScript, HTML/CSS/JSON, Java, Python, Rust, Lua, YAML, TOML, Dockerfile, LaTeX and Typst: diagnostics, completion, hover, go to definition, rename, code actions, semantic colours, call hierarchy. A missing server shows an install hint instead of failing |
 | Debugging | Go (Delve), Python (debugpy), C, C++ and Rust (lldb-dap): breakpoints, stepping, variables |
 | Documents | Markdown renders while you type, with a reading view and a side-by-side preview. PDFs and images (PNG, JPG, GIF, WebP, SVG) open in the same panes as text |

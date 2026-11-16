@@ -8,7 +8,7 @@ A code editor that feels like Neovim, shows Markdown, PDFs and images properly, 
 
 ## Why
 
-- **VSCodium** is heavy (Electron, extension host, many processes), and Vim is only an emulation.
+- **VSCodium** is heavy (Electron, extension host, many processes).
 - **Neovim** can't show PDFs or images and has no real Markdown live preview.
 - **Obsidian** forces a vault, isn't a code editor, and isn't keyboard-first the Vim way.
 
@@ -48,7 +48,7 @@ A code editor that feels like Neovim, shows Markdown, PDFs and images properly, 
 
 ## Non-goals (for now)
 
-- 100 % Vim compatibility or Vimscript/Lua config. The goal is the feel, not a clone.
+- 100 % Vim compatibility or Vimscript/Lua config. Vim support is an emulation (`@replit/codemirror-vim` plus our own extensions); the goal is the feel, not a clone.
 - Third-party plugins
 - Sync, cloud, accounts
 - Windows
