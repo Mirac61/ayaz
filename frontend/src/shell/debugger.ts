@@ -30,10 +30,18 @@ export class Debugger {
     private say: (text: string) => void,
   ) {}
 
-  get status(): DebugStatus { return this.session?.state ?? "idle"; }
-  get frames() { return this.session?.frames ?? []; }
-  get activeFrameId(): number { return this.session?.activeFrameId ?? 0; }
-  get watchesList(): string[] { return [...this.watches]; }
+  get status(): DebugStatus {
+    return this.session?.state ?? "idle";
+  }
+  get frames() {
+    return this.session?.frames ?? [];
+  }
+  get activeFrameId(): number {
+    return this.session?.activeFrameId ?? 0;
+  }
+  get watchesList(): string[] {
+    return [...this.watches];
+  }
 
   selectFrame(frameId: number) {
     this.session?.setActiveFrame(frameId);
@@ -45,7 +53,9 @@ export class Debugger {
 
   addWatch(expr: string) {
     const trimmed = expr.trim();
-    if (trimmed && !this.watches.includes(trimmed)) this.watches.push(trimmed);
+    if (trimmed && !this.watches.includes(trimmed)) {
+      this.watches.push(trimmed);
+    }
   }
 
   removeWatch(expr: string) {
@@ -54,26 +64,41 @@ export class Debugger {
 
   async evaluate(expr: string, context: "watch" | "hover" | "repl" = "watch") {
     const s = this.session;
-    if (!s || s.state !== "paused") throw new Error("The program isn't stopped");
+    if (!s || s.state !== "paused") {
+      throw new Error("The program isn't stopped");
+    }
     return s.evaluate(expr, context);
   }
 
   // Starts debugging what the active file's adapter debugs (a Go file: its package) with the breakpoints of every loaded
   // buffer.
   async start() {
-    if (this.session && this.session.state !== "ended") return this.say("Already debugging: <Space>dq stops it");
+    if (this.session && this.session.state !== "ended") {
+      return this.say("Already debugging: <Space>dq stops it");
+    }
     const { adapter, target } = pickAdapter(this.ed.activePath());
     const session = (this.session = new DebugSession(new DapClient(this.connect(adapter.id)), this.root, {
-      state: (s) => { if (this.session === session) this.onStatus(s); },
+      state: (s) => {
+        if (this.session === session) {
+          this.onStatus(s);
+        }
+      },
       stopped: (at, reason) => {
-        if (!at) return this.say(`Stopped (${reason}), no source file for it`);
+        if (!at) {
+          return this.say(`Stopped (${reason}), no source file for it`);
+        }
         this.say(`Stopped (${reason}) at ${at.path}:${at.line}`);
-        void this.ed.openAt(at.path, at.line, 0).then(() => this.ed.setDebugLine(at.path, at.line), () => {});
+        void this.ed.openAt(at.path, at.line, 0).then(
+          () => this.ed.setDebugLine(at.path, at.line),
+          () => {},
+        );
       },
       output: (text) => void this.ed.appendOutput(text),
       ended: () => {
         this.ed.setDebugLine(null);
-        if (this.session === session) this.session = null;
+        if (this.session === session) {
+          this.session = null;
+        }
         this.onStatus("idle");
       },
       runInTerminal: this.ed.runInTerminal ? (args) => this.ed.runInTerminal!(args) : undefined,
@@ -87,8 +112,12 @@ export class Debugger {
 
   async step(kind: Step) {
     const s = this.session;
-    if (!s || s.state === "ended") return this.say("Not debugging: <Space>dd starts");
-    if (s.state !== "paused") return this.say("The program is running");
+    if (!s || s.state === "ended") {
+      return this.say("Not debugging: <Space>dd starts");
+    }
+    if (s.state !== "paused") {
+      return this.say("The program is running");
+    }
     this.ed.setDebugLine(null);
     await s.resume(kind);
   }
@@ -97,11 +126,15 @@ export class Debugger {
   // null: nothing is stopped.
   async variables(): Promise<Row[] | null> {
     const s = this.session;
-    if (!s || s.state !== "paused") return null;
+    if (!s || s.state !== "paused") {
+      return null;
+    }
     const scopes = await s.scopes();
     const rows = scopes.map(scopeRow);
     for (let i = 0; i < rows.length; i++) {
-      if (!scopes[i].expensive) await toggle(rows[i], (ref) => s.variables(ref));
+      if (!scopes[i].expensive) {
+        await toggle(rows[i], (ref) => s.variables(ref));
+      }
     }
     if (this.watches.length) {
       const children: Row[] = [];
@@ -151,12 +184,16 @@ export class Debugger {
   }
 
   async stop() {
-    if (!this.session) return this.say("Not debugging");
+    if (!this.session) {
+      return this.say("Not debugging");
+    }
     await this.session.stop();
   }
 
   // A breakpoint changed in path while a session lives: the adapter gets the file's new breakpoints.
   breakpointsChanged(path: string, bps: (number | Breakpoint)[]) {
-    if (this.session && this.session.state !== "ended") void this.session.breakpoints(path, bps).catch(() => {});
+    if (this.session && this.session.state !== "ended") {
+      void this.session.breakpoints(path, bps).catch(() => {});
+    }
   }
 }

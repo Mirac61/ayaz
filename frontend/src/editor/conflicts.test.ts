@@ -5,8 +5,19 @@ import { conflictAt, findConflicts, resolved } from "./conflicts";
 const doc = (s: string) => Text.of(s.split("\n"));
 
 const TWO = [
-  "top", "<<<<<<< HEAD", "ours 1", "ours 2", "=======", "theirs 1", ">>>>>>> feature",
-  "mid", "<<<<<<< HEAD", "a", "=======", ">>>>>>> feature", "end",
+  "top",
+  "<<<<<<< HEAD",
+  "ours 1",
+  "ours 2",
+  "=======",
+  "theirs 1",
+  ">>>>>>> feature",
+  "mid",
+  "<<<<<<< HEAD",
+  "a",
+  "=======",
+  ">>>>>>> feature",
+  "end",
 ].join("\n");
 
 test("complete blocks are found with their marker lines", () => {
@@ -30,7 +41,8 @@ test("half blocks, Markdown underlines and longer rows of equals are no conflict
 });
 
 test("ours, theirs and both, with empty sides", () => {
-  const d = doc(TWO), [one, two] = findConflicts(d);
+  const d = doc(TWO),
+    [one, two] = findConflicts(d);
   expect(resolved(d, one, "ours")).toBe("ours 1\nours 2\n");
   expect(resolved(d, one, "theirs")).toBe("theirs 1\n");
   expect(resolved(d, one, "both")).toBe("ours 1\nours 2\ntheirs 1\n");

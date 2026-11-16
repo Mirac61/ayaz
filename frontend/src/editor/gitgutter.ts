@@ -17,34 +17,54 @@ export function signs(chunks: readonly Chunk[], doc: Text): { line: number; sign
     }
     const sign = c.fromA === c.toA ? "add" : "mod";
     const last = doc.lineAt(Math.min(c.endB, doc.length)).number;
-    for (let l = doc.lineAt(from).number; l <= last; l++) out.push({ line: l, sign });
+    for (let l = doc.lineAt(from).number; l <= last; l++) {
+      out.push({ line: l, sign });
+    }
   }
   return out;
 }
 
 class Mark extends GutterMarker {
-  constructor(readonly sign: Sign, readonly staged: boolean) {
+  constructor(
+    readonly sign: Sign,
+    readonly staged: boolean,
+  ) {
     super();
     this.elementClass = `cm-git-${sign}` + (staged ? " cm-git-staged" : "");
   }
-  eq(o: Mark) { return o.sign === this.sign && o.staged === this.staged; }
+  eq(o: Mark) {
+    return o.sign === this.sign && o.staged === this.staged;
+  }
 }
 const mark = (staged: boolean) => ({
-  add: new Mark("add", staged), mod: new Mark("mod", staged), del: new Mark("del", staged), deltop: new Mark("deltop", staged),
+  add: new Mark("add", staged),
+  mod: new Mark("mod", staged),
+  del: new Mark("del", staged),
+  deltop: new Mark("deltop", staged),
 });
-const MARKS = mark(false), STAGED = mark(true);
+const MARKS = mark(false),
+  STAGED = mark(true);
 
 // head: the file at HEAD; index: what is staged; chunks: buffer against HEAD (all the changes), unstaged: buffer against
 // the index (what <Space>hs can stage). Without anything staged (index equals head) the two are the same.
-interface Git { head: Text; index: Text; chunks: readonly Chunk[]; unstaged: readonly Chunk[]; marks: RangeSet<Mark> }
+interface Git {
+  head: Text;
+  index: Text;
+  chunks: readonly Chunk[];
+  unstaged: readonly Chunk[];
+  marks: RangeSet<Mark>;
+}
 
 const git = (head: Text, index: Text, chunks: readonly Chunk[], unstaged: readonly Chunk[], doc: Text): Git => {
   // A line of a change against HEAD that the buffer doesn't change against the index is staged: drawn dimmer.
   const open = head.eq(index) ? null : new Set(signs(unstaged, doc).map((x) => x.line));
   // Two chunks can mark one line (a deletion right below a change); the first wins.
   const seen = new Set<number>();
-  const marks = RangeSet.of(signs(chunks, doc).filter((x) => !seen.has(x.line) && seen.add(x.line))
-    .map((x) => (open && !open.has(x.line) ? STAGED : MARKS)[x.sign].range(doc.line(x.line).from)));
+  const marks = RangeSet.of(
+    signs(chunks, doc)
+      .filter((x) => !seen.has(x.line) && seen.add(x.line))
+      .map((x) => (open && !open.has(x.line) ? STAGED : MARKS)[x.sign].range(doc.line(x.line).from)),
+  );
   return { head, index, chunks, unstaged, marks };
 };
 
@@ -63,8 +83,11 @@ const gitField = StateField.define<Git | null>({
   create: () => null,
   update(g, tr) {
     for (const e of tr.effects) {
-      if (e.is(setHead)) g = e.value && fresh(e.value, g?.index ?? e.value, tr.state.doc);
-      else if (e.is(setIndex) && g) g = fresh(g.head, e.value ?? g.head, tr.state.doc);
+      if (e.is(setHead)) {
+        g = e.value && fresh(e.value, g?.index ?? e.value, tr.state.doc);
+      } else if (e.is(setIndex) && g) {
+        g = fresh(g.head, e.value ?? g.head, tr.state.doc);
+      }
     }
     if (g && tr.docChanged) {
       const chunks = Chunk.updateB(g.chunks, g.head, tr.state.doc, tr.changes);
@@ -78,7 +101,11 @@ const gitField = StateField.define<Git | null>({
 const previewField = StateField.define<Tooltip | null>({
   create: () => null,
   update(t, tr) {
-    for (const e of tr.effects) if (e.is(showPreview)) return e.value;
+    for (const e of tr.effects) {
+      if (e.is(showPreview)) {
+        return e.value;
+      }
+    }
     return tr.docChanged || tr.selection ? null : t;
   },
   provide: (f) => showTooltip.from(f),
@@ -96,7 +123,9 @@ export function isDiffing(s: EditorState) {
 // Turns the diff on or off. false: no HEAD text to compare with.
 export function toggleDiff(view: EditorView): boolean {
   const head = view.state.field(gitField, false)?.head;
-  if (!isDiffing(view.state) && !head) return false;
+  if (!isDiffing(view.state) && !head) {
+    return false;
+  }
   view.dispatch({ effects: diffing.reconfigure(isDiffing(view.state) || !head ? [] : diffView(head)) });
   return true;
 }
@@ -110,7 +139,9 @@ export function diffWith(view: EditorView, original: Text) {
 // A diff against a history version stays.
 export function headEffects(s: EditorState, head: Text | null, index: Text | null = null): StateEffect<unknown>[] {
   const effects = [setHead.of(head), setIndex.of(index)];
-  if (!isDiffing(s) || getOriginalDoc(s) !== s.field(gitField, false)?.head) return effects;
+  if (!isDiffing(s) || getOriginalDoc(s) !== s.field(gitField, false)?.head) {
+    return effects;
+  }
   return [...effects, diffing.reconfigure(head ? diffView(head) : [])];
 }
 
@@ -125,21 +156,31 @@ const chunksOf = (s: EditorState) => s.field(gitField, false)?.chunks ?? [];
 
 // The chunk on a line of the B side; a deletion counts on the line it marks and the one below.
 function chunkOnLine(chunks: readonly Chunk[], doc: Text, line: number): Chunk | null {
-  return chunks.find((c) => {
-    const from = doc.lineAt(Math.min(c.fromB, doc.length)).number;
-    if (c.fromB === c.toB) return line === from || line === from - 1;
-    return line >= from && line <= doc.lineAt(Math.min(c.endB, doc.length)).number;
-  }) ?? null;
+  return (
+    chunks.find((c) => {
+      const from = doc.lineAt(Math.min(c.fromB, doc.length)).number;
+      if (c.fromB === c.toB) {
+        return line === from || line === from - 1;
+      }
+      return line >= from && line <= doc.lineAt(Math.min(c.endB, doc.length)).number;
+    }) ?? null
+  );
 }
 
 const chunkAt = (s: EditorState) => chunkOnLine(chunksOf(s), s.doc, s.doc.lineAt(s.selection.main.head).number);
 
 // ]c / [c: the next or previous hunk's first line, wrapping around like gitsigns. false: no hunks.
 export function moveHunk(view: EditorView, d: 1 | -1): boolean {
-  const s = view.state, cur = s.doc.lineAt(s.selection.main.head).number;
+  const s = view.state,
+    cur = s.doc.lineAt(s.selection.main.head).number;
   const starts = [...new Set(chunksOf(s).map((c) => s.doc.lineAt(Math.min(c.fromB, s.doc.length)).number))];
-  if (!starts.length) return false;
-  const next = d > 0 ? starts.find((l) => l > cur) ?? starts[0] : [...starts].reverse().find((l) => l < cur) ?? starts[starts.length - 1];
+  if (!starts.length) {
+    return false;
+  }
+  const next =
+    d > 0
+      ? (starts.find((l) => l > cur) ?? starts[0])
+      : ([...starts].reverse().find((l) => l < cur) ?? starts[starts.length - 1]);
   const pos = s.doc.line(next).from;
   view.dispatch({ selection: { anchor: pos }, effects: EditorView.scrollIntoView(pos, { y: "center" }) });
   return true;
@@ -147,14 +188,28 @@ export function moveHunk(view: EditorView, d: 1 | -1): boolean {
 
 // The HEAD text of the hunk under the cursor as a tooltip, removed lines over added ones. false: no hunk here.
 export function previewHunk(view: EditorView): boolean {
-  const s = view.state, c = chunkAt(s), g = s.field(gitField, false);
-  if (!c || !g) return false;
+  const s = view.state,
+    c = chunkAt(s),
+    g = s.field(gitField, false);
+  if (!c || !g) {
+    return false;
+  }
   const lines = (t: Text, from: number, to: number, mark: string) =>
-    from === to ? [] : t.sliceString(from, Math.min(to, t.length)).replace(/\n$/, "").split("\n").map((l) => mark + l);
+    from === to
+      ? []
+      : t
+          .sliceString(from, Math.min(to, t.length))
+          .replace(/\n$/, "")
+          .split("\n")
+          .map((l) => mark + l);
   const pre = document.createElement("pre");
   pre.className = "cm-git-preview";
-  for (const [l, cls] of [...lines(g.head, c.fromA, c.toA, "-").map((l) => [l, "del"]), ...lines(s.doc, c.fromB, c.toB, "+").map((l) => [l, "add"])])
+  for (const [l, cls] of [
+    ...lines(g.head, c.fromA, c.toA, "-").map((l) => [l, "del"]),
+    ...lines(s.doc, c.fromB, c.toB, "+").map((l) => [l, "add"]),
+  ]) {
     pre.append(Object.assign(document.createElement("div"), { className: cls, textContent: l }));
+  }
   const pos = Math.min(c.fromB, s.doc.length);
   view.dispatch({ effects: showPreview.of({ pos, above: false, create: () => ({ dom: pre }) }) });
   return true;
@@ -162,8 +217,12 @@ export function previewHunk(view: EditorView): boolean {
 
 // Puts the hunk under the cursor back to HEAD, as a normal edit (undo works). false: no hunk here.
 export function resetHunk(view: EditorView): boolean {
-  const s = view.state, c = chunkAt(s), g = s.field(gitField, false);
-  if (!c || !g) return false;
+  const s = view.state,
+    c = chunkAt(s),
+    g = s.field(gitField, false);
+  if (!c || !g) {
+    return false;
+  }
   const insert = g.head.sliceString(c.fromA, Math.min(c.toA, g.head.length));
   const from = Math.min(c.fromB, s.doc.length);
   view.dispatch({ changes: { from, to: Math.min(c.toB, s.doc.length), insert }, userEvent: "git.reset" });
@@ -184,7 +243,8 @@ export function hunkText(a: Text, b: Text, c: Chunk): string {
     const body = lines.map((l, i) => `${mark}${l}\n` + (i === lines.length - 1 && !text.endsWith("\n") ? noEol : ""));
     return { start, n: lines.length, body: body.join("") };
   };
-  const old = side(a, c.fromA, c.toA, "-"), now = side(b, c.fromB, c.toB, "+");
+  const old = side(a, c.fromA, c.toA, "-"),
+    now = side(b, c.fromB, c.toB, "+");
   return `@@ -${span(old.start, old.n)} +${span(now.start, now.n)} @@\n${old.body}${now.body}`;
 }
 
@@ -192,8 +252,11 @@ export function hunkText(a: Text, b: Text, c: Chunk): string {
 function toIndex(g: Git, pos: number): number | null {
   let shift = 0;
   for (const c of g.unstaged) {
-    if (pos >= c.toB) shift += (c.toA - c.fromA) - (c.toB - c.fromB);
-    else if (pos >= c.fromB) return null;
+    if (pos >= c.toB) {
+      shift += c.toA - c.fromA - (c.toB - c.fromB);
+    } else if (pos >= c.fromB) {
+      return null;
+    }
   }
   return pos + shift;
 }
@@ -201,15 +264,20 @@ function toIndex(g: Git, pos: number): number | null {
 // The hunk under the cursor for the index: staging (the buffer's change against the index, to be applied) or, with
 // unstage, a change that is staged (HEAD against the index, to be applied in reverse). null: no such hunk here.
 export function hunkPatch(view: EditorView, unstage: boolean): string | null {
-  const s = view.state, g = s.field(gitField, false);
-  if (!g) return null;
+  const s = view.state,
+    g = s.field(gitField, false);
+  if (!g) {
+    return null;
+  }
   const line = s.doc.lineAt(s.selection.main.head).number;
   if (!unstage) {
     const c = chunkOnLine(g.unstaged, s.doc, line);
     return c ? hunkText(g.index, s.doc, c) : null;
   }
   const at = toIndex(g, s.doc.lineAt(s.selection.main.head).from);
-  if (at === null || g.head.eq(g.index)) return null;
+  if (at === null || g.head.eq(g.index)) {
+    return null;
+  }
   const c = chunkOnLine(Chunk.build(g.head, g.index), g.index, g.index.lineAt(Math.min(at, g.index.length)).number);
   return c ? hunkText(g.head, g.index, c) : null;
 }

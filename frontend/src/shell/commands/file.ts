@@ -10,9 +10,15 @@ import { bang, errText, inTree, type Ctx } from "./context";
 // "5 min ago" for the history picker.
 function ago(t: number): string {
   const s = Math.round((Date.now() - t) / 1000);
-  if (s < 60) return `${s} s ago`;
-  if (s < 3600) return `${Math.round(s / 60)} min ago`;
-  if (s < 86400) return `${Math.round(s / 3600)} h ago`;
+  if (s < 60) {
+    return `${s} s ago`;
+  }
+  if (s < 3600) {
+    return `${Math.round(s / 60)} min ago`;
+  }
+  if (s < 86400) {
+    return `${Math.round(s / 3600)} h ago`;
+  }
   return `${Math.round(s / 86400)} d ago`;
 }
 
@@ -21,7 +27,9 @@ const dirOf = (p: string) => p.slice(0, Math.max(p.lastIndexOf("/"), 0));
 export function fileCommands({ ws, files, ed, tree, say, fail, setPicker, prompt, closePane }: Ctx): Command[] {
   const save = async (force: boolean) => {
     const b = ed.current();
-    if (!b) return fail("No file name"), false;
+    if (!b) {
+      return (fail("No file name"), false);
+    }
     try {
       await ed.format(); // no-op without a language server (Q25: on for Go)
       ed.cleanup();
@@ -30,34 +38,51 @@ export function fileCommands({ ws, files, ed, tree, say, fail, setPicker, prompt
       ed.emit();
       return true;
     } catch (e) {
-      fail(/changed on disk/.test(errText(e))
-        ? `"${b.path}" changed on disk since it was read. :w! overwrites, :e! reloads`
-        : errText(e));
+      fail(
+        /changed on disk/.test(errText(e))
+          ? `"${b.path}" changed on disk since it was read. :w! overwrites, :e! reloads`
+          : errText(e),
+      );
       return false;
     }
   };
 
   // File commands act on the tree's row while the tree has focus, else on the active buffer.
   const target = () => {
-    if (inTree()) return tree.current?.selected() ?? null;
+    if (inTree()) {
+      return tree.current?.selected() ?? null;
+    }
     const b = ed.current();
     return b && !b.path.startsWith("/") ? { path: b.path, dir: false } : null; // not a library file outside the folder
   };
-  const unsavedUnder = (path: string) =>
-    ed.buffers.dirty().find((b) => b.path === path || b.path.startsWith(path + "/"));
+  const unsavedUnder = (path: string) => ed.buffers.dirty().find((b) => b.path === path || b.path.startsWith(path + "/"));
 
   return [
     { id: "file.save", title: "Save file (:w)", run: (a) => save(bang(a).force) },
-    { id: "file.saveClose", title: "Save and close pane (:wq)", run: async (a) => { if (await save(bang(a).force)) await closePane(bang(a).force); } },
+    {
+      id: "file.saveClose",
+      title: "Save and close pane (:wq)",
+      run: async (a) => {
+        if (await save(bang(a).force)) {
+          await closePane(bang(a).force);
+        }
+      },
+    },
     {
       id: "file.open",
       title: "Open file (:e)",
       async run(a) {
         const { force, rest } = bang(a);
-        if (rest) return ed.open(rest.replace(/^\.\//, ""));
+        if (rest) {
+          return ed.open(rest.replace(/^\.\//, ""));
+        }
         const b = ed.current();
-        if (!b) return;
-        if (isDirty(b) && !force) return fail("No write since last change (add ! to override)");
+        if (!b) {
+          return;
+        }
+        if (isDirty(b) && !force) {
+          return fail("No write since last change (add ! to override)");
+        }
         await ed.reload();
       },
     },
@@ -69,15 +94,23 @@ export function fileCommands({ ws, files, ed, tree, say, fail, setPicker, prompt
         const t = target();
         const dir = t ? (t.dir ? t.path : dirOf(t.path)) : "";
         const at = dir ? `${dir}/` : "";
-        prompt(`New ${arg === "dir" ? "folder" : "file"} in ${at || "./"}${arg === "dir" ? "" : " · end with / for a folder"}`, at, async (path) => {
-          if (arg === "dir" && !path.endsWith("/")) path += "/";
-          const isDir = path.endsWith("/");
-          const p = path.replace(/\/+$/, "").replace(/^\.\//, "");
-          await files.create(p, isDir);
-          await tree.current?.reveal(p);
-          if (!isDir) await ed.open(p);
-          say(`Created "${p}${isDir ? "/" : ""}"`);
-        });
+        prompt(
+          `New ${arg === "dir" ? "folder" : "file"} in ${at || "./"}${arg === "dir" ? "" : " · end with / for a folder"}`,
+          at,
+          async (path) => {
+            if (arg === "dir" && !path.endsWith("/")) {
+              path += "/";
+            }
+            const isDir = path.endsWith("/");
+            const p = path.replace(/\/+$/, "").replace(/^\.\//, "");
+            await files.create(p, isDir);
+            await tree.current?.reveal(p);
+            if (!isDir) {
+              await ed.open(p);
+            }
+            say(`Created "${p}${isDir ? "/" : ""}"`);
+          },
+        );
       },
     },
     {
@@ -85,11 +118,17 @@ export function fileCommands({ ws, files, ed, tree, say, fail, setPicker, prompt
       title: "Rename or move file",
       run() {
         const t = target();
-        if (!t) return fail("No file to rename");
+        if (!t) {
+          return fail("No file to rename");
+        }
         const d = unsavedUnder(t.path);
-        if (d) return fail(`"${d.path}" has unsaved changes: save first (:w)`);
+        if (d) {
+          return fail(`"${d.path}" has unsaved changes: save first (:w)`);
+        }
         prompt(`Rename "${t.path}" to`, t.path, async (to) => {
-          if (to === t.path) return;
+          if (to === t.path) {
+            return;
+          }
           await files.rename(t.path, to);
           await ed.moved(t.path, to);
           await tree.current?.reveal(to);
@@ -102,12 +141,20 @@ export function fileCommands({ ws, files, ed, tree, say, fail, setPicker, prompt
       title: "Duplicate file",
       run() {
         const t = target();
-        if (!t) return fail("No file to duplicate");
-        if (t.dir) return fail("Only files can be duplicated");
+        if (!t) {
+          return fail("No file to duplicate");
+        }
+        if (t.dir) {
+          return fail("Only files can be duplicated");
+        }
         const d = unsavedUnder(t.path);
-        if (d) return fail(`"${d.path}" has unsaved changes: save first (:w)`);
+        if (d) {
+          return fail(`"${d.path}" has unsaved changes: save first (:w)`);
+        }
         prompt(`Duplicate "${t.path}" as`, t.path, async (to) => {
-          if (to === t.path) return;
+          if (to === t.path) {
+            return;
+          }
           await files.duplicate(t.path, to);
           await tree.current?.reveal(to);
           say(`Duplicated to "${to}"`);
@@ -119,18 +166,28 @@ export function fileCommands({ ws, files, ed, tree, say, fail, setPicker, prompt
       title: "Move file to trash",
       run() {
         const t = target();
-        if (!t) return fail("No file to delete");
+        if (!t) {
+          return fail("No file to delete");
+        }
         const d = unsavedUnder(t.path);
-        if (d) return fail(`"${d.path}" has unsaved changes: save first (:w)`);
+        if (d) {
+          return fail(`"${d.path}" has unsaved changes: save first (:w)`);
+        }
         const back = inTree();
         setPicker({
           title: `Move "${t.path}${t.dir ? "/" : ""}" to the trash? · Enter confirms, Esc cancels`,
           query: async () => [{ label: "Move to trash", icon: t.dir ? folderIcon(false) : fileIcon(t.path) }],
-          pick: () => void files.trash(t.path).then(async () => {
-            await ed.moved(t.path, null);
-            say(`"${t.path}" moved to the trash`);
-            if (back) tree.current?.focus();
-          }, (e) => fail(errText(e))),
+          pick: () =>
+            void files.trash(t.path).then(
+              async () => {
+                await ed.moved(t.path, null);
+                say(`"${t.path}" moved to the trash`);
+                if (back) {
+                  tree.current?.focus();
+                }
+              },
+              (e) => fail(errText(e)),
+            ),
         });
       },
     },
@@ -139,7 +196,9 @@ export function fileCommands({ ws, files, ed, tree, say, fail, setPicker, prompt
       title: "Copy relative path",
       async run() {
         const t = target();
-        if (!t) return fail("No file");
+        if (!t) {
+          return fail("No file");
+        }
         await backend.copy(t.path);
         say(`Copied "${t.path}"`);
       },
@@ -148,8 +207,11 @@ export function fileCommands({ ws, files, ed, tree, say, fail, setPicker, prompt
       id: "file.copyPathLine",
       title: "Copy relative path:line of the cursor",
       async run() {
-        const b = ed.current(), line = ed.cursorLine();
-        if (!b || line === null) return fail("No file open");
+        const b = ed.current(),
+          line = ed.cursorLine();
+        if (!b || line === null) {
+          return fail("No file open");
+        }
         await backend.copy(`${b.path}:${line}`);
         say(`Copied "${b.path}:${line}"`);
       },
@@ -159,7 +221,9 @@ export function fileCommands({ ws, files, ed, tree, say, fail, setPicker, prompt
       title: "Copy absolute path",
       async run() {
         const t = target();
-        if (!t) return fail("No file");
+        if (!t) {
+          return fail("No file");
+        }
         await backend.copy(`${ws.root}/${t.path}`);
         say(`Copied "${ws.root}/${t.path}"`);
       },
@@ -169,7 +233,9 @@ export function fileCommands({ ws, files, ed, tree, say, fail, setPicker, prompt
       title: "Reveal in Finder",
       async run() {
         const t = target();
-        if (!t) return fail("No file");
+        if (!t) {
+          return fail("No file");
+        }
         await files.reveal(t.path);
       },
     },
@@ -178,7 +244,9 @@ export function fileCommands({ ws, files, ed, tree, say, fail, setPicker, prompt
       title: "Show current file in tree",
       async run() {
         const b = ed.current();
-        if (!b || b.path.startsWith("/")) return fail("No file from this folder");
+        if (!b || b.path.startsWith("/")) {
+          return fail("No file from this folder");
+        }
         await tree.current?.reveal(b.path);
         tree.current?.focus();
       },
@@ -188,7 +256,9 @@ export function fileCommands({ ws, files, ed, tree, say, fail, setPicker, prompt
       title: "Open link in browser (gx)",
       async run() {
         const t = ed.linkAtCursor();
-        if (!t || !browsable(t)) return fail("No URL under the cursor");
+        if (!t || !browsable(t)) {
+          return fail("No URL under the cursor");
+        }
         await backend.openURL(t);
       },
     },
@@ -196,9 +266,12 @@ export function fileCommands({ ws, files, ed, tree, say, fail, setPicker, prompt
       id: "link.file",
       title: "Go to linked file (gf)",
       async run() {
-        const b = ed.current(), t = ed.linkAtCursor();
+        const b = ed.current(),
+          t = ed.linkAtCursor();
         const p = b && t ? resolveLink(b.path, t) : null;
-        if (!p) return fail("No relative file link under the cursor");
+        if (!p) {
+          return fail("No relative file link under the cursor");
+        }
         await ed.open(p);
       },
     },
@@ -207,29 +280,41 @@ export function fileCommands({ ws, files, ed, tree, say, fail, setPicker, prompt
       title: "Local history: diff against or restore an earlier save",
       async run() {
         const b = ed.current();
-        if (!b) return fail("No file");
+        if (!b) {
+          return fail("No file");
+        }
         const versions = await files.history(b.path);
-        if (!versions.length) return fail(`No earlier saves of "${b.path}" yet`);
+        if (!versions.length) {
+          return fail(`No earlier saves of "${b.path}" yet`);
+        }
         const when = (t: number) => new Date(t).toLocaleString();
         setPicker({
           title: `History of ${b.path}`,
           query: async () => versions.map((v) => ({ label: when(v.time), hint: `${ago(v.time)} · ${v.size} B` })),
           footer: "Enter diff · Cmd/Ctrl+Enter restore as unsaved changes",
-          pick: (_it, i, restore) => void files.historyText(b.path, versions[i].time).then(async (text) => {
-            if (ed.current() !== b) return;
-            // Buffers hold LF only, so a CRLF save is normalized before it is compared or restored.
-            const old = lf(text);
-            if (restore) {
-              // Nothing is written to disk: the old text is an edit like any other, `u` undoes it.
-              const change = diff(b.state.doc.toString(), old);
-              if (change.from === change.to && !change.insert) return say("Already identical to that save");
-              await ed.edit(b.path, [change]);
-              say(`Restored the save before ${when(versions[i].time)}: unsaved, u undoes it`);
-              return;
-            }
-            ed.diffWith(Text.of(old.split("\n")));
-            say(`Diff against the save before ${when(versions[i].time)}, <Space>gd closes it`);
-          }).catch((e) => fail(errText(e))),
+          pick: (_it, i, restore) =>
+            void files
+              .historyText(b.path, versions[i].time)
+              .then(async (text) => {
+                if (ed.current() !== b) {
+                  return;
+                }
+                // Buffers hold LF only, so a CRLF save is normalized before it is compared or restored.
+                const old = lf(text);
+                if (restore) {
+                  // Nothing is written to disk: the old text is an edit like any other, `u` undoes it.
+                  const change = diff(b.state.doc.toString(), old);
+                  if (change.from === change.to && !change.insert) {
+                    return say("Already identical to that save");
+                  }
+                  await ed.edit(b.path, [change]);
+                  say(`Restored the save before ${when(versions[i].time)}: unsaved, u undoes it`);
+                  return;
+                }
+                ed.diffWith(Text.of(old.split("\n")));
+                say(`Diff against the save before ${when(versions[i].time)}, <Space>gd closes it`);
+              })
+              .catch((e) => fail(errText(e))),
         });
       },
     },

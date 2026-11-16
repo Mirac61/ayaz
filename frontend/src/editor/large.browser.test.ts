@@ -8,15 +8,20 @@ const frame = () => new Promise<number>((r) => requestAnimationFrame(r));
 
 // M51: what a 10 MB file and a 1 MB line cost (docs/perf-log.md). Headless WebKit, so the numbers are coarse.
 const goFile = () => {
-  const fn = (i: number) => `func handler${i}(w http.ResponseWriter, r *http.Request) {\n\tif r.Method != "GET" {\n` +
+  const fn = (i: number) =>
+    `func handler${i}(w http.ResponseWriter, r *http.Request) {\n\tif r.Method != "GET" {\n` +
     `\t\thttp.Error(w, "method", 405)\n\t\treturn\n\t}\n\tfmt.Fprintf(w, "hello %d", ${i})\n}\n\n`;
   let s = "package main\n\n";
-  for (let i = 0; s.length < 10 << 20; i++) s += fn(i);
+  for (let i = 0; s.length < 10 << 20; i++) {
+    s += fn(i);
+  }
   return s;
 };
 const minified = () => {
   let s = "";
-  for (let i = 0; s.length < 1 << 20; i++) s += `function f${i}(a,b){return a.map(x=>x*${i}+b).filter(Boolean)};var v${i}={k:"${i}",n:[1,2,3]};`;
+  for (let i = 0; s.length < 1 << 20; i++) {
+    s += `function f${i}(a,b){return a.map(x=>x*${i}+b).filter(Boolean)};var v${i}={k:"${i}",n:[1,2,3]};`;
+  }
   return s;
 };
 
@@ -67,9 +72,11 @@ async function measure(name: string, path: string, doc: string) {
   const end = performance.now() - t;
   const p95 = (a: number[]) => [...a].sort((x, y) => x - y)[Math.floor(a.length * 0.95)];
   const max = (a: number[]) => Math.max(...a);
-  console.warn(`LARGE ${name}: open ${open.toFixed(0)} ms, git head ${head.toFixed(0)} ms, typing p95 ${p95(typing).toFixed(1)} max ${max(typing).toFixed(1)} ms, ` +
-    `at line 1's end p95 ${p95(typingEnd).toFixed(1)} ms, ` +
-    `scroll p95 ${p95(deltas).toFixed(1)} max ${max(deltas).toFixed(1)} ms, G ${end.toFixed(0)} ms`);
+  console.warn(
+    `LARGE ${name}: open ${open.toFixed(0)} ms, git head ${head.toFixed(0)} ms, typing p95 ${p95(typing).toFixed(1)} max ${max(typing).toFixed(1)} ms, ` +
+      `at line 1's end p95 ${p95(typingEnd).toFixed(1)} ms, ` +
+      `scroll p95 ${p95(deltas).toFixed(1)} max ${max(deltas).toFixed(1)} ms, G ${end.toFixed(0)} ms`,
+  );
   view.destroy();
   el.remove();
   return { open, typing: p95(typing), scroll: p95(deltas) };
@@ -84,7 +91,8 @@ test("long lines: the limit counts characters between newlines", () => {
 
 // Numbers for docs/perf-log.md come from the warnings; the gate is the per-key work.
 test("a 10 MB Go file and a 1 MB line type in under a 120 Hz frame", async () => {
-  const go = goFile(), min = minified();
+  const go = goFile(),
+    min = minified();
   expect((await measure("10 MB .go", "big.go", go)).typing).toBeLessThan(budget(8));
   expect((await measure("1 MB line .js", "min.js", min)).typing).toBeLessThan(budget(8)); // opens as plain text
 }, 300_000);

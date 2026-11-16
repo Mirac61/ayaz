@@ -6,7 +6,9 @@ import url from "./fonts/SymbolsNerdFontMono.woff2";
 let loading: Promise<unknown> | null = null; // once: StrictMode runs the effect that asks twice
 
 export function symbolsFont(): Promise<unknown> {
-  if (loading) return loading;
+  if (loading) {
+    return loading;
+  }
   const face = new FontFace("Ayaz Symbols", `url(${url})`, {
     unicodeRange: "U+E000-F8FF, U+F0000-FFFFD, U+23FB-23FE, U+2665, U+26A1, U+2B58",
   });

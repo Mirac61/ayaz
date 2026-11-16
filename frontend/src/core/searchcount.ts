@@ -8,12 +8,17 @@ let cache: { doc: Text; query: string; starts: number[]; more: boolean } | null 
 
 function matchStarts(doc: Text, query: RegExp) {
   const key = `${query.flags}/${query.source}`;
-  if (cache?.doc === doc && cache.query === key) return cache;
+  if (cache?.doc === doc && cache.query === key) {
+    return cache;
+  }
   const re = new RegExp(query.source, query.flags.replace("g", "") + "g");
   const starts: number[] = [];
   let more = false;
   for (const m of doc.toString().matchAll(re)) {
-    if (starts.length === MAX_MATCHES) { more = true; break; }
+    if (starts.length === MAX_MATCHES) {
+      more = true;
+      break;
+    }
     starts.push(m.index);
   }
   return (cache = { doc, query: key, starts, more });
@@ -22,13 +27,19 @@ function matchStarts(doc: Text, query: RegExp) {
 // "3/12": the match at or before the cursor out of all of them, like nvim's search count; "12/1000+" when there are more.
 // null for a document too big to scan on every cursor move.
 export function searchCount(doc: Text, query: RegExp, head: number): string | null {
-  if (doc.length > MAX_DOC) return null;
+  if (doc.length > MAX_DOC) {
+    return null;
+  }
   const { starts, more } = matchStarts(doc, query);
-  let lo = 0, hi = starts.length; // how many matches start at or before head
+  let lo = 0,
+    hi = starts.length; // how many matches start at or before head
   while (lo < hi) {
     const mid = (lo + hi) >> 1;
-    if (starts[mid] <= head) lo = mid + 1;
-    else hi = mid;
+    if (starts[mid] <= head) {
+      lo = mid + 1;
+    } else {
+      hi = mid;
+    }
   }
   return `${Math.min(Math.max(lo, 1), starts.length)}/${starts.length}${more ? "+" : ""}`;
 }

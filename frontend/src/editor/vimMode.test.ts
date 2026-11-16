@@ -1,6 +1,14 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import { isVim, setVim, toggleVim } from "../core/settings";
-import { createState, editorExtensions, lineNumbersCompartment, lineNumbersExtension, settingsEffects, vimCompartment, vimExtensions } from "./editor";
+import {
+  createState,
+  editorExtensions,
+  lineNumbersCompartment,
+  lineNumbersExtension,
+  settingsEffects,
+  vimCompartment,
+  vimExtensions,
+} from "./editor";
 
 describe("Vim mode and Standard mode configuration", () => {
   beforeEach(() => {

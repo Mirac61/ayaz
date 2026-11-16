@@ -19,7 +19,10 @@ test("lines: scopes and variables with their values, types as hints, open rows w
 
 test("toggle loads the children once, then only flips", async () => {
   let loads = 0;
-  const load = async (ref: number) => { loads++; return [v("a", `of ${ref}`)]; };
+  const load = async (ref: number) => {
+    loads++;
+    return [v("a", `of ${ref}`)];
+  };
   const row = rowOf(v("s", "[]int len: 1", 5, "[]int"));
   await toggle(row, load);
   expect(row.open).toBe(true);
@@ -33,7 +36,9 @@ test("toggle loads the children once, then only flips", async () => {
 
 test("a variable with nothing below doesn't toggle", async () => {
   const row = rowOf(v("i", "1"));
-  await toggle(row, async () => { throw new Error("must not load"); });
+  await toggle(row, async () => {
+    throw new Error("must not load");
+  });
   expect(row.open).toBe(false);
 });
 

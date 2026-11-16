@@ -36,7 +36,18 @@ export interface Settings extends FileSettings {
   languages: Record<string, Partial<FileSettings>>;
 }
 
-export const STATUS_COLORS = ["normal", "insert", "visual", "replace", "standard", "terminal", "read", "view", "error", "warning"] as const;
+export const STATUS_COLORS = [
+  "normal",
+  "insert",
+  "visual",
+  "replace",
+  "standard",
+  "terminal",
+  "read",
+  "view",
+  "error",
+  "warning",
+] as const;
 export type StatusColor = (typeof STATUS_COLORS)[number];
 
 export const DEFAULTS: Settings = {
@@ -70,13 +81,22 @@ export const DEFAULTS: Settings = {
   },
 };
 
-const TYPES: Record<keyof FileSettings, string> = { tabWidth: "number", tabs: "boolean", wrap: "boolean", formatOnSave: "boolean" };
+const TYPES: Record<keyof FileSettings, string> = {
+  tabWidth: "number",
+  tabs: "boolean",
+  wrap: "boolean",
+  formatOnSave: "boolean",
+};
 
 function checkFile(o: Record<string, unknown>, where: string) {
   for (const [k, v] of Object.entries(o)) {
     const t = TYPES[k as keyof FileSettings];
-    if (!t) throw new Error(`${where}: unknown setting "${k}"`);
-    if (typeof v !== t) throw new Error(`${where}: "${k}" must be a ${t}`);
+    if (!t) {
+      throw new Error(`${where}: unknown setting "${k}"`);
+    }
+    if (typeof v !== t) {
+      throw new Error(`${where}: "${k}" must be a ${t}`);
+    }
     if (k === "tabWidth" && !(Number.isInteger(v) && (v as number) >= 1 && (v as number) <= 16)) {
       throw new Error(`${where}: "tabWidth" must be a whole number from 1 to 16`);
     }
@@ -95,17 +115,25 @@ function strip(text: string, commas: boolean): string {
     const c = text[i];
     if (c === '"') {
       let j = i + 1;
-      while (j < text.length && text[j] !== '"') j += text[j] === "\\" ? 2 : 1;
+      while (j < text.length && text[j] !== '"') {
+        j += text[j] === "\\" ? 2 : 1;
+      }
       out += text.slice(i, j + 1);
       i = j;
     } else if (commas) {
-      if (c !== "," || !/^\s*[}\]]/.test(text.slice(i + 1, i + 200))) out += c;
+      if (c !== "," || !/^\s*[}\]]/.test(text.slice(i + 1, i + 200))) {
+        out += c;
+      }
     } else if (c === "/" && text[i + 1] === "/") {
-      while (i + 1 < text.length && text[i + 1] !== "\n") i++;
+      while (i + 1 < text.length && text[i + 1] !== "\n") {
+        i++;
+      }
     } else if (c === "/" && text[i + 1] === "*") {
       const end = text.indexOf("*/", i + 2);
       i = end < 0 ? text.length : end + 1;
-    } else out += c;
+    } else {
+      out += c;
+    }
   }
   return out;
 }
@@ -118,15 +146,42 @@ export function parseSettings(json: string): Settings {
   } catch (e) {
     throw new Error(`settings.json: ${e instanceof Error ? e.message : e}`);
   }
-  if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("settings.json: expected an object");
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    throw new Error("settings.json: expected an object");
+  }
   const {
-    font, fontSize, terminalFontSize, ligatures, inlayHints, semanticTokens, stickyScroll,
-    sidebar, statusline, markdownSkin, markdownReadingMode, markdownReadingTimeout, vim, glass, glassOpacity, theme, themes, statusColors, tasks, languages, ...file
+    font,
+    fontSize,
+    terminalFontSize,
+    ligatures,
+    inlayHints,
+    semanticTokens,
+    stickyScroll,
+    sidebar,
+    statusline,
+    markdownSkin,
+    markdownReadingMode,
+    markdownReadingTimeout,
+    vim,
+    glass,
+    glassOpacity,
+    theme,
+    themes,
+    statusColors,
+    tasks,
+    languages,
+    ...file
   } = data as Record<string, unknown>;
-  if (font !== undefined && typeof font !== "string") throw new Error('settings.json: "font" must be a string');
-  if (inlayHints !== undefined && typeof inlayHints !== "boolean") throw new Error('settings.json: "inlayHints" must be a boolean');
+  if (font !== undefined && typeof font !== "string") {
+    throw new Error('settings.json: "font" must be a string');
+  }
+  if (inlayHints !== undefined && typeof inlayHints !== "boolean") {
+    throw new Error('settings.json: "inlayHints" must be a boolean');
+  }
   for (const [name, v] of Object.entries({ ligatures, semanticTokens, stickyScroll, glass, vim })) {
-    if (v !== undefined && typeof v !== "boolean") throw new Error(`settings.json: "${name}" must be a boolean`);
+    if (v !== undefined && typeof v !== "boolean") {
+      throw new Error(`settings.json: "${name}" must be a boolean`);
+    }
   }
   if (glassOpacity !== undefined && (typeof glassOpacity !== "number" || glassOpacity < 0.3 || glassOpacity > 1)) {
     throw new Error('settings.json: "glassOpacity" must be a number from 0.3 to 1');
@@ -140,16 +195,25 @@ export function parseSettings(json: string): Settings {
   if (markdownSkin !== undefined && markdownSkin !== "github" && markdownSkin !== "kairo") {
     throw new Error('settings.json: "markdownSkin" must be "github" or "kairo"');
   }
-  if (markdownReadingMode !== undefined && markdownReadingMode !== "smart" && markdownReadingMode !== "always" && markdownReadingMode !== "never") {
+  if (
+    markdownReadingMode !== undefined &&
+    markdownReadingMode !== "smart" &&
+    markdownReadingMode !== "always" &&
+    markdownReadingMode !== "never"
+  ) {
     throw new Error('settings.json: "markdownReadingMode" must be "smart", "always" or "never"');
   }
   if (markdownReadingTimeout !== undefined && (typeof markdownReadingTimeout !== "number" || markdownReadingTimeout < 0)) {
     throw new Error('settings.json: "markdownReadingTimeout" must be a non-negative number of seconds');
   }
-  if (theme !== undefined && typeof theme !== "string") throw new Error('settings.json: "theme" must be a theme name');
+  if (theme !== undefined && typeof theme !== "string") {
+    throw new Error('settings.json: "theme" must be a theme name');
+  }
   const specs = themes === undefined ? {} : parseThemeSpecs(themes);
   resolveTheme((theme as string | undefined) ?? DEFAULT_THEME, specs); // an unknown theme or a circle fails here
-  for (const name of Object.keys(specs)) resolveTheme(name, specs);
+  for (const name of Object.keys(specs)) {
+    resolveTheme(name, specs);
+  }
   if (statusColors !== undefined) {
     if (!statusColors || typeof statusColors !== "object" || Array.isArray(statusColors)) {
       throw new Error('settings.json: "statusColors" must be an object');
@@ -168,7 +232,9 @@ export function parseSettings(json: string): Settings {
       throw new Error('settings.json: "tasks" must be an object of name → command');
     }
     for (const [k, v] of Object.entries(tasks)) {
-      if (typeof v !== "string") throw new Error(`settings.json: tasks.${k} must be a command (a string)`);
+      if (typeof v !== "string") {
+        throw new Error(`settings.json: tasks.${k} must be a command (a string)`);
+      }
     }
   }
   for (const [k, v] of Object.entries({ fontSize, terminalFontSize })) {
@@ -182,16 +248,21 @@ export function parseSettings(json: string): Settings {
   }
   const langs: Record<string, Partial<FileSettings>> = { ...DEFAULTS.languages };
   for (const [ext, o] of Object.entries((languages ?? {}) as Record<string, unknown>)) {
-    if (!o || typeof o !== "object" || Array.isArray(o)) throw new Error(`settings.json: languages.${ext} must be an object`);
+    if (!o || typeof o !== "object" || Array.isArray(o)) {
+      throw new Error(`settings.json: languages.${ext} must be an object`);
+    }
     checkFile(o as Record<string, unknown>, `settings.json languages.${ext}`);
     langs[ext.toLowerCase()] = { ...langs[ext.toLowerCase()], ...o };
   }
   return {
-    ...DEFAULTS, ...(file as Partial<FileSettings>),
-    ...(font !== undefined && { font }), ...(fontSize !== undefined && { fontSize: fontSize as number }), // checked above
+    ...DEFAULTS,
+    ...(file as Partial<FileSettings>),
+    ...(font !== undefined && { font }),
+    ...(fontSize !== undefined && { fontSize: fontSize as number }), // checked above
     ...(terminalFontSize !== undefined && { terminalFontSize: terminalFontSize as number }),
     ...(ligatures !== undefined && { ligatures: ligatures as boolean }), // checked above
-    ...(inlayHints !== undefined && { inlayHints }), ...(semanticTokens !== undefined && { semanticTokens: semanticTokens as boolean }), // checked above
+    ...(inlayHints !== undefined && { inlayHints }),
+    ...(semanticTokens !== undefined && { semanticTokens: semanticTokens as boolean }), // checked above
     ...(stickyScroll !== undefined && { stickyScroll: stickyScroll as boolean }),
     ...(sidebar !== undefined && { sidebar }),
     ...(statusline !== undefined && { statusline }),
@@ -226,11 +297,17 @@ export const availableThemes = () => themeNames(current.themes);
 const VIM_KEY = "ayaz.vim";
 const VIM_FILE_KEY = "ayaz.vim.file"; // settings.json's "vim" at the last load
 export function isVim(): boolean {
-  if (vimOverride !== null) return vimOverride;
+  if (vimOverride !== null) {
+    return vimOverride;
+  }
   try {
     const v = localStorage.getItem(VIM_KEY);
-    if (v === "on" || v === "off") return v === "on";
-  } catch { /* storage fallback */ }
+    if (v === "on" || v === "off") {
+      return v === "on";
+    }
+  } catch {
+    /* storage fallback */
+  }
   return current.vim;
 }
 
@@ -238,7 +315,9 @@ export function setVim(on: boolean): void {
   vimOverride = on;
   try {
     localStorage.setItem(VIM_KEY, on ? "on" : "off");
-  } catch { /* storage fallback */ }
+  } catch {
+    /* storage fallback */
+  }
 }
 
 export function toggleVim(): boolean {
@@ -254,7 +333,9 @@ function paintTheme() {
   const root = document.documentElement.style;
   for (const k of STATUS_COLORS) {
     const c = current.statusColors[k];
-    if (c) root.setProperty(`--status-${k}`, c);
+    if (c) {
+      root.setProperty(`--status-${k}`, c);
+    }
   }
 }
 
@@ -267,7 +348,9 @@ export function toggleGlass(): boolean {
 
 // The theme command: this theme until settings.json names another one. Returns false for an unknown name.
 export function setThemeOverride(name: string): boolean {
-  if (!availableThemes().includes(name)) return false;
+  if (!availableThemes().includes(name)) {
+    return false;
+  }
   override = name;
   paintTheme();
   return true;
@@ -305,8 +388,12 @@ export function loadSettings(text: string) {
   root.setProperty("--editor-ligatures", current.ligatures ? "normal" : "none");
   root.removeProperty("--font-mono"); // back to the stylesheet's stack, so a reload doesn't stack fonts
   const mono = getComputedStyle(document.documentElement).getPropertyValue("--font-mono");
-  if (current.font) root.setProperty("--font-mono", `"${current.font}", ${mono}`);
-  if (current.theme !== fileTheme) override = "";
+  if (current.font) {
+    root.setProperty("--font-mono", `"${current.font}", ${mono}`);
+  }
+  if (current.theme !== fileTheme) {
+    override = "";
+  }
   fileTheme = current.theme;
   paintTheme();
 }

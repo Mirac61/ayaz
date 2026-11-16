@@ -4,9 +4,9 @@ import "./notifications.css";
 
 const ICONS: Record<string, string> = {
   success: "\uf00c", // checkmark
-  info: "\uf05a",    // info-circle
+  info: "\uf05a", // info-circle
   warning: "\uf071", // exclamation-triangle
-  error: "\uf06a",   // exclamation-circle
+  error: "\uf06a", // exclamation-circle
 };
 
 export function Notifications() {
@@ -18,7 +18,9 @@ export function Notifications() {
     });
   }, []);
 
-  if (!toasts.length) return null;
+  if (!toasts.length) {
+    return null;
+  }
 
   return (
     <div className="notifications-container" aria-live="polite" role="region" aria-label="Notifications">

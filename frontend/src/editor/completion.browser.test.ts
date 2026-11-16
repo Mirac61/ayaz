@@ -16,9 +16,10 @@ afterEach(() => {
   view = null;
 });
 
-const range = (l1: number, c1: number, l2: number, c2: number) => (
-  { start: { line: l1, character: c1 }, end: { line: l2, character: c2 } }
-);
+const range = (l1: number, c1: number, l2: number, c2: number) => ({
+  start: { line: l1, character: c1 },
+  end: { line: l2, character: c2 },
+});
 
 // A server with one completion item (what the test passes), optionally with a resolve step.
 async function mount(doc: string, item: object, resolved?: object) {
@@ -30,14 +31,18 @@ async function mount(doc: string, item: object, resolved?: object) {
       if (m.method === "initialize") {
         const completionProvider = { resolveProvider: !!resolved };
         reply({ id: m.id, result: { capabilities: { textDocumentSync: 1, completionProvider } } });
-      } else if (m.method === "textDocument/completion") reply({ id: m.id, result: [item] });
-      else if (m.method === "completionItem/resolve") reply({ id: m.id, result: resolved });
+      } else if (m.method === "textDocument/completion") {
+        reply({ id: m.id, result: [item] });
+      } else if (m.method === "completionItem/resolve") {
+        reply({ id: m.id, result: resolved });
+      }
     },
     subscribe: (h) => void handlers.add(h),
     unsubscribe: (h) => void handlers.delete(h),
   };
   const client = new LSPClient({
-    rootUri: "file:///r", extensions: [...clientExtensions(), { clientCapabilities: CAPABILITIES }],
+    rootUri: "file:///r",
+    extensions: [...clientExtensions(), { clientCapabilities: CAPABILITIES }],
   }).connect(transport);
   await client.initializing;
   const el = document.createElement("div");
@@ -45,7 +50,9 @@ async function mount(doc: string, item: object, resolved?: object) {
   view = new EditorView({
     parent: el,
     state: EditorState.create({
-      doc, selection: { anchor: doc.length }, extensions: [editorExtensions(), client.plugin("file:///r/a.go", "go")],
+      doc,
+      selection: { anchor: doc.length },
+      extensions: [editorExtensions(), client.plugin("file:///r/a.go", "go")],
     }),
   });
   view.focus();
@@ -60,7 +67,9 @@ const IMPORT = { range: range(1, 0, 1, 0), newText: 'import "fmt"\n' };
 
 test("a completion's additionalTextEdits go in with it: the import comes with fmt.Println", async () => {
   const v = await mount(SRC, {
-    label: "Println", insertText: "Println", additionalTextEdits: [IMPORT],
+    label: "Println",
+    insertText: "Println",
+    additionalTextEdits: [IMPORT],
     textEdit: { range: range(3, 5, 3, 8), newText: "Println" },
   });
   expect(acceptCompletion(v)).toBe(true);
@@ -80,7 +89,9 @@ test("an item without them is resolved when the server can", async () => {
 
 test("a snippet inserts its text with tab stops, and the extra edits still apply", async () => {
   const v = await mount(SRC, {
-    label: "Printf", insertTextFormat: 2, textEdit: { range: range(3, 5, 3, 8), newText: "Printf(${1:format}, $2)$0" },
+    label: "Printf",
+    insertTextFormat: 2,
+    textEdit: { range: range(3, 5, 3, 8), newText: "Printf(${1:format}, $2)$0" },
     additionalTextEdits: [IMPORT],
   });
   acceptCompletion(v);
@@ -103,7 +114,9 @@ test("snippets.json: a snippet shows up in the list and inserts with its tab sto
   view = new EditorView({
     parent: el,
     state: EditorState.create({
-      doc: "func f() {\n\tife", selection: { anchor: 15 }, extensions: [editorExtensions(), snippetCompletion("go")],
+      doc: "func f() {\n\tife",
+      selection: { anchor: 15 },
+      extensions: [editorExtensions(), snippetCompletion("go")],
     }),
   });
   view.focus();

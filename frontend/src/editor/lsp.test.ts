@@ -40,10 +40,17 @@ describe("streamTransport", () => {
   test("workspace/applyEdit is answered here, not passed on", async () => {
     const { sock, sent } = fakeSocket(1);
     const edits: unknown[] = [];
-    const t = streamTransport(sock, {}, () => {}, async (e) => (edits.push(e), true));
+    const t = streamTransport(
+      sock,
+      {},
+      () => {},
+      async (e) => (edits.push(e), true),
+    );
     const got: string[] = [];
     t.subscribe((m) => got.push(m));
-    sock.onmessage({ data: JSON.stringify({ jsonrpc: "2.0", id: 7, method: "workspace/applyEdit", params: { edit: { changes: {} } } }) });
+    sock.onmessage({
+      data: JSON.stringify({ jsonrpc: "2.0", id: 7, method: "workspace/applyEdit", params: { edit: { changes: {} } } }),
+    });
     await Promise.resolve();
     expect(edits).toEqual([{ changes: {} }]);
     expect(got).toEqual([]);
@@ -101,22 +108,29 @@ test("serverFor: one server per language group", () => {
   expect(serverFor("file:///usr/include/stdio.h")?.[1]).toBe("clangd");
 });
 
-const r = (l1: number, c1: number, l2: number, c2: number) => ({ start: { line: l1, character: c1 }, end: { line: l2, character: c2 } });
+const r = (l1: number, c1: number, l2: number, c2: number) => ({
+  start: { line: l1, character: c1 },
+  end: { line: l2, character: c2 },
+});
 
 test("fileOps: changes or documentChanges, in order, with file operations inside the folder", () => {
   const e = { range: r(0, 0, 0, 1), newText: "x" };
-  expect(fileOps("/r", { changes: { "file:///r/a.go": [e], "file:///r/b.go": [] } })).toEqual([{ kind: "edit", path: "a.go", edits: [e] }]);
-  expect(fileOps("/r", {
-    changes: { "file:///r/ignored.go": [e] }, // documentChanges win
-    documentChanges: [
-      { kind: "create", uri: "file:///r/new.ts" },
-      { textDocument: { uri: "file:///r/new.ts" }, edits: [e] },
-      { kind: "rename", oldUri: "file:///r/a.ts", newUri: "file:///r/b.ts" },
-      { kind: "delete", uri: "file:///r/old.ts" },
-      { kind: "delete", uri: "file:///etc/passwd" }, // outside the folder: never
-      { kind: "rename", oldUri: "file:///r/x.ts", newUri: "file:///tmp/x.ts" },
-    ],
-  })).toEqual([
+  expect(fileOps("/r", { changes: { "file:///r/a.go": [e], "file:///r/b.go": [] } })).toEqual([
+    { kind: "edit", path: "a.go", edits: [e] },
+  ]);
+  expect(
+    fileOps("/r", {
+      changes: { "file:///r/ignored.go": [e] }, // documentChanges win
+      documentChanges: [
+        { kind: "create", uri: "file:///r/new.ts" },
+        { textDocument: { uri: "file:///r/new.ts" }, edits: [e] },
+        { kind: "rename", oldUri: "file:///r/a.ts", newUri: "file:///r/b.ts" },
+        { kind: "delete", uri: "file:///r/old.ts" },
+        { kind: "delete", uri: "file:///etc/passwd" }, // outside the folder: never
+        { kind: "rename", oldUri: "file:///r/x.ts", newUri: "file:///tmp/x.ts" },
+      ],
+    }),
+  ).toEqual([
     { kind: "create", path: "new.ts" },
     { kind: "edit", path: "new.ts", edits: [e] },
     { kind: "rename", from: "a.ts", to: "b.ts" },
@@ -126,9 +140,17 @@ test("fileOps: changes or documentChanges, in order, with file operations inside
 
 test("toChanges: sorted offsets, clamped to the line and the doc", () => {
   const doc = Text.of(["ab", "cd"]);
-  expect(toChanges(doc, [
-    { range: r(1, 0, 1, 1), newText: "C" }, { range: r(0, 0, 0, 9), newText: "A" }, { range: r(5, 0, 5, 0), newText: "!" },
-  ])).toEqual([{ from: 0, to: 2, insert: "A" }, { from: 3, to: 4, insert: "C" }, { from: 5, to: 5, insert: "!" }]);
+  expect(
+    toChanges(doc, [
+      { range: r(1, 0, 1, 1), newText: "C" },
+      { range: r(0, 0, 0, 9), newText: "A" },
+      { range: r(5, 0, 5, 0), newText: "!" },
+    ]),
+  ).toEqual([
+    { from: 0, to: 2, insert: "A" },
+    { from: 3, to: 4, insert: "C" },
+    { from: 5, to: 5, insert: "!" },
+  ]);
 });
 
 test("installHint: platform-specific installation commands for Windows, macOS, and Linux distros", () => {

@@ -5,7 +5,7 @@ describe("terminal tab & titlebar path formatting", () => {
     const isTerm = path?.startsWith("term://") ?? false;
     const termName = isTerm && path ? path.slice(7) : null;
     const dir = isTerm ? "" : path?.slice(0, path.lastIndexOf("/") + 1);
-    const name = isTerm ? termName || "shell" : path?.slice(dir?.length) ?? "[No Name]";
+    const name = isTerm ? termName || "shell" : (path?.slice(dir?.length) ?? "[No Name]");
     return { isTerm, dir: isTerm ? "terminal" : dir, name };
   }
 
@@ -46,7 +46,9 @@ describe("terminal tab & titlebar path formatting", () => {
     const dropTermTab = (title: string) => {
       for (const list of tabs.values()) {
         const i = list.indexOf(`term://${title}`);
-        if (i >= 0) list.splice(i, 1);
+        if (i >= 0) {
+          list.splice(i, 1);
+        }
       }
     };
 

@@ -2,7 +2,12 @@ import { expect, test } from "vitest";
 import { hexColors, splitHex } from "./swatches";
 
 test("finds hex colors of 3, 4, 6 and 8 digits", () => {
-  expect(hexColors("a: #fff; b: #12345678, c: #1a2B3c; d: #abcd").map((c) => c.color)).toEqual(["#fff", "#12345678", "#1a2B3c", "#abcd"]);
+  expect(hexColors("a: #fff; b: #12345678, c: #1a2B3c; d: #abcd").map((c) => c.color)).toEqual([
+    "#fff",
+    "#12345678",
+    "#1a2B3c",
+    "#abcd",
+  ]);
 });
 
 test("ignores what only looks like one", () => {
@@ -10,7 +15,10 @@ test("ignores what only looks like one", () => {
 });
 
 test("gives the offset of each color", () => {
-  expect(hexColors("x #fff y #000")).toEqual([{ index: 2, color: "#fff" }, { index: 9, color: "#000" }]);
+  expect(hexColors("x #fff y #000")).toEqual([
+    { index: 2, color: "#fff" },
+    { index: 9, color: "#000" },
+  ]);
 });
 
 test("splitHex expands short forms and keeps alpha apart", () => {

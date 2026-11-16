@@ -2,7 +2,22 @@ import { expect, test } from "vitest";
 import { loadLanguage, serverFor } from "./registry";
 
 test("every listed extension loads a parser that parses a line", async () => {
-  const files = ["a.py", "a.rs", "a.yaml", "a.yml", "a.toml", "a.sh", "a.zsh", "a.sql", "a.xml", "a.php", "a.lua", "Dockerfile", "a.typ", "a.tex"];
+  const files = [
+    "a.py",
+    "a.rs",
+    "a.yaml",
+    "a.yml",
+    "a.toml",
+    "a.sh",
+    "a.zsh",
+    "a.sql",
+    "a.xml",
+    "a.php",
+    "a.lua",
+    "Dockerfile",
+    "a.typ",
+    "a.tex",
+  ];
   for (const f of files) {
     const lang = await loadLanguage(f);
     expect(lang, f).not.toBeNull();

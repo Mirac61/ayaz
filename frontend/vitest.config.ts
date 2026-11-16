@@ -8,7 +8,9 @@ export default defineConfig({
       { test: { name: "node", include: ["src/**/*.test.ts"], exclude: ["src/**/*.browser.test.ts"] } },
       {
         // Found late by the optimizer, Vite reloads mid-run and drops the test file that was importing them.
-        optimizeDeps: { include: ["react", "react-dom", "react-dom/client", "react/jsx-dev-runtime", "pdfjs-dist/web/pdf_viewer.mjs"] },
+        optimizeDeps: {
+          include: ["react", "react-dom", "react-dom/client", "react/jsx-dev-runtime", "pdfjs-dist/web/pdf_viewer.mjs"],
+        },
         define: { __CI__: !!process.env.CI },
         test: {
           name: "browser",

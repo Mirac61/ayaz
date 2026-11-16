@@ -57,11 +57,42 @@ const EX: [name: string, prefix: string, command: string][] = [
 // Whether a palette line reads as a Vim ex command (":w", ":%s/a/b/", ":3,5d") rather than words to search commands by.
 const EX_WORDS = new Set([
   ...EX.flatMap(([name, prefix]) => [name, prefix]),
-  "x", "wa", "qa", "qall", "wqa", "xa", "s", "g", "v", "d", "y", "m", "t", "co", "noh", "nohlsearch", "set", "sort",
-  "norm", "normal", "reg", "marks", "h", "help", "j", "join", "k", "pu", "put", "r", "read",
+  "x",
+  "wa",
+  "qa",
+  "qall",
+  "wqa",
+  "xa",
+  "s",
+  "g",
+  "v",
+  "d",
+  "y",
+  "m",
+  "t",
+  "co",
+  "noh",
+  "nohlsearch",
+  "set",
+  "sort",
+  "norm",
+  "normal",
+  "reg",
+  "marks",
+  "h",
+  "help",
+  "j",
+  "join",
+  "k",
+  "pu",
+  "put",
+  "r",
+  "read",
 ]);
 export function isEx(q: string): boolean {
-  if (/^[\d%.,$'<>+-]/.test(q) || /[!/]/.test(q)) return true;
+  if (/^[\d%.,$'<>+-]/.test(q) || /[!/]/.test(q)) {
+    return true;
+  }
   const [word, ...rest] = q.trim().split(/\s+/);
   // "split down" is a search for a command; "e file" and "set nu" are lines, so only short ex words take arguments.
   // User commands start uppercase (":Replace $2 $1") and always take arguments.
@@ -72,7 +103,9 @@ export function isEx(q: string): boolean {
 // Only the workbench asks for it: the Vim tests in the browser type ex lines into Vim's own line.
 let paletteKey = false;
 export function installPaletteKey() {
-  if (paletteKey) return;
+  if (paletteKey) {
+    return;
+  }
   paletteKey = true;
   Vim.defineAction("ayazCmdline", () => run("view.cmdline"));
   Vim.mapCommand(":", "action", "ayazCmdline", {}, { context: "normal" });
@@ -86,7 +119,7 @@ export const historyRoute = new WeakMap<EditorView, (redo: boolean) => boolean>(
 export interface GlobalMark {
   path: string;
   line: number; // 0-based
-  ch: number;   // 0-based
+  ch: number; // 0-based
 }
 export const globalMarks = new Map<string, GlobalMark>();
 export const viewPath = new WeakMap<EditorView, () => string | undefined>();
@@ -108,12 +141,16 @@ let prime: Prime = () => {};
 export function installVim(r: Run, normal: Binding[], p: Prime) {
   run = r;
   prime = p;
-  if (installed) return mapBindings(normal);
+  if (installed) {
+    return mapBindings(normal);
+  }
   installed = true;
   Vim.map("jk", "<Esc>", "insert");
   Vim.map(";", ":", "normal");
 
-  for (const [name, prefix, command] of EX) Vim.defineEx(name, prefix, (_cm, p) => run(command, (p.argString ?? "").trim()));
+  for (const [name, prefix, command] of EX) {
+    Vim.defineEx(name, prefix, (_cm, p) => run(command, (p.argString ?? "").trim()));
+  }
 
   // Space is the leader, like most nvim setups; by default it is a synonym for l.
   Vim.unmap("<Space>", undefined as never);
@@ -135,7 +172,9 @@ export function installVim(r: Run, normal: Binding[], p: Prime) {
 
   // Multi-cursor next occurrence: gb in normal and visual mode (like vscode-neovim / vim-visual-multi)
   Vim.defineAction("selectNextOccurrence", (cm: CodeMirror) => {
-    if (cm.cm6) selectNextOccurrence(cm.cm6);
+    if (cm.cm6) {
+      selectNextOccurrence(cm.cm6);
+    }
   });
   Vim.mapCommand("gb", "action", "selectNextOccurrence", {}, { context: "normal" });
   Vim.mapCommand("gb", "action", "selectNextOccurrence", {}, { context: "visual" });
@@ -156,27 +195,40 @@ export function installVim(r: Run, normal: Binding[], p: Prime) {
     const L = String.fromCharCode(code);
     Vim.defineAction("setMark_" + L, (cm: CodeMirror) => {
       const v = cm.cm6;
-      if (!v) return;
+      if (!v) {
+        return;
+      }
       const path = viewPath.get(v)?.();
       const head = v.state.selection.main.head;
       const lineObj = v.state.doc.lineAt(head);
       const line = lineObj.number - 1;
       const ch = head - lineObj.from;
-      if (path) globalMarks.set(L, { path, line, ch });
+      if (path) {
+        globalMarks.set(L, { path, line, ch });
+      }
       const vim = (cm as unknown as { state?: { vim?: { marks?: Record<string, { clear(): void }> } } }).state?.vim;
       if (vim?.marks) {
-        if (vim.marks[L]) vim.marks[L].clear();
-        vim.marks[L] = (cm as unknown as { setBookmark(p: { line: number; ch: number }): { clear(): void } }).setBookmark({ line, ch });
+        if (vim.marks[L]) {
+          vim.marks[L].clear();
+        }
+        vim.marks[L] = (cm as unknown as { setBookmark(p: { line: number; ch: number }): { clear(): void } }).setBookmark({
+          line,
+          ch,
+        });
       }
     });
     Vim.mapCommand("m" + L, "action", "setMark_" + L, {}, { context: "normal" });
 
     Vim.defineAction("jumpMarkLine_" + L, (cm: CodeMirror) => {
       const v = cm.cm6;
-      if (!v) return;
+      if (!v) {
+        return;
+      }
       const currentPath = viewPath.get(v)?.();
       const mark = globalMarks.get(L);
-      if (!mark) return;
+      if (!mark) {
+        return;
+      }
       if (currentPath && mark.path !== currentPath) {
         markJump(mark.path, mark.line, 0);
         return;
@@ -191,10 +243,14 @@ export function installVim(r: Run, normal: Binding[], p: Prime) {
 
     Vim.defineAction("jumpMarkChar_" + L, (cm: CodeMirror) => {
       const v = cm.cm6;
-      if (!v) return;
+      if (!v) {
+        return;
+      }
       const currentPath = viewPath.get(v)?.();
       const mark = globalMarks.get(L);
-      if (!mark) return;
+      if (!mark) {
+        return;
+      }
       if (currentPath && mark.path !== currentPath) {
         markJump(mark.path, mark.line, mark.ch);
         return;
@@ -222,7 +278,9 @@ export function installVim(r: Run, normal: Binding[], p: Prime) {
     const view = cm.cm6!;
     const pos = cm.indexFromPos(head);
     let r = lastScreen?.head === pos ? lastScreen : EditorSelection.cursor(pos, 1);
-    for (let i = 0; i < (args.repeat ?? 1); i++) r = view.moveVertically(r, !!args.forward);
+    for (let i = 0; i < (args.repeat ?? 1); i++) {
+      r = view.moveVertically(r, !!args.forward);
+    }
     lastScreen = r;
     return cm.posFromIndex(r.head);
   });
@@ -231,7 +289,9 @@ export function installVim(r: Run, normal: Binding[], p: Prime) {
 }
 
 function mapBindings(normal: Binding[]) {
-  for (const keys of mapped) Vim.unmap(keys, "normal");
+  for (const keys of mapped) {
+    Vim.unmap(keys, "normal");
+  }
   mapped = normal.map((b) => b.keys);
   normal.forEach((b, i) => {
     const action = `ayaz${i}`;

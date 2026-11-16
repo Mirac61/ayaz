@@ -4,7 +4,14 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { e2eWorkspace } from "../playwright.config";
 
-const hasGopls = (() => { try { execSync("command -v gopls", { shell: "/bin/sh" }); return true; } catch { return false; } })();
+const hasGopls = (() => {
+  try {
+    execSync("command -v gopls", { shell: "/bin/sh" });
+    return true;
+  } catch {
+    return false;
+  }
+})();
 
 // M7: real gopls through the lsp stream: an error in broken.go shows as a lint marker.
 test("gopls reports a diagnostic", async ({ page }) => {
@@ -81,7 +88,9 @@ test("diagnostics: counts, list and ]d", async ({ page }) => {
   await expect(status).toContainText("(1 of 3) error: C source files"); // errors first, then file and line
   await page.keyboard.type(":copen\n");
   await expect(page.getByRole("dialog", { name: /Quickfix: Diagnostics/ }).getByRole("option")).toHaveText([
-    /broken\.go:1:1: error: C source files/, /broken\.go:4:2: error: undefined: undefinedThing/, /hello\.go:1:1: error: C source/,
+    /broken\.go:1:1: error: C source files/,
+    /broken\.go:4:2: error: undefined: undefinedThing/,
+    /hello\.go:1:1: error: C source/,
   ]);
 });
 
@@ -113,7 +122,12 @@ test("hover, rename across files, code actions", async ({ page }) => {
   await expect(page.locator(".cm-content")).toContainText("func salute");
 
   await page.keyboard.type(" ca");
-  await expect(page.getByRole("dialog", { name: /Code actions/ }).getByRole("option").first()).toBeVisible();
+  await expect(
+    page
+      .getByRole("dialog", { name: /Code actions/ })
+      .getByRole("option")
+      .first(),
+  ).toBeVisible();
   await page.keyboard.press("Escape");
 });
 
@@ -229,7 +243,9 @@ test("completing fmt.Println adds the import", async ({ page }) => {
   await page.keyboard.type("gg3j$a"); // after Printl, in insert mode
   await expect(async () => {
     await page.keyboard.type("n");
-    await expect(page.locator(".cm-tooltip-autocomplete").getByText("Println", { exact: true }).first()).toBeVisible({ timeout: 3000 });
+    await expect(page.locator(".cm-tooltip-autocomplete").getByText("Println", { exact: true }).first()).toBeVisible({
+      timeout: 3000,
+    });
   }).toPass({ timeout: 30_000 });
   await page.waitForTimeout(200); // the popup ignores an Enter right after it opens
   await page.keyboard.press("Enter");

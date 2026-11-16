@@ -13,18 +13,29 @@ test("the breakpoints go out as absolute paths with their lines", async () => {
   const f = fake();
   const sent: any[] = [];
   const raw = f.transport.send;
-  f.transport.send = (j) => { sent.push(JSON.parse(j)); raw(j); };
+  f.transport.send = (j) => {
+    sent.push(JSON.parse(j));
+    raw(j);
+  };
   await launch(new DapClient(f.transport), { root: "/p", breakpoints: { "main.go": [5, 9] } });
   const bp = sent.find((m) => m.command === "setBreakpoints");
   expect(bp.arguments).toEqual({ source: { path: "/p/main.go" }, breakpoints: [{ line: 5 }, { line: 9 }] });
-  expect(sent.find((m) => m.command === "launch").arguments).toEqual({ mode: "debug", program: "/p", cwd: "/p", console: "integratedTerminal" });
+  expect(sent.find((m) => m.command === "launch").arguments).toEqual({
+    mode: "debug",
+    program: "/p",
+    cwd: "/p",
+    console: "integratedTerminal",
+  });
 });
 
 test("conditional breakpoints, logpoints and hitCondition are forwarded in setBreakpoints", async () => {
   const f = fake();
   const sent: any[] = [];
   const raw = f.transport.send;
-  f.transport.send = (j) => { sent.push(JSON.parse(j)); raw(j); };
+  f.transport.send = (j) => {
+    sent.push(JSON.parse(j));
+    raw(j);
+  };
   await launch(new DapClient(f.transport), {
     root: "/p",
     breakpoints: {

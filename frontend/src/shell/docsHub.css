@@ -805,7 +805,9 @@
     box-shadow: 4px 0 24px color-mix(in srgb, var(--bg-0) 80%, transparent);
     visibility: hidden;
     transform: translateX(-100%);
-    transition: transform var(--t) var(--ease), visibility var(--t) var(--ease);
+    transition:
+      transform var(--t) var(--ease),
+      visibility var(--t) var(--ease);
   }
 
   .docs-sidebar.open {

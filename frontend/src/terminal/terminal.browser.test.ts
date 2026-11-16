@@ -1,8 +1,21 @@
 import { expect, test, vi } from "vitest";
 
 // A socket that is already OPEN but hasn't run onopen yet: the moment a pane resize can slip in.
-const sock = { readyState: 1, binaryType: "", sent: [] as unknown[], send(d: unknown) { this.sent.push(d); }, close() {} } as {
-  readyState: number; binaryType: string; sent: unknown[]; send(d: unknown): void; close(): void; onopen?: () => void;
+const sock = {
+  readyState: 1,
+  binaryType: "",
+  sent: [] as unknown[],
+  send(d: unknown) {
+    this.sent.push(d);
+  },
+  close() {},
+} as {
+  readyState: number;
+  binaryType: string;
+  sent: unknown[];
+  send(d: unknown): void;
+  close(): void;
+  onopen?: () => void;
 };
 vi.mock("../core/backend", () => ({ backend: { stream: () => sock, openURL: () => {} } }));
 const { openTerminal } = await import("./terminal");

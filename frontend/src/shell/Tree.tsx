@@ -6,7 +6,12 @@ import { PREVIEW } from "../core/viewers";
 import { fileIcon, folderIcon } from "../theme/icons";
 import { ContextMenu, type MenuItem } from "../ui/ui";
 
-interface Row { path: string; name: string; dir: boolean; depth: number }
+interface Row {
+  path: string;
+  name: string;
+  dir: boolean;
+  depth: number;
+}
 const ROW = 28; // px, fixed so we can window the rows by scrollTop
 const OVERSCAN = 20; // rows drawn beyond the viewport on each side, so a fast scroll finds rows already there
 
@@ -22,7 +27,11 @@ export interface TreeHandle {
 const parent = (p: string) => p.slice(0, Math.max(p.lastIndexOf("/"), 0));
 
 // A workspace path the way the backend's path.Clean spells it: "./b.go" and "a//b" are "b.go" and "a/b".
-export const cleanRel = (p: string) => p.split("/").reduce<string[]>((a, s) => (s === ".." ? (a.pop(), a) : s && s !== "." ? [...a, s] : a), []).join("/");
+export const cleanRel = (p: string) =>
+  p
+    .split("/")
+    .reduce<string[]>((a, s) => (s === ".." ? (a.pop(), a) : s && s !== "." ? [...a, s] : a), [])
+    .join("/");
 
 // The filter's matches as tree rows: each file under its folders, all open, folders first and by name like the list.
 export function filterRows(paths: string[]): Row[] {
@@ -31,7 +40,9 @@ export function filterRows(paths: string[]): Row[] {
     const parts = p.split("/");
     parts.forEach((name, i) => {
       const dir = parts.slice(0, i).join("/");
-      if (!kids.has(dir)) kids.set(dir, new Map());
+      if (!kids.has(dir)) {
+        kids.set(dir, new Map());
+      }
       kids.get(dir)!.set(name, kids.get(dir)!.get(name) || i < parts.length - 1);
     });
   }
@@ -41,7 +52,9 @@ export function filterRows(paths: string[]): Row[] {
     for (const [name, isDir] of es) {
       const path = dir ? `${dir}/${name}` : name;
       out.push({ path, name, dir: isDir, depth });
-      if (isDir) walk(path, depth + 1);
+      if (isDir) {
+        walk(path, depth + 1);
+      }
     }
   };
   walk("", 0);
@@ -58,12 +71,25 @@ interface Props {
   git(path: string): string | undefined; // git state for the name's color (gitstatus.ts)
 }
 
-const GIT_CLASS: Record<string, string> = { M: " git-mod", A: " git-add", "?": " git-add", U: " git-conflict", "!": " git-ignored", D: " git-del" };
+const GIT_CLASS: Record<string, string> = {
+  M: " git-mod",
+  A: " git-add",
+  "?": " git-add",
+  U: " git-conflict",
+  "!": " git-ignored",
+  D: " git-del",
+};
 export const GIT_BADGE: Record<string, string> = { M: "M", A: "A", D: "D", R: "R", "?": "U", U: "C" };
 export const isHtmlPath = (p: string) => !p.endsWith("/") && (p.endsWith(".html") || p.endsWith(".htm"));
 
 const KEYS: Record<string, string> = {
-  a: "file.new", r: "file.rename", c: "file.duplicate", d: "file.trash", y: "file.copyPath", Y: "file.copyAbsPath", s: "file.reveal",
+  a: "file.new",
+  r: "file.rename",
+  c: "file.duplicate",
+  d: "file.trash",
+  y: "file.copyPath",
+  Y: "file.copyAbsPath",
+  s: "file.reveal",
 };
 
 // Virtualized file tree: folders load when first expanded, only the visible rows are in the DOM.
@@ -91,22 +117,40 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
   // A folder that can't be listed (deleted) is forgotten, so it reloads fresh if it comes back.
   const load = (dir: string) =>
     files.list(dir).then(
-      (es) => setChildren((m) => new Map(m).set(dir, es.filter((e) => dir !== "" || e.name !== ".git"))),
-      () => setChildren((m) => { const n = new Map(m); n.delete(dir); return n; }),
+      (es) =>
+        setChildren((m) =>
+          new Map(m).set(
+            dir,
+            es.filter((e) => dir !== "" || e.name !== ".git"),
+          ),
+        ),
+      () =>
+        setChildren((m) => {
+          const n = new Map(m);
+          n.delete(dir);
+          return n;
+        }),
     );
 
   useImperativeHandle(ref, () => ({
     focus: () => el.current?.focus(),
     refresh(paths) {
       const dirs = paths ? new Set(paths.flatMap((p) => [p, parent(p)])) : null;
-      for (const d of loaded.current.keys()) if (!dirs || dirs.has(d)) load(d);
+      for (const d of loaded.current.keys()) {
+        if (!dirs || dirs.has(d)) {
+          load(d);
+        }
+      }
     },
     collapseAll: () => setExpanded(new Set()),
     selected: () => (current.current ? { path: current.current.path, dir: current.current.dir } : null),
     async reveal(path) {
       path = cleanRel(path);
       setFilter(null); // the filter's rows may not include the target
-      const dirs = path.split("/").slice(0, -1).map((_, i, a) => a.slice(0, i + 1).join("/"));
+      const dirs = path
+        .split("/")
+        .slice(0, -1)
+        .map((_, i, a) => a.slice(0, i + 1).join("/"));
       await Promise.all(["", ...dirs].map((d) => load(d))); // fresh lists: the file may be new
       setExpanded((s) => new Set([...s, ...dirs]));
       revealing.current = path;
@@ -115,17 +159,28 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
   useEffect(() => void load(""), [files]);
 
   useEffect(() => {
-    if (!filter) return setFound([]);
+    if (!filter) {
+      return setFound([]);
+    }
     let stale = false;
-    files.find(filter, FILTER_LIMIT, false).then((ms) => {
-      if (stale) return;
-      const paths = ms.map((m) => m.path);
-      answer.current = { q: filter, paths };
-      setFound(paths);
-      if (early.current) revealing.current = filterRows(paths).find((r) => !r.dir)?.path ?? null;
-      early.current = false;
-    }, () => {});
-    return () => { stale = true; };
+    files.find(filter, FILTER_LIMIT, false).then(
+      (ms) => {
+        if (stale) {
+          return;
+        }
+        const paths = ms.map((m) => m.path);
+        answer.current = { q: filter, paths };
+        setFound(paths);
+        if (early.current) {
+          revealing.current = filterRows(paths).find((r) => !r.dir)?.path ?? null;
+        }
+        early.current = false;
+      },
+      () => {},
+    );
+    return () => {
+      stale = true;
+    };
   }, [filter, files]);
 
   useEffect(() => {
@@ -135,13 +190,17 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
   }, []);
 
   const rows = useMemo(() => {
-    if (filter) return filterRows(found);
+    if (filter) {
+      return filterRows(found);
+    }
     const out: Row[] = [];
     const walk = (dir: string, depth: number) => {
       for (const e of children.get(dir) ?? []) {
         const path = dir ? `${dir}/${e.name}` : e.name;
         out.push({ path, name: e.name, dir: e.dir, depth });
-        if (e.dir && expanded.has(path)) walk(path, depth + 1);
+        if (e.dir && expanded.has(path)) {
+          walk(path, depth + 1);
+        }
       }
     };
     walk("", 0);
@@ -155,24 +214,37 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
   const cursorPath = useRef<string | undefined>(undefined);
   useEffect(() => {
     const i = rows.findIndex((r) => r.path === (revealing.current ?? cursorPath.current));
-    if (i >= 0 && revealing.current) revealing.current = null;
+    if (i >= 0 && revealing.current) {
+      revealing.current = null;
+    }
     // The path is kept here, not from the cursor index: right after a reveal that index is still the old row, and a
     // second rows update before the next render would pull the cursor back to it.
     cursorPath.current = rows[i >= 0 ? i : cur]?.path;
-    if (i >= 0) setCursor(i);
+    if (i >= 0) {
+      setCursor(i);
+    }
   }, [rows]);
-  useEffect(() => { cursorPath.current = rows[cur]?.path; }, [cur]); // the user moved the cursor
+  useEffect(() => {
+    cursorPath.current = rows[cur]?.path;
+  }, [cur]); // the user moved the cursor
 
   // Keep the cursor row inside the viewport.
   useEffect(() => {
     const box = el.current;
-    if (!box) return;
-    if (cur * ROW < box.scrollTop) box.scrollTop = cur * ROW;
-    else if ((cur + 1) * ROW > box.scrollTop + box.clientHeight) box.scrollTop = (cur + 1) * ROW - box.clientHeight;
+    if (!box) {
+      return;
+    }
+    if (cur * ROW < box.scrollTop) {
+      box.scrollTop = cur * ROW;
+    } else if ((cur + 1) * ROW > box.scrollTop + box.clientHeight) {
+      box.scrollTop = (cur + 1) * ROW - box.clientHeight;
+    }
   }, [cur]);
 
   const setOpen = (path: string, open: boolean) => {
-    if (open && !children.has(path)) load(path);
+    if (open && !children.has(path)) {
+      load(path);
+    }
     setExpanded((s) => {
       const n = new Set(s);
       open ? n.add(path) : n.delete(path);
@@ -182,36 +254,73 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
 
   const activate = (i: number, toggle: boolean) => {
     const r = rows[i];
-    if (!r || (filter && r.dir)) return; // filtered folders stay open
-    if (!r.dir) onOpen(r.path);
-    else setOpen(r.path, toggle ? !expanded.has(r.path) : true);
+    if (!r || (filter && r.dir)) {
+      return;
+    } // filtered folders stay open
+    if (!r.dir) {
+      onOpen(r.path);
+    } else {
+      setOpen(r.path, toggle ? !expanded.has(r.path) : true);
+    }
   };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     const r = rows[cur];
     const go = (i: number) => setCursor(Math.max(0, Math.min(rows.length - 1, i)));
     switch (e.key) {
-      case "j": case "ArrowDown": go(cur + 1); break;
-      case "k": case "ArrowUp": go(cur - 1); break;
-      case "g": go(0); break;
-      case "G": go(rows.length - 1); break;
-      case "Enter": case "o": activate(cur, true); break;
-      case "l": case "ArrowRight": activate(cur, false); break;
+      case "j":
+      case "ArrowDown":
+        go(cur + 1);
+        break;
+      case "k":
+      case "ArrowUp":
+        go(cur - 1);
+        break;
+      case "g":
+        go(0);
+        break;
+      case "G":
+        go(rows.length - 1);
+        break;
+      case "Enter":
+      case "o":
+        activate(cur, true);
+        break;
+      case "l":
+      case "ArrowRight":
+        activate(cur, false);
+        break;
       case "p":
         if (r && !r.dir && isHtmlPath(r.path)) {
           onOpen(PREVIEW + r.path);
           break;
         }
         break;
-      case "/": setFilter(filter ?? ""); setTimeout(() => input.current?.select()); break;
-      case "h": case "ArrowLeft":
-        if (filter) go(rows.findIndex((x) => x.path === parent(r?.path ?? "")));
-        else if (r?.dir && expanded.has(r.path)) setOpen(r.path, false);
-        else if (r) go(rows.findIndex((x) => x.path === r.path.slice(0, r.path.lastIndexOf("/"))));
+      case "/":
+        setFilter(filter ?? "");
+        setTimeout(() => input.current?.select());
         break;
-      case "Escape": if (filter === null) onLeave(); else setFilter(null); break;
+      case "h":
+      case "ArrowLeft":
+        if (filter) {
+          go(rows.findIndex((x) => x.path === parent(r?.path ?? "")));
+        } else if (r?.dir && expanded.has(r.path)) {
+          setOpen(r.path, false);
+        } else if (r) {
+          go(rows.findIndex((x) => x.path === r.path.slice(0, r.path.lastIndexOf("/"))));
+        }
+        break;
+      case "Escape":
+        if (filter === null) {
+          onLeave();
+        } else {
+          setFilter(null);
+        }
+        break;
       default:
-        if (!KEYS[e.key] || e.metaKey || e.ctrlKey || e.altKey) return;
+        if (!KEYS[e.key] || e.metaKey || e.ctrlKey || e.altKey) {
+          return;
+        }
         onCommand(KEYS[e.key]);
     }
     e.preventDefault();
@@ -223,8 +332,11 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
     const r = rows[i];
     setCursor(i);
     el.current?.focus(); // the file commands act on the tree's cursor row while the tree has the focus
-    const cmd = (label: string, id: string, hint?: string, arg?: string): MenuItem =>
-      ({ label, hint, run: () => onCommand(id, arg) });
+    const cmd = (label: string, id: string, hint?: string, arg?: string): MenuItem => ({
+      label,
+      hint,
+      run: () => onCommand(id, arg),
+    });
     const isHtml = !r.dir && isHtmlPath(r.path);
     setMenu({
       x: e.clientX,
@@ -249,13 +361,24 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
 
   // In the box: Enter and the arrows go to the rows, Esc ends the filter.
   const onFilterKey = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") setFilter(null);
-    else if (e.key !== "Enter" && e.key !== "ArrowDown") return;
+    if (e.key === "Escape") {
+      setFilter(null);
+    } else if (e.key !== "Enter" && e.key !== "ArrowDown") {
+      return;
+    }
     e.preventDefault();
     const a = answer.current;
     early.current = !!filter && a.q !== filter;
-    if (filter && !early.current && a.paths !== found) revealing.current = filterRows(a.paths).find((r) => !r.dir)?.path ?? null;
-    else setCursor(Math.max(rows.findIndex((r) => !r.dir), 0));
+    if (filter && !early.current && a.paths !== found) {
+      revealing.current = filterRows(a.paths).find((r) => !r.dir)?.path ?? null;
+    } else {
+      setCursor(
+        Math.max(
+          rows.findIndex((r) => !r.dir),
+          0,
+        ),
+      );
+    }
     el.current?.focus();
   };
 
@@ -284,7 +407,9 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
           // The window of rows moves only after a few rows of scrolling, and at once (before the frame is drawn): an
           // update React schedules for later would show an empty stretch while the scroll runs ahead of it.
           const top = e.currentTarget.scrollTop;
-          if (Math.abs(top - scrollTop) >= (OVERSCAN / 2) * ROW) flushSync(() => setScrollTop(top));
+          if (Math.abs(top - scrollTop) >= (OVERSCAN / 2) * ROW) {
+            flushSync(() => setScrollTop(top));
+          }
         }}
       >
         <div style={{ height: rows.length * ROW, position: "relative" }}>
@@ -303,10 +428,15 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
                 className={i === cur ? "tree-row cursor" : "tree-row"}
                 style={{ top: i * ROW, height: ROW, paddingLeft: 8 + r.depth * 16, ...{ "--depth": r.depth } }}
                 onMouseDown={r.dir ? undefined : (e) => startDrag(e, r.path)}
-                onClick={() => { setCursor(i); activate(i, true); }}
+                onClick={() => {
+                  setCursor(i);
+                  activate(i, true);
+                }}
                 onContextMenu={(e) => openMenu(e, i)}
               >
-                <span className="tree-chevron" aria-hidden>{r.dir ? (open ? "\uf47c" : "\uf460") : ""}</span>
+                <span className="tree-chevron" aria-hidden>
+                  {r.dir ? (open ? "\uf47c" : "\uf460") : ""}
+                </span>
                 <Glyph icon={r.dir ? folderIcon(open, r.name) : fileIcon(r.name)} />
                 <span className={name}>{r.name}</span>
                 {!r.dir && isHtmlPath(r.name) && (
@@ -340,5 +470,7 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
 });
 
 export const Glyph = ({ icon: [glyph, color] }: { icon: [string, string] }) => (
-  <span className="glyph" style={{ color }} aria-hidden>{glyph}</span>
+  <span className="glyph" style={{ color }} aria-hidden>
+    {glyph}
+  </span>
 );

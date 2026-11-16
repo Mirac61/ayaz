@@ -31,4 +31,5 @@ export const viewerFor = (path: string) =>
   providers.find((p) => (p.scheme ? path.startsWith(p.scheme) : p.exts.includes(extOf(path))));
 
 // /fs/<ws>/<path>, each segment encoded.
-export const fsUrl = (ws: string, path: string) => `/fs/${encodeURIComponent(ws)}/${path.split("/").map(encodeURIComponent).join("/")}`;
+export const fsUrl = (ws: string, path: string) =>
+  `/fs/${encodeURIComponent(ws)}/${path.split("/").map(encodeURIComponent).join("/")}`;

@@ -29,7 +29,8 @@ export default function App() {
     // The symbols font before the first frame: xterm's WebGL atlas would keep the boxes it drew without it.
     const symbols = symbolsFont();
     void backend.snippets().then(loadSnippets, () => {});
-    backend.settings()
+    backend
+      .settings()
       .then(loadSettings, () => loadSettings(""))
       .then(() => symbols)
       .then(() => backend.spikeMode())
@@ -38,7 +39,9 @@ export default function App() {
 
   // app:ready once the first real frame is painted (two rAFs: the second runs after the first paint).
   useEffect(() => {
-    if (mode !== null) requestAnimationFrame(() => requestAnimationFrame(() => backend.ready()));
+    if (mode !== null) {
+      requestAnimationFrame(() => requestAnimationFrame(() => backend.ready()));
+    }
   }, [mode !== null]);
 
   useEffect(() => {
@@ -53,31 +56,48 @@ export default function App() {
     if (mode === "bench" && el) {
       (async () => {
         const lines: string[] = [];
-        const log = (l: string) => { lines.push(l); setStatus(l); };
+        const log = (l: string) => {
+          lines.push(l);
+          setStatus(l);
+        };
         const s4 = await runS4();
         log(`S4 empty: ${fmt(s4.empty)} | 50 results: ${fmt(s4.fifty)}`);
         log(await runS7());
-        for (const renderer of ["dom", "webgl"] as const)
-          for (const [windowMs, maxBytes] of [[4, 16384], [8, 16384], [8, 65536]])
+        for (const renderer of ["dom", "webgl"] as const) {
+          for (const [windowMs, maxBytes] of [
+            [4, 16384],
+            [8, 16384],
+            [8, 65536],
+          ]) {
             log(await runS6(el, { renderer, windowMs, maxBytes }));
+          }
+        }
         await backend.report(lines.join("\n"));
       })().catch((e) => backend.report(`bench error: ${e}`));
     }
-    if (mode === "s8") runS8().catch((e) => backend.report(`s8 error: ${e}`));
-    if (mode === "fps") runFps().catch((e) => backend.report(`fps error: ${e}`));
-    if (mode === "k8") runK8().catch((e) => backend.report(`k8 error: ${e}`));
+    if (mode === "s8") {
+      runS8().catch((e) => backend.report(`s8 error: ${e}`));
+    }
+    if (mode === "fps") {
+      runFps().catch((e) => backend.report(`fps error: ${e}`));
+    }
+    if (mode === "k8") {
+      runK8().catch((e) => backend.report(`k8 error: ${e}`));
+    }
   }, [mode]);
 
-  if (mode === null) return null;
-  if ((mode === "" || mode === "k8" || mode === "fps") && !termOnly) return <Shell />;
+  if (mode === null) {
+    return null;
+  }
+  if ((mode === "" || mode === "k8" || mode === "fps") && !termOnly) {
+    return <Shell />;
+  }
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <div style={{ flex: 1, minHeight: 0, padding: mode === "s1" ? 0 : 4 }}>
         {mode === "s1" ? <ScrollTest /> : <div ref={termEl} style={{ height: "100%" }} />}
       </div>
-      {status && (
-        <div style={{ padding: "2px 8px", borderTop: "1px solid var(--bg-3)", color: "var(--fg-3)" }}>{status}</div>
-      )}
+      {status && <div style={{ padding: "2px 8px", borderTop: "1px solid var(--bg-3)", color: "var(--fg-3)" }}>{status}</div>}
     </div>
   );
 }

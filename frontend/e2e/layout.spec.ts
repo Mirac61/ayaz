@@ -101,7 +101,7 @@ test("terminal panel docks right and top, a split pane closes with its x", async
   await page.keyboard.press("v");
   const panes = page.locator(".panes > .pane");
   await expect(panes).toHaveCount(2);
-    await page.waitForTimeout(300); // the editor's own tab bar logic must leave the ghost alone
+  await page.waitForTimeout(300); // the editor's own tab bar logic must leave the ghost alone
   await expect(panes.last().locator(".ghost")).toBeVisible();
   await panes.last().locator(".ghost .tab-close").click();
   await expect(panes).toHaveCount(1);

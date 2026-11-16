@@ -16,21 +16,31 @@ export class UndoSteps {
 
   forget(id: number, b: Buffer) {
     const s = this.steps.get(b);
-    if (s) for (const l of [s.undo, s.redo]) l.splice(0, l.length, ...l.filter((x) => x !== id));
+    if (s) {
+      for (const l of [s.undo, s.redo]) {
+        l.splice(0, l.length, ...l.filter((x) => x !== id));
+      }
+    }
   }
 
   // An edit adds a step for pane id (CM6 may merge it into the last one: then the depth stays), undo and redo move one.
   track(id: number, b: Buffer, trs: readonly Transaction[], depth: number, state: EditorState) {
     let s = this.steps.get(b);
-    if (!s) this.steps.set(b, (s = { undo: [], redo: [] }));
+    if (!s) {
+      this.steps.set(b, (s = { undo: [], redo: [] }));
+    }
     const move = (from: number[], to: number[]) => {
       const i = from.lastIndexOf(id);
-      if (i >= 0) from.splice(i, 1);
+      if (i >= 0) {
+        from.splice(i, 1);
+      }
       to.push(id);
     };
-    if (trs.some((t) => t.isUserEvent("undo"))) move(s.undo, s.redo);
-    else if (trs.some((t) => t.isUserEvent("redo"))) move(s.redo, s.undo);
-    else if (undoDepth(state) > depth) {
+    if (trs.some((t) => t.isUserEvent("undo"))) {
+      move(s.undo, s.redo);
+    } else if (trs.some((t) => t.isUserEvent("redo"))) {
+      move(s.redo, s.undo);
+    } else if (undoDepth(state) > depth) {
       s.undo.push(id);
       s.redo.length = 0;
     }

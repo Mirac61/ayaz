@@ -6,26 +6,48 @@ const DAY = 86_400_000;
 
 // "2 hours ago", "yesterday", "last week". Empty for entries from before the time was stored.
 export function ago(then: number | undefined, now = Date.now()): string {
-  if (!then) return "";
+  if (!then) {
+    return "";
+  }
   const ms = Math.max(0, now - then);
   const n = (v: number, unit: string) => `${v} ${unit}${v === 1 ? "" : "s"} ago`;
-  if (ms < 60_000) return "just now";
-  if (ms < 3_600_000) return n(Math.floor(ms / 60_000), "minute");
-  if (ms < DAY) return n(Math.floor(ms / 3_600_000), "hour");
-  if (ms < 2 * DAY) return "yesterday";
-  if (ms < 7 * DAY) return n(Math.floor(ms / DAY), "day");
-  if (ms < 14 * DAY) return "last week";
-  if (ms < 30 * DAY) return n(Math.floor(ms / (7 * DAY)), "week");
+  if (ms < 60_000) {
+    return "just now";
+  }
+  if (ms < 3_600_000) {
+    return n(Math.floor(ms / 60_000), "minute");
+  }
+  if (ms < DAY) {
+    return n(Math.floor(ms / 3_600_000), "hour");
+  }
+  if (ms < 2 * DAY) {
+    return "yesterday";
+  }
+  if (ms < 7 * DAY) {
+    return n(Math.floor(ms / DAY), "day");
+  }
+  if (ms < 14 * DAY) {
+    return "last week";
+  }
+  if (ms < 30 * DAY) {
+    return n(Math.floor(ms / (7 * DAY)), "week");
+  }
   return ms < 60 * DAY ? "last month" : n(Math.floor(ms / (30 * DAY)), "month");
 }
 
 // "dev, 2 commits ahead", "main, up to date", "No git repository".
 export function branchText(s: Summary): string {
-  if (!s.repo) return "No git repository";
+  if (!s.repo) {
+    return "No git repository";
+  }
   const commits = (n: number) => `${n} commit${n === 1 ? "" : "s"}`;
   const parts: string[] = [];
-  if (s.ahead) parts.push(`${commits(s.ahead)} ahead`);
-  if (s.behind) parts.push(`${commits(s.behind)} behind`);
+  if (s.ahead) {
+    parts.push(`${commits(s.ahead)} ahead`);
+  }
+  if (s.behind) {
+    parts.push(`${commits(s.behind)} behind`);
+  }
   return `${s.branch || "detached HEAD"}, ${parts.join(", ") || "up to date"}`;
 }
 

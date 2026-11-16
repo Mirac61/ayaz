@@ -11,14 +11,17 @@ test("Enter picks the cursor row of a streamed list", async () => {
     title: "Search",
     initial: "TODO",
     query(q, update) {
-      if (q) setTimeout(() => update([{ label: "a.go:1: TODO" }, { label: "b.go:2: TODO" }]), 10);
+      if (q) {
+        setTimeout(() => update([{ label: "a.go:1: TODO" }, { label: "b.go:2: TODO" }]), 10);
+      }
       return Promise.resolve([]);
     },
     pick,
   };
   createRoot(host).render(createElement(Picker, { source, onClose() {} }));
   await vi.waitFor(() => expect(host.querySelectorAll(".picker-item").length).toBe(2));
-  const key = (k: string) => host.querySelector(".picker-input")!.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true }));
+  const key = (k: string) =>
+    host.querySelector(".picker-input")!.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true }));
   key("ArrowDown");
   await vi.waitFor(() => expect(host.querySelector('[aria-selected="true"]')?.textContent).toContain("b.go"));
   key("Enter");
@@ -36,6 +39,8 @@ test("an early Cmd+Enter keeps its modifier", async () => {
   };
   createRoot(host).render(createElement(Picker, { source, onClose() {} }));
   await vi.waitFor(() => expect(host.querySelector(".picker-input")).not.toBeNull());
-  host.querySelector(".picker-input")!.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", metaKey: true, bubbles: true }));
+  host
+    .querySelector(".picker-input")!
+    .dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", metaKey: true, bubbles: true }));
   await vi.waitFor(() => expect(pick).toHaveBeenCalledWith(expect.objectContaining({ label: "only" }), 0, true));
 });

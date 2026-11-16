@@ -29,7 +29,9 @@ export const SHOWN = 500; // project search hits listed in the picker; <C-q> tak
 // Wails rejects with an Error whose message is Go's error string.
 // A language server's error arrives as a plain {code, message} object, not an Error.
 export const errText = (e: unknown) => {
-  if (e instanceof Error) return e.message;
+  if (e instanceof Error) {
+    return e.message;
+  }
   const message = (e as { message?: unknown } | null)?.message;
   return typeof message === "string" ? message : String(e);
 };
@@ -45,5 +47,7 @@ export const inTree = () => !!document.activeElement?.closest(".sidebar");
 // Runs f on the active editor; fails with err when there is none or f finds nothing to do.
 export const onView = ({ ed, fail }: Ctx, f: (v: EditorView) => boolean, err: string) => {
   const v = ed.activeView();
-  if (!v || !f(v)) fail(err);
+  if (!v || !f(v)) {
+    fail(err);
+  }
 };

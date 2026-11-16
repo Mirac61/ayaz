@@ -46,7 +46,9 @@ test("search, quickfix, replace", async ({ page }) => {
   await page.keyboard.press("Control+q");
   await page.keyboard.type(":Replace $2 $1");
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("dialog", { name: /Replace 1 matches/ }).getByRole("option")).toContainText("search.txt:1: delta alpha");
+  await expect(page.getByRole("dialog", { name: /Replace 1 matches/ }).getByRole("option")).toContainText(
+    "search.txt:1: delta alpha",
+  );
   await page.keyboard.press("Enter");
   await expect.poll(() => readFileSync(join(e2eWorkspace, "search.txt"), "utf8")).toBe("delta alpha\ndelta gamma\n");
 });

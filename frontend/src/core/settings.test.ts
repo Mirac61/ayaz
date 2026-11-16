@@ -10,10 +10,15 @@ test("defaults: Go indents with tabs and formats on save, Markdown wraps", () =>
 });
 
 test("global values, then the language's on top; the built-in languages keep what isn't overridden", () => {
-  const s = parseSettings(JSON.stringify({
-    font: "Iosevka", fontSize: 15, tabWidth: 2, formatOnSave: true,
-    languages: { go: { formatOnSave: false }, TS: { tabWidth: 8 } },
-  }));
+  const s = parseSettings(
+    JSON.stringify({
+      font: "Iosevka",
+      fontSize: 15,
+      tabWidth: 2,
+      formatOnSave: true,
+      languages: { go: { formatOnSave: false }, TS: { tabWidth: 8 } },
+    }),
+  );
   expect(s.font).toBe("Iosevka");
   expect(s.fontSize).toBe(15);
   expect(fileSettings("a.go", s)).toEqual({ tabWidth: 2, tabs: true, wrap: false, formatOnSave: false });
@@ -75,7 +80,7 @@ test("the status line goes top or bottom, its colors are hex per key", () => {
 test("tasks: names to shell commands", () => {
   expect(parseSettings('{"tasks": {"vet": "go vet ./..."}}').tasks).toEqual({ vet: "go vet ./..." });
   expect(() => parseSettings('{"tasks": ["go vet"]}')).toThrow('"tasks" must be an object of name → command');
-  expect(() => parseSettings('{"tasks": {"vet": 1}}')).toThrow('tasks.vet must be a command (a string)');
+  expect(() => parseSettings('{"tasks": {"vet": 1}}')).toThrow("tasks.vet must be a command (a string)");
 });
 
 test("comments and trailing commas are allowed; strings keep their slashes and commas", () => {
@@ -90,7 +95,9 @@ test("markdown reading mode settings", () => {
   expect(parseSettings('{"markdownReadingMode": "always"}').markdownReadingMode).toBe("always");
   expect(parseSettings('{"markdownReadingMode": "never"}').markdownReadingMode).toBe("never");
   expect(parseSettings('{"markdownReadingTimeout": 60}').markdownReadingTimeout).toBe(60);
-  expect(() => parseSettings('{"markdownReadingMode": "invalid"}')).toThrow(/"markdownReadingMode" must be "smart", "always" or "never"/);
+  expect(() => parseSettings('{"markdownReadingMode": "invalid"}')).toThrow(
+    /"markdownReadingMode" must be "smart", "always" or "never"/,
+  );
   expect(() => parseSettings('{"markdownReadingTimeout": -1}')).toThrow(/"markdownReadingTimeout" must be a non-negative number/);
 });
 

@@ -1,18 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import {
-  Compass,
-  Key,
-  Code,
-  FileText,
-  Terminal,
-  GitBranch,
-  Bug,
-  Cpu,
-  Layers,
-  CheckCircle,
-  Map,
-  Sliders,
-} from "lucide-react";
+import { Compass, Key, Code, FileText, Terminal, GitBranch, Bug, Cpu, Layers, CheckCircle, Map, Sliders } from "lucide-react";
 
 export interface DocItem {
   id: string;
@@ -357,28 +344,28 @@ ${DOC_ITEMS.map((d) => `- [${d.title}](${d.id}.md) *(${d.category})*`).join("\n"
 // The text of a docs:// path; an unknown topic says so instead of failing.
 export function docText(path: string): string {
   const id = path.slice(DOCS.length).replace(/\.md$/, "");
-  if (id === "index") return INDEX;
-  return DOC_ITEMS.find((d) => d.id === id)?.content ?? `# Not found\n\nThere is no docs topic "${id}". See [the index](index.md).\n`;
+  if (id === "index") {
+    return INDEX;
+  }
+  return (
+    DOC_ITEMS.find((d) => d.id === id)?.content ?? `# Not found\n\nThere is no docs topic "${id}". See [the index](index.md).\n`
+  );
 }
 
 // Predicate to match doc items against a search query across title, category, and content.
 export function matchDoc(doc: DocItem, query: string): boolean {
   const q = query.trim().toLowerCase();
-  if (!q) return true;
-  return (
-    doc.title.toLowerCase().includes(q) ||
-    doc.category.toLowerCase().includes(q) ||
-    doc.content.toLowerCase().includes(q)
-  );
+  if (!q) {
+    return true;
+  }
+  return doc.title.toLowerCase().includes(q) || doc.category.toLowerCase().includes(q) || doc.content.toLowerCase().includes(q);
 }
 
 // Looks up a topic in the given list of doc items: exact id, then partial id, then title.
 export function findDocIn(items: DocItem[], topic: string): DocItem | undefined {
   const q = topic.trim().toLowerCase();
   return (
-    items.find((d) => d.id === q) ??
-    items.find((d) => d.id.includes(q)) ??
-    items.find((d) => d.title.toLowerCase().includes(q))
+    items.find((d) => d.id === q) ?? items.find((d) => d.id.includes(q)) ?? items.find((d) => d.title.toLowerCase().includes(q))
   );
 }
 

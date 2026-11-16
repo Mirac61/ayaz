@@ -19,12 +19,17 @@ test("sorted, :cn from the start, stops at both ends", () => {
 
 test("replaceEdits skips locations whose text moved", () => {
   const doc = Text.of(["foo foo", "bar", "😀foo"]);
-  const { changes, skipped } = replaceEdits([
-    loc("a", 1, 0, 3, "foo foo"), loc("a", 1, 4, 3, "foo foo"),
-    loc("a", 2, 0, 3, "foo"), // line changed: bar
-    loc("a", 3, 2, 3, "😀foo"), // UTF-16 column after the emoji
-    loc("a", 9, 0, 3, "foo"), // line gone
-  ], doc, "X");
+  const { changes, skipped } = replaceEdits(
+    [
+      loc("a", 1, 0, 3, "foo foo"),
+      loc("a", 1, 4, 3, "foo foo"),
+      loc("a", 2, 0, 3, "foo"), // line changed: bar
+      loc("a", 3, 2, 3, "😀foo"), // UTF-16 column after the emoji
+      loc("a", 9, 0, 3, "foo"), // line gone
+    ],
+    doc,
+    "X",
+  );
   expect(skipped).toBe(2);
   expect(changes.map((c) => doc.sliceString(c.from, c.to))).toEqual(["foo", "foo", "foo"]);
 });
@@ -39,7 +44,11 @@ test("replaceEdits expands $1, $2 after a regex search, a literal one stays lite
 test("hitPositions marks the match inside the picker label", () => {
   const l = { path: "a.go", line: 3, col: 7, len: 4, text: "  x := beta()" }; // label: "a.go:3:8: x := beta()"
   const text = label(l);
-  expect(hitPositions(l).map((i) => Array.from(text)[i]).join("")).toBe("beta");
+  expect(
+    hitPositions(l)
+      .map((i) => Array.from(text)[i])
+      .join(""),
+  ).toBe("beta");
   expect(hitPositions({ ...l, len: 0 })).toEqual([]);
   expect(hitPositions({ ...l, col: 0, len: 1 })).toEqual([]); // inside the leading whitespace
 });

@@ -9,11 +9,16 @@ export function snippetCompletion(ext: string): Extension {
   const autocomplete = (cx: CompletionContext): CompletionResult | null => {
     const word = cx.matchBefore(/[\w-]+/);
     const list = snippetsFor(ext);
-    if (!list.length || (!word && !cx.explicit)) return null;
+    if (!list.length || (!word && !cx.explicit)) {
+      return null;
+    }
     return {
       from: word ? word.from : cx.pos,
       options: list.map((s) => ({
-        label: s.prefix, detail: s.description, type: "text", boost: 50, // the user's own go above the server's
+        label: s.prefix,
+        detail: s.description,
+        type: "text",
+        boost: 50, // the user's own go above the server's
         apply: (view, _c, from, to) => snippet(s.body)(view, null as never, from, to),
       })),
       validFor: /^[\w-]*$/,

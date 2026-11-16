@@ -22,7 +22,9 @@ async function history(old: string, current = "new text\n", editFails = false) {
     ed: {
       current: () => b,
       edit: async (_p: string, ch: { from: number; to: number; insert: string }[]) => {
-        if (editFails) throw new Error("boom");
+        if (editFails) {
+          throw new Error("boom");
+        }
         const next = ch.reduce((t, x) => t.slice(0, x.from) + x.insert + t.slice(x.to), current);
         log.push(`edit -> ${JSON.stringify(next)}`);
       },
@@ -32,7 +34,9 @@ async function history(old: string, current = "new text\n", editFails = false) {
     fail: (t: string) => void log.push(`fail ${t}`),
     setPicker: (p: PickerSource | null) => void (picker = p),
   } as unknown as Ctx;
-  await fileCommands(c).find((x) => x.id === "file.history")!.run();
+  await fileCommands(c)
+    .find((x) => x.id === "file.history")!
+    .run();
   const pick = async (side: boolean) => {
     picker!.pick({ label: "x" }, 0, side);
     await new Promise((r) => setTimeout(r, 0));
@@ -73,7 +77,9 @@ function setup(selected: { path: string; dir: boolean }, answer: string, dirty: 
     prompt: (_t: string, _i: string, act: (s: string) => Promise<unknown>) => void act(answer),
   } as unknown as Ctx;
   const run = async () => {
-    fileCommands(c).find((x) => x.id === "file.duplicate")!.run();
+    fileCommands(c)
+      .find((x) => x.id === "file.duplicate")!
+      .run();
     await new Promise((r) => setTimeout(r, 0));
     return log;
   };

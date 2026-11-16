@@ -4,9 +4,30 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { e2eWorkspace } from "../playwright.config";
 
-const hasDlv = (() => { try { execSync("command -v dlv", { shell: "/bin/sh" }); return true; } catch { return false; } })();
-const hasDebugpy = (() => { try { execSync("python3 -m debugpy --version", { shell: "/bin/sh" }); return true; } catch { return false; } })();
-const hasLldbDap = (() => { try { execSync("command -v lldb-dap || xcrun -f lldb-dap", { shell: "/bin/sh" }); return true; } catch { return false; } })();
+const hasDlv = (() => {
+  try {
+    execSync("command -v dlv", { shell: "/bin/sh" });
+    return true;
+  } catch {
+    return false;
+  }
+})();
+const hasDebugpy = (() => {
+  try {
+    execSync("python3 -m debugpy --version", { shell: "/bin/sh" });
+    return true;
+  } catch {
+    return false;
+  }
+})();
+const hasLldbDap = (() => {
+  try {
+    execSync("command -v lldb-dap || xcrun -f lldb-dap", { shell: "/bin/sh" });
+    return true;
+  } catch {
+    return false;
+  }
+})();
 
 // M48 D6: a real Delve, on a small program the test writes into the workspace (a folder of its own in testdata would
 // change the tree: other tests count on src/ being the only folder). Runs in its own project, after the others. Opt-in (AYAZ_DEBUG_E2E=1): on macOS the first debugging session asks for developer tools access
@@ -16,7 +37,9 @@ test("debug a Go program: breakpoint, stop, variables, step, continue to the end
   test.skip(process.env.AYAZ_DEBUG_E2E !== "1", "set AYAZ_DEBUG_E2E=1 to run it (needs developer tools access on macOS)");
   test.setTimeout(120_000);
   mkdirSync(join(e2eWorkspace, "zdebug"), { recursive: true });
-  writeFileSync(join(e2eWorkspace, "zdebug", "main.go"), `package main
+  writeFileSync(
+    join(e2eWorkspace, "zdebug", "main.go"),
+    `package main
 
 import "fmt"
 
@@ -28,7 +51,8 @@ func main() {
 	fmt.Println("total", total)
 	println("to stderr") // the builtin writes to stderr
 }
-`);
+`,
+  );
   await page.goto("/");
   const tree = page.getByRole("tree", { name: "Files" });
   await tree.getByRole("treeitem", { name: "zdebug" }).click();
@@ -68,7 +92,9 @@ test("debug with conditional breakpoint: condition i == 2 stops once", async ({ 
   test.skip(process.env.AYAZ_DEBUG_E2E !== "1", "set AYAZ_DEBUG_E2E=1 to run it (needs developer tools access on macOS)");
   test.setTimeout(120_000);
   mkdirSync(join(e2eWorkspace, "zdebug"), { recursive: true });
-  writeFileSync(join(e2eWorkspace, "zdebug", "main.go"), `package main
+  writeFileSync(
+    join(e2eWorkspace, "zdebug", "main.go"),
+    `package main
 
 import "fmt"
 
@@ -79,7 +105,8 @@ func main() {
 	}
 	fmt.Println("total", total)
 }
-`);
+`,
+  );
   await page.goto("/");
   const tree = page.getByRole("tree", { name: "Files" });
   await tree.getByRole("treeitem", { name: "zdebug" }).click();
@@ -117,7 +144,9 @@ test("debug a program that reads stdin via runInTerminal", async ({ page }) => {
   test.skip(process.env.AYAZ_DEBUG_E2E !== "1", "set AYAZ_DEBUG_E2E=1 to run it (needs developer tools access on macOS)");
   test.setTimeout(120_000);
   mkdirSync(join(e2eWorkspace, "zstdin"), { recursive: true });
-  writeFileSync(join(e2eWorkspace, "zstdin", "main.go"), `package main
+  writeFileSync(
+    join(e2eWorkspace, "zstdin", "main.go"),
+    `package main
 
 import (
 	"bufio"
@@ -132,7 +161,8 @@ func main() {
 		fmt.Println("got", text)
 	}
 }
-`);
+`,
+  );
   await page.goto("/");
   const tree = page.getByRole("tree", { name: "Files" });
   await tree.getByRole("treeitem", { name: "zstdin" }).click();
@@ -169,11 +199,14 @@ test("debug a Python program with debugpy: breakpoint, stop, variables, continue
   test.skip(process.env.AYAZ_DEBUG_E2E !== "1", "set AYAZ_DEBUG_E2E=1 to run it");
   test.setTimeout(120_000);
   mkdirSync(join(e2eWorkspace, "zpydebug"), { recursive: true });
-  writeFileSync(join(e2eWorkspace, "zpydebug", "app.py"), `total = 0
+  writeFileSync(
+    join(e2eWorkspace, "zpydebug", "app.py"),
+    `total = 0
 for i in range(1, 4):
     total += i
 print("total", total)
-`);
+`,
+  );
   await page.goto("/");
   const tree = page.getByRole("tree", { name: "Files" });
   await tree.getByRole("treeitem", { name: "zpydebug" }).click();
@@ -202,7 +235,9 @@ test("debug a C program with lldb-dap: breakpoint, stop, variables, continue", a
   test.skip(process.env.AYAZ_DEBUG_E2E !== "1", "set AYAZ_DEBUG_E2E=1 to run it");
   test.setTimeout(120_000);
   mkdirSync(join(e2eWorkspace, "zcdebug"), { recursive: true });
-  writeFileSync(join(e2eWorkspace, "zcdebug", "main.c"), `#include <stdio.h>
+  writeFileSync(
+    join(e2eWorkspace, "zcdebug", "main.c"),
+    `#include <stdio.h>
 
 int main() {
     int total = 0;
@@ -212,7 +247,8 @@ int main() {
     printf("total %d\\n", total);
     return 0;
 }
-`);
+`,
+  );
   execSync("clang -g -O0 main.c -o main", { cwd: join(e2eWorkspace, "zcdebug"), shell: "/bin/sh" });
 
   await page.goto("/");

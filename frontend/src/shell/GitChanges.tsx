@@ -84,9 +84,7 @@ export const GitChanges: React.FC<Props> = ({
   let unstagedItems: GitItem[] = [];
 
   if (detailedFiles && detailedFiles.length > 0) {
-    const sorted = [...detailedFiles].sort((a, b) =>
-      a.path.toLowerCase().localeCompare(b.path.toLowerCase()),
-    );
+    const sorted = [...detailedFiles].sort((a, b) => a.path.toLowerCase().localeCompare(b.path.toLowerCase()));
     for (const f of sorted) {
       if (f.staged) {
         stagedItems.push({ path: f.path, status: f.status, isStaged: true, key: `s:${f.path}` });
@@ -124,13 +122,18 @@ export const GitChanges: React.FC<Props> = ({
   };
 
   const diffSplitItem = (path: string) => {
-    if (onDiffSplit) onDiffSplit(path);
-    else onDiff(path);
+    if (onDiffSplit) {
+      onDiffSplit(path);
+    } else {
+      onDiff(path);
+    }
   };
 
   const handleCommit = async () => {
     const trimmed = commitMsg.trim();
-    if (!trimmed || committing || stagedItems.length === 0) return;
+    if (!trimmed || committing || stagedItems.length === 0) {
+      return;
+    }
     setCommitting(true);
     try {
       await onCommit?.(trimmed);
@@ -181,23 +184,33 @@ export const GitChanges: React.FC<Props> = ({
         setCursor(allItems.length - 1);
         break;
       case "Enter":
-        if (e.target === e.currentTarget && allItems[cur]) openItem(allItems[cur].path);
+        if (e.target === e.currentTarget && allItems[cur]) {
+          openItem(allItems[cur].path);
+        }
         break;
       case "o":
-        if (allItems[cur]) openItem(allItems[cur].path);
+        if (allItems[cur]) {
+          openItem(allItems[cur].path);
+        }
         break;
       case "c":
         e.preventDefault();
         commitInputRef.current?.focus();
         break;
       case "d":
-        if (allItems[cur]) diffItem(allItems[cur].path);
+        if (allItems[cur]) {
+          diffItem(allItems[cur].path);
+        }
         break;
       case "D":
-        if (allItems[cur]) diffSplitItem(allItems[cur].path);
+        if (allItems[cur]) {
+          diffSplitItem(allItems[cur].path);
+        }
         break;
       case "s":
-        if (allItems[cur]) handleStageToggle(allItems[cur]);
+        if (allItems[cur]) {
+          handleStageToggle(allItems[cur]);
+        }
         break;
       case "+":
       case "a":
@@ -250,13 +263,10 @@ export const GitChanges: React.FC<Props> = ({
     });
   };
 
-  const renderSection = (
-    title: string,
-    items: GitItem[],
-    startIndex: number,
-    isStagedSection: boolean,
-  ) => {
-    if (items.length === 0) return null;
+  const renderSection = (title: string, items: GitItem[], startIndex: number, isStagedSection: boolean) => {
+    if (items.length === 0) {
+      return null;
+    }
 
     return (
       <div className="git-changes-section" key={title}>
@@ -365,14 +375,7 @@ export const GitChanges: React.FC<Props> = ({
   };
 
   return (
-    <div
-      ref={el}
-      className="git-changes"
-      tabIndex={0}
-      role="region"
-      aria-label="Git changes"
-      onKeyDown={onKeyDown}
-    >
+    <div ref={el} className="git-changes" tabIndex={0} role="region" aria-label="Git changes" onKeyDown={onKeyDown}>
       <div className="git-changes-header">
         <div className="git-changes-branch">
           <Glyph icon={["\ue725", "inherit"]} />
@@ -467,11 +470,7 @@ export const GitChanges: React.FC<Props> = ({
               className="git-commit-btn"
               disabled={committing || !commitMsg.trim() || stagedItems.length === 0}
               onClick={() => void handleCommit()}
-              title={
-                stagedItems.length === 0
-                  ? "Stage changes first to commit"
-                  : "Commit staged changes (Ctrl+Enter)"
-              }
+              title={stagedItems.length === 0 ? "Stage changes first to commit" : "Commit staged changes (Ctrl+Enter)"}
             >
               {committing ? "Committing..." : "Commit"}
             </button>
@@ -497,11 +496,7 @@ export const GitChanges: React.FC<Props> = ({
             >
               Discard (Enter)
             </button>
-            <button
-              type="button"
-              className="git-confirm-btn"
-              onClick={() => setConfirmDiscard(null)}
-            >
+            <button type="button" className="git-confirm-btn" onClick={() => setConfirmDiscard(null)}>
               Cancel (Esc)
             </button>
           </div>

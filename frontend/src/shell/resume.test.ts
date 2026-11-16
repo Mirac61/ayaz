@@ -13,7 +13,8 @@ test("sources that are not resumable are ignored", () => {
 });
 
 test("resumed gives a new source with the last typed text; the later source wins", () => {
-  const a = src("Files", true), b = src("Search", true);
+  const a = src("Files", true),
+    b = src("Search", true);
   remember(a, "ma");
   remember(a, "main");
   expect(resumed()).toMatchObject({ title: "Files", initial: "main" });

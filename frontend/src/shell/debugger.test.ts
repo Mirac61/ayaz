@@ -15,13 +15,20 @@ function setup(breakpoints: Record<string, number[]> = { "main.go": [6] }) {
     appendOutput: async (text) => void log.push(`out ${text.trim()}`),
   };
   const f = fakeAdapter({
-    answer: (m) => (m.command === "stackTrace"
-      ? { stackFrames: [{ id: 1, name: "main", line: 6, column: 1, source: { path: "/p/main.go" } }] }
-      : undefined),
+    answer: (m) =>
+      m.command === "stackTrace"
+        ? { stackFrames: [{ id: 1, name: "main", line: 6, column: 1, source: { path: "/p/main.go" } }] }
+        : undefined,
     closeOnDisconnect: true,
   });
   const said: string[] = [];
-  const dbg = new Debugger("/p", ed, () => f.transport, (s) => statuses.push(s), (t) => said.push(t));
+  const dbg = new Debugger(
+    "/p",
+    ed,
+    () => f.transport,
+    (s) => statuses.push(s),
+    (t) => said.push(t),
+  );
   return { f, log, statuses, said, dbg };
 }
 
@@ -89,8 +96,20 @@ test("a failed launch rejects and leaves the debugger idle", async () => {
   const f = fakeAdapter({ failLaunch: true });
   const statuses: DebugStatus[] = [];
   const nothing = async () => {};
-  const ed: DebugEditor = { breakpoints: () => ({}), activePath: () => null, openAt: nothing, setDebugLine: () => {}, appendOutput: nothing };
-  const dbg = new Debugger("/p", ed, () => f.transport, (s) => statuses.push(s), () => {});
+  const ed: DebugEditor = {
+    breakpoints: () => ({}),
+    activePath: () => null,
+    openAt: nothing,
+    setDebugLine: () => {},
+    appendOutput: nothing,
+  };
+  const dbg = new Debugger(
+    "/p",
+    ed,
+    () => f.transport,
+    (s) => statuses.push(s),
+    () => {},
+  );
   await expect(dbg.start()).rejects.toThrow("could not launch process");
   expect(dbg.status).toBe("idle");
   expect(statuses[statuses.length - 1]).toBe("idle");
@@ -114,15 +133,30 @@ test("variables: nothing while running; when stopped Locals comes open and Globa
     },
   });
   const nothing = async () => {};
-  const ed: DebugEditor = { breakpoints: () => ({}), activePath: () => null, openAt: nothing, setDebugLine: () => {}, appendOutput: nothing };
-  const dbg = new Debugger("/p", ed, () => f.transport, () => {}, () => {});
+  const ed: DebugEditor = {
+    breakpoints: () => ({}),
+    activePath: () => null,
+    openAt: nothing,
+    setDebugLine: () => {},
+    appendOutput: nothing,
+  };
+  const dbg = new Debugger(
+    "/p",
+    ed,
+    () => f.transport,
+    () => {},
+    () => {},
+  );
   await dbg.start();
   expect(await dbg.variables()).toBeNull(); // running
   f.push({ type: "event", event: "stopped", body: { reason: "breakpoint", threadId: 1 } });
   await tick();
   const rows = (await dbg.variables())!;
   const summary = rows.map((r) => [r.name, r.open, r.children?.map((c) => c.name)]);
-  expect(summary).toEqual([["Locals", true, ["i"]], ["Globals", false, undefined]]);
+  expect(summary).toEqual([
+    ["Locals", true, ["i"]],
+    ["Globals", false, undefined],
+  ]);
   expect(f.requests.find((r) => r.command === "scopes")?.arguments).toEqual({ frameId: 9 });
   await dbg.toggleRow(rows[1]); // opening Globals loads it then
   expect(rows[1].open).toBe(true);
@@ -181,7 +215,12 @@ test("start picks python adapter for .py files with file path as target", async 
   await dbg.start();
   expect(passedAdapter).toBe("python");
   const launchReq = f.requests.find((r) => r.command === "launch");
-  expect(launchReq?.arguments).toEqual({ request: "launch", program: "/p/scripts/run.py", cwd: "/p", console: "integratedTerminal" });
+  expect(launchReq?.arguments).toEqual({
+    request: "launch",
+    program: "/p/scripts/run.py",
+    cwd: "/p",
+    console: "integratedTerminal",
+  });
   await dbg.stop();
 });
 
@@ -209,7 +248,12 @@ test("start picks lldb adapter for .rs files", async () => {
   await dbg.start();
   expect(passedAdapter).toBe("lldb");
   const launchReq = f.requests.find((r) => r.command === "launch");
-  expect(launchReq?.arguments).toEqual({ request: "launch", program: "/p/target/debug", cwd: "/p", console: "integratedTerminal" });
+  expect(launchReq?.arguments).toEqual({
+    request: "launch",
+    program: "/p/target/debug",
+    cwd: "/p",
+    console: "integratedTerminal",
+  });
   await dbg.stop();
 });
 
@@ -258,7 +302,13 @@ test("runInTerminal forwards adapter request to editor", async () => {
       return { processId: 999 };
     },
   };
-  const dbg = new Debugger("/p", ed, () => f.transport, () => {}, () => {});
+  const dbg = new Debugger(
+    "/p",
+    ed,
+    () => f.transport,
+    () => {},
+    () => {},
+  );
   await dbg.start();
   f.push({ type: "request", seq: 15, command: "runInTerminal", arguments: { args: ["./main"], cwd: "/p" } });
   await tick();

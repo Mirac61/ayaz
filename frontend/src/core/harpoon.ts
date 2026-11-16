@@ -8,9 +8,13 @@ export function harpoonKey(root: string): string {
 
 export function loadHarpoon(root: string): string[] {
   try {
-    if (typeof localStorage === "undefined") return [];
+    if (typeof localStorage === "undefined") {
+      return [];
+    }
     const raw = localStorage.getItem(harpoonKey(root));
-    if (!raw) return [];
+    if (!raw) {
+      return [];
+    }
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed.filter((p): p is string => typeof p === "string") : [];
   } catch {
@@ -20,7 +24,9 @@ export function loadHarpoon(root: string): string[] {
 
 export function saveHarpoon(root: string, items: string[]) {
   try {
-    if (typeof localStorage === "undefined") return;
+    if (typeof localStorage === "undefined") {
+      return;
+    }
     localStorage.setItem(harpoonKey(root), JSON.stringify(items.slice(0, MAX_SLOTS)));
   } catch {
     /* a convenience */

@@ -6,10 +6,15 @@ import { typst } from "./typst";
 // the server name's command lives in app/lsp.go.
 type Loader = () => Promise<LanguageSupport>;
 const cpp: Loader = () => import("@codemirror/lang-cpp").then((m) => m.cpp());
-const js = (opts: { jsx?: boolean; typescript?: boolean }): Loader => () =>
-  import("@codemirror/lang-javascript").then((m) => m.javascript(opts));
+const js =
+  (opts: { jsx?: boolean; typescript?: boolean }): Loader =>
+  () =>
+    import("@codemirror/lang-javascript").then((m) => m.javascript(opts));
 const jsPlain = js({});
-const legacy = (mode: () => Promise<StreamParser<unknown>>): Loader => async () => new LanguageSupport(StreamLanguage.define(await mode()));
+const legacy =
+  (mode: () => Promise<StreamParser<unknown>>): Loader =>
+  async () =>
+    new LanguageSupport(StreamLanguage.define(await mode()));
 const python: Loader = () => import("@codemirror/lang-python").then((m) => m.python());
 const yaml: Loader = () => import("@codemirror/lang-yaml").then((m) => m.yaml());
 const xml: Loader = () => import("@codemirror/lang-xml").then((m) => m.xml());
@@ -48,9 +53,18 @@ const langs: Record<string, { load: Loader; lsp?: [string, string] }> = {
   xml: { load: xml },
   svg: { load: xml },
   php: { load: php },
-  lua: { load: legacy(() => import("@codemirror/legacy-modes/mode/lua").then((m) => m.lua)), lsp: ["lua", "lua-language-server"] },
-  dockerfile: { load: legacy(() => import("@codemirror/legacy-modes/mode/dockerfile").then((m) => m.dockerFile)), lsp: ["dockerfile", "dockerfile"] },
-  containerfile: { load: legacy(() => import("@codemirror/legacy-modes/mode/dockerfile").then((m) => m.dockerFile)), lsp: ["dockerfile", "dockerfile"] },
+  lua: {
+    load: legacy(() => import("@codemirror/legacy-modes/mode/lua").then((m) => m.lua)),
+    lsp: ["lua", "lua-language-server"],
+  },
+  dockerfile: {
+    load: legacy(() => import("@codemirror/legacy-modes/mode/dockerfile").then((m) => m.dockerFile)),
+    lsp: ["dockerfile", "dockerfile"],
+  },
+  containerfile: {
+    load: legacy(() => import("@codemirror/legacy-modes/mode/dockerfile").then((m) => m.dockerFile)),
+    lsp: ["dockerfile", "dockerfile"],
+  },
   typ: { load: typ, lsp: ["typst", "tinymist"] },
   tex: { load: latex, lsp: ["latex", "texlab"] },
   md: { load: () => import("@codemirror/lang-markdown").then((m) => m.markdown({ base: m.markdownLanguage, codeLanguages })) }, // GFM (Q7)
@@ -58,12 +72,23 @@ const langs: Record<string, { load: Loader; lsp?: [string, string] }> = {
 
 // Dockerfile / Containerfile may have no extension or variants like Dockerfile.dev, *.dockerfile.
 const keyOf = (path: string) => {
-  if (path.startsWith("docs://")) return "md";
+  if (path.startsWith("docs://")) {
+    return "md";
+  }
   const ext = extOf(path);
-  if (ext && langs[ext]) return ext;
+  if (ext && langs[ext]) {
+    return ext;
+  }
   const name = path.slice(path.lastIndexOf("/") + 1).toLowerCase();
-  if (langs[name]) return name;
-  if (name.startsWith("dockerfile.") || name.endsWith(".dockerfile") || name.startsWith("containerfile.") || name.endsWith(".containerfile")) {
+  if (langs[name]) {
+    return name;
+  }
+  if (
+    name.startsWith("dockerfile.") ||
+    name.endsWith(".dockerfile") ||
+    name.startsWith("containerfile.") ||
+    name.endsWith(".containerfile")
+  ) {
     return "dockerfile";
   }
   return ext || name;
@@ -80,12 +105,27 @@ export const loadLanguage = (path: string): Promise<LanguageSupport | null> =>
 export const serverFor = (path: string): [lang: string, server: string] | undefined => langs[keyOf(path)]?.lsp;
 
 const names: Record<string, string[]> = {
-  go: ["golang"], js: ["javascript"], ts: ["typescript"], cpp: ["c++"], md: ["markdown"], py: ["python"], rs: ["rust"],
-  sh: ["shell"], yml: ["yaml"], typ: ["typst"], tex: ["latex"], toml: ["toml"], lua: ["lua"], dockerfile: ["docker", "containerfile"],
+  go: ["golang"],
+  js: ["javascript"],
+  ts: ["typescript"],
+  cpp: ["c++"],
+  md: ["markdown"],
+  py: ["python"],
+  rs: ["rust"],
+  sh: ["shell"],
+  yml: ["yaml"],
+  typ: ["typst"],
+  tex: ["latex"],
+  toml: ["toml"],
+  lua: ["lua"],
+  dockerfile: ["docker", "containerfile"],
 };
 
 // Fenced code blocks in Markdown: info string → language. One entry per loader, so c/h/cc/cpp/hpp share one parser.
 const byLoader = new Map<() => Promise<LanguageSupport>, string[]>();
-for (const [ext, { load }] of Object.entries(langs)) byLoader.set(load, [...(byLoader.get(load) ?? []), ext]);
+for (const [ext, { load }] of Object.entries(langs)) {
+  byLoader.set(load, [...(byLoader.get(load) ?? []), ext]);
+}
 export const codeLanguages: LanguageDescription[] = [...byLoader].map(([load, exts]) =>
-  LanguageDescription.of({ name: exts[0], alias: [...exts, ...exts.flatMap((e) => names[e] ?? [])], load }));
+  LanguageDescription.of({ name: exts[0], alias: [...exts, ...exts.flatMap((e) => names[e] ?? [])], load }),
+);
