@@ -61,4 +61,14 @@ func TestBrowseURL(t *testing.T) {
 	if err != nil || got != "https://github.com/me/proj/blob/main/sub/b.txt" {
 		t.Errorf("subfolder link = %q, %v", got, err)
 	}
+	// git's prefix keeps a leading space; only its newline goes.
+	write(t, filepath.Join(root, " sp", "c.txt"), "c\n")
+	got, err = BrowseURL(filepath.Join(root, " sp"), "c.txt", 0, false)
+	if err != nil || got != "https://github.com/me/proj/blob/main/%20sp/c.txt" {
+		t.Errorf("space subfolder link = %q, %v", got, err)
+	}
+	// An unparsable URL remote must not fall through to the scp form and leak its token.
+	if got, err := webURL("https://ghp_secret123@github.com/me/proj%zz.git", "main", "a.txt", 0); err == nil {
+		t.Errorf("bad url remote = %q, want an error", got)
+	}
 }

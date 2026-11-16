@@ -35,7 +35,7 @@ func webURL(remote, ref, rel string, line int) (string, error) {
 			host = u.Hostname() // the ssh port is not the web port
 		}
 		repo = u.Path
-	} else if m := scpRemote.FindStringSubmatch(remote); m != nil {
+	} else if m := scpRemote.FindStringSubmatch(remote); m != nil && !strings.Contains(remote, "://") {
 		host, repo = m[1], m[2]
 	}
 	repo = strings.TrimSuffix(strings.Trim(repo, "/"), ".git")
@@ -74,5 +74,5 @@ func BrowseURL(root, rel string, line int, permalink bool) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return webURL(remote, ref, strings.TrimSpace(string(out))+filepath.ToSlash(rel), line)
+	return webURL(remote, ref, strings.TrimSuffix(string(out), "\n")+filepath.ToSlash(rel), line)
 }

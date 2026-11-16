@@ -21,15 +21,16 @@ export function gitCommands(c: Ctx): Command[] {
   const link = async (permalink: boolean) => {
     const b = c.ed.current(), line = c.ed.cursorLine();
     if (!b || line === null || b.path.startsWith("/")) return c.fail("No file in this folder");
+    const path = b.path.startsWith("head://") ? b.path.slice("head://".length) : b.path;
     let url: string;
     try {
-      url = await c.files.gitBrowseURL(b.path, line, permalink);
+      url = await c.files.gitBrowseURL(path, line, permalink);
     } catch (e) {
       return c.fail(errText(e));
     }
     if (permalink) {
       await backend.copy(url);
-      c.say(`Copied the link to ${b.path}:${line}`);
+      c.say(`Copied the link to ${path}:${line}`);
     } else await backend.openURL(url);
   };
 
