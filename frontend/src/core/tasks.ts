@@ -25,6 +25,20 @@ export function parseProblems(output: string, root: string): Loc[] {
   return out;
 }
 
+// Fills ${file}, ${dir} and ${line} of a task for the active file: its workspace-relative path, its folder ("." in the
+// root) and the 1-based cursor line. Any other ${...} stays (${HOME} is shell syntax). Null when the task needs a file
+// and none is open.
+// shortcut: POSIX sh quoting only, Windows shells need their own
+const quote = (s: string) => `'${s.replace(/'/g, "'\\''")}'`;
+export function expandTask(cmd: string, at: { file?: string; line?: number }): string | null {
+  const re = /\$\{(file|dir|line)\}/g;
+  if (!re.test(cmd)) return cmd;
+  if (at.file === undefined) return null;
+  const { file } = at, slash = file.lastIndexOf("/");
+  const vals = { file: quote(file), dir: quote(slash < 0 ? "." : file.slice(0, slash)), line: String(at.line ?? 1) };
+  return cmd.replace(/\$\{(file|dir|line)\}/g, (_, k: keyof typeof vals) => vals[k]);
+}
+
 // parseWatcherProblems parses problem locations from long-running watcher output (typst watch, tectonic loops, etc.).
 // It extracts problems from the latest compilation cycle and returns an empty list if the latest compile succeeded.
 export function parseWatcherProblems(output: string, root: string): Loc[] {

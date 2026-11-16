@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { parseProblems, parseWatcherProblems } from "./tasks";
+import { expandTask, parseProblems, parseWatcherProblems } from "./tasks";
 
 const loc = (path: string, line: number, col: number, text: string) => ({ path, line, col, len: 0, text });
 
@@ -95,4 +95,24 @@ test("parseWatcherProblems: LaTeX watcher loop with delimiters", () => {
     "--- success ---",
   ].join("\n");
   expect(parseWatcherProblems(success, "/ws")).toEqual([]);
+});
+
+test("expandTask fills file, dir and line", () => {
+  const at = { file: "src/app.go", line: 42 };
+  expect(expandTask("vet ${file}", at)).toBe("vet 'src/app.go'");
+  expect(expandTask("go test ./${dir}", at)).toBe("go test ./'src'");
+  expect(expandTask("echo ${line}", at)).toBe("echo 42");
+  expect(expandTask("${file}:${line} in ${dir}", at)).toBe("'src/app.go':42 in 'src'");
+});
+
+test("expandTask quotes paths for the shell", () => {
+  expect(expandTask("cat ${file}", { file: "a b/it's; rm.txt" })).toBe("cat 'a b/it'\\''s; rm.txt'");
+});
+
+test("expandTask: dir of a root file is '.', other ${} stays, no placeholder needs no file", () => {
+  expect(expandTask("ls ${dir}", { file: "main.go" })).toBe("ls '.'");
+  expect(expandTask("echo ${HOME} ${file}", { file: "a.go" })).toBe("echo ${HOME} 'a.go'");
+  expect(expandTask("go test ./...", {})).toBe("go test ./...");
+  expect(expandTask("echo ${file}", {})).toBeNull();
+  expect(expandTask("echo ${line}", {})).toBeNull();
 });

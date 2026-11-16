@@ -9,7 +9,7 @@ import { Commands } from "../core/commands";
 import { defaultKeymap, keyName, mergeKeymap, parseUserKeymap, Sequencer, type Binding } from "../core/keymap";
 import { diff, lf } from "../core/buffers";
 import { PREVIEW } from "../core/viewers";
-import { parseWatcherProblems } from "../core/tasks";
+import { expandTask, parseWatcherProblems } from "../core/tasks";
 import { docBuild, type DocBuild } from "../core/docBuild";
 import { Quickfix } from "../core/quickfix";
 import { setLspMessages, installHint } from "../editor/lsp";
@@ -538,8 +538,11 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
     // M52: a task runs in a split that stays open when it ends; file:line lines it printed go to the quickfix list.
     let lastTask: ProjectTask | null = null;
     const loadTasks = () => projectTasks(() => files.list(""), async (n) => (await files.readText(n)).content, settings().tasks);
-    const runTask = ({ name, cmd }: ProjectTask) => {
-      lastTask = { name, cmd };
+    const runTask = ({ name, cmd: raw }: ProjectTask) => {
+      lastTask = { name, cmd: raw }; // unexpanded, so <Space>rl uses the file that is active then
+      const path = ed.current()?.path;
+      const cmd = expandTask(raw, { file: path && !path.startsWith("/") ? path : undefined, line: ed.cursorLine() ?? undefined });
+      if (cmd === null) return fail(`Task "${name}" needs an open file`);
       say(`Task "${name}": ${cmd}`);
       let hadLiveProblems = false;
       termSplit(cmd, {
