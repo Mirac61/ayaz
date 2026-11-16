@@ -61,7 +61,13 @@ function PickerBox({ source, onClose: closeNow }: { source: PickerSource; onClos
 
   useEffect(() => {
     const n = ++seq.current;
-    source.query(q, (r) => n === seq.current && setItems(r)).then((r) => {
+    // A streamed list is the answer too; it only grows, so cur -1 means "the cursor row stays the one to pick".
+    const stream = (r: Item[]) => {
+      if (n !== seq.current) return;
+      answer.current = { q, items: r, cur: -1 };
+      setItems(r);
+    };
+    source.query(q, stream).then((r) => {
       if (n !== seq.current) return;
       const c = q ? 0 : Math.min(source.start ?? 0, Math.max(r.length - 1, 0));
       answer.current = { q, items: r, cur: c };
@@ -116,7 +122,7 @@ function PickerBox({ source, onClose: closeNow }: { source: PickerSource; onClos
     else if (e.key === "Enter") {
       const a = answer.current;
       if (a.q !== q) early.current = true;
-      else pick(a.items === items ? cur : a.cur, a.items, e.metaKey || e.ctrlKey); // not rendered yet: its first item
+      else pick(a.items === items || a.cur < 0 ? cur : a.cur, a.items, e.metaKey || e.ctrlKey); // not rendered yet: its first item
     }
     else if (ctrl && e.key === "q" && source.all) { onClose(); source.all(); }
     else if (e.key === "Escape" || ctrl && e.key === "c") onClose();
