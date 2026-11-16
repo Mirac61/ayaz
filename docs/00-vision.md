@@ -37,7 +37,7 @@ A code editor that feels like Neovim, shows Markdown, PDFs and images properly, 
 - Splits with a buffer list. A tab bar can be turned on in settings.
 - Like VS Code: open another folder in the same window, or open a new window. One folder per window.
 - Explicit save (`:w`, `Cmd/Ctrl+S`).
-- Theme: Kanagawa (*wave* first) at the start; now Graphite is the default and eleven themes are built in ([M79](05-roadmap.md#m79--themes-and-start-page)).
+- Theme: Kanagawa (*wave* first) at the start; now Graphite is the default and eleven themes are built in (see the [roadmap](05-roadmap.md)).
 - Platforms: macOS (primary, arm64) and Linux on Hyprland/Wayland (Intel UHD). Windows builds ship with every release but are barely tested ([08](08-windows.md)).
 
 ## Planned for later, now done
