@@ -29,11 +29,11 @@ export function parseProblems(output: string, root: string): Loc[] {
 // root) and the 1-based cursor line. Any other ${...} stays (${HOME} is shell syntax). Null when the task needs a file
 // and none is open.
 // Values are escaped for the quotes the placeholder sits in, so a path stays literal in `cat ${file}`, `'${file}'`
-// and `"${file}"` alike. Where the scan can't tell the quoting (after $(, `, <<, $', ${x:-..}, a # comment, or with
-// unbalanced quotes) a ${file} or ${dir} throws instead of guessing.
+// and `"${file}"` alike. Where the scan can't tell the quoting (after $(, `, <<, $', ${x:-..}, any unquoted # since
+// it may start a comment, or with unbalanced quotes) a ${file} or ${dir} throws instead of guessing.
 // shortcut: POSIX sh/bash/zsh quoting only; commands that re-parse their argument (sh -c "…${file}", eval, ssh) and
 // Windows shells are not covered
-const UNMODELLED = /\$\(|`|<<|\$'|\$\{(?![A-Za-z_]\w*\})|(?:^|\s)#/y;
+const UNMODELLED = /\$\(|`|<<|\$'|\$\{(?![A-Za-z_]\w*\})|#/y;
 const escape = {
   none: (s: string) => `'${s.replace(/'/g, "'\\''")}'`,
   single: (s: string) => s.replace(/'/g, "'\\''"),

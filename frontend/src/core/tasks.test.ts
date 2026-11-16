@@ -118,8 +118,10 @@ test("expandTask escapes for the quotes around the placeholder", () => {
 });
 
 test("expandTask refuses placeholders where it can't tell the quoting", () => {
-  const at = { file: "a.go", line: 2 };
+  const at = { file: "$(printf INJECTED).txt", line: 2 };
   for (const cmd of [
+    `true;#'\nprintf "%s\\n" "\${file}" # '`,
+    "a#b ${file}",
     `printf '%s\\n' "$(printf '%s' "\${file}")"`,
     "echo `cat ${file}`",
     "echo $(ls) ${dir}",
@@ -133,7 +135,7 @@ test("expandTask refuses placeholders where it can't tell the quoting", () => {
   }
   // ${line} is a number, safe anywhere; plain ${NAME}, a quoted #, $( or << in single quotes don't count
   expect(expandTask("echo $(seq ${line})", at)).toBe("echo $(seq 2)");
-  expect(expandTask(`echo "\${HOME}#" '$(<<' \${file}`, at)).toBe(`echo "\${HOME}#" '$(<<' 'a.go'`);
+  expect(expandTask(`echo "\${HOME}#" '$(<<#' \${file}`, { file: "a.go" })).toBe(`echo "\${HOME}#" '$(<<#' 'a.go'`);
 });
 
 // The shell, not string equality, decides whether a hostile name stays literal. No /bin/sh (Windows) skips it.
