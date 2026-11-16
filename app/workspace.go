@@ -438,6 +438,15 @@ func (s *WorkspaceService) GitPush(ws string) error {
 	return nil
 }
 
+// GitBrowseURL is the web address of a file line on origin (the current branch, or the commit with permalink).
+func (s *WorkspaceService) GitBrowseURL(ws, path string, line int, permalink bool) (string, error) {
+	w, err := s.reg.Get(ws)
+	if err != nil {
+		return "", err
+	}
+	return git.BrowseURL(w.Root, path, line, permalink)
+}
+
 // GitPull pulls changes from the remote.
 func (s *WorkspaceService) GitPull(ws string) error {
 	w, err := s.reg.Get(ws)

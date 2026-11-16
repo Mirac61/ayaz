@@ -1,4 +1,5 @@
 // Git in the buffer: hunks in the gutter and the diff against HEAD.
+import { backend } from "../../core/backend";
 import type { Command } from "../../core/commands";
 import { blameText, showBlame } from "../../editor/blame";
 import { moveConflict, resolveConflict, type Pick } from "../../editor/conflicts";
@@ -14,6 +15,22 @@ export function gitCommands(c: Ctx): Command[] {
     const info = await c.files.gitBlame(buf.path, line, isDirty(buf) ? v.state.doc.toString() : "");
     if (!info) return c.say("No git history for this file");
     showBlame(v, blameText(info));
+  };
+
+  // <Space>go opens the cursor line on origin's web view, <Space>gy copies a permalink to it (the commit, not the branch).
+  const link = async (permalink: boolean) => {
+    const b = c.ed.current(), line = c.ed.cursorLine();
+    if (!b || line === null || b.path.startsWith("/")) return c.fail("No file in this folder");
+    let url: string;
+    try {
+      url = await c.files.gitBrowseURL(b.path, line, permalink);
+    } catch (e) {
+      return c.fail(errText(e));
+    }
+    if (permalink) {
+      await backend.copy(url);
+      c.say(`Copied the link to ${b.path}:${line}`);
+    } else await backend.openURL(url);
   };
 
   // <Space>hs stages the hunk under the cursor (the buffer's text, saved or not), <Space>hu takes a staged one out.
@@ -181,6 +198,8 @@ export function gitCommands(c: Ctx): Command[] {
         }
       },
     },
+    { id: "git.browse", title: "Open this line on GitHub (<Space>go)", run: () => link(false) },
+    { id: "git.copyLink", title: "Copy a permalink to this line (<Space>gy)", run: () => link(true) },
     {
       id: "git.pull",
       title: "Git pull from remote (<Space>gl, :Gpull)",

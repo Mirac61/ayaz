@@ -31,6 +31,7 @@ function fakeFiles(init: Record<string, string>) {
     gitUnstageAll: async () => {},
     gitCommit: async () => {},
     gitPush: async () => {},
+    gitBrowseURL: async () => "",
     gitPull: async () => {},
     gitFetch: async () => {},
     gitRebase: async () => {},
