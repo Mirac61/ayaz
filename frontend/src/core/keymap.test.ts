@@ -163,3 +163,7 @@ test("defaultKeymap binds tree revealCurrent and md outline", () => {
   expect(km.find((b) => b.keys === "<Space>er")?.command).toBe("tree.revealCurrent");
   expect(km.find((b) => b.keys === "<Space>mh")?.command).toBe("md.outline");
 });
+
+test("defaultKeymap binds <Space>f. to resuming the last picker", () => {
+  expect(defaultKeymap().find((b) => b.keys === "<Space>f.")?.command).toBe("find.resume");
+});

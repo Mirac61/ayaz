@@ -44,6 +44,7 @@ import { updaterStore, type UpdateProgress, type UpdateState } from "../core/upd
 import { UpdateDialog } from "./UpdateDialog";
 import { applyDiagText } from "./diagText";
 import { recentCommands, rememberCommand } from "./recentCommands";
+import { forget, remember } from "./resume";
 import { startDrag } from "./dnd";
 import { notify } from "../core/notifications";
 import { Notifications } from "./Notifications";
@@ -83,6 +84,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
     e.bps = session?.breakpoints ?? {};
     return e;
   }, [files, ws.root, ws.id]);
+  useEffect(() => forget, [ed]); // the last picker holds this folder's files
   useEffect(() => installMarkJump((path, line, col) => void ed.openAt(path, line + 1, col)), [ed]);
   // null: no panel terminal; "hidden": it runs but isn't shown (Cmd+J toggles, like VS Code).
   const [panel, setPanel] = useState<"shown" | "hidden" | null>(null);
@@ -1714,7 +1716,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       )}
       {tabMenu && <ContextMenu at={tabMenu} items={tabMenu.items} onClose={() => setTabMenu(null)} />}
       {hints && <Hints keys={hints.keys} next={hints.next} title={(id) => commands.list().find((c) => c.id === id)?.title ?? id} />}
-      {picker && <Picker source={picker} onClose={() => { setPicker(null); if (!document.activeElement?.closest(".sidebar")) ed.focus(ed.active); }} />}
+      {picker && <Picker source={picker} onQuery={(q) => remember(picker, q)} onClose={() => { setPicker(null); if (!document.activeElement?.closest(".sidebar")) ed.focus(ed.active); }} />}
       {floatMounted && (
         <div
           className="float-term-backdrop"
