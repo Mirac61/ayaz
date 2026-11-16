@@ -16,15 +16,9 @@ Updated 2026-11-16
 
 ## Why these layers
 
-```mermaid
-flowchart TD
-  M["Manual: native window, dialogs, clipboard"] --> E["E2E: whole app, server build"]
-  E --> B["Browser tests: EditorView, xterm, pdf.js"]
-  B --> N["Node tests: pure logic"]
-  N --> G["Go tests: services"]
-```
+![Test pyramid: manual, E2E, browser, Node and Go tests, from few and slow to many and fast](diagrams/test-pyramid.svg)
 
-Top: few and slow. Bottom: many and fast. Cut logic so it can be tested in the lowest layer that works.
+Cut logic so it can be tested in the lowest layer that works.
 
 - **Go services** are plain structs, so `go test` needs no Wails and no WebView.
 - **CM6 and jsdom don't mix:** jsdom has no layout, no `ResizeObserver`, no coordinates. `EditorState` logic runs in Node, anything with `EditorView` runs in browser mode.
