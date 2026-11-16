@@ -62,3 +62,17 @@ test("a link resolves against the directory the output was written in", async ()
   expect(cwd.now()).toBe("/ws/two");
   term.dispose();
 });
+
+test("output and a cwd change on the same row keep the cwd the output had", async () => {
+  const el = document.createElement("div");
+  document.body.append(el);
+  const term = new Terminal({ theme: terminalTheme() });
+  term.open(el);
+  const cwd = trackCwd(term);
+  const w = (d: string) => new Promise<void>((r) => term.write(d, r));
+  await w("\x1b]7;file:///ws/one\x07a.go:3:1");
+  await w("\x1b]7;file:///ws/two\x07");
+  expect(cwd.at(0)).toBe("/ws/one");
+  expect(cwd.at(1)).toBe("/ws/two");
+  term.dispose();
+});

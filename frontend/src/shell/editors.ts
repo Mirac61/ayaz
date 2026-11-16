@@ -84,6 +84,12 @@ export const OUTPUT = "debug://output";
 // Pane id of the bottom panel; split panes count up from 1.
 export const PANEL = -1;
 
+// The offset for line (1-based) and col (UTF-16 units), both clamped into the document.
+export function cursorAt(doc: Text, line: number, col: number): number {
+  const l = doc.line(Math.min(Math.max(line, 1), doc.lines));
+  return Math.min(l.from + Math.max(col, 0), l.to);
+}
+
 export class Editors {
   readonly buffers: Buffers;
   private panes = new Map<number, Pane>();
@@ -175,7 +181,7 @@ export class Editors {
       handle = openTerminal(box, {
         ...term,
         onMode: (m) => this.termMode(handle, m),
-        onOpenFile: (path, line, col, cwd) => this.onTermLink?.(resolveLink(path, cwd ?? "", this.root), path, line, col),
+        onOpenFile: (...a) => this.termLink(...a),
         onExit: () => this.termExited(handle!, term.onExit),
       });
       this.showTerm(id, parent, { term: handle, box, title: `${term.cmd ?? "shell"} ${++this.terms}`, cmd: term.cmd ?? "" });
@@ -421,6 +427,9 @@ export class Editors {
   }
 
   // The folder the terminal in pane id reported with OSC 7, "" if it isn't one or hasn't said.
+  // A path:line:col click in any terminal, resolved against the directory its output came from.
+  termLink = (path: string, line: number, col?: number, cwd?: string) =>
+    this.onTermLink?.(resolveLink(path, cwd ?? "", this.root), path, line, col);
   termCwd(id = this.active) { return this.panes.get(id)?.term?.cwd() ?? ""; }
   // The terminal whose title starts with `name`: in a pane (pane set) or hidden (a tab of some pane).
   termTitled(name: string): { title: string; pane?: number } | null {
@@ -654,8 +663,7 @@ export class Editors {
   async openAt(path: string, line: number, col: number) {
     const v = this.panes.get(await this.open(path))?.view;
     if (!v) return;
-    const l = v.state.doc.line(Math.min(Math.max(line, 1), v.state.doc.lines));
-    const pos = Math.min(l.from + col, l.to);
+    const pos = cursorAt(v.state.doc, line, col);
     v.dispatch({ selection: { anchor: pos }, effects: EditorView.scrollIntoView(pos, { y: "center" }) });
   }
 

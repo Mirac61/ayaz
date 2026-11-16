@@ -109,14 +109,14 @@ export function fileLinkProvider(
 // OSC 7 as it arrives, kept per row: a link in old output resolves against where the shell was then.
 export function trackCwd(term: Terminal) {
   let base = "", now = "";
-  const marks: { m: IMarker; cwd: string }[] = [];
+  const marks: { m: IMarker; cwd: string; after: number }[] = []; // after: 1 if text came first on its row
   term.parser.registerOscHandler(7, (data) => {
     const c = parseOsc7(data);
     if (c && c !== now) {
       now = c;
       const m = term.registerMarker(0);
       if (m) {
-        const k = { m, cwd: c };
+        const k = { m, cwd: c, after: term.buffer.active.cursorX > 0 ? 1 : 0 };
         marks.push(k);
         m.onDispose(() => { // scrolled out of the scrollback
           base = k.cwd;
@@ -130,7 +130,7 @@ export function trackCwd(term: Terminal) {
     now: () => now,
     at(row: number) {
       let c = base;
-      for (const k of marks) if (k.m.line <= row) c = k.cwd;
+      for (const k of marks) if (k.m.line + k.after <= row) c = k.cwd;
       return c || now;
     },
   };

@@ -461,7 +461,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
 
     ed.onTermLink = (rel, path, line, col) => {
       if (rel === null) return fail(`"${path}" is outside this folder`);
-      ed.openAt(rel, line, Math.max((col ?? 1) - 1, 0)).catch((e) => fail(errText(e)));
+      ed.openAt(rel, line, (col ?? 1) - 1).catch((e) => fail(errText(e)));
     };
 
     ed.onRunInTerminal = async (args) => {
@@ -1747,6 +1747,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
                 if (el && !floatHandle.current) {
                   floatHandle.current = openTerminal(el, {
                     ws: ws.id,
+                    onOpenFile: ed.termLink,
                     onExit: () => {
                       setFloatTerm(false);
                       setFloatMounted(false);
