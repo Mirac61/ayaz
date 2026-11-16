@@ -1,6 +1,6 @@
 # ADR-0003: Live preview as our own CM6 extension on the Lezer tree
 
-Status: proposed · 2026-11-08
+Status: accepted · 2026-11-08
 
 ## Context
 - Markdown should look rendered inside the editor (Obsidian style): markers disappear outside the cursor line, tables and images show inline.

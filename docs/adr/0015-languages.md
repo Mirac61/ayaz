@@ -1,6 +1,6 @@
 # ADR-0015: Languages via Lezer packages + LSP servers from PATH
 
-Status: proposed · 2026-11-08
+Status: accepted · 2026-11-08
 
 ## Context
 - Full support for Go, C/C++, web (TS/JS, HTML, CSS, JSON), Java, in that order.

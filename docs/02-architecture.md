@@ -1,6 +1,6 @@
 # 02 – Architecture
 
-Updated 2026-11-08 · Based on [01-research.md](01-research.md)
+Updated 2026-11-16 · Based on [01-research.md](01-research.md)
 
 ## Principles
 
@@ -16,33 +16,37 @@ Updated 2026-11-08 · Based on [01-research.md](01-research.md)
 
 ![System overview: frontend, Wails runtime, Go backend, OS](diagrams/system-overview.svg)
 
-## Folder layout (planned)
+## Folder layout
 
 ```
 ayaz/
-  main.go                 # only: build options, app.Run
+  main.go                 # build options, app.Run
   internal/
-    workspace/            # root, path jail, read/write (atomic), listing, registry (ID → workspace)
+    workspace/            # root, path jail, read/write (atomic), listing, trash, registry (ID → workspace)
     fsserve/              # http.Handler for /fs/<ws>/<path>
-    watch/                # interface + fswatcher adapter, debounce, self-write filter
+    watch/                # fswatcher adapter, debounce, self-write filter
     index/                # file index + fuzzy matcher
     search/               # project search and replace
     pty/                  # terminal sessions: start shell, resize, batch output
     lsp/                  # server processes, Content-Length framing, restart
-    config/               # settings + keymaps (JSON in os.UserConfigDir)
-  app/                    # Wails services, streams, event bridge, windows
+    dap/                  # debug adapter (Delve) process + framing
+    git/                  # runs `git`: status, blame, hunks, stage, branch
+    proc/                 # login-shell PATH lookup, platform process flags
+  app/                    # Wails services, streams, event bridge, windows, settings/keymap/snippets (config.go + *.default.json)
   frontend/               # Bun + Vite + React + TS
     src/
-      core/               # commands, keymap, backend.ts, viewer registry, buffers, quickfix
-      shell/              # layout, splits, optional tabs, tree, picker, palette, status line
-      editor/             # CM6 setup, vim/, theme, lsp transport
+      core/               # commands, keymap, backend.ts, viewer registry, buffers, quickfix, settings, tasks
+      shell/              # layout, splits, tabs, tree, picker, palette, status line, debugger UI
+      editor/             # CM6 setup, vim/, Markdown live preview (mdlive), LSP transport, git gutter
       lang/               # extension → language package + LSP server
-      mdlive/             # live preview extension
-      terminal/           # xterm.js provider, theme, stream
-      viewers/            # pdf/, image/, mdpreview/
-      theme/              # Kanagawa tokens (CSS variables, CM6, xterm)
+      terminal/           # xterm.js provider, theme, stream, file:line links
+      viewers/            # pdf, image, html, browser
+      debug/              # DAP client and adapters
+      theme/              # tokens (CSS variables, CM6, xterm)
+      docs/               # in-app docs, opened as `docs://` tabs
+      spikes/             # M0 measurements (latency, fps, PDF RAM)
+  build/                  # per-platform packaging
   docs/
-  spikes/                 # throwaway code from Phase 0/M0
 ```
 
 ## Modules
@@ -56,10 +60,12 @@ ayaz/
 | `watch` | watch recursively, debounce, filter own writes, overflow → rescan | fswatcher |
 | `index` | file list (ignore rules), updated from `watch`, `Query(q, limit)` | `watch` |
 | `search` | literal/regex over index files, parallel, streamed, replace via `workspace` | `index`, `workspace` |
-| `pty` | start a shell session (from config, default `$SHELL -l`, cwd = root), I/O, resize, batch output, report exit | `creack/pty`, `config` |
+| `pty` | start a shell session (from settings, default `$SHELL -l`, cwd = root), I/O, resize, batch output, report exit | `creack/pty` |
 | `lsp` | start/stop a server per (workspace, language), framing, restart with backoff, find servers via `PATH`/config | stdlib |
-| `config` | settings, keymaps, language → server mapping, recent folders | stdlib |
-| `app` | Wails services, stream handlers, event names, windows | Wails + all of the above |
+| `dap` | start a debug adapter, framing, stream, output events | stdlib |
+| `git` | status, blame, diff against HEAD, stage/reset hunks, branch (runs `git`) | stdlib |
+| `proc` | find tools through the login shell's `PATH`, platform process flags | stdlib |
+| `app` | Wails services, stream handlers, event names, windows, settings/keymap/snippets files | Wails + all of the above |
 
 ### Frontend
 
@@ -72,11 +78,11 @@ ayaz/
 | `core/buffers` | buffer store (EditorState, path, mtime, dirty) |
 | `core/quickfix` | one list for search hits, LSP references, later build errors; `:cn`/`:cp` |
 | `shell` | layout, splits, optional tab bar, virtualized tree, picker, palette, status line |
-| `editor` | CM6 per buffer, Vim, theme, LSP client per language |
+| `editor` | CM6 per buffer, Vim, Markdown live preview (`mdlive`), git gutter, LSP client per language |
 | `lang` | table extension/filename → language package (lazy) + LSP server ID |
-| `mdlive` | live preview extension |
 | `terminal` | xterm.js provider, renderer choice, terminal normal mode |
-| `viewers/*` | PDF, image, Markdown preview |
+| `viewers/*` | PDF, image, HTML, browser |
+| `debug` | DAP client and per-language adapters (Go, Python) |
 
 ## Provider interface
 
@@ -271,14 +277,13 @@ Every overlay (picker, menus, the clone dialog) looks and behaves the same:
 
 ## Extension points
 
-| Later | Plugs into | Core changes |
+| To add | Plugs into | Core changes |
 |---|---|---|
-| Another language | a row in `lang/registry.ts` + server in config | none |
-| Tasks/build | `internal/tasks` (uses `pty` or `os/exec`) + quickfix parser | none |
-| Git | `internal/git` (runs `git`) + CM6 gutter + tree decoration | none |
-| Debugger (DAP) | `internal/dap`, same pattern as `lsp` (process + framing + stream) + breakpoint gutter | none |
-| New Vim motions | `editor/vim/motions.ts` | none |
-| New file type | a new provider | none |
+| Another language | a row in `lang/registry.ts` + server in settings | none |
+| Another debug adapter | `debug/` adapter + `app/dap.go`, same pattern as `lsp` | none |
+| Project tasks | `tasks` in `settings.json` (`core/projectTasks.ts`, runs in a terminal) + quickfix parser | none |
+| New Vim motions | `editor/vim/` | none |
+| New file type | a new provider in `viewers/` | none |
 
 ## Security
 
@@ -298,18 +303,18 @@ Wails bindings can be called by any code in the WebView, including iframes. With
 | ADR | Title | Status |
 |---|---|---|
 | [0001](adr/0001-wails-v3.md) | Wails v3 instead of v2 or Tauri | **accepted** |
-| [0002](adr/0002-codemirror-vim.md) | CodeMirror 6 + @replit/codemirror-vim | proposed |
-| [0003](adr/0003-markdown-live-preview.md) | Live preview as our own CM6 extension on the Lezer tree | proposed |
-| [0004](adr/0004-pdfjs-viewer.md) | pdf.js with the PDFViewer component | proposed |
-| [0005](adr/0005-file-serving.md) | Files via asset middleware `/fs/` with a workspace jail | proposed |
-| [0006](adr/0006-file-watching.md) | File watching with sgtdi/fswatcher v2 behind our own interface | proposed |
-| [0007](adr/0007-fuzzy-in-backend.md) | File index and fuzzy matching in Go, written ourselves | proposed |
-| [0008](adr/0008-bun-vitest.md) | Bun as package manager, Vitest as test runner | proposed |
-| [0009](adr/0009-lsp-bridge.md) | LSP via @codemirror/lsp-client and Wails streams | proposed |
-| [0010](adr/0010-command-registry.md) | Command registry at the center | proposed |
-| [0011](adr/0011-viewer-provider.md) | Pane content as providers mounted into the DOM | proposed |
+| [0002](adr/0002-codemirror-vim.md) | CodeMirror 6 + @replit/codemirror-vim | accepted |
+| [0003](adr/0003-markdown-live-preview.md) | Live preview as our own CM6 extension on the Lezer tree | accepted |
+| [0004](adr/0004-pdfjs-viewer.md) | pdf.js with the PDFViewer component | accepted |
+| [0005](adr/0005-file-serving.md) | Files via asset middleware `/fs/` with a workspace jail | accepted |
+| [0006](adr/0006-file-watching.md) | File watching with sgtdi/fswatcher v2 behind our own interface | accepted |
+| [0007](adr/0007-fuzzy-in-backend.md) | File index and fuzzy matching in Go, written ourselves | accepted |
+| [0008](adr/0008-bun-vitest.md) | Bun as package manager, Vitest as test runner | accepted |
+| [0009](adr/0009-lsp-bridge.md) | LSP via @codemirror/lsp-client and Wails streams | accepted |
+| [0010](adr/0010-command-registry.md) | Command registry at the center | accepted |
+| [0011](adr/0011-viewer-provider.md) | Pane content as providers mounted into the DOM | accepted |
 | [0012](adr/0012-react-shell.md) | React only for the shell | **accepted** |
-| [0013](adr/0013-terminal.md) | Terminal with xterm.js, creack/pty and Wails streams | proposed |
-| [0014](adr/0014-multiple-windows.md) | Multiple windows in one process, one workspace per window | proposed |
-| [0015](adr/0015-languages.md) | Languages via Lezer packages + LSP servers from PATH | proposed |
-| [0016](adr/0016-project-search.md) | Project search in Go, written ourselves | proposed |
+| [0013](adr/0013-terminal.md) | Terminal with xterm.js, creack/pty and Wails streams | accepted |
+| [0014](adr/0014-multiple-windows.md) | Multiple windows in one process, one workspace per window | accepted |
+| [0015](adr/0015-languages.md) | Languages via Lezer packages + LSP servers from PATH | accepted |
+| [0016](adr/0016-project-search.md) | Project search in Go, written ourselves | accepted |

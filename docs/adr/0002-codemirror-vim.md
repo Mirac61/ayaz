@@ -1,6 +1,6 @@
 # ADR-0002: CodeMirror 6 + @replit/codemirror-vim
 
-Status: proposed · 2026-11-08
+Status: accepted · 2026-11-08
 
 ## Context
 - The editor must be fast on big files, support decorations for live preview, and do Vim.
