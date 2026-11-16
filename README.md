@@ -130,7 +130,7 @@ bun run e2e                       # Playwright against the server build (see doc
 
 | Workflow | Runs on | What it does |
 |---|---|---|
-| [`ci.yml`](.github/workflows/ci.yml) | every push | Go vet and tests on macOS and Linux, a Windows cross-build, the frontend checks, browser and E2E tests |
+| [`ci.yml`](.github/workflows/ci.yml) | pull requests and pushes to `main`/`dev` | one Ubuntu job: Go lint, `go test -race`, `govulncheck`, frontend typecheck, lint and Node tests. Browser and E2E tests don't run in CI, run them yourself ([docs/04-testing.md](docs/04-testing.md)) |
 | [`release.yml`](.github/workflows/release.yml) | `v*` tags, manual | builds the macOS, Windows and Linux archives; a tag also publishes them as a GitHub release |
 
 The code is split like this:
@@ -141,11 +141,11 @@ The code is split like this:
 | `internal/` | Go packages: `workspace` (path jail, file ops), `lsp`, `dap`, `pty`, `proc`, `git`, `search`, `index`, `watch`, `fsserve` |
 | `frontend/src/` | `editor/` (CodeMirror, Vim, Markdown), `shell/` (panes, tree, picker), `viewers/` (images, PDF, browser), `terminal/`, `debug/`, `core/`, `theme/` |
 | `build/` | per-platform packaging (`darwin`, `linux`, `windows`) |
-| `docs/` | vision, research, architecture, ADRs, roadmap, test strategy |
+| `docs/` | vision, research, architecture, ADRs, roadmap, testing, manual checks |
 
 ## Contributing
 
-Bug reports and ideas go into [issues](https://github.com/Mirac61/ayaz/issues). For a pull request, keep it to one change, add a test next to the code you touch, and run the checks from [Develop](#develop) before pushing; CI runs the same on macOS and Linux. Reports from Windows are especially welcome: [docs/08-windows.md](docs/08-windows.md) lists what to check first.
+Bug reports and ideas go into [issues](https://github.com/Mirac61/ayaz/issues). For a pull request, keep it to one change, add a test next to the code you touch, and run the checks from [Develop](#develop) before pushing; CI runs the Go and Node checks, the browser and E2E tests are yours to run. Reports from Windows are especially welcome: [docs/08-windows.md](docs/08-windows.md) lists what to check first.
 
 ## Docs
 

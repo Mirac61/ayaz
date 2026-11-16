@@ -20,6 +20,10 @@
 - Jede Logik-Änderung braucht einen echten Unit-/Browser-Test direkt neben dem Code.
 - Kleinste saubere Lösung: Keine ungefragten Refactorings oder Umbenennungen außerhalb des Tasks.
 
+## Doku
+- Wer einen Ordner oder ein Modul anlegt, verschiebt oder entfernt, ändert `docs/02-architecture.md` im selben PR.
+- Ändern sich Befehle oder CI, passen `README.md` und `docs/04-testing.md` mit an.
+
 ## Bekannte Fallen
 - `task lint` prüft Go (golangci-lint) und Frontend (prettier, oxlint mit `curly`), `task fmt` formatiert beides. Dazu `bun run --cwd frontend typecheck`. `bun run --cwd frontend lint:css` (stylelint) ist nicht in CI, weil es noch Altlasten meldet.
 - Immer Klammern: `if (x) {\n  return;\n}`, nie `if (x) return;`.
