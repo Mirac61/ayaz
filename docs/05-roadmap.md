@@ -14,74 +14,97 @@ Updated 2026-11-17 · Each milestone was a vertical slice: afterwards the app st
 
 All milestones below are finished. M0–M5 have no date recorded.
 
-| | What | Done |
-|---|---|---|
-| M0 | Skeleton, measuring, spikes | done |
-| M1 | Open a folder, tree, edit and save a file | done |
-| M2 | Commands, keymap, fuzzy finder, splits | done |
-| M3 | File watching | done |
-| M4 | Terminal | done |
-| M5 | Markdown live preview, inline | done |
-| M6 | Markdown live preview, blocks | 2026-11-09 |
-| M7 | LSP for Go | 2026-11-09 |
-| M8 | Project search and quickfix | 2026-11-09 |
-| M9 | LSP for C/C++, web, Java | 2026-11-09 |
-| M10 | Image viewer | 2026-11-09 |
-| M11 | PDF viewer | 2026-11-09 |
-| M12 | Separate Markdown preview and optional tabs | 2026-11-09 |
-| M13 | Multiple windows and switching folders | 2026-11-09 |
-| M14 | Packaging and hardening | 2026-11-09 |
-| M15 | File operations in the tree | 2026-11-10 |
-| M16 | Session per folder | 2026-11-10 |
-| M17 | Zoom | 2026-11-10 |
-| M18 | Reopen closed tabs, back and forward across files | 2026-11-10 |
-| M19 | Git in the gutter, branch in the status line (L2, first part) | 2026-11-10 |
-| M20 | Symbols | 2026-11-10 |
-| M21 | Diagnostics as a list and in the status line | 2026-11-10 |
-| M22 | Cleanup on save, line wrap | 2026-11-10 |
-| M23 | Cmd+Q asks first | 2026-11-10 |
-| M24 | Comments, closing brackets, surround | 2026-11-10 |
-| M25 | LSP keys | 2026-11-10 |
-| M26 | settings.json | 2026-11-10 |
-| M27 | Bundled symbols font | 2026-11-10 |
-| M28 | Welcome page with keys | 2026-11-10 |
-| M29 | Git status in the tree (L2, second part) | 2026-11-10 |
-| M30 | Diff against HEAD (L2, last part) | 2026-11-10 |
-| M31 | Filter the tree | 2026-11-10 |
-| M49 | Hot exit | 2026-11-10 |
-| M50 | Local history | 2026-11-10 |
-| M51 | Big files and repositories measured | 2026-11-10 |
-| M52 | Tasks | 2026-11-10 |
-| M53 | Shell integration | 2026-11-10 |
-| M54 | Semantic tokens | 2026-11-10 |
-| M55 | Structural text objects | 2026-11-10 |
-| M56 | Document highlight | 2026-11-10 |
-| M57 | Sticky scroll | 2026-11-10 |
-| M58 | Call hierarchy | 2026-11-10 |
-| M59 | Completion: extra edits, snippets | 2026-11-10 |
-| M60 | Inline blame | 2026-11-10 |
-| M61 | Stage hunks | 2026-11-10 |
-| M62 | Merge conflicts | 2026-11-10 |
-| M63 | Vim fidelity | 2026-11-10 |
-| M64 | Release readiness | 2026-11-10 |
-| M65 | UX pass | 2026-11-11 |
-| M66 | More languages, Typst and LaTeX | 2026-11-11 |
-| M67 | Small daily things | 2026-11-11 |
-| M68 | Debugger: program stderr | 2026-11-11 |
-| M69 | Debugger: adapter table and stdio mode | 2026-11-12 |
-| M70 | Debugger: conditional breakpoints, logpoints and hit counts | 2026-11-12 |
-| M71 | Debugger: watch expressions | 2026-11-12 |
-| M72 | Debugger: program stdin and runInTerminal | 2026-11-12 |
-| M73 | Debugger: Python with debugpy | 2026-11-12 |
-| M74 | Debugger: Rust, C, C++ with lldb-dap | 2026-11-12 |
-| M75 | Git staging tab, platform-specific install hints and Windows hardening | 2026-11-12 |
-| M76 | Platform-independent in-app auto-update and local release workflow | 2026-11-12 |
-| M77 | Docs Hub | 2026-11-13 |
-| M78 | Git remotes and cloning | 2026-11-13 |
-| M79 | Themes and start page | 2026-11-13 |
-| M80 | Standard mode and HTML preview | 2026-11-14 |
-| M81 | Release automation | 2026-11-14 |
-| M82 | Small daily things, part 2 | 2026-11-16 |
+| | What | What you get | Done |
+|---|---|---|---|
+| M0 | Skeleton, measuring, spikes | Empty Wails v3 window, build, measuring harness and the first spikes. | done |
+| M1 | Open a folder, tree, edit and save a file | Open a folder; file tree, CodeMirror editor with Vim and highlighting, safe saving. | done |
+| M2 | Commands, keymap, fuzzy finder, splits | Command registry with palette, configurable keymap, fuzzy finder, splits and buffer list. | done |
+| M3 | File watching | The folder is watched; external changes (e.g. `git checkout`) show up in tree and buffers. | done |
+| M4 | Terminal | A real PTY terminal (xterm.js) as bottom panel or as a pane. | done |
+| M5 | Markdown live preview, inline | Markdown renders while you type: headings, emphasis, links, code, inline images. | done |
+| M6 | Markdown live preview, blocks | Blocks too: code blocks, quotes, lists, task lists, tables, rules. | 2026-11-09 |
+| M7 | LSP for Go | gopls: diagnostics, completion, hover, go to definition, references, rename. | 2026-11-09 |
+| M8 | Project search and quickfix | Parallel project search (literal or regex) with a quickfix list and replace. | 2026-11-09 |
+| M9 | LSP for C/C++, web, Java | clangd, TypeScript/JavaScript, HTML/CSS/JSON and Java servers through one server table. | 2026-11-09 |
+| M10 | Image viewer | Image viewer with zoom and pan. | 2026-11-09 |
+| M11 | PDF viewer | PDF viewer with page keys and full-text search. | 2026-11-09 |
+| M12 | Separate Markdown preview and optional tabs | Separate Markdown preview as a second pane on the same buffer; optional tab bar. | 2026-11-09 |
+| M13 | Multiple windows and switching folders | Several windows and switching folders; closing a workspace stops its processes. | 2026-11-09 |
+| M14 | Packaging and hardening | macOS app bundle, Linux desktop file and PKGBUILD, install guide. | 2026-11-09 |
+| M15 | File operations in the tree | Create, rename, trash and reveal files from the tree. | 2026-11-10 |
+| M16 | Session per folder | The session (tabs, splits, cursors) is saved and restored per folder. | 2026-11-10 |
+| M17 | Zoom | Zoom the whole window with `Cmd +`, `-`, `0`. | 2026-11-10 |
+| M18 | Reopen closed tabs, back and forward across files | Reopen closed tabs; back and forward across files. | 2026-11-10 |
+| M19 | Git in the gutter, branch in the status line (L2, first part) | Git branch in the status line, change marks in the gutter. | 2026-11-10 |
+| M20 | Symbols | Symbols of the file and the workspace in the picker. | 2026-11-10 |
+| M21 | Diagnostics as a list and in the status line | All diagnostics as a list; counts in the status line. | 2026-11-10 |
+| M22 | Cleanup on save, line wrap | `:w` trims trailing spaces and ends with one newline; line wrap. | 2026-11-10 |
+| M23 | Cmd+Q asks first | `Cmd+Q` asks first when any window has unsaved buffers. | 2026-11-10 |
+| M24 | Comments, closing brackets, surround | Comment toggle (`gcc`), closing brackets, surround. | 2026-11-10 |
+| M25 | LSP keys | LSP keys: hover (`K`), rename, code actions. | 2026-11-10 |
+| M26 | settings.json | `settings.json` for font, size, tab width, wrap, format on save and more. | 2026-11-10 |
+| M27 | Bundled symbols font | Bundled Symbols Nerd Font, so icons work without an installed Nerd Font. | 2026-11-10 |
+| M28 | Welcome page with keys | The start page of a window without a folder lists recent folders and the first keys to know. | 2026-11-10 |
+| M29 | Git status in the tree (L2, second part) | Git status colours in the file tree. | 2026-11-10 |
+| M30 | Diff against HEAD (L2, last part) | Diff against HEAD in the editor. | 2026-11-10 |
+| M31 | Filter the tree | Filter the tree by typing. | 2026-11-10 |
+| M49 | Hot exit | Unsaved buffers are kept in swap files and come back after a crash or quit. | 2026-11-10 |
+| M50 | Local history | Every save keeps the text it replaced; restore from a picker. | 2026-11-10 |
+| M51 | Big files and repositories measured | Big files and big repositories measured; very long lines open as plain text. | 2026-11-10 |
+| M52 | Tasks | Tasks from `settings.json` run in a terminal split, errors go to quickfix. | 2026-11-10 |
+| M53 | Shell integration | `ayaz file[:line[:col]]` opens a file in the running app; OSC 7 tracks the shell's folder. | 2026-11-10 |
+| M54 | Semantic tokens | Semantic token colours from the language server. | 2026-11-10 |
+| M55 | Structural text objects | Structural text objects: function, class, argument (`af`, `ac`, `aa`). | 2026-11-10 |
+| M56 | Document highlight | Other occurrences of the symbol under the cursor are highlighted. | 2026-11-10 |
+| M57 | Sticky scroll | Sticky scroll: the enclosing functions and classes stay at the top. | 2026-11-10 |
+| M58 | Call hierarchy | Call hierarchy (callers and callees) into the quickfix list. | 2026-11-10 |
+| M59 | Completion: extra edits, snippets | Completion applies extra edits and snippets. | 2026-11-10 |
+| M60 | Inline blame | Inline git blame for the cursor line. | 2026-11-10 |
+| M61 | Stage hunks | Stage and unstage single hunks. | 2026-11-10 |
+| M62 | Merge conflicts | Merge conflict blocks are found and coloured in every editor. | 2026-11-10 |
+| M63 | Vim fidelity | About 90 daily nvim commands covered by browser tests; Vim gaps closed. | 2026-11-10 |
+| M64 | Release readiness | CI runs browser and E2E tests on macOS and Linux with a real gopls. | 2026-11-10 |
+| M65 | UX pass | UX pass from an unattended session: picker previews and polish. | 2026-11-11 |
+| M66 | More languages, Typst and LaTeX | Highlighting and servers for Python, Rust, YAML, TOML, shell, SQL, XML, PHP, Lua, Dockerfile, Typst, LaTeX. | 2026-11-11 |
+| M67 | Small daily things | Small daily things, e.g. pasting an image into Markdown saves it next to the file. | 2026-11-11 |
+| M68 | Debugger: program stderr | The debugged program's stderr shows up in the output buffer. | 2026-11-11 |
+| M69 | Debugger: adapter table and stdio mode | Debug adapter table instead of Go-only launching. | 2026-11-12 |
+| M70 | Debugger: conditional breakpoints, logpoints and hit counts | Conditional breakpoints, logpoints and hit counts. | 2026-11-12 |
+| M71 | Debugger: watch expressions | Watch expressions. | 2026-11-12 |
+| M72 | Debugger: program stdin and runInTerminal | Program stdin through `runInTerminal`. | 2026-11-12 |
+| M73 | Debugger: Python with debugpy | Python debugging with debugpy. | 2026-11-12 |
+| M74 | Debugger: Rust, C, C++ with lldb-dap | Rust, C and C++ debugging with lldb-dap. | 2026-11-12 |
+| M75 | Git staging tab, platform-specific install hints and Windows hardening | Git staging tab, install hints per platform, Windows hardening. | 2026-11-12 |
+| M76 | Platform-independent in-app auto-update and local release workflow | In-app auto-update and a local release workflow. | 2026-11-12 |
+| M77 | Docs Hub | Docs Hub: the in-app docs as a page with categories, reading mode, light mode and table of contents. | 2026-11-13 |
+| M78 | Git remotes and cloning | Fetch, pull, push and rebase, a clone dialog, remote actions as icons in the sidebar. | 2026-11-13 |
+| M79 | Themes and start page | Eleven built-in themes, a ligatures setting, and a new start page with recent folders as a star chart. | 2026-11-13 |
+| M80 | Standard mode and HTML preview | Non-Vim standard mode (`Cmd/Ctrl+Shift+M`) and an internal browser preview for HTML. | 2026-11-14 |
+| M81 | Release automation | release-please writes the release PR and `CHANGELOG.md`; multi-platform packaging. | 2026-11-14 |
+| M82 | Small daily things, part 2 | `<Space>go`/`gy` GitHub links, `<Space>f.` and `fT`, history restore, task placeholders, `c` duplicate, terminal file links. | 2026-11-16 |
+
+
+## Planned
+
+Plans written on 2026-11-16, each split into tasks with one PR per task. The plan documents are in `docs/plans/` of the main folder and are not committed yet.
+
+| Plan | What it is about |
+|---|---|
+| Agent (ACP) | A coding agent (Claude, Codex, Gemini, OpenCode) runs as a subprocess and talks to Ayaz over the Agent Client Protocol: thread, prompt, edits reviewed before they are saved. Replaces E11. |
+| Git log | History of the project, a file and a line selection; open commits and compare a file at an old commit, all by keyboard. |
+| Diff and merge view | Side-by-side diff that marks changes and scrolls in step, comparison against the index, help with merge conflicts. |
+| Test runner | Run the test under the cursor, the file or all tests with one key; pass or fail in the gutter, failures in quickfix; Go first. |
+| Launch configurations | A VS Code compatible `launch.json` for debug runs: arguments, environment, folder, build step, attach. |
+| VS Code tasks | Read `.vscode/tasks.json` and offer its tasks in `<Space>rr`. |
+| Formatters | External formatters (shfmt, ruff, stylua, prettier) for `:w` and manual formatting where the language server does not format. |
+| More languages | Fallback highlighting from `@codemirror/legacy-modes` and your own language servers in `settings.json`. |
+| C#/.NET | C#, Avalonia and ASP.NET: Roslyn language server, dotnet tasks, debugging. |
+| Embedded basics | Build and flash Pico-SDK (CMake) projects, colour assembler and linker files, clangd with the cross compiler; ESP32 later. |
+| Embedded debugger | Debug a Pico with OpenOCD and GDB over CMSIS-DAP: flash, breakpoints, steps, variables, CPU registers. |
+| Prose check | Spelling and grammar in Markdown, Typst and text files with harper-ls, suggestions on hover. |
+| Breadcrumb | The file path and the enclosing functions above the editor; a click jumps to one. |
+| Vim fidelity | Vim patterns instead of JavaScript patterns in `:s` and `:g`, `:retab`, and the text-object details that differ from Vim. |
+| Quality of life | Eight small everyday features, one PR each; some are done (M82). |
 
 ## Open
 
@@ -91,7 +114,7 @@ All milestones below are finished. M0–M5 have no date recorded.
 - **Window:** the macOS title bar is hidden with native traffic lights; the window title with folder and file is not checked (E8).
 - **Theme:** follow the desktop theme (caelestia) (E9).
 - **Details:** scrollbar style, cursor line edge, spacing between tree and editor, hover states (E10).
-- **Agent:** inline agent at the cursor like Zed: real model backend, diff preview, apply/reject per hunk. Removed in 2026-11 because it only showed canned answers (E11).
+- **Agent:** an inline agent at the cursor like Zed was removed in 2026-11 because it only showed canned answers (E11); the new agent plan above replaces it.
 
 ---
 

@@ -24,7 +24,16 @@ package "Phase 4 · Shipping" {
   rectangle "M13\nMultiple windows" as M13
   rectangle "M14\nPackaging" as M14
 }
-rectangle "Later\nTasks, Git, DAP" as L #line.dashed
+package "Phase 5 · Daily use (M15–M67)" {
+  rectangle "M15–M31\nTree, session, zoom, symbols,\nsettings, first Git parts" as P5a
+  rectangle "M49–M67\nHot exit, history, tasks, semantic\ntokens, Git hunks, Vim fidelity,\nmore languages" as P5b
+}
+package "Phase 6 · Debugger, updates, polish (M68–M82)" {
+  rectangle "M68–M74\nDebugger: Go, Python,\nRust, C/C++" as P6a
+  rectangle "M75–M76\nWindows hardening,\nauto-update" as P6b
+  rectangle "M77–M82\nDocs Hub, Git remotes, themes,\nstandard mode, releases" as P6c
+}
+rectangle "Planned (2026-11-16)\nAgent (ACP), Git log, diff and merge,\ntest runner, launch configs, formatters,\nlanguages, C#/.NET, embedded, prose check,\nbreadcrumb, Vim fidelity" as PL #line.dashed
 M0 -down-> M1
 M1 -down-> M2
 M2 -down-> M3
@@ -42,6 +51,11 @@ M11 -down-> M12
 M12 -[norank]-> M13
 M10 -[hidden]right- M13
 M13 -down-> M14
-M14 -down-> L
+M14 -down-> P5a
+P5a -down-> P5b
+P5b -down-> P6a
+P6a -down-> P6b
+P6b -down-> P6c
+P6c -down-> PL
 caption Fig. 7 – Milestones in order
 @enduml
