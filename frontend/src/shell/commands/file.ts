@@ -1,7 +1,7 @@
 // Commands on files: save, open, create, rename, trash, paths, links and local history.
 import { Text } from "@codemirror/state";
 import { backend } from "../../core/backend";
-import { isDirty } from "../../core/buffers";
+import { diff, isDirty, lf } from "../../core/buffers";
 import type { Command } from "../../core/commands";
 import { browsable, resolveLink } from "../../editor/mdlive";
 import { fileIcon, folderIcon } from "../../theme/icons";
@@ -204,7 +204,7 @@ export function fileCommands({ ws, files, ed, tree, say, fail, setPicker, prompt
     },
     {
       id: "file.history",
-      title: "Local history: diff against an earlier save",
+      title: "Local history: diff against or restore an earlier save",
       async run() {
         const b = ed.current();
         if (!b) return fail("No file");
@@ -214,11 +214,22 @@ export function fileCommands({ ws, files, ed, tree, say, fail, setPicker, prompt
         setPicker({
           title: `History of ${b.path}`,
           query: async () => versions.map((v) => ({ label: when(v.time), hint: `${ago(v.time)} · ${v.size} B` })),
-          pick: (_it, i) => void files.historyText(b.path, versions[i].time).then((text) => {
+          footer: "Enter diff · Cmd/Ctrl+Enter restore as unsaved changes",
+          pick: (_it, i, restore) => void files.historyText(b.path, versions[i].time).then(async (text) => {
             if (ed.current() !== b) return;
-            ed.diffWith(Text.of(text.split("\n")));
+            // Buffers hold LF only, so a CRLF save is normalized before it is compared or restored.
+            const old = lf(text);
+            if (restore) {
+              // Nothing is written to disk: the old text is an edit like any other, `u` undoes it.
+              const change = diff(b.state.doc.toString(), old);
+              if (change.from === change.to && !change.insert) return say("Already identical to that save");
+              await ed.edit(b.path, [change]);
+              say(`Restored the save before ${when(versions[i].time)}: unsaved, u undoes it`);
+              return;
+            }
+            ed.diffWith(Text.of(old.split("\n")));
             say(`Diff against the save before ${when(versions[i].time)}, <Space>gd closes it`);
-          }, (e) => fail(errText(e))),
+          }).catch((e) => fail(errText(e))),
         });
       },
     },

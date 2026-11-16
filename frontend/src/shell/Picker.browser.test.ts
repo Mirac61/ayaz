@@ -24,3 +24,18 @@ test("Enter picks the cursor row of a streamed list", async () => {
   key("Enter");
   await vi.waitFor(() => expect(pick).toHaveBeenCalledWith(expect.objectContaining({ label: "b.go:2: TODO" }), 1, false));
 });
+
+// Cmd/Ctrl+Enter before the first answer arrived must still reach pick as "side".
+test("an early Cmd+Enter keeps its modifier", async () => {
+  const host = document.body.appendChild(document.createElement("div"));
+  const pick = vi.fn();
+  const source: PickerSource = {
+    title: "Early",
+    query: () => new Promise((r) => setTimeout(() => r([{ label: "only" }]), 300)),
+    pick,
+  };
+  createRoot(host).render(createElement(Picker, { source, onClose() {} }));
+  await vi.waitFor(() => expect(host.querySelector(".picker-input")).not.toBeNull());
+  host.querySelector(".picker-input")!.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", metaKey: true, bubbles: true }));
+  await vi.waitFor(() => expect(pick).toHaveBeenCalledWith(expect.objectContaining({ label: "only" }), 0, true));
+});
