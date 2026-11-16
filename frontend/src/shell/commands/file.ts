@@ -1,7 +1,7 @@
 // Commands on files: save, open, create, rename, trash, paths, links and local history.
 import { Text } from "@codemirror/state";
 import { backend } from "../../core/backend";
-import { isDirty } from "../../core/buffers";
+import { diff, isDirty, lf } from "../../core/buffers";
 import type { Command } from "../../core/commands";
 import { browsable, resolveLink } from "../../editor/mdlive";
 import { fileIcon, folderIcon } from "../../theme/icons";
@@ -197,11 +197,18 @@ export function fileCommands({ ws, files, ed, tree, say, fail, setPicker, prompt
         setPicker({
           title: `History of ${b.path}`,
           query: async () => versions.map((v) => ({ label: when(v.time), hint: `${ago(v.time)} · ${v.size} B` })),
-          pick: (_it, i) => void files.historyText(b.path, versions[i].time).then((text) => {
+          footer: "Enter diff · Cmd/Ctrl+Enter restore as unsaved changes",
+          pick: (_it, i, restore) => void files.historyText(b.path, versions[i].time).then(async (text) => {
             if (ed.current() !== b) return;
+            if (restore) {
+              // Nothing is written to disk: the old text is an edit like any other, `u` undoes it.
+              await ed.edit(b.path, [diff(b.state.doc.toString(), lf(text))]);
+              say(`Restored the save before ${when(versions[i].time)}: unsaved, u undoes it`);
+              return;
+            }
             ed.diffWith(Text.of(text.split("\n")));
             say(`Diff against the save before ${when(versions[i].time)}, <Space>gd closes it`);
-          }, (e) => fail(errText(e))),
+          }).catch((e) => fail(errText(e))),
         });
       },
     },
