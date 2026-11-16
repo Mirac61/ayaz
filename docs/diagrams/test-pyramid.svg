@@ -1,52 +1,49 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 470" role="img" aria-labelledby="t d">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 460" role="img" aria-labelledby="t d">
   <title id="t">Test pyramid</title>
-  <desc id="d">Five test layers from few and slow at the top to many and fast at the bottom: manual checks, E2E, browser tests, Node tests, Go tests. Node and Go run in CI.</desc>
+  <desc id="d">Five test layers as a pyramid, few and slow at the top, many and fast at the bottom: manual checks, E2E, browser tests, Node tests, Go tests. Node and Go tests run in CI.</desc>
   <style>
-    :root { --ink:#1f2328; --mute:#59636e; --l1:#e8e8ec; --l2:#fbe3c8; --l3:#fcd9d9; --l4:#d6ecd9; --l5:#cfe6f7; --ci:#1a7f37; --you:#b35900; --hand:#59636e; }
-    @media (prefers-color-scheme: dark) { :root { --ink:#e6edf3; --mute:#9198a1; --l1:#3a3d44; --l2:#5a4128; --l3:#5c2f33; --l4:#274a31; --l5:#24455f; --ci:#56d364; --you:#f0a050; --hand:#9198a1; } }
+    :root { --ink:#1f2328; --mute:#59636e; --l1:#d4d4da; --l2:#f4c999; --l3:#f2b1b1; --l4:#a9d8b1; --l5:#a6d0ee; --ci:#1a7f37; --you:#b35900; --hand:#59636e; }
+    @media (prefers-color-scheme: dark) { :root { --ink:#e6edf3; --mute:#9198a1; --l1:#4a4e57; --l2:#7a5a35; --l3:#7d4348; --l4:#356b45; --l5:#33607f; --ci:#56d364; --you:#f0a050; --hand:#9198a1; } }
     text { font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: var(--ink); }
     .name { font-size: 20px; font-weight: 700; }
     .sub { font-size: 14px; fill: var(--mute); }
-    .ico { font-size: 26px; }
     .badge { font-size: 14px; font-weight: 700; }
     .ci { fill: var(--ci); } .you { fill: var(--you); } .hand { fill: var(--hand); }
     .axis { font-size: 13px; fill: var(--mute); }
+    .ico { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .lead { stroke: var(--mute); stroke-width: 1; stroke-dasharray: 2 4; opacity: .6; }
   </style>
 
-  <!-- layers, widening downwards -->
-  <rect x="290" y="20"  width="320" height="76" rx="10" fill="var(--l1)"/>
-  <rect x="240" y="104" width="420" height="76" rx="10" fill="var(--l2)"/>
-  <rect x="190" y="188" width="520" height="76" rx="10" fill="var(--l3)"/>
-  <rect x="140" y="272" width="620" height="76" rx="10" fill="var(--l4)"/>
-  <rect x="90"  y="356" width="720" height="76" rx="10" fill="var(--l5)"/>
-
-  <text class="ico" x="312" y="68">🖐️</text>
-  <text class="name" x="352" y="52">Manual</text>
-  <text class="sub"  x="352" y="75">window, dialogs, clipboard</text>
-
-  <text class="ico" x="262" y="152">🌐</text>
-  <text class="name" x="302" y="136">E2E</text>
-  <text class="sub"  x="302" y="159">whole app, server build</text>
-
-  <text class="ico" x="212" y="236">🧩</text>
-  <text class="name" x="252" y="220">Browser tests</text>
-  <text class="sub"  x="252" y="243">EditorView, xterm, pdf.js</text>
-
-  <text class="ico" x="162" y="320">⚡</text>
-  <text class="name" x="202" y="304">Node tests</text>
-  <text class="sub"  x="202" y="327">pure logic, no DOM</text>
-
-  <text class="ico" x="112" y="404">⚙️</text>
-  <text class="name" x="152" y="388">Go tests</text>
-  <text class="sub"  x="152" y="411">services, fuzzing, benchmarks</text>
-
-  <!-- where it runs -->
-  <text class="badge hand" x="930" y="64" text-anchor="end">by hand</text>
-  <text class="badge you" x="930" y="148" text-anchor="end">you run it</text>
-  <text class="badge you" x="930" y="232" text-anchor="end">you run it</text>
-  <text class="badge ci" x="930" y="316" text-anchor="end">✓ in CI</text>
-  <text class="badge ci" x="930" y="400" text-anchor="end">✓ in CI</text>
-
-  <text class="axis" x="20" y="62">few, slow</text>
-  <text class="axis" x="20" y="410">many, fast</text>
+  <polygon points="200.0,20 280.0,20 314.3,100 165.7,100" fill="var(--l1)" stroke-linejoin="round"/>
+  <g class="ico" transform="translate(240 60)"><path d="M-7 -11 L-7 9 L-2 4.5 L1.5 12 L5 10.5 L1.5 3.5 L8 3.5 Z"/></g>
+  <line class="lead" x1="305.1" y1="60" x2="500" y2="60"/>
+  <text class="name" x="516" y="58">Manual</text>
+  <text class="sub" x="516" y="79">window, dialogs, clipboard</text>
+  <text class="badge hand" x="930" y="65" text-anchor="end">by hand</text>
+  <polygon points="164.0,104 316.0,104 350.3,184 129.7,184" fill="var(--l2)" stroke-linejoin="round"/>
+  <g class="ico" transform="translate(240 144)"><rect x="-12" y="-9" width="24" height="18" rx="2.5"/><path d="M-12 -3.5 H12"/><path d="M-8 -6.3 h.1 M-4.5 -6.3 h.1"/></g>
+  <line class="lead" x1="341.1" y1="144" x2="500" y2="144"/>
+  <text class="name" x="516" y="142">E2E</text>
+  <text class="sub" x="516" y="163">whole app, server build</text>
+  <text class="badge you" x="930" y="149" text-anchor="end">you run it</text>
+  <polygon points="128.0,188 352.0,188 386.3,268 93.7,268" fill="var(--l3)" stroke-linejoin="round"/>
+  <g class="ico" transform="translate(240 228)"><path d="M-4 -8 L-12 0 L-4 8 M4 -8 L12 0 L4 8"/></g>
+  <line class="lead" x1="377.1" y1="228" x2="500" y2="228"/>
+  <text class="name" x="516" y="226">Browser tests</text>
+  <text class="sub" x="516" y="247">EditorView, xterm, pdf.js</text>
+  <text class="badge you" x="930" y="233" text-anchor="end">you run it</text>
+  <polygon points="92.0,272 388.0,272 422.3,352 57.7,352" fill="var(--l4)" stroke-linejoin="round"/>
+  <g class="ico" transform="translate(240 312)"><path d="M2 -12 L-7 2 H0 L-2 12 L7 -3 H0 Z"/></g>
+  <line class="lead" x1="413.1" y1="312" x2="500" y2="312"/>
+  <text class="name" x="516" y="310">Node tests</text>
+  <text class="sub" x="516" y="331">pure logic, no DOM</text>
+  <text class="badge ci" x="930" y="317" text-anchor="end">✓ in CI</text>
+  <polygon points="56.0,356 424.0,356 458.3,436 21.7,436" fill="var(--l5)" stroke-linejoin="round"/>
+  <g class="ico" transform="translate(240 396)"><rect x="-11" y="-11" width="22" height="6.5" rx="1.5"/><rect x="-11" y="-3.2" width="22" height="6.5" rx="1.5"/><rect x="-11" y="4.6" width="22" height="6.5" rx="1.5"/><path d="M6 -7.7 h.1 M6 .1 h.1 M6 7.9 h.1"/></g>
+  <line class="lead" x1="449.1" y1="396" x2="500" y2="396"/>
+  <text class="name" x="516" y="394">Go tests</text>
+  <text class="sub" x="516" y="415">services, fuzzing, benchmarks</text>
+  <text class="badge ci" x="930" y="401" text-anchor="end">✓ in CI</text>
+  <text class="axis" x="20" y="30">few, slow</text>
+  <text class="axis" x="20" y="450" >many, fast</text>
 </svg>
