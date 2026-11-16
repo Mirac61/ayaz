@@ -1,6 +1,6 @@
 # 00 – Vision
 
-Updated 2026-11-17 · In daily use, v0.8.1 · The goals below are the original plan; what is done is in the [roadmap](05-roadmap.md) · Name: **Ayaz**
+Updated 2026-11-17 · In daily use · The goals below are the original plan; what is done is in the [roadmap](05-roadmap.md) · Name: **Ayaz**
 
 ## In one sentence
 
