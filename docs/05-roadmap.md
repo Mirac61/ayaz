@@ -1,6 +1,6 @@
 # 05 – Roadmap
 
-Updated 2026-11-08 · Each milestone is a vertical slice: afterwards the app starts and can do a bit more than before.
+Updated 2026-11-17 · Each milestone is a vertical slice: afterwards the app starts and can do a bit more than before.
 
 - **[Own]** = I write it myself: worth learning, well-scoped, testable.
 - **[Glue]** = wire up a library, little logic of our own.
@@ -386,14 +386,38 @@ Done when: all four language groups have diagnostics, completion and navigation.
   - Frontend updater store and UI (`updater.ts`, `UpdateDialog.tsx`, `Workbench.tsx`): background check 5s after startup, command palette entry `Ayaz: Check for updates` (`:checkupdate`), status bar indicator pills (`↑ v0.2.2`, `↓ 45%`, `↻ Restart to update`), and modal dialog showing release notes, download progress, and restart action.
   - Tests: Go unit tests for `MatchAsset` and token resolution in `updater_test.go`; frontend unit tests in `updater.test.ts`.
 
+## M77 – Docs Hub
+
+- Done 2026-11-13/14: the in-app docs open as a read-only Markdown tab, then as a dedicated Docs Hub page with categories, a reading mode for Markdown, a light mode and a collapsible table of contents (`DocsHub.tsx`, `docs/docsData.ts`).
+
+## M78 – Git remotes and cloning
+
+- Done 2026-11-13/15: a git remote suite (fetch, pull, push, rebase onto upstream, `<Space>grb` / `:Grebase`), a clone dialog with a clear hierarchy, and the sidebar tabs and remote actions as icons with a visible commit field. The remote URL keeps the token out of error messages.
+
+## M79 – Themes and start page
+
+- Done 2026-11-13/15: built-in themes Iceberg, Nord, Poimandres, Ayaz Frost and Sternklar next to Graphite (the default), Kanagawa, Tokyo Night, Catppuccin Mocha, Gruvbox Dark and Paper (`theme/themes.ts`); a `ligatures` setting for the editor font. The start page went from a bento grid hub (clone, live themes, key cheatsheet, GitHub issues feed) to the Sternklar layout with recent folders as a star chart.
+
+## M80 – Standard mode and HTML preview
+
+- Done 2026-11-14: a non-Vim standard mode (modeless editing), toggled with `Cmd/Ctrl+Shift+M` or `<Space>uv`, with a badge in the status line (`"vim": false` in `settings.json`). HTML files open in an internal browser preview (sandboxed iframe) from the tree and the editor.
+
+## M81 – Release automation
+
+- Done 2026-11-14: release-please opens the release PR from the Conventional Commits and writes `CHANGELOG.md`; multi-platform packaging in the release workflow (`.github/workflows/release.yml`), checksums in `SHA256SUMS`.
+
+## M82 – Small daily things, part 2
+
+- Done 2026-11-16: `<Space>go` opens the current line on GitHub and `<Space>gy` copies a permalink; `<Space>f.` resumes the last search picker with its text and `<Space>fT` lists TODO, FIXME, HACK and XXX comments; `Cmd/Ctrl+Enter` in the history picker restores an earlier save as unsaved changes; `${file}`, `${dir}` and `${line}` in settings tasks; `c` duplicates a file in the tree; `file:line:col` in terminal output opens the file; the status line shows "plain text" when a long line turns highlighting off. Review fixes: quote-aware placeholder expansion in tasks, links resolved against the output's own cwd and cell columns, the close button asks about the current workspace.
+
 ## Later
 
 | | What | Plugs into |
 |---|---|---|
-| L1 Tasks/build | run commands by key (`go test`, `make`, `pio run`), output in the terminal, errors in quickfix | `pty` + `quickfix` |
+| L1 Tasks/build | ~~run commands by key, output in the terminal, errors in quickfix~~ (M52) | `pty` + `quickfix` |
 | L2 Git | ~~changes in the gutter~~ (M19), ~~status in the tree~~ (M29), ~~diff view~~ (M30) | `git` process, CM6 gutter |
-| L3 Debugger | DAP, breakpoints, variables (Delve first) | same pattern as LSP |
-| L4 Shell integration | `EDITOR=ayaz open` from the terminal (e.g. `sf` in mysh opens a buffer), OSC 7 for the current directory (mysh extension) | `pty` + single instance/CLI |
+| L3 Debugger | ~~DAP, breakpoints, variables~~ (M68–M74: Delve, debugpy, lldb-dap) | same pattern as LSP |
+| L4 Shell integration | ~~`ayaz file[:line[:col]]` from the terminal, OSC 7 for the current directory~~ (M53) | `pty` + single instance/CLI |
 
 ## Extended – UI polish
 
@@ -401,15 +425,15 @@ The M1 UI is usable but not finished (user feedback 2026-11-08: "much better, st
 
 | | What | Notes |
 |---|---|---|
-| E1 Fonts | font family, size and ligatures as settings | today hard-coded FiraCode Nerd Font, 13 px |
-| E2 Icons | bundle "Symbols Nerd Font" as a fallback, more file types and special names | without a Nerd Font installed, icons show as boxes |
-| E3 Tree | dim hidden/ignored files, git status colors (L2), indent lines in the tree, filter by typing | like the snacks explorer |
+| E1 Fonts | ~~font family, size and ligatures as settings~~ (M26, M79) | `font`, `fontSize`, `ligatures` in `settings.json` |
+| E2 Icons | ~~bundle "Symbols Nerd Font" as a fallback~~ (M27) | |
+| E3 Tree | ~~dim hidden/ignored files, git status colors, filter by typing~~ (M29, M31) | like the snacks explorer |
 | E4 Status line | git branch, diagnostics, LSP status, encoding, powerline shapes like lualine bubbles | segments come with M7/L2 |
 | E5 Cmdline and messages | `:` line and messages as a floating box like noice, notifications that fade out | today codemirror-vim's bottom panel |
 | E6 Scrolling and motion | smooth scrolling (like snacks.scroll), animated indent scope | check that 120 fps holds (S1) |
-| E7 Welcome screen | dashboard with recent folders and keys, like the snacks dashboard | today one button |
+| E7 Welcome screen | ~~dashboard with recent folders and keys~~ (M28, M79) | |
 | E8 Window | inset title bar on macOS, window title with folder and file | |
-| E9 Theme | follow the desktop theme like the nvim colorscheme (caelestia), more themes than Kanagawa | tokens are already CSS variables |
+| E9 Theme | ~~more themes than Kanagawa~~ (M79: 11 built in, own ones in `settings.json`); following the desktop theme (caelestia) is still open | tokens are CSS variables |
 | E10 Details | scrollbar style, cursor line edge, spacing between tree and editor, hover states | small fixes from daily use |
 | E11 Agent | inline agent at the cursor like Zed: real model backend, diff preview, apply/reject per hunk | removed in 2026-11 because it only showed canned answers |
 

@@ -1,6 +1,6 @@
 # 00 – Vision
 
-Updated 2026-11-08 · Phase 0 (planning only) · Working title: **Ayaz**
+Updated 2026-11-17 · In daily use, v0.8.1 · The goals below are the original plan; what is done is in the [roadmap](05-roadmap.md) · Name: **Ayaz**
 
 ## In one sentence
 
@@ -37,21 +37,20 @@ A code editor that feels like Neovim, shows Markdown, PDFs and images properly, 
 - Splits with a buffer list. A tab bar can be turned on in settings.
 - Like VS Code: open another folder in the same window, or open a new window. One folder per window.
 - Explicit save (`:w`, `Cmd/Ctrl+S`).
-- Theme: Kanagawa (*wave* first).
-- Platforms: macOS (primary, arm64) and Linux on Hyprland/Wayland (Intel UHD).
+- Theme: Kanagawa (*wave* first) at the start; now Graphite is the default and eleven themes are built in ([M79](05-roadmap.md#m79--themes-and-start-page)).
+- Platforms: macOS (primary, arm64) and Linux on Hyprland/Wayland (Intel UHD). Windows builds ship with every release but are barely tested ([08](08-windows.md)).
 
-## Later (planned, not in the first pass)
+## Planned for later, now done
 
-- Run tasks/builds with a quickfix list
-- Git (changes in the gutter, status in the tree, diff view)
-- Debugger via DAP (Delve for Go first)
+- Run tasks/builds with a quickfix list (M52)
+- Git (changes in the gutter, status in the tree, diff view; later staging, merge conflicts, remotes: M19, M29, M30, M61, M62, M78)
+- Debugger via DAP: Delve for Go, then Python and Rust/C/C++ (M68–M74)
 
 ## Non-goals (for now)
 
 - 100 % Vim compatibility or Vimscript/Lua config. Vim support is an emulation (`@replit/codemirror-vim` plus our own extensions); the goal is the feel, not a clone.
 - Third-party plugins
 - Sync, cloud, accounts
-- Windows
 - Multi-root (several folders in one window)
 - Editing PDFs or images
 
