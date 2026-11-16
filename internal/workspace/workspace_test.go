@@ -324,10 +324,13 @@ func TestBackslashPathsOnWindows(t *testing.T) {
 	defer func() { pathSep = old }()
 	w := newTestWS(t)
 	before, _ := os.ReadDir(w.Root)
-	for _, c := range [][2]string{{"a.txt", `..\outside.txt`}, {"a.txt", `new\..\..\outside.txt`}, {`..\a.txt`, "b.txt"}} {
+	for _, c := range [][2]string{{"a.txt", `..\outside.txt`}, {"a.txt", `new\..\..\outside.txt`}, {"a.txt", `new/sub\..\..\outside.txt`}, {`..\a.txt`, "b.txt"}} {
 		if err := w.Copy(c[0], c[1]); !errors.Is(err, ErrOutside) {
 			t.Errorf("Copy(%q, %q) = %v, want ErrOutside", c[0], c[1], err)
 		}
+	}
+	if _, err := os.Lstat(filepath.Join(w.Root, "new")); err == nil { // the guard runs before any parent folder is made
+		t.Error(`refused copy created the parent folder "new"`)
 	}
 	if es, _ := os.ReadDir(w.Root); len(es) != len(before) { // no file and no parent folder was made
 		t.Errorf("workspace has %d entries after refused copies, was %d", len(es), len(before))
