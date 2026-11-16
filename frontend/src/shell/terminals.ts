@@ -1,6 +1,11 @@
 import type { TermHandle } from "../terminal/terminal";
 
-export interface HiddenTerm { term: TermHandle; box: HTMLElement; title: string; cmd: string }
+export interface HiddenTerm {
+  term: TermHandle;
+  box: HTMLElement;
+  title: string;
+  cmd: string;
+}
 
 // Terminals without a pane: their shells run on, <Space>fb brings one back. Their boxes wait in the document, undrawn.
 export class HiddenTerms {
@@ -17,7 +22,9 @@ export class HiddenTerms {
     this.list.push(h);
   }
 
-  has(title: string) { return this.list.some((h) => h.title === title); }
+  has(title: string) {
+    return this.list.some((h) => h.title === title);
+  }
 
   // The terminal with this title, out of the list.
   take(title: string): HiddenTerm | undefined {
@@ -34,7 +41,9 @@ export class HiddenTerms {
   // Ends the hidden shell titled `title` (its tab was closed).
   kill(title: string) {
     const i = this.list.findIndex((h) => h.title === title);
-    if (i >= 0) this.drop(i);
+    if (i >= 0) {
+      this.drop(i);
+    }
   }
 
   private drop(i: number): string {
@@ -44,12 +53,20 @@ export class HiddenTerms {
     return gone.title;
   }
 
-  titles(): string[] { return this.list.map((h) => h.title); }
+  titles(): string[] {
+    return this.list.map((h) => h.title);
+  }
 
-  setFont() { for (const h of this.list) h.term.setFont(); }
+  setFont() {
+    for (const h of this.list) {
+      h.term.setFont();
+    }
+  }
 
   disposeAll() {
-    for (const h of this.list.splice(0)) h.term.dispose();
+    for (const h of this.list.splice(0)) {
+      h.term.dispose();
+    }
     this.holder?.remove();
     this.holder = null;
   }

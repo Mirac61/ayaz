@@ -6,12 +6,18 @@ import { isEx } from "../editor/vim/setup";
 describe("in-app docs", () => {
   it("has the core topics, each with text", () => {
     const ids = DOC_ITEMS.map((d) => d.id);
-    for (const id of ["getting-started", "keymap-commands", "git-suite", "architecture"]) expect(ids).toContain(id);
-    for (const d of DOC_ITEMS) expect(d.content).toBeTruthy();
+    for (const id of ["getting-started", "keymap-commands", "git-suite", "architecture"]) {
+      expect(ids).toContain(id);
+    }
+    for (const d of DOC_ITEMS) {
+      expect(d.content).toBeTruthy();
+    }
   });
 
   it("drops images and badges the app can't show", () => {
-    for (const d of DOC_ITEMS) expect(d.content).not.toMatch(/^\[?!\[/m);
+    for (const d of DOC_ITEMS) {
+      expect(d.content).not.toMatch(/^\[?!\[/m);
+    }
   });
 
   it("maps docs:// paths to text, virtual and read-only", () => {

@@ -15,7 +15,9 @@ export interface Breakpoint {
 
 export function parseBreakpointPrompt(text: string): { condition?: string; logMessage?: string; hitCondition?: string } {
   const trimmed = text.trim();
-  if (!trimmed) return {};
+  if (!trimmed) {
+    return {};
+  }
   if (/^log:\s*/i.test(trimmed)) {
     const log = trimmed.replace(/^log:\s*/i, "").trim();
     return log ? { logMessage: log } : {};
@@ -28,9 +30,15 @@ export function parseBreakpointPrompt(text: string): { condition?: string; logMe
 }
 
 export function formatBreakpointPrompt(bp: Breakpoint): string {
-  if (bp.logMessage) return `log: ${bp.logMessage}`;
-  if (bp.hitCondition) return `hits: ${bp.hitCondition}`;
-  if (bp.condition) return bp.condition;
+  if (bp.logMessage) {
+    return `log: ${bp.logMessage}`;
+  }
+  if (bp.hitCondition) {
+    return `hits: ${bp.hitCondition}`;
+  }
+  if (bp.condition) {
+    return bp.condition;
+  }
   return "";
 }
 
@@ -71,16 +79,22 @@ const field = StateField.define<Item[]>({
   create: () => [],
   update(items, tr) {
     for (const e of tr.effects) {
-      if (!e.is(setBreakpoints)) continue;
+      if (!e.is(setBreakpoints)) {
+        continue;
+      }
       const doc = tr.state.doc;
       const raw = e.value.map((b) => toItem(doc, b));
       return dedupe(raw);
     }
-    if (!tr.docChanged || !items.length) return items;
-    const old = tr.startState.doc, deleted: [number, number][] = [];
+    if (!tr.docChanged || !items.length) {
+      return items;
+    }
+    const old = tr.startState.doc,
+      deleted: [number, number][] = [];
     tr.changes.iterChangedRanges((fromA, toA) => deleted.push([fromA, toA]));
     const kept = items.filter((p) => {
-      const line = old.lineAt(p.from), end = Math.min(line.to + 1, old.length);
+      const line = old.lineAt(p.from),
+        end = Math.min(line.to + 1, old.length);
       return !deleted.some(([from, to]) => from <= line.from && to >= end && to > from);
     });
     const mapped = kept.map((p) => ({ ...p, from: tr.state.doc.lineAt(tr.changes.mapPos(p.from, 1)).from }));
@@ -105,7 +119,8 @@ function dedupe(items: Item[]): Item[] {
 export const setBreakpoints = StateEffect.define<(number | Breakpoint)[]>();
 export const setLines = setBreakpoints; // backward compatibility
 
-export const breakpointLines = (s: EditorState): number[] => (s.field(field, false) ?? []).map((p) => s.doc.lineAt(p.from).number);
+export const breakpointLines = (s: EditorState): number[] =>
+  (s.field(field, false) ?? []).map((p) => s.doc.lineAt(p.from).number);
 
 export const breakpoints = (s: EditorState): Breakpoint[] =>
   (s.field(field, false) ?? []).map((p) => ({
@@ -116,14 +131,16 @@ export const breakpoints = (s: EditorState): Breakpoint[] =>
   }));
 
 export function getBreakpoint(view: EditorView): Breakpoint | null {
-  const s = view.state, line = s.doc.lineAt(s.selection.main.head).number;
+  const s = view.state,
+    line = s.doc.lineAt(s.selection.main.head).number;
   return breakpoints(s).find((b) => b.line === line) ?? null;
 }
 
 // Toggles a plain breakpoint on line (1-based); true when there is one now.
 export function toggleBreakpointAt(view: EditorView, line: number): boolean {
   const s = view.state;
-  const list = breakpoints(s), existing = list.find((b) => b.line === line);
+  const list = breakpoints(s),
+    existing = list.find((b) => b.line === line);
   if (existing) {
     view.dispatch({ effects: setBreakpoints.of(list.filter((b) => b.line !== line)) });
     return false;
@@ -139,8 +156,12 @@ export function toggleBreakpoint(view: EditorView): boolean {
 }
 
 // Sets or updates a breakpoint on the cursor line with the given options (condition, logMessage, hitCondition).
-export function setBreakpoint(view: EditorView, extra?: { condition?: string; logMessage?: string; hitCondition?: string }): Breakpoint {
-  const s = view.state, line = s.doc.lineAt(s.selection.main.head).number;
+export function setBreakpoint(
+  view: EditorView,
+  extra?: { condition?: string; logMessage?: string; hitCondition?: string },
+): Breakpoint {
+  const s = view.state,
+    line = s.doc.lineAt(s.selection.main.head).number;
   const list = breakpoints(s).filter((b) => b.line !== line);
   const bp: Breakpoint = {
     line,
@@ -153,9 +174,19 @@ export function setBreakpoint(view: EditorView, extra?: { condition?: string; lo
 }
 
 const theme = EditorView.baseTheme({
-  ".cm-bp .cm-gutterElement": { width: "12px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" },
+  ".cm-bp .cm-gutterElement": {
+    width: "12px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+  },
   ".cm-bp-dot": { width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "var(--error, #e82424)" }, // kanagawa samuraiRed
-  ".cm-bp-dot.cm-bp-conditional": { backgroundColor: "transparent", border: "2px solid var(--error, #e82424)", boxSizing: "border-box" },
+  ".cm-bp-dot.cm-bp-conditional": {
+    backgroundColor: "transparent",
+    border: "2px solid var(--error, #e82424)",
+    boxSizing: "border-box",
+  },
   ".cm-bp-dot.cm-bp-logpoint": { borderRadius: "0", transform: "rotate(45deg)", width: "7px", height: "7px" },
 });
 
@@ -165,10 +196,12 @@ export const breakpointGutter: Extension = [
     class: "cm-bp",
     markers: (v) => {
       const items = v.state.field(field, false) ?? [];
-      return RangeSet.of(items.map((p) => {
-        const marker = p.logMessage ? LOG_DOT : (p.condition || p.hitCondition ? COND_DOT : SOLID_DOT);
-        return marker.range(p.from);
-      }));
+      return RangeSet.of(
+        items.map((p) => {
+          const marker = p.logMessage ? LOG_DOT : p.condition || p.hitCondition ? COND_DOT : SOLID_DOT;
+          return marker.range(p.from);
+        }),
+      );
     },
     initialSpacer: () => SOLID_DOT,
     domEventHandlers: {

@@ -4,7 +4,8 @@ import { colorLines, previewFile } from "./preview";
 
 const lines = Array.from({ length: 300 }, (_, i) => `line ${i + 1}`);
 const files = {
-  preview: async (_path: string, max: number) => (max < 100_000 ? { text: "head", more: true } : { text: lines.join("\n"), more: false }),
+  preview: async (_path: string, max: number) =>
+    max < 100_000 ? { text: "head", more: true } : { text: lines.join("\n"), more: false },
   readText: async (path: string) => ({ path, content: lines.join("\n"), mtime: 1 }),
 } as unknown as Files;
 

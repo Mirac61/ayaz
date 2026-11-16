@@ -9,18 +9,26 @@ import { errText, onView, type Ctx } from "./context";
 
 export function gitCommands(c: Ctx): Command[] {
   const blame = async () => {
-    const v = c.ed.activeView(), buf = c.ed.current();
-    if (!v || !buf || buf.path.startsWith("/")) return;
+    const v = c.ed.activeView(),
+      buf = c.ed.current();
+    if (!v || !buf || buf.path.startsWith("/")) {
+      return;
+    }
     const line = v.state.doc.lineAt(v.state.selection.main.head).number;
     const info = await c.files.gitBlame(buf.path, line, isDirty(buf) ? v.state.doc.toString() : "");
-    if (!info) return c.say("No git history for this file");
+    if (!info) {
+      return c.say("No git history for this file");
+    }
     showBlame(v, blameText(info));
   };
 
   // <Space>go opens the cursor line on origin's web view, <Space>gy copies a permalink to it (the commit, not the branch).
   const link = async (permalink: boolean) => {
-    const b = c.ed.current(), line = c.ed.cursorLine();
-    if (!b || line === null || b.path.startsWith("/")) return c.fail("No file in this folder");
+    const b = c.ed.current(),
+      line = c.ed.cursorLine();
+    if (!b || line === null || b.path.startsWith("/")) {
+      return c.fail("No file in this folder");
+    }
     const path = b.path.startsWith("head://") ? b.path.slice("head://".length) : b.path;
     let url: string;
     try {
@@ -31,15 +39,22 @@ export function gitCommands(c: Ctx): Command[] {
     if (permalink) {
       await backend.copy(url);
       c.say(`Copied the link to ${path}:${line}`);
-    } else await backend.openURL(url);
+    } else {
+      await backend.openURL(url);
+    }
   };
 
   // <Space>hs stages the hunk under the cursor (the buffer's text, saved or not), <Space>hu takes a staged one out.
   const stage = async (unstage: boolean) => {
-    const v = c.ed.activeView(), buf = c.ed.current();
-    if (!v || !buf || buf.path.startsWith("/")) return;
+    const v = c.ed.activeView(),
+      buf = c.ed.current();
+    if (!v || !buf || buf.path.startsWith("/")) {
+      return;
+    }
     const hunk = hunkPatch(v, unstage);
-    if (!hunk) return c.say(unstage ? "No staged change on this line" : "No unstaged change on this line");
+    if (!hunk) {
+      return c.say(unstage ? "No staged change on this line" : "No unstaged change on this line");
+    }
     await c.files.gitApplyHunk(buf.path, hunk, unstage);
     c.ed.gitChanged();
     c.say(unstage ? "Hunk unstaged" : "Hunk staged");
@@ -50,8 +65,16 @@ export function gitCommands(c: Ctx): Command[] {
   const none = "No merge conflict in this file";
 
   return [
-    { id: "git.nextHunk", title: "Next git hunk (]c)", run: () => onView(c, (v) => moveHunk(v, 1), "No git changes in this file") },
-    { id: "git.prevHunk", title: "Previous git hunk ([c)", run: () => onView(c, (v) => moveHunk(v, -1), "No git changes in this file") },
+    {
+      id: "git.nextHunk",
+      title: "Next git hunk (]c)",
+      run: () => onView(c, (v) => moveHunk(v, 1), "No git changes in this file"),
+    },
+    {
+      id: "git.prevHunk",
+      title: "Previous git hunk ([c)",
+      run: () => onView(c, (v) => moveHunk(v, -1), "No git changes in this file"),
+    },
     { id: "git.previewHunk", title: "Preview git hunk", run: () => onView(c, previewHunk, "No git change on this line") },
     { id: "git.resetHunk", title: "Reset git hunk", run: () => onView(c, resetHunk, "No git change on this line") },
     { id: "git.stageHunk", title: "Stage git hunk (<Space>hs)", run: () => stage(false).catch((e) => c.fail(errText(e))) },
@@ -73,14 +96,20 @@ export function gitCommands(c: Ctx): Command[] {
     {
       id: "git.diff",
       title: "Toggle diff against HEAD (<Space>gd)",
-      run: () => { if (!c.ed.toggleDiff()) c.fail("This file has no version at HEAD to compare with"); },
+      run: () => {
+        if (!c.ed.toggleDiff()) {
+          c.fail("This file has no version at HEAD to compare with");
+        }
+      },
     },
     {
       id: "git.stageFile",
       title: "Stage active file (<Space>ga)",
       run: async () => {
         const buf = c.ed.current();
-        if (!buf || buf.path.startsWith("/")) return c.fail("No file open");
+        if (!buf || buf.path.startsWith("/")) {
+          return c.fail("No file open");
+        }
         try {
           await c.files.gitStageFile(buf.path);
           c.ed.gitChanged();
@@ -95,7 +124,9 @@ export function gitCommands(c: Ctx): Command[] {
       title: "Unstage active file (<Space>gu)",
       run: async () => {
         const buf = c.ed.current();
-        if (!buf || buf.path.startsWith("/")) return c.fail("No file open");
+        if (!buf || buf.path.startsWith("/")) {
+          return c.fail("No file open");
+        }
         try {
           await c.files.gitUnstageFile(buf.path);
           c.ed.gitChanged();
@@ -110,7 +141,9 @@ export function gitCommands(c: Ctx): Command[] {
       title: "Discard changes in active file",
       run: async () => {
         const buf = c.ed.current();
-        if (!buf || buf.path.startsWith("/")) return c.fail("No file open");
+        if (!buf || buf.path.startsWith("/")) {
+          return c.fail("No file open");
+        }
         try {
           await c.files.gitDiscardFile(buf.path);
           c.ed.gitChanged();
@@ -152,7 +185,9 @@ export function gitCommands(c: Ctx): Command[] {
       run: (arg) => {
         const doCommit = async (msg: string) => {
           const trimmed = msg.trim();
-          if (!trimmed) return c.fail("Commit message cannot be empty");
+          if (!trimmed) {
+            return c.fail("Commit message cannot be empty");
+          }
           try {
             await c.files.gitCommit(trimmed);
             c.ed.gitChanged();
@@ -175,9 +210,13 @@ export function gitCommands(c: Ctx): Command[] {
       title: "Diff split against HEAD (<Space>gD, :Gvdiffsplit)",
       run: async () => {
         const buf = c.ed.current();
-        if (!buf) return c.fail("No file open");
+        if (!buf) {
+          return c.fail("No file open");
+        }
         const path = buf.path.startsWith("head://") ? buf.path.slice("head://".length) : buf.path;
-        if (path.startsWith("/")) return c.fail("Cannot diff absolute paths");
+        if (path.startsWith("/")) {
+          return c.fail("Cannot diff absolute paths");
+        }
         try {
           await c.ed.diffSplit(path);
         } catch (e) {

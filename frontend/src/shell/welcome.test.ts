@@ -44,7 +44,9 @@ describe("Welcome Screen & Bento Hub", () => {
 
     // Test real-time filter logic
     const filter = (query: string) =>
-      recent.filter((f) => f.name.toLowerCase().includes(query.toLowerCase()) || f.root.toLowerCase().includes(query.toLowerCase()));
+      recent.filter(
+        (f) => f.name.toLowerCase().includes(query.toLowerCase()) || f.root.toLowerCase().includes(query.toLowerCase()),
+      );
 
     expect(filter("ayaz")).toHaveLength(1);
     expect(filter("ayaz")[0].name).toBe("ayaz");
@@ -80,8 +82,12 @@ describe("Welcome Screen & Bento Hub", () => {
   it("correctly normalizes repository shorthand to git clone URLs", () => {
     const normalizeGitUrl = (raw: string) => {
       const url = raw.trim();
-      if (!url) return "";
-      if (url.includes("://") || url.startsWith("git@")) return url;
+      if (!url) {
+        return "";
+      }
+      if (url.includes("://") || url.startsWith("git@")) {
+        return url;
+      }
       if (url.includes("/") && url.split("/").length === 2) {
         return `https://github.com/${url}.git`;
       }

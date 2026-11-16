@@ -57,11 +57,15 @@ function sanitizeHtml(html: string): string {
 }
 
 function extractSnippet(content: string, query: string): string | null {
-  if (!query) return null;
+  if (!query) {
+    return null;
+  }
   const lower = content.toLowerCase();
   const q = query.toLowerCase();
   const index = lower.indexOf(q);
-  if (index === -1) return null;
+  if (index === -1) {
+    return null;
+  }
 
   const start = Math.max(0, index - 25);
   const end = Math.min(content.length, index + query.length + 55);
@@ -69,14 +73,20 @@ function extractSnippet(content: string, query: string): string | null {
     .slice(start, end)
     .replace(/[\r\n#*`|]+/g, " ")
     .trim();
-  if (start > 0) snippet = `…${snippet}`;
-  if (end < content.length) snippet = `${snippet}…`;
+  if (start > 0) {
+    snippet = `…${snippet}`;
+  }
+  if (end < content.length) {
+    snippet = `${snippet}…`;
+  }
   return snippet;
 }
 
 const HighlightedText: React.FC<{ text: string; query: string }> = ({ text, query }) => {
   const trimmed = query.trim();
-  if (!trimmed) return <>{text}</>;
+  if (!trimmed) {
+    return <>{text}</>;
+  }
   const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const regex = new RegExp(`(${escaped})`, "i");
   const parts = text.split(regex);
@@ -181,7 +191,9 @@ export const DocsHub: React.FC<DocsHubProps> = ({ initialDocId, onClose, onClose
 
   // Render markdown and generate table of contents
   const { renderedHtml, tocHeadings } = useMemo(() => {
-    if (!currentDoc) return { renderedHtml: "", tocHeadings: [] };
+    if (!currentDoc) {
+      return { renderedHtml: "", tocHeadings: [] };
+    }
 
     const headings: TocHeading[] = [];
     const slugCounts = new Map<string, number>();
@@ -239,13 +251,19 @@ export const DocsHub: React.FC<DocsHubProps> = ({ initialDocId, onClose, onClose
   // Scroll spy for TOC
   useEffect(() => {
     const container = contentRef.current;
-    if (!container || tocHeadings.length === 0) return;
+    if (!container || tocHeadings.length === 0) {
+      return;
+    }
 
     let ticking = false;
     const handleScroll = () => {
-      if (isScrollSpyLockedRef.current) return;
+      if (isScrollSpyLockedRef.current) {
+        return;
+      }
       const headings = Array.from(container.querySelectorAll<HTMLElement>("h2[id], h3[id]"));
-      if (headings.length === 0) return;
+      if (headings.length === 0) {
+        return;
+      }
 
       const containerTop = container.getBoundingClientRect().top;
       let currentActive = headings[0].id;
@@ -281,7 +299,9 @@ export const DocsHub: React.FC<DocsHubProps> = ({ initialDocId, onClose, onClose
 
   // Keep active TOC entry visible without scrolling TOC if already visible
   useEffect(() => {
-    if (!activeHeadingId || !tocRef.current) return;
+    if (!activeHeadingId || !tocRef.current) {
+      return;
+    }
     const activeLink = tocRef.current.querySelector<HTMLElement>(`a.docs-toc-link[href="#${activeHeadingId}"]`);
     if (activeLink) {
       activeLink.scrollIntoView({ block: "nearest", inline: "nearest" });
@@ -328,7 +348,9 @@ export const DocsHub: React.FC<DocsHubProps> = ({ initialDocId, onClose, onClose
   // Jump to anchor link, navigate relative markdown docs, or open external URL
   const handleContentClick = (e: React.MouseEvent<HTMLElement>) => {
     const anchor = (e.target as HTMLElement).closest<HTMLAnchorElement>("a");
-    if (!anchor) return;
+    if (!anchor) {
+      return;
+    }
     e.preventDefault();
     const href = anchor.getAttribute("href") ?? "";
     if (href.startsWith("#")) {

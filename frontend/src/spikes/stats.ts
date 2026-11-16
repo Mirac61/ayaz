@@ -1,5 +1,9 @@
 // Percentiles for spike measurements.
-export interface Stats { p50: number; p95: number; max: number }
+export interface Stats {
+  p50: number;
+  p95: number;
+  max: number;
+}
 
 export function stats(samples: number[]): Stats {
   const s = [...samples].sort((a, b) => a - b);

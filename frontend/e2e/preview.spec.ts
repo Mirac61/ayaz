@@ -33,13 +33,21 @@ test("markdown preview scrolls with the source and back", async ({ page }) => {
   await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: "long.md" }).click();
   const status = page.locator(".statusline");
   await expect(page.locator(".titlebar")).toContainText("long.md");
-  const source = page.locator(".cm-editor:not(.cm-reading)"), preview = page.locator(".cm-editor.cm-reading");
-  const scroll = (ed: Locator, y: number) => ed.locator(".cm-scroller").evaluate((e, y) => { e.scrollTop = y; }, y);
-  const top = (ed: Locator) => ed.evaluate((e) => {
-    const y = e.querySelector(".cm-scroller")!.getBoundingClientRect().top;
-    return [...e.querySelectorAll(".cm-line")].find((l) => l.getBoundingClientRect().bottom > y + 1)?.textContent;
-  });
-  const both = async () => { const [s, p] = [await top(source), await top(preview)]; return s === p ? s : `${s} | ${p}`; };
+  const source = page.locator(".cm-editor:not(.cm-reading)"),
+    preview = page.locator(".cm-editor.cm-reading");
+  const scroll = (ed: Locator, y: number) =>
+    ed.locator(".cm-scroller").evaluate((e, y) => {
+      e.scrollTop = y;
+    }, y);
+  const top = (ed: Locator) =>
+    ed.evaluate((e) => {
+      const y = e.querySelector(".cm-scroller")!.getBoundingClientRect().top;
+      return [...e.querySelectorAll(".cm-line")].find((l) => l.getBoundingClientRect().bottom > y + 1)?.textContent;
+    });
+  const both = async () => {
+    const [s, p] = [await top(source), await top(preview)];
+    return s === p ? s : `${s} | ${p}`;
+  };
 
   await scroll(source, 3000);
   await page.keyboard.type(" mp"); // the preview opens where the source is

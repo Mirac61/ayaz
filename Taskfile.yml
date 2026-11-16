@@ -34,6 +34,18 @@ tasks:
       - '{{.PACKAGE_MANAGER}} run --cwd frontend typecheck'
       - '{{.PACKAGE_MANAGER}} run --cwd frontend test'
 
+  lint:
+    summary: Lints and format-checks Go (golangci-lint) and the frontend (prettier, oxlint)
+    cmds:
+      - golangci-lint run ./...
+      - '{{.PACKAGE_MANAGER}} run --cwd frontend lint'
+
+  fmt:
+    summary: Formats Go (gofmt) and the frontend (prettier)
+    cmds:
+      - golangci-lint fmt ./...
+      - '{{.PACKAGE_MANAGER}} run --cwd frontend format'
+
   release:local:
     summary: Builds and publishes a release locally without using GitHub Actions minutes
     cmds:

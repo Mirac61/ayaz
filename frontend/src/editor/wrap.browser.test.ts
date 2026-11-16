@@ -6,7 +6,11 @@ import { editorExtensions, isWrapped, setWrap } from "./editor";
 import { installVim } from "./vim/setup";
 import { defaultKeymap } from "../core/keymap";
 
-installVim(() => {}, defaultKeymap().filter((b) => b.context === "normal"), () => {}); // our gj/gk
+installVim(
+  () => {},
+  defaultKeymap().filter((b) => b.context === "normal"),
+  () => {},
+); // our gj/gk
 
 let view: EditorView | null = null;
 afterEach(() => {
@@ -23,7 +27,10 @@ test("j/k over logical lines, gj/gk over wrapped ones", async () => {
   el.style.cssText = "height:300px;width:300px";
   document.body.append(el);
   const long = Array.from({ length: 40 }, (_, i) => `w${i}`).join(" ");
-  view = new EditorView({ parent: el, state: EditorState.create({ doc: `${long}\nnext\n`, extensions: [editorExtensions(), EditorView.lineWrapping] }) });
+  view = new EditorView({
+    parent: el,
+    state: EditorState.create({ doc: `${long}\nnext\n`, extensions: [editorExtensions(), EditorView.lineWrapping] }),
+  });
   view.focus();
   const line = () => view!.state.doc.lineAt(view!.state.selection.main.head).number;
   const head = () => view!.state.selection.main.head;

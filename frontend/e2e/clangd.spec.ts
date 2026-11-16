@@ -1,7 +1,14 @@
 import { expect, test } from "./test";
 import { execSync } from "node:child_process";
 
-const hasClangd = (() => { try { execSync("command -v clangd", { shell: "/bin/sh" }); return true; } catch { return false; } })();
+const hasClangd = (() => {
+  try {
+    execSync("command -v clangd", { shell: "/bin/sh" });
+    return true;
+  } catch {
+    return false;
+  }
+})();
 
 // M9: clangd through the same lsp stream; no compile_commands.json in the test workspace, so the hint shows.
 test("clangd: hint, diagnostic, gd into a system header", async ({ page }) => {

@@ -8,7 +8,9 @@ import type { EditorView } from "@codemirror/view";
 // A destination line, 0-based, -1 for "above the first line" (:m0): a number, ".", "$", and "+N" / "-N" from the cursor.
 export function parseAddress(arg: string, cursor: number, last: number): number | null {
   const m = /^\s*(\d+|\.|\$)?\s*(?:([+-])\s*(\d*))?\s*$/.exec(arg);
-  if (!m || (m[1] === undefined && m[2] === undefined)) return null;
+  if (!m || (m[1] === undefined && m[2] === undefined)) {
+    return null;
+  }
   const base = m[1] === undefined || m[1] === "." ? cursor : m[1] === "$" ? last : Number(m[1]) - 1;
   const offset = m[2] ? (m[3] === "" ? 1 : Number(m[3])) * (m[2] === "-" ? -1 : 1) : 0;
   return base + offset;
@@ -21,10 +23,15 @@ const range = (cm: CodeMirror, p: { line?: number; lineEnd?: number }): [number,
 };
 
 function transfer(view: EditorView, [first, last]: [number, number], dest: number, copy: boolean) {
-  const doc = view.state.doc, n = last - first + 1;
+  const doc = view.state.doc,
+    n = last - first + 1;
   const text = doc.sliceString(doc.line(first + 1).from, doc.line(last + 1).to);
-  if (dest < -1 || dest >= doc.lines) throw new Error("Invalid address");
-  if (!copy && dest >= first && dest < last) throw new Error("Cannot move a range of lines into itself");
+  if (dest < -1 || dest >= doc.lines) {
+    throw new Error("Invalid address");
+  }
+  if (!copy && dest >= first && dest < last) {
+    throw new Error("Cannot move a range of lines into itself");
+  }
   // Insert after line `dest`, or at the very start for :m0.
   const at = dest < 0 ? { from: 0, insert: text + "\n" } : { from: doc.line(dest + 1).to, insert: "\n" + text };
   const changes: { from: number; to?: number; insert?: string }[] = [at];
@@ -42,16 +49,21 @@ function transfer(view: EditorView, [first, last]: [number, number], dest: numbe
 }
 
 function shift(view: EditorView, [first, last]: [number, number], dir: 1 | -1) {
-  const unit = view.state.facet(indentUnit), changes: { from: number; to?: number; insert?: string }[] = [];
+  const unit = view.state.facet(indentUnit),
+    changes: { from: number; to?: number; insert?: string }[] = [];
   for (let n = first + 1; n <= last + 1; n++) {
     const line = view.state.doc.line(n);
     if (dir > 0) {
-      if (line.text.trim()) changes.push({ from: line.from, insert: unit });
+      if (line.text.trim()) {
+        changes.push({ from: line.from, insert: unit });
+      }
     } else {
       const lead = /^[ \t]*/.exec(line.text)![0];
       const tab = lead.startsWith("\t");
       const cut = lead.startsWith(unit) ? unit.length : tab ? 1 : Math.min(lead.length, unit.length);
-      if (cut) changes.push({ from: line.from, to: line.from + cut });
+      if (cut) {
+        changes.push({ from: line.from, to: line.from + cut });
+      }
     }
   }
   view.dispatch({ changes, userEvent: "input.indent" });
@@ -64,13 +76,18 @@ export function installEx() {
   const dest = (cm: CodeMirror, p: { argString?: string; commandName?: string }) => {
     const arg = p.argString?.trim() || (p.commandName ?? "").replace(/^[a-zA-Z]+/, "");
     const d = parseAddress(arg, cm.getCursor().line, cm.lastLine());
-    if (d === null) throw new Error("Invalid address");
+    if (d === null) {
+      throw new Error("Invalid address");
+    }
     return d;
   };
   // codemirror-vim runs "move" for a bare range too (":12" goes to line 12), so that case stays a jump.
   Vim.defineEx("move", "m", (cm: CodeMirror, p) => {
-    if (p.commandName) return transfer(cm.cm6!, range(cm, p), dest(cm, p), false);
-    const view = cm.cm6!, line = view.state.doc.line(Math.min(Math.max(p.line ?? 0, 0), view.state.doc.lines - 1) + 1);
+    if (p.commandName) {
+      return transfer(cm.cm6!, range(cm, p), dest(cm, p), false);
+    }
+    const view = cm.cm6!,
+      line = view.state.doc.line(Math.min(Math.max(p.line ?? 0, 0), view.state.doc.lines - 1) + 1);
     view.dispatch({ selection: { anchor: line.from + /^\s*/.exec(line.text)![0].length }, scrollIntoView: true });
   });
   const copy = (cm: CodeMirror, p: { line?: number; lineEnd?: number; argString?: string; commandName?: string }) =>

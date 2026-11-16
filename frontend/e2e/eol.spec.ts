@@ -18,7 +18,7 @@ test("CRLF survives :w, binary is refused", async ({ page }) => {
   writeFileSync(crlf, "one\r\ntwo\r\n");
   writeFileSync(join(dir, "blob.dat"), Buffer.from([0x61, 0, 0xe4, 0x62]));
   await page.goto("/");
-  await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: "README.md" }).click(); 
+  await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: "README.md" }).click();
   await expect(page.locator(".titlebar")).toContainText("README.md");
   await page.keyboard.type(":e eolspec/crlf.txt");
   await page.keyboard.press("Enter");

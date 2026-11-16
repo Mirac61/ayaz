@@ -15,7 +15,8 @@ export const header = (line: string) => line.trim().replace(/\s*\{\s*$/, "");
 function panel(view: EditorView): Panel {
   const dom = document.createElement("div");
   dom.className = "cm-sticky";
-  let frame = 0, shown = "";
+  let frame = 0,
+    shown = "";
 
   const render = () => {
     const state = view.state;
@@ -26,20 +27,24 @@ function panel(view: EditorView): Panel {
       : [];
     const lines = rows.slice(-MAX).map((s) => ({ at: s.from, text: header(state.doc.lineAt(s.from).text) }));
     const key = lines.map((l) => `${l.at}:${l.text}`).join("\n");
-    if (key === shown) return;
+    if (key === shown) {
+      return;
+    }
     shown = key;
     dom.style.display = lines.length ? "" : "none";
-    dom.replaceChildren(...lines.map((l) => {
-      const row = document.createElement("div");
-      row.className = "cm-sticky-row";
-      row.textContent = l.text;
-      row.onmousedown = (e) => {
-        e.preventDefault();
-        view.dispatch({ selection: { anchor: l.at }, effects: EditorView.scrollIntoView(l.at, { y: "start" }) });
-        view.focus();
-      };
-      return row;
-    }));
+    dom.replaceChildren(
+      ...lines.map((l) => {
+        const row = document.createElement("div");
+        row.className = "cm-sticky-row";
+        row.textContent = l.text;
+        row.onmousedown = (e) => {
+          e.preventDefault();
+          view.dispatch({ selection: { anchor: l.at }, effects: EditorView.scrollIntoView(l.at, { y: "start" }) });
+          view.focus();
+        };
+        return row;
+      }),
+    );
   };
   const schedule = () => {
     cancelAnimationFrame(frame);
@@ -62,8 +67,15 @@ function panel(view: EditorView): Panel {
 const theme = EditorView.baseTheme({
   ".cm-sticky": { borderBottom: "none", backgroundColor: "var(--bg-2, #19191b)", padding: "2px 0" },
   ".cm-sticky-row": {
-    padding: "0 16px", whiteSpace: "pre", overflow: "hidden", textOverflow: "ellipsis", cursor: "pointer", color: "var(--fg-2, #c8c093)",
-    fontFamily: "var(--font-mono)", fontSize: "var(--editor-font-size, 13px)", lineHeight: "1.6",
+    padding: "0 16px",
+    whiteSpace: "pre",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    cursor: "pointer",
+    color: "var(--fg-2, #c8c093)",
+    fontFamily: "var(--font-mono)",
+    fontSize: "var(--editor-font-size, 13px)",
+    lineHeight: "1.6",
   },
   ".cm-sticky-row:hover": { color: "var(--fg-1, #dcd7ba)" },
 });

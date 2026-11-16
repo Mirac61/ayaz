@@ -34,8 +34,12 @@ export const lldbAdapter: DebugAdapter = {
   adapterId: "lldb-dap",
   target: (path) => {
     const s = settings().debugProgram;
-    if (s) return s;
-    if (extOf(path) === "rs") return "target/debug";
+    if (s) {
+      return s;
+    }
+    if (extOf(path) === "rs") {
+      return "target/debug";
+    }
     const base = path.includes("/") ? path.slice(path.lastIndexOf("/") + 1) : path;
     return base.includes(".") ? base.slice(0, base.lastIndexOf(".")) : base;
   },

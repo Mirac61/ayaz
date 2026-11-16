@@ -17,5 +17,7 @@ export function recentCommands(): string[] {
 export function rememberCommand(title: string) {
   try {
     localStorage.setItem(KEY, JSON.stringify(touch(recentCommands(), title)));
-  } catch { /* a convenience */ }
+  } catch {
+    /* a convenience */
+  }
 }

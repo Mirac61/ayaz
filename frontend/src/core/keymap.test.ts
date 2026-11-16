@@ -2,8 +2,15 @@ import { afterEach, expect, test, vi } from "vitest";
 import template from "../../../app/keymap.default.json?raw";
 import { defaultKeymap, keyName, mergeKeymap, parseKeys, parseUserKeymap, Sequencer, type Binding } from "./keymap";
 
-const ev = (key: string, mods: Partial<Record<"ctrlKey" | "altKey" | "shiftKey" | "metaKey", boolean>> = {}, code = "") =>
-  ({ key, code, ctrlKey: false, altKey: false, shiftKey: false, metaKey: false, ...mods });
+const ev = (key: string, mods: Partial<Record<"ctrlKey" | "altKey" | "shiftKey" | "metaKey", boolean>> = {}, code = "") => ({
+  key,
+  code,
+  ctrlKey: false,
+  altKey: false,
+  shiftKey: false,
+  metaKey: false,
+  ...mods,
+});
 
 test("parseKeys normalizes Vim notation", () => {
   expect(parseKeys("<Space>ff")).toEqual(["<Space>", "f", "f"]);
@@ -49,8 +56,9 @@ test("user bindings replace or remove defaults per context and keys", () => {
 
 test("parseUserKeymap rejects bad entries with a readable message", () => {
   const known = (id: string) => id === "find.files";
-  expect(parseUserKeymap('[{"keys":"<Space>p","command":"find.files"}]', known))
-    .toEqual([{ keys: "<Space>p", command: "find.files", context: "normal" }]);
+  expect(parseUserKeymap('[{"keys":"<Space>p","command":"find.files"}]', known)).toEqual([
+    { keys: "<Space>p", command: "find.files", context: "normal" },
+  ]);
   expect(() => parseUserKeymap('{"a":1}', known)).toThrow("list of bindings");
   expect(() => parseUserKeymap('[{"keys":"x","command":"nope"}]', known)).toThrow('unknown command "nope"');
   expect(() => parseUserKeymap('[{"keys":"x","command":"","context":"insert"}]', known)).toThrow("context");
@@ -80,10 +88,13 @@ test("Sequencer: sequences, prefixes with timeout, fallthrough", () => {
   expect(s.feed("f", bs)).toBe(true);
   expect(fired).toEqual(["files"]);
 
-  s.feed("<Space>", bs); s.feed("t", bs); s.feed("c", bs);
+  s.feed("<Space>", bs);
+  s.feed("t", bs);
+  s.feed("c", bs);
   expect(fired).toEqual(["files", "termSplit"]);
 
-  s.feed("<Space>", bs); s.feed("t", bs);
+  s.feed("<Space>", bs);
+  s.feed("t", bs);
   vi.advanceTimersByTime(400);
   expect(fired).toEqual(["files", "termSplit", "term"]);
 
@@ -106,8 +117,12 @@ test("Sequencer: sequences, prefixes with timeout, fallthrough", () => {
 
 test("Sequencer: a pure prefix waits and reports what may follow (which-key)", () => {
   vi.useFakeTimers();
-  const fired: string[] = [], seen: string[] = [];
-  const s = new Sequencer((b) => fired.push(b.command), (keys, next) => seen.push(`${keys.join("")}:${next.map((b) => b.command).join(",")}`));
+  const fired: string[] = [],
+    seen: string[] = [];
+  const s = new Sequencer(
+    (b) => fired.push(b.command),
+    (keys, next) => seen.push(`${keys.join("")}:${next.map((b) => b.command).join(",")}`),
+  );
   const bs: Binding[] = [
     { keys: "<Space>t", command: "term", context: "normal" },
     { keys: "<Space>tc", command: "termSplit", context: "normal" },
@@ -157,11 +172,18 @@ test("defaultKeymap binds terminal send, tab, move to editor and floating scratc
   expect(km.find((b) => b.keys === "<C-CR>")?.command).toBe("term.send");
 });
 
-
 test("defaultKeymap binds tree revealCurrent and md outline", () => {
   const km = defaultKeymap();
   expect(km.find((b) => b.keys === "<Space>er")?.command).toBe("tree.revealCurrent");
   expect(km.find((b) => b.keys === "<Space>mh")?.command).toBe("md.outline");
+});
+
+test("defaultKeymap binds <Space>f. to resuming the last picker", () => {
+  expect(defaultKeymap().find((b) => b.keys === "<Space>f.")?.command).toBe("find.resume");
+});
+
+test("defaultKeymap binds <Space>fT to the TODO list", () => {
+  expect(defaultKeymap().find((b) => b.keys === "<Space>fT")?.command).toBe("find.todos");
 });
 
 test("defaultKeymap binds <Space>go and <Space>gy to the GitHub line links", () => {

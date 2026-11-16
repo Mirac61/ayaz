@@ -24,20 +24,34 @@ test("settings.json and keymap.json apply when saved", async ({ page }) => {
 
   // A new binding works in Vim right away (the palette from <Space>zp).
   writeFileSync(join(e2eConfig, "keymap.json"), JSON.stringify([{ keys: "<Space>zp", command: "find.commands" }]));
-  await expect.poll(async () => {
-    await content.click();
-    await page.keyboard.press("Escape");
-    await page.keyboard.type(" zp");
-    const open = await page.getByRole("dialog").isVisible().catch(() => false);
-    if (open) await page.keyboard.press("Escape");
-    return open;
-  }).toBe(true);
+  await expect
+    .poll(async () => {
+      await content.click();
+      await page.keyboard.press("Escape");
+      await page.keyboard.type(" zp");
+      const open = await page
+        .getByRole("dialog")
+        .isVisible()
+        .catch(() => false);
+      if (open) {
+        await page.keyboard.press("Escape");
+      }
+      return open;
+    })
+    .toBe(true);
 
   rmSync(join(e2eConfig, "settings.json"));
   rmSync(join(e2eConfig, "keymap.json"));
 });
 
-const hasGopls = (() => { try { execSync("command -v gopls", { shell: "/bin/sh" }); return true; } catch { return false; } })();
+const hasGopls = (() => {
+  try {
+    execSync("command -v gopls", { shell: "/bin/sh" });
+    return true;
+  } catch {
+    return false;
+  }
+})();
 
 // "theme" picks a built-in theme, "themes" holds your own on top of another; both apply when saved, a wrong name is reported.
 test("theme and themes in settings.json recolor the chrome, the code and the terminal's page", async ({ page }) => {
@@ -67,7 +81,14 @@ test("theme and themes in settings.json recolor the chrome, the code and the ter
   await expect.poll(bg).toBe("#161617");
 });
 
-const hasGo = (() => { try { execSync("command -v go", { shell: "/bin/sh" }); return true; } catch { return false; } })();
+const hasGo = (() => {
+  try {
+    execSync("command -v go", { shell: "/bin/sh" });
+    return true;
+  } catch {
+    return false;
+  }
+})();
 
 // M43: "inlayHints": true shows gopls' parameter names, saving it off again hides them.
 test("inlay hints follow settings.json", async ({ page }) => {

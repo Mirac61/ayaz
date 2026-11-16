@@ -2,6 +2,8 @@
 // text is what is left for the file search; line and column are 1-based.
 export function fileTarget(q: string): { text: string; line?: number; col?: number } {
   const m = /^(.*?):(\d+)(?::(\d+))?$/.exec(q.trim());
-  if (!m || !m[1]) return { text: q };
+  if (!m || !m[1]) {
+    return { text: q };
+  }
   return { text: m[1], line: Number(m[2]), ...(m[3] && { col: Number(m[3]) }) };
 }

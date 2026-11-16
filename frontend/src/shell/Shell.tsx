@@ -70,7 +70,9 @@ export function Shell() {
   const issuesReqId = useRef(0);
 
   const show = (w: Info | null) => {
-    if (w) rememberFolder(w);
+    if (w) {
+      rememberFolder(w);
+    }
     setInitial(undefined);
     setWs(w);
   };
@@ -80,16 +82,24 @@ export function Shell() {
       .trim()
       .replace(/^https?:\/\/github\.com\//, "")
       .replace(/\.git$/, "");
-    if (!clean.includes("/")) return;
+    if (!clean.includes("/")) {
+      return;
+    }
     const reqId = ++issuesReqId.current;
     setIssues("loading");
     try {
       const res = await fetch(`https://api.github.com/repos/${clean}/issues?per_page=6&state=open`);
-      if (issuesReqId.current !== reqId) return;
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (issuesReqId.current !== reqId) {
+        return;
+      }
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
       const data: { id: number; number: number; title: string; pull_request?: object; html_url: string; updated_at: string }[] =
         await res.json();
-      if (issuesReqId.current !== reqId) return;
+      if (issuesReqId.current !== reqId) {
+        return;
+      }
       setIssues(
         data.map((it) => ({
           id: it.id,
@@ -101,18 +111,26 @@ export function Shell() {
         })),
       );
     } catch {
-      if (issuesReqId.current === reqId) setIssues("failed");
+      if (issuesReqId.current === reqId) {
+        setIssues("failed");
+      }
     }
   };
 
   useEffect(() => {
-    if (zoomLevel() !== 1) void setZoom(zoomLevel()).catch(() => {});
-    if (new URLSearchParams(location.search).has("new")) return setWs(null);
+    if (zoomLevel() !== 1) {
+      void setZoom(zoomLevel()).catch(() => {});
+    }
+    if (new URLSearchParams(location.search).has("new")) {
+      return setWs(null);
+    }
     const failed = (e: unknown) => {
       setErr(errText(e));
       setWs(null);
     };
-    if (settingsWindow) return void backend.configFolder().then(backend.openFolder).then(setWs, failed);
+    if (settingsWindow) {
+      return void backend.configFolder().then(backend.openFolder).then(setWs, failed);
+    }
     backend.initialWorkspace().then(show, failed);
   }, [settingsWindow]);
 
@@ -137,7 +155,9 @@ export function Shell() {
     const old = ws;
     open(root).then(
       (w) => {
-        if (!w || !old) return;
+        if (!w || !old) {
+          return;
+        }
         show(w);
         closeLsp(old.id);
         void backend.closeWorkspace(old.id);
@@ -152,9 +172,13 @@ export function Shell() {
   };
 
   const handleClone = async () => {
-    if (cloning) return;
+    if (cloning) {
+      return;
+    }
     const trimmed = cloneUrl.trim();
-    if (!trimmed) return;
+    if (!trimmed) {
+      return;
+    }
     const url = trimmed.includes("://") || trimmed.startsWith("git@") ? trimmed : `https://github.com/${trimmed}.git`;
     setCloning(true);
     try {
@@ -171,19 +195,27 @@ export function Shell() {
     }
   };
 
-  if (ws === undefined) return null;
-  if (ws) return <Workbench key={ws.id} ws={ws} onSwitch={switchTo} initial={settingsWindow ? "settings.json" : initial} />;
+  if (ws === undefined) {
+    return null;
+  }
+  if (ws) {
+    return <Workbench key={ws.id} ws={ws} onSwitch={switchTo} initial={settingsWindow ? "settings.json" : initial} />;
+  }
 
   const recent = recentFolders().slice(0, MAX_STARS); // the chart shows nine; search and Enter use the same list
   const chart = stars(recent.length);
   const term = query.trim().toLowerCase();
-  const hit = chart.map((p) => !term || recent[p.i].name.toLowerCase().includes(term) || recent[p.i].root.toLowerCase().includes(term));
+  const hit = chart.map(
+    (p) => !term || recent[p.i].name.toLowerCase().includes(term) || recent[p.i].root.toLowerCase().includes(term),
+  );
   const cur = hit[sel] ? sel : hit.indexOf(true); // -1: nothing matches
   const curFolder = recent[cur];
   const curInfo = curFolder ? info[curFolder.root] : undefined;
   const move = (d: number) => {
     const hits = chart.filter((p) => hit[p.i]).map((p) => p.i);
-    if (hits.length) setSel(hits[(Math.max(0, hits.indexOf(cur)) + d + hits.length) % hits.length]);
+    if (hits.length) {
+      setSel(hits[(Math.max(0, hits.indexOf(cur)) + d + hits.length) % hits.length]);
+    }
   };
 
   const openThemePicker = () =>
@@ -196,7 +228,9 @@ export function Shell() {
           .map((t) => ({ label: t, hint: t === theme ? "current" : "" }));
       },
       pick: (it) => {
-        if (setThemeOverride(it.label)) setTheme(it.label);
+        if (setThemeOverride(it.label)) {
+          setTheme(it.label);
+        }
       },
     });
 
@@ -212,9 +246,13 @@ export function Shell() {
   const singleKeys = Object.fromEntries(tiles.map((t) => [t.key, t.run]));
 
   const onKey = (e: React.KeyboardEvent) => {
-    if (picker || showClone || showDocs) return;
+    if (picker || showClone || showDocs) {
+      return;
+    }
     const cmd = isMac ? e.metaKey : e.ctrlKey;
-    if (cmd && e.key === ",") return void backend.openSettings();
+    if (cmd && e.key === ",") {
+      return void backend.openSettings();
+    }
     if (cmd && e.key === "o") {
       e.preventDefault();
       return void pick(null);
@@ -223,7 +261,9 @@ export function Shell() {
       e.preventDefault();
       return void backend.newWindow();
     }
-    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.metaKey || e.ctrlKey || e.altKey) {
+      return;
+    }
     const typing = (e.target as HTMLElement).closest("input");
     if (e.key === "ArrowDown" || (!typing && e.key === "j")) {
       e.preventDefault();
@@ -238,12 +278,18 @@ export function Shell() {
         setQuery("");
         field.current?.blur();
         focusPage();
-      } else if (e.key === "Enter" && e.target === field.current && curFolder) void pick(curFolder.root);
+      } else if (e.key === "Enter" && e.target === field.current && curFolder) {
+        void pick(curFolder.root);
+      }
       return;
     }
     const num = Number(e.key);
-    if (num >= 1 && num <= MAX_STARS && recent[num - 1]) return setSel(num - 1);
-    if (e.key === "Enter" && e.target === page.current && curFolder) return void pick(curFolder.root);
+    if (num >= 1 && num <= MAX_STARS && recent[num - 1]) {
+      return setSel(num - 1);
+    }
+    if (e.key === "Enter" && e.target === page.current && curFolder) {
+      return void pick(curFolder.root);
+    }
     if (e.key === "r") {
       e.preventDefault();
       return field.current?.focus();
@@ -373,14 +419,20 @@ export function Shell() {
                         onClick={() => void pick(f.root)}
                         onMouseEnter={() => setSel(p.i)}
                         onFocus={() => setSel(p.i)}
-                        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), void pick((curFolder ?? f).root))} // the keys 1-9/j/k move the selection, not the focus
+                        onKeyDown={(e) =>
+                          (e.key === "Enter" || e.key === " ") && (e.preventDefault(), void pick((curFolder ?? f).root))
+                        } // the keys 1-9/j/k move the selection, not the focus
                       >
                         <title>{shorten(f.root)}</title>
                         <circle cx={p.x} cy={p.y} r="20" fill="transparent" />
                         {on ? (
                           <>
                             <circle cx={p.x} cy={p.y} r="20" className="halo" />
-                            <path className="star" transform={`translate(${p.x} ${p.y}) scale(1.4)`} d="M0-8 1.7-1.7 8 0 1.7 1.7 0 8-1.7 1.7-8 0-1.7-1.7Z" />
+                            <path
+                              className="star"
+                              transform={`translate(${p.x} ${p.y}) scale(1.4)`}
+                              d="M0-8 1.7-1.7 8 0 1.7 1.7 0 8-1.7 1.7-8 0-1.7-1.7Z"
+                            />
                           </>
                         ) : (
                           <circle cx={p.x} cy={p.y} r={p.r} className="dot" opacity={p.opacity} />
@@ -476,8 +528,12 @@ export function Shell() {
                 value={cloneUrl}
                 onChange={(e) => setCloneUrl(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && !cloning) void handleClone();
-                  if (e.key === "Escape" && !cloning) closeClone();
+                  if (e.key === "Enter" && !cloning) {
+                    void handleClone();
+                  }
+                  if (e.key === "Escape" && !cloning) {
+                    closeClone();
+                  }
                 }}
                 autoFocus
                 spellCheck={false}

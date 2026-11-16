@@ -17,11 +17,15 @@ export function quickfixTools({ ed, files, qf, say, fail }: Ctx) {
 
   const jump = async (l: Loc) => {
     await ed.openAt(l.path, l.line, l.col);
-    if (qf.items.includes(l)) say(`(${qf.index + 1} of ${qf.items.length}) ${l.text.trim()}`);
+    if (qf.items.includes(l)) {
+      say(`(${qf.index + 1} of ${qf.items.length}) ${l.text.trim()}`);
+    }
   };
 
   const move = (d: number) => {
-    if (!qf.items.length) return fail("No quickfix list");
+    if (!qf.items.length) {
+      return fail("No quickfix list");
+    }
     const l = qf.move(d);
     return l ? jump(l) : fail("No more items");
   };
@@ -31,7 +35,9 @@ export function quickfixTools({ ed, files, qf, say, fail }: Ctx) {
     query: async (q) => qf.items.filter((l) => !q || label(l).toLowerCase().includes(q.toLowerCase())).map(locItem),
     pick: (it) => {
       const i = qf.items.findIndex((l) => label(l) === it.label);
-      if (i >= 0) void jump(qf.select(i));
+      if (i >= 0) {
+        void jump(qf.select(i));
+      }
     },
     start: Math.max(qf.index, 0),
     preview: async (it) => {
@@ -42,7 +48,9 @@ export function quickfixTools({ ed, files, qf, say, fail }: Ctx) {
 
   const set = (title: string, locs: Loc[], regex = false, sort = true) => {
     qf.set(title, locs, regex, sort);
-    if (!locs.length) return fail(`${title}: no matches`);
+    if (!locs.length) {
+      return fail(`${title}: no matches`);
+    }
     say(`${title}: ${locs.length} matches, :cn / :cp to move, :copen to list`);
     void move(1);
   };
@@ -53,10 +61,20 @@ export function quickfixTools({ ed, files, qf, say, fail }: Ctx) {
     for (const l of locs) {
       if (!docs.has(l.path)) {
         const b = ed.buffers.get(l.path);
-        docs.set(l.path, b ? b.state.doc : await files.readText(l.path).then((f) => Text.of(lf(f.content).split("\n")), () => null));
+        docs.set(
+          l.path,
+          b
+            ? b.state.doc
+            : await files.readText(l.path).then(
+                (f) => Text.of(lf(f.content).split("\n")),
+                () => null,
+              ),
+        );
       }
       const d = docs.get(l.path);
-      if (d && l.line <= d.lines) l.text = d.line(l.line).text;
+      if (d && l.line <= d.lines) {
+        l.text = d.line(l.line).text;
+      }
     }
     return locs;
   };
@@ -64,23 +82,38 @@ export function quickfixTools({ ed, files, qf, say, fail }: Ctx) {
   // Replaces every quickfix match with `to`; buffers that were clean are saved, dirty ones stay open unsaved.
   const replaceAll = async (to: string) => {
     const byPath = new Map<string, Loc[]>();
-    for (const l of qf.items) byPath.set(l.path, [...(byPath.get(l.path) ?? []), l]);
-    let n = 0, skipped = 0;
+    for (const l of qf.items) {
+      byPath.set(l.path, [...(byPath.get(l.path) ?? []), l]);
+    }
+    let n = 0,
+      skipped = 0;
     const unsaved: string[] = [];
     for (const [path, locs] of byPath) {
       const before = await ed.buffers.open(path);
-      if (before.state.readOnly) { skipped += locs.length; continue; }
+      if (before.state.readOnly) {
+        skipped += locs.length;
+        continue;
+      }
       const wasDirty = isDirty(before);
       const r = replaceEdits(locs, before.state.doc, to, qf.regex);
       skipped += r.skipped;
-      if (!r.changes.length) continue;
+      if (!r.changes.length) {
+        continue;
+      }
       const b = await ed.edit(path, r.changes);
       n += r.changes.length;
-      if (wasDirty) unsaved.push(path);
-      else await ed.buffers.save(b);
+      if (wasDirty) {
+        unsaved.push(path);
+      } else {
+        await ed.buffers.save(b);
+      }
     }
     ed.emit();
-    say(`Replaced ${n} in ${byPath.size} files` + (skipped ? `, ${skipped} skipped (changed since the search)` : "") + (unsaved.length ? `; not saved (had changes): ${unsaved.join(", ")}` : ""));
+    say(
+      `Replaced ${n} in ${byPath.size} files` +
+        (skipped ? `, ${skipped} skipped (changed since the search)` : "") +
+        (unsaved.length ? `; not saved (had changes): ${unsaved.join(", ")}` : ""),
+    );
   };
 
   return { locItem, jump, move, picker, set, withText, replaceAll };

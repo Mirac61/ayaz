@@ -926,7 +926,9 @@ const COLOR = /^(#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})|(rgb|hsl)a?\([^()]*\)|
 // Checks the "themes" object of settings.json; throws with a message for the status line.
 export function parseThemeSpecs(raw: unknown): Record<string, ThemeSpec> {
   const isObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
-  if (!isObject(raw)) throw new Error('settings.json: "themes" must be an object of name → theme');
+  if (!isObject(raw)) {
+    throw new Error('settings.json: "themes" must be an object of name → theme');
+  }
   const parts: Record<string, readonly string[]> = {
     ui: Object.keys(UI_VARS),
     syntax: SYNTAX_KEYS,
@@ -935,17 +937,27 @@ export function parseThemeSpecs(raw: unknown): Record<string, ThemeSpec> {
   const out: Record<string, ThemeSpec> = {};
   for (const [name, spec] of Object.entries(raw)) {
     const where = `settings.json themes.${name}`;
-    if (!isObject(spec)) throw new Error(`${where} must be an object`);
+    if (!isObject(spec)) {
+      throw new Error(`${where} must be an object`);
+    }
     for (const [part, value] of Object.entries(spec)) {
       if (part === "extends") {
-        if (typeof value !== "string") throw new Error(`${where}.extends must be a theme name`);
+        if (typeof value !== "string") {
+          throw new Error(`${where}.extends must be a theme name`);
+        }
         continue;
       }
       const keys = parts[part];
-      if (!keys) throw new Error(`${where}: unknown part "${part}", one of extends, ui, syntax, terminal`);
-      if (!isObject(value)) throw new Error(`${where}.${part} must be an object of colors`);
+      if (!keys) {
+        throw new Error(`${where}: unknown part "${part}", one of extends, ui, syntax, terminal`);
+      }
+      if (!isObject(value)) {
+        throw new Error(`${where}.${part} must be an object of colors`);
+      }
       for (const [k, c] of Object.entries(value)) {
-        if (!keys.includes(k)) throw new Error(`${where}.${part}: unknown color "${k}", one of ${keys.join(", ")}`);
+        if (!keys.includes(k)) {
+          throw new Error(`${where}.${part}: unknown color "${k}", one of ${keys.join(", ")}`);
+        }
         if (typeof c !== "string" || !COLOR.test(c)) {
           throw new Error(`${where}.${part}.${k} must be a color like "#7e9cd8" or "rgb(255 255 255 / 0.1)"`);
         }
@@ -963,11 +975,15 @@ export const themeNames = (specs: Record<string, ThemeSpec> = {}) => [
 // A theme by name: the ones in settings.json first (a built-in's name there replaces it), then the built-in ones.
 // "extends" follows the chain; a theme named like a built-in one, without "extends", changes that built-in theme.
 export function resolveTheme(name: string, specs: Record<string, ThemeSpec> = {}, seen: string[] = []): Theme {
-  if (seen.includes(name)) throw new Error(`settings.json: themes extend each other in a circle: ${[...seen, name].join(" → ")}`);
+  if (seen.includes(name)) {
+    throw new Error(`settings.json: themes extend each other in a circle: ${[...seen, name].join(" → ")}`);
+  }
   const spec = specs[name];
   if (!spec) {
     const t = BUILTIN_THEMES[name];
-    if (!t) throw new Error(`settings.json: unknown theme "${name}", one of ${themeNames(specs).join(", ")}`);
+    if (!t) {
+      throw new Error(`settings.json: unknown theme "${name}", one of ${themeNames(specs).join(", ")}`);
+    }
     return t;
   }
   const base = spec.extends ?? (BUILTIN_THEMES[name] ? name : DEFAULT_THEME);
@@ -994,10 +1010,15 @@ const isLight = (hex: string) => {
 // terminals (they ask terminalTheme again). With glass on, the stylesheet keeps the translucent surfaces.
 export function applyTheme(theme: Theme, glass = false, root = document.documentElement.style) {
   for (const [k, v] of Object.entries(UI_VARS) as [keyof UiColors, string][]) {
-    if (glass && GLASS_SURFACES.includes(k)) root.removeProperty(v);
-    else root.setProperty(v, theme.ui[k]);
+    if (glass && GLASS_SURFACES.includes(k)) {
+      root.removeProperty(v);
+    } else {
+      root.setProperty(v, theme.ui[k]);
+    }
   }
-  for (const k of SYNTAX_KEYS) root.setProperty(synVar(k), theme.syntax[k]);
+  for (const k of SYNTAX_KEYS) {
+    root.setProperty(synVar(k), theme.syntax[k]);
+  }
   terminal = { ...theme.terminal, background: theme.terminal.background ?? theme.ui.bg1 };
   root.setProperty("color-scheme", isLight(theme.ui.bg1) ? "light" : "dark"); // scrollbars and native controls
   root.setProperty("--term-bg", terminal.background!); // the pane around xterm's cells, so no strip of another color shows

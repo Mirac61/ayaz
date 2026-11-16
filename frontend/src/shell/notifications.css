@@ -26,7 +26,9 @@
   font: 13px/1.4 var(--font-ui, sans-serif);
   color: var(--fg-1, #dcd7ba);
   animation: toast-in 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
   cursor: pointer;
   user-select: none;
 }
@@ -89,7 +91,10 @@
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
 }
 
 .toast-action:hover {
@@ -111,7 +116,9 @@
   justify-content: center;
   border-radius: 3px;
   opacity: 0.6;
-  transition: opacity 0.15s ease, color 0.15s ease;
+  transition:
+    opacity 0.15s ease,
+    color 0.15s ease;
 }
 
 .notification-toast:hover .toast-close {

@@ -23,15 +23,21 @@ export function fakeAdapter(opts: FakeOptions = {}) {
   const transport: Transport = {
     send(raw) {
       const m = JSON.parse(raw);
-      if (m.type !== "request") return void got.push(`${m.type}:${m.command}:${m.success}`);
+      if (m.type !== "request") {
+        return void got.push(`${m.type}:${m.command}:${m.success}`);
+      }
       got.push(m.command);
       requests.push({ command: m.command, arguments: m.arguments });
       const special = opts.answer?.(m);
-      if (m.command === "initialize") respond(m, { supportsConfigurationDoneRequest: true });
-      else if (m.command === "launch") {
+      if (m.command === "initialize") {
+        respond(m, { supportsConfigurationDoneRequest: true });
+      } else if (m.command === "launch") {
         launchSeq = m.seq;
-        if (opts.failLaunch) response(m, { success: false, message: "could not launch process" });
-        else reply({ seq: 0, type: "event", event: "initialized" });
+        if (opts.failLaunch) {
+          response(m, { success: false, message: "could not launch process" });
+        } else {
+          reply({ seq: 0, type: "event", event: "initialized" });
+        }
       } else if (m.command === "setBreakpoints") {
         respond(m, { breakpoints: m.arguments.breakpoints.map((b: { line: number }) => ({ verified: true, line: b.line })) });
       } else if (m.command === "configurationDone") {
@@ -39,15 +45,23 @@ export function fakeAdapter(opts: FakeOptions = {}) {
         reply({ seq: 0, type: "response", request_seq: launchSeq, command: "launch", success: true });
       } else if (m.command === "disconnect") {
         respond(m);
-        if (opts.closeOnDisconnect) queueMicrotask(() => closed());
+        if (opts.closeOnDisconnect) {
+          queueMicrotask(() => closed());
+        }
       } else if (m.command === "evaluate") {
         respond(m, special ?? { result: `val(${m.arguments?.expression})`, type: "int", variablesReference: 0 });
       } else if (m.command === "scopes") {
         respond(m, special ?? { scopes: [] });
-      } else respond(m, special ?? {});
+      } else {
+        respond(m, special ?? {});
+      }
     },
-    onMessage: (fn) => { toClient = fn; },
-    onClose: (fn) => { closed = fn; },
+    onMessage: (fn) => {
+      toClient = fn;
+    },
+    onClose: (fn) => {
+      closed = fn;
+    },
     close: () => closed(),
   };
   return { transport, got, requests, push: (o: object) => reply({ seq: 0, ...o }), die: () => closed() };

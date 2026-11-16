@@ -78,7 +78,9 @@ test("tab context menu and middle click", async ({ page }) => {
   await page.goto("/?renderer=dom");
   await expect(page.getByRole("tree", { name: "Files" })).toBeFocused(); // the app is ready for keys
   const tree = page.getByRole("tree", { name: "Files" });
-  for (const name of ["README.md", "notes.md", "hello.c"]) await tree.getByRole("treeitem", { name: name }).click();
+  for (const name of ["README.md", "notes.md", "hello.c"]) {
+    await tree.getByRole("treeitem", { name: name }).click();
+  }
   const tabs = page.locator(".tabbar .tab");
   await expect(tabs).toHaveCount(3);
   await tabs.nth(1).click({ button: "middle" });

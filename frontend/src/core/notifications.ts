@@ -56,7 +56,9 @@ export const notify = {
   dismiss(id: string) {
     const before = toasts.length;
     toasts = toasts.filter((t) => t.id !== id);
-    if (toasts.length !== before) emit();
+    if (toasts.length !== before) {
+      emit();
+    }
   },
   clear() {
     toasts = [];
@@ -74,5 +76,7 @@ export const notify = {
 };
 
 function emit() {
-  for (const fn of listeners) fn();
+  for (const fn of listeners) {
+    fn();
+  }
 }

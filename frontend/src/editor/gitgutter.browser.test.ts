@@ -7,7 +7,10 @@ import { inlineBlame, showBlame } from "./blame";
 import { diffWith, headEffects, hunkPatch, isDiffing, moveHunk, previewHunk, resetHunk, setHead, toggleDiff } from "./gitgutter";
 
 let view: EditorView | null = null;
-afterEach(() => { view?.destroy(); view = null; });
+afterEach(() => {
+  view?.destroy();
+  view = null;
+});
 
 const HEAD = "one\ntwo\nthree\nfour\n";
 function mk() {
@@ -30,7 +33,12 @@ test("the gutter follows typing", () => {
 
 test("]c jumps between hunks, reset puts one back and undo brings it again", () => {
   const v = mk();
-  v.dispatch({ changes: [{ from: v.state.doc.line(1).from, insert: "X" }, { from: v.state.doc.line(3).from, insert: "Y" }] });
+  v.dispatch({
+    changes: [
+      { from: v.state.doc.line(1).from, insert: "X" },
+      { from: v.state.doc.line(3).from, insert: "Y" },
+    ],
+  });
   expect(moveHunk(v, 1)).toBe(true);
   expect(v.state.doc.lineAt(v.state.selection.main.head).number).toBe(3);
   expect(moveHunk(v, 1)).toBe(true); // wraps around
@@ -98,14 +106,16 @@ test("the blame text sits at the end of the cursor line and goes when the cursor
 test("staged changes are dimmed, and the hunk to stage or unstage is the one on the cursor line", async () => {
   const el = document.createElement("div");
   document.body.append(el);
-  const head = Text.of("a\nb\nc\nd\n".split("\n")), index = Text.of("a\nB\nc\nd\n".split("\n"));
+  const head = Text.of("a\nb\nc\nd\n".split("\n")),
+    index = Text.of("a\nB\nc\nd\n".split("\n"));
   // b → B is staged; d → D is only in the buffer.
   const v = new EditorView({ parent: el, state: EditorState.create({ doc: "a\nB\nc\nD\n", extensions: [editorExtensions()] }) });
   v.dispatch({ effects: headEffects(v.state, head, index) });
-  const marks = () => [...el.querySelectorAll(".cm-git .cm-gutterElement")]
-    .map((m) => m.className.replace("cm-gutterElement ", "").trim())
-    .filter((m) => m.includes("cm-git-"))
-    .sort();
+  const marks = () =>
+    [...el.querySelectorAll(".cm-git .cm-gutterElement")]
+      .map((m) => m.className.replace("cm-gutterElement ", "").trim())
+      .filter((m) => m.includes("cm-git-"))
+      .sort();
   await expect.poll(marks).toEqual(["cm-git-mod", "cm-git-mod cm-git-staged"]);
 
   v.dispatch({ selection: { anchor: v.state.doc.line(2).from } });

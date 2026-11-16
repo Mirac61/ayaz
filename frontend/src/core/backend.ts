@@ -7,16 +7,39 @@ import type { Entry, Preview, TextFile } from "../../bindings/github.com/Mirac61
 import type { Match as FileMatch } from "../../bindings/github.com/Mirac61/ayaz/internal/index";
 import type { Loc } from "./quickfix";
 
-export type { Blame, Entry, FileMatch, FileStatus, HeadFile, Info, Match, OpenEvent, Preview, Summary, Swap, TextFile, UpdateInfo, Version };
+export type {
+  Blame,
+  Entry,
+  FileMatch,
+  FileStatus,
+  HeadFile,
+  Info,
+  Match,
+  OpenEvent,
+  Preview,
+  Summary,
+  Swap,
+  TextFile,
+  UpdateInfo,
+  Version,
+};
 
 // A batch of changes on disk. Paths are workspace-relative, files or folders; rescan: events were lost, check everything.
 // A file in the config folder the app watches.
 export type ConfigFile = "settings.json" | "keymap.json" | "snippets.json";
 
-export interface FsChange { paths: string[] | null; rescan: boolean }
+export interface FsChange {
+  paths: string[] | null;
+  rescan: boolean;
+}
 
 // A language server's state, only "missing" so far: its command isn't in PATH.
-export interface LspStatus { ws: string; lang: string; state: string; command: string }
+export interface LspStatus {
+  ws: string;
+  lang: string;
+  state: string;
+  command: string;
+}
 
 export interface Backend {
   ping(): Promise<string>;
@@ -71,7 +94,10 @@ export interface Backend {
 }
 
 // A running project search; cancel() stops it (closes the stream). done resolves with an error text, or null.
-export interface Grep { done: Promise<string | null>; cancel(): void }
+export interface Grep {
+  done: Promise<string | null>;
+  cancel(): void;
+}
 
 // File access bound to one workspace; paths are workspace-relative with "/".
 export interface Files {
@@ -138,12 +164,16 @@ export const backend: Backend = {
   takeOpen: () => WorkspaceService.TakeOpen(),
   onOpen: (ws, fn) =>
     Events.On("app:open", (e: { data: OpenEvent }) => {
-      if (e.data.ws === ws) fn(e.data);
+      if (e.data.ws === ws) {
+        fn(e.data);
+      }
     }),
   waitDone: (id) => WorkspaceService.WaitDone(id),
   onCloseRequest: (ws, fn) =>
     Events.On("app:close-request", (e: { data: string }) => {
-      if (e.data === ws) fn();
+      if (e.data === ws) {
+        fn();
+      }
     }),
   keymap: () => ConfigService.Keymap(),
   settings: () => ConfigService.Settings(),
@@ -161,29 +191,40 @@ export const backend: Backend = {
   restartApp: () => UpdateService.Restart(),
   currentVersion: () => UpdateService.CurrentVersion(),
   onUpdateAvailable: (fn) => Events.On("ayaz:updater:available", (e: { data: UpdateInfo }) => fn(e.data)),
-  onUpdateProgress: (fn) => Events.On("wails:updater:download-progress", (e: { data?: { bytesWritten?: number; bytesTotal?: number; Written?: number; Total?: number } }) => {
-    const d = e?.data || {};
-    const written = d.bytesWritten ?? d.Written ?? 0;
-    const total = d.bytesTotal ?? d.Total ?? 0;
-    const percent = total > 0 ? Math.round((written / total) * 100) : 0;
-    fn({ written, total, percent });
-  }),
+  onUpdateProgress: (fn) =>
+    Events.On(
+      "wails:updater:download-progress",
+      (e: { data?: { bytesWritten?: number; bytesTotal?: number; Written?: number; Total?: number } }) => {
+        const d = e?.data || {};
+        const written = d.bytesWritten ?? d.Written ?? 0;
+        const total = d.bytesTotal ?? d.Total ?? 0;
+        const percent = total > 0 ? Math.round((written / total) * 100) : 0;
+        fn({ written, total, percent });
+      },
+    ),
   onUpdateReady: (fn) => Events.On("wails:updater:update-ready", () => fn()),
-  onUpdateError: (fn) => Events.On("wails:updater:error", (e: { data?: { message?: string; Error?: string } | string }) => {
-    const msg = typeof e?.data === "string" ? e.data : (e?.data?.message || e?.data?.Error || "Update error");
-    fn(msg);
-  }),
+  onUpdateError: (fn) =>
+    Events.On("wails:updater:error", (e: { data?: { message?: string; Error?: string } | string }) => {
+      const msg = typeof e?.data === "string" ? e.data : e?.data?.message || e?.data?.Error || "Update error";
+      fn(msg);
+    }),
   onFsChanged: (ws, fn) =>
     Events.On("fs:changed", (e: { data: FsChange & { ws: string } }) => {
-      if (e.data.ws === ws) fn(e.data);
+      if (e.data.ws === ws) {
+        fn(e.data);
+      }
     }),
   onLspStatus: (ws, fn) =>
     Events.On("lsp:status", (e: { data: LspStatus }) => {
-      if (e.data.ws === ws) fn(e.data);
+      if (e.data.ws === ws) {
+        fn(e.data);
+      }
     }),
   onGitChanged: (ws, fn) =>
     Events.On("git:changed", (e: { data: { ws: string } }) => {
-      if (e.data.ws === ws) fn();
+      if (e.data.ws === ws) {
+        fn();
+      }
     }),
   onConfigChanged: (fn) => Events.On("config:changed", (e: { data: { file: ConfigFile } }) => fn(e.data.file)),
   files: (ws) => ({
@@ -213,7 +254,8 @@ export const backend: Backend = {
     gitUnstageAll: () => WorkspaceService.GitUnstageAll(ws),
     gitCommit: (msg) => WorkspaceService.GitCommit(ws, msg),
     gitPush: () => Call.ByName("github.com/Mirac61/ayaz/app.WorkspaceService.GitPush", ws),
-    gitBrowseURL: (path, line, permalink) => Call.ByName("github.com/Mirac61/ayaz/app.WorkspaceService.GitBrowseURL", ws, path, line, permalink),
+    gitBrowseURL: (path, line, permalink) =>
+      Call.ByName("github.com/Mirac61/ayaz/app.WorkspaceService.GitBrowseURL", ws, path, line, permalink),
     gitPull: () => Call.ByName("github.com/Mirac61/ayaz/app.WorkspaceService.GitPull", ws),
     gitFetch: () => Call.ByName("github.com/Mirac61/ayaz/app.WorkspaceService.GitFetch", ws),
     gitRebase: () => Call.ByName("github.com/Mirac61/ayaz/app.WorkspaceService.GitRebase", ws),
@@ -231,8 +273,12 @@ export const backend: Backend = {
         sock.onopen = () => sock.send(new TextEncoder().encode(JSON.stringify({ ws, query, ...opts })));
         sock.onmessage = (ev) => {
           const f = JSON.parse(typeof ev.data === "string" ? ev.data : dec.decode(ev.data as ArrayBuffer));
-          if (f.error) error = f.error;
-          if (f.hits) onHits(f.hits);
+          if (f.error) {
+            error = f.error;
+          }
+          if (f.hits) {
+            onHits(f.hits);
+          }
         };
         sock.onclose = () => resolve(error);
       });

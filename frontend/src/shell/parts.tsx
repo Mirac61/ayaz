@@ -3,27 +3,81 @@ import { parseKeys, type Binding } from "../core/keymap";
 
 // Names for the leader groups, so "<Space>f" reads "+find" instead of "+11 keymaps". Other prefixes keep the count.
 const GROUPS: Record<string, string> = {
-  "<Space>b": "buffer", "<Space>c": "code", "<Space>d": "debug", "<Space>f": "find", "<Space>g": "git",
-  "<Space>h": "hunks", "<Space>m": "markdown, merge", "<Space>r": "run tasks", "<Space>u": "view", "<Space>t": "terminal",
+  "<Space>b": "buffer",
+  "<Space>c": "code",
+  "<Space>d": "debug",
+  "<Space>f": "find",
+  "<Space>g": "git",
+  "<Space>h": "hunks",
+  "<Space>m": "markdown, merge",
+  "<Space>r": "run tasks",
+  "<Space>u": "view",
+  "<Space>t": "terminal",
 };
 
 // Nerd Font glyphs per leader group and per command, so a row can be found by its icon. A command without one takes its group's.
 const GROUP_ICONS: Record<string, string> = {
-  "<Space>b": "\uf0c5", "<Space>c": "\uf121", "<Space>d": "\uf188", "<Space>f": "\uf002", "<Space>g": "\ue702",
-  "<Space>h": "\uf440", "<Space>m": "\uf48a", "<Space>r": "\uf04b", "<Space>u": "\uf06e", "<Space>t": "\uf120",
+  "<Space>b": "\uf0c5",
+  "<Space>c": "\uf121",
+  "<Space>d": "\uf188",
+  "<Space>f": "\uf002",
+  "<Space>g": "\ue702",
+  "<Space>h": "\uf440",
+  "<Space>m": "\uf48a",
+  "<Space>r": "\uf04b",
+  "<Space>u": "\uf06e",
+  "<Space>t": "\uf120",
 };
 const COMMAND_ICONS: Record<string, string> = {
-  "tree.focus": "\uf07b", "tree.revealCurrent": "\uf07c", "term.panel": "\uf120", "term.split": "\uf120", "term.lazygit": "\ue702",
-  "term.send": "\uf120", "term.float": "\uf120",
-  "find.files": "\uf15b", "find.grep": "\uf002", "find.commands": "\uf0e7", "find.recent": "\uf1da", "find.buffers": "\uf0c5",
-  "folder.switch": "\uf07c", "theme.switch": "\uf1fc", "lsp.symbols": "\uf1b2", "lsp.workspaceSymbols": "\uf1b3",
-  "lsp.diagnostics": "\uf071", "file.history": "\uf1da", "lsp.rename": "\uf040", "lsp.codeAction": "\uf0eb",
-  "task.run": "\uf04b", "task.last": "\uf01e", "tab.close": "\uf00d", "harpoon.toggle": "\uf02e", "harpoon.menu": "\uf02e",
-  "debug.toggleBreakpoint": "\uf111", "debug.start": "\uf04b", "debug.continue": "\uf051", "debug.stop": "\uf04d",
-  "debug.next": "\uf050", "debug.stepIn": "\uf063", "debug.stepOut": "\uf062",
-  "git.diff": "\uf440", "git.diffSplit": "\uf440", "git.commit": "\uf417", "git.blame": "\uf007", "git.status": "\ue725", "git.stageHunk": "\uf067", "git.unstageHunk": "\uf068", "git.resetHunk": "\uf0e2",
-  "git.previewHunk": "\uf06e", "md.reading": "\uf06e", "md.preview": "\uf06e", "md.skin": "\uf1fc", "md.outline": "\uf0ca",
-  "view.wrap": "\uf039", "view.diagnosticText": "\uf071", "view.zen": "\uf06e", "git.toggleInlineBlame": "\uf007",
+  "tree.focus": "\uf07b",
+  "tree.revealCurrent": "\uf07c",
+  "term.panel": "\uf120",
+  "term.split": "\uf120",
+  "term.lazygit": "\ue702",
+  "term.send": "\uf120",
+  "term.float": "\uf120",
+  "find.files": "\uf15b",
+  "find.grep": "\uf002",
+  "find.commands": "\uf0e7",
+  "find.recent": "\uf1da",
+  "find.buffers": "\uf0c5",
+  "folder.switch": "\uf07c",
+  "theme.switch": "\uf1fc",
+  "lsp.symbols": "\uf1b2",
+  "lsp.workspaceSymbols": "\uf1b3",
+  "lsp.diagnostics": "\uf071",
+  "file.history": "\uf1da",
+  "lsp.rename": "\uf040",
+  "lsp.codeAction": "\uf0eb",
+  "task.run": "\uf04b",
+  "task.last": "\uf01e",
+  "tab.close": "\uf00d",
+  "harpoon.toggle": "\uf02e",
+  "harpoon.menu": "\uf02e",
+  "debug.toggleBreakpoint": "\uf111",
+  "debug.start": "\uf04b",
+  "debug.continue": "\uf051",
+  "debug.stop": "\uf04d",
+  "debug.next": "\uf050",
+  "debug.stepIn": "\uf063",
+  "debug.stepOut": "\uf062",
+  "git.diff": "\uf440",
+  "git.diffSplit": "\uf440",
+  "git.commit": "\uf417",
+  "git.blame": "\uf007",
+  "git.status": "\ue725",
+  "git.stageHunk": "\uf067",
+  "git.unstageHunk": "\uf068",
+  "git.resetHunk": "\uf0e2",
+  "git.previewHunk": "\uf06e",
+  "md.reading": "\uf06e",
+  "md.preview": "\uf06e",
+  "md.skin": "\uf1fc",
+  "md.outline": "\uf0ca",
+  "view.wrap": "\uf039",
+  "view.diagnosticText": "\uf071",
+  "view.zen": "\uf06e",
+  "git.toggleInlineBlame": "\uf007",
 };
 const COLUMN_AT = 8; // more rows than this flow into two columns
 
@@ -40,7 +94,11 @@ export function Hints({ keys, next, title }: { keys: string[]; next: Binding[]; 
   return (
     <div className={columns ? "hints wide" : "hints"} role="status" aria-label="Next keys">
       <div className="hints-title label">
-        {keys.map((k, i) => <span key={i} className="hints-key">{k}</span>)}
+        {keys.map((k, i) => (
+          <span key={i} className="hints-key">
+            {k}
+          </span>
+        ))}
         {GROUPS[prefix] && <span className="group named">{GROUPS[prefix]}</span>}
       </div>
       <ul style={columns ? { gridTemplateRows: `repeat(${Math.ceil(rows.length / 2)}, auto)` } : undefined}>
@@ -66,7 +124,15 @@ export function Hints({ keys, next, title }: { keys: string[]; next: Binding[]; 
 }
 
 // A split border or the panel's top edge; dragging it calls onDrag with each pointer move.
-export function Handle({ dir, style, onDrag }: { dir: "row" | "col"; style: React.CSSProperties; onDrag(e: PointerEvent): void }) {
+export function Handle({
+  dir,
+  style,
+  onDrag,
+}: {
+  dir: "row" | "col";
+  style: React.CSSProperties;
+  onDrag(e: PointerEvent): void;
+}) {
   return (
     <div
       className={`resize ${dir}`}
@@ -102,7 +168,15 @@ export function Pane({ id, active, style, edge, mount, onClose }: PaneProps) {
         <div className="tabbar ghost">
           <button type="button" className="tab active" tabIndex={-1}>
             <span className="tab-name">[No Name]</span>
-            <span className="tab-close" title="Close" onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }} />
+            <span
+              className="tab-close"
+              title="Close"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onClose();
+              }}
+            />
           </button>
         </div>
       )}

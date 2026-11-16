@@ -26,13 +26,17 @@ let error: string | null = null;
 const listeners = new Set<() => void>();
 
 function emit() {
-  for (const fn of listeners) fn();
+  for (const fn of listeners) {
+    fn();
+  }
 }
 
 let initialized = false;
 
 function initListeners() {
-  if (initialized) return;
+  if (initialized) {
+    return;
+  }
   initialized = true;
 
   backend.onUpdateAvailable((newInfo) => {
@@ -61,10 +65,18 @@ function initListeners() {
 }
 
 export const updaterStore: UpdaterStore = {
-  get state() { return state; },
-  get info() { return info; },
-  get progress() { return progress; },
-  get error() { return error; },
+  get state() {
+    return state;
+  },
+  get info() {
+    return info;
+  },
+  get progress() {
+    return progress;
+  },
+  get error() {
+    return error;
+  },
 
   subscribe(fn: () => void) {
     initListeners();
@@ -93,7 +105,9 @@ export const updaterStore: UpdaterStore = {
       error = e instanceof Error ? e.message : String(e);
       state = "error";
       emit();
-      if (manual) throw e;
+      if (manual) {
+        throw e;
+      }
       return null;
     }
   },

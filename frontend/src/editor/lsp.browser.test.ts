@@ -4,7 +4,14 @@ import { EditorView } from "@codemirror/view";
 import { LSPClient, languageServerExtensions, type Transport } from "@codemirror/lsp-client";
 import { editorExtensions } from "./editor";
 import {
-  CAPABILITIES, Files, callHierarchy, diagnosticHandlers, documentSymbols, formatBeforeSave, resolveAction, workspaceSymbols,
+  CAPABILITIES,
+  Files,
+  callHierarchy,
+  diagnosticHandlers,
+  documentSymbols,
+  formatBeforeSave,
+  resolveAction,
+  workspaceSymbols,
 } from "./lsp";
 import { diagnosticsFor } from "./diagnostics";
 import { semanticTokens } from "./semantic";
@@ -19,13 +26,21 @@ function fakeServer(): Transport {
   return {
     send(raw) {
       const m = JSON.parse(raw);
-      if (m.method === "initialize") reply({ id: m.id, result: { capabilities: { textDocumentSync: 1, completionProvider: {} } } });
-      else if (m.method === "textDocument/completion") reply({ id: m.id, result: [{ label: "fmt.Println" }] });
-      else if (m.method === "textDocument/didOpen")
+      if (m.method === "initialize") {
+        reply({ id: m.id, result: { capabilities: { textDocumentSync: 1, completionProvider: {} } } });
+      } else if (m.method === "textDocument/completion") {
+        reply({ id: m.id, result: [{ label: "fmt.Println" }] });
+      } else if (m.method === "textDocument/didOpen") {
         reply({
           method: "textDocument/publishDiagnostics",
-          params: { uri: m.params.textDocument.uri, diagnostics: [{ range: { start: { line: 0, character: 0 }, end: { line: 0, character: 3 } }, severity: 1, message: "bad word" }] },
+          params: {
+            uri: m.params.textDocument.uri,
+            diagnostics: [
+              { range: { start: { line: 0, character: 0 }, end: { line: 0, character: 3 } }, severity: 1, message: "bad word" },
+            ],
+          },
         });
+      }
     },
     subscribe: (h) => void handlers.add(h),
     unsubscribe: (h) => void handlers.delete(h),
@@ -33,7 +48,10 @@ function fakeServer(): Transport {
 }
 
 let view: EditorView | null = null;
-afterEach(() => { view?.destroy(); view = null; });
+afterEach(() => {
+  view?.destroy();
+  view = null;
+});
 
 test("a server diagnostic shows as a lint marker", async () => {
   const client = new LSPClient({ rootUri: "file:///r", extensions: languageServerExtensions() }).connect(fakeServer());
@@ -48,8 +66,11 @@ test("a server diagnostic shows as a lint marker", async () => {
 });
 
 test("the diagnostics store sees what the server publishes, and the underline stays", async () => {
-  const client = new LSPClient({ rootUri: "file:///r", extensions: languageServerExtensions(), notificationHandlers: diagnosticHandlers("dw") })
-    .connect(fakeServer());
+  const client = new LSPClient({
+    rootUri: "file:///r",
+    extensions: languageServerExtensions(),
+    notificationHandlers: diagnosticHandlers("dw"),
+  }).connect(fakeServer());
   await client.initializing;
   const el = document.createElement("div");
   document.body.append(el);
@@ -70,9 +91,14 @@ function recordingServer() {
     send(raw) {
       const m = JSON.parse(raw);
       sent.push(m);
-      if (m.method === "initialize") reply({ id: m.id, result: { capabilities: { textDocumentSync: 1, documentFormattingProvider: true } } });
-      else if (m.method === "textDocument/formatting")
-        reply({ id: m.id, result: [{ range: { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } }, newText: "X" }] });
+      if (m.method === "initialize") {
+        reply({ id: m.id, result: { capabilities: { textDocumentSync: 1, documentFormattingProvider: true } } });
+      } else if (m.method === "textDocument/formatting") {
+        reply({
+          id: m.id,
+          result: [{ range: { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } }, newText: "X" }],
+        });
+      }
     },
     subscribe: (h) => void handlers.add(h),
     unsubscribe: (h) => void handlers.delete(h),
@@ -82,14 +108,22 @@ function recordingServer() {
 
 test("one file in two panes opens once, closes after the last view", async () => {
   const { t, sent } = recordingServer();
-  const client = new LSPClient({ rootUri: "file:///r", extensions: languageServerExtensions(), workspace: (c) => new Files(c, "w", "/r") }).connect(t);
+  const client = new LSPClient({
+    rootUri: "file:///r",
+    extensions: languageServerExtensions(),
+    workspace: (c) => new Files(c, "w", "/r"),
+  }).connect(t);
   await client.initializing;
   const mk = () => {
     const el = document.createElement("div");
     document.body.append(el);
-    return new EditorView({ parent: el, state: EditorState.create({ doc: "abc", extensions: [client.plugin("file:///r/a.go", "go")] }) });
+    return new EditorView({
+      parent: el,
+      state: EditorState.create({ doc: "abc", extensions: [client.plugin("file:///r/a.go", "go")] }),
+    });
   };
-  const a = mk(), b = mk();
+  const a = mk(),
+    b = mk();
   const count = (m: string) => sent.filter((x) => x.method === m).length;
   await expect.poll(() => count("textDocument/didOpen")).toBe(1);
   a.destroy();
@@ -105,7 +139,10 @@ test("formatBeforeSave applies the server's edits", async () => {
   await client.initializing;
   const el = document.createElement("div");
   document.body.append(el);
-  view = new EditorView({ parent: el, state: EditorState.create({ doc: "abc", extensions: [client.plugin("file:///r/a.go", "go")] }) });
+  view = new EditorView({
+    parent: el,
+    state: EditorState.create({ doc: "abc", extensions: [client.plugin("file:///r/a.go", "go")] }),
+  });
   await formatBeforeSave(view);
   expect(view.state.doc.toString()).toBe("Xbc");
 });
@@ -117,14 +154,30 @@ test("document symbols flatten with their container, workspace symbols map URIs 
   const t: Transport = {
     send(raw) {
       const m = JSON.parse(raw);
-      if (m.method === "initialize") reply({ id: m.id, result: { capabilities: { textDocumentSync: 1 } } });
-      else if (m.method === "textDocument/documentSymbol")
-        reply({ id: m.id, result: [{ name: "T", kind: 23, range: pos(0, 0), selectionRange: pos(0, 5), children: [{ name: "f", kind: 8, range: pos(1, 1), selectionRange: pos(1, 1) }] }] });
-      else if (m.method === "workspace/symbol")
-        reply({ id: m.id, result: [
-          { name: "hello", kind: 12, location: { uri: "file:///r/sub/a.go", range: pos(3, 5) } },
-          { name: "Println", kind: 12, containerName: "fmt", location: { uri: "file:///go/fmt/print.go", range: pos(9, 5) } },
-        ] });
+      if (m.method === "initialize") {
+        reply({ id: m.id, result: { capabilities: { textDocumentSync: 1 } } });
+      } else if (m.method === "textDocument/documentSymbol") {
+        reply({
+          id: m.id,
+          result: [
+            {
+              name: "T",
+              kind: 23,
+              range: pos(0, 0),
+              selectionRange: pos(0, 5),
+              children: [{ name: "f", kind: 8, range: pos(1, 1), selectionRange: pos(1, 1) }],
+            },
+          ],
+        });
+      } else if (m.method === "workspace/symbol") {
+        reply({
+          id: m.id,
+          result: [
+            { name: "hello", kind: 12, location: { uri: "file:///r/sub/a.go", range: pos(3, 5) } },
+            { name: "Println", kind: 12, containerName: "fmt", location: { uri: "file:///go/fmt/print.go", range: pos(9, 5) } },
+          ],
+        });
+      }
     },
     subscribe: (h) => void handlers.add(h),
     unsubscribe: (h) => void handlers.delete(h),
@@ -133,7 +186,10 @@ test("document symbols flatten with their container, workspace symbols map URIs 
   await client.initializing;
   const el = document.createElement("div");
   document.body.append(el);
-  view = new EditorView({ parent: el, state: EditorState.create({ doc: "abc", extensions: [client.plugin("file:///r/a.go", "go")] }) });
+  view = new EditorView({
+    parent: el,
+    state: EditorState.create({ doc: "abc", extensions: [client.plugin("file:///r/a.go", "go")] }),
+  });
   expect(await documentSymbols(view, "/r")).toEqual([
     { name: "T", kind: 23, container: "", path: "a.go", line: 1, col: 5 },
     { name: "f", kind: 8, container: "T", path: "a.go", line: 2, col: 1 },
@@ -153,15 +209,20 @@ test("resolveAction fills in the edit when the server resolves", async () => {
     send(raw) {
       const m = JSON.parse(raw);
       const caps = { textDocumentSync: 1, codeActionProvider: { resolveProvider: true } };
-      if (m.method === "initialize") reply({ id: m.id, result: { capabilities: caps } });
-      else if (m.method === "codeAction/resolve") reply({ id: m.id, result: { ...m.params, edit } });
+      if (m.method === "initialize") {
+        reply({ id: m.id, result: { capabilities: caps } });
+      } else if (m.method === "codeAction/resolve") {
+        reply({ id: m.id, result: { ...m.params, edit } });
+      }
     },
     subscribe: (h) => void handlers.add(h),
     unsubscribe: (h) => void handlers.delete(h),
   };
   const client = new LSPClient({ rootUri: "file:///r", workspace: (c) => new Files(c, "w", "/r") }).connect(t);
   await client.initializing;
-  view = new EditorView({ state: EditorState.create({ doc: "x", extensions: [editorExtensions(), client.plugin("file:///r/a.ts", "typescript")] }) });
+  view = new EditorView({
+    state: EditorState.create({ doc: "x", extensions: [editorExtensions(), client.plugin("file:///r/a.ts", "typescript")] }),
+  });
   expect(await resolveAction(view, { title: "Move", data: 1 })).toEqual({ title: "Move", data: 1, edit });
   const done = { title: "Has it", edit };
   expect(await resolveAction(view, done)).toBe(done);
@@ -182,7 +243,8 @@ function tokenServer(sent: any[]): Transport {
             capabilities: {
               textDocumentSync: 1,
               semanticTokensProvider: {
-                legend: { tokenTypes: ["namespace", "type", "function"], tokenModifiers: [] }, full: { delta: true },
+                legend: { tokenTypes: ["namespace", "type", "function"], tokenModifiers: [] },
+                full: { delta: true },
               },
             },
           },
@@ -201,7 +263,8 @@ function tokenServer(sent: any[]): Transport {
 test("semantic tokens colour the code over the syntax highlighting, and later changes ask for a delta", async () => {
   const sent: any[] = [];
   const client = new LSPClient({
-    rootUri: "file:///r", extensions: [...languageServerExtensions(), { clientCapabilities: CAPABILITIES }],
+    rootUri: "file:///r",
+    extensions: [...languageServerExtensions(), { clientCapabilities: CAPABILITIES }],
   }).connect(tokenServer(sent));
   await client.initializing;
   const el = document.createElement("div");
@@ -209,7 +272,8 @@ test("semantic tokens colour the code over the syntax highlighting, and later ch
   view = new EditorView({
     parent: el,
     state: EditorState.create({
-      doc: "fmt.Println", extensions: [editorExtensions(), go(), client.plugin("file:///r/a.go", "go"), semanticTokens],
+      doc: "fmt.Println",
+      extensions: [editorExtensions(), go(), client.plugin("file:///r/a.go", "go"), semanticTokens],
     }),
   });
   const colour = (cls: string) => {
@@ -231,7 +295,9 @@ test("typing in a document full of semantic tokens stays fast", async () => {
   const handlers = new Set<(m: string) => void>();
   const reply = (o: object) => queueMicrotask(() => handlers.forEach((h) => h(JSON.stringify({ jsonrpc: "2.0", ...o }))));
   const data: number[] = [];
-  for (let i = 0; i < lines; i++) data.push(i ? 1 : 0, 0, 3, 0, 0, 0, 4, 7, 2, 0); // fmt and Println of "fmt.Println(a)"
+  for (let i = 0; i < lines; i++) {
+    data.push(i ? 1 : 0, 0, 3, 0, 0, 0, 4, 7, 2, 0);
+  } // fmt and Println of "fmt.Println(a)"
   const transport: Transport = {
     send(raw) {
       const m = JSON.parse(raw);
@@ -242,12 +308,15 @@ test("typing in a document full of semantic tokens stays fast", async () => {
             capabilities: {
               textDocumentSync: 1,
               semanticTokensProvider: {
-                legend: { tokenTypes: ["namespace", "type", "function"], tokenModifiers: [] }, full: true,
+                legend: { tokenTypes: ["namespace", "type", "function"], tokenModifiers: [] },
+                full: true,
               },
             },
           },
         });
-      } else if (m.method === "textDocument/semanticTokens/full") reply({ id: m.id, result: { data } });
+      } else if (m.method === "textDocument/semanticTokens/full") {
+        reply({ id: m.id, result: { data } });
+      }
     },
     subscribe: (h) => void handlers.add(h),
     unsubscribe: (h) => void handlers.delete(h),
@@ -306,7 +375,8 @@ test("occurrences of the symbol under the cursor get marked after a rest and cle
   view = new EditorView({
     parent: el,
     state: EditorState.create({
-      doc: "foo = 1; x(foo)", extensions: [editorExtensions(), client.plugin("file:///r/a.go", "go"), documentHighlight],
+      doc: "foo = 1; x(foo)",
+      extensions: [editorExtensions(), client.plugin("file:///r/a.go", "go"), documentHighlight],
     }),
   });
   view.dispatch({ selection: { anchor: 1 } });

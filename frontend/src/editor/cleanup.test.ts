@@ -16,7 +16,9 @@ test("trailing spaces and tabs go, one final newline", () => {
 });
 
 test("clean files, empty and blank files are left alone", () => {
-  for (const s of ["a\nb\n", "", "\n\n", "  "]) expect(cleanupChanges(Text.of(s.split("\n")), false)).toEqual([]);
+  for (const s of ["a\nb\n", "", "\n\n", "  "]) {
+    expect(cleanupChanges(Text.of(s.split("\n")), false)).toEqual([]);
+  }
 });
 
 test("a carriage return is no whitespace to trim", () => {

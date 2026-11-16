@@ -94,10 +94,13 @@ describe("growing a selection", () => {
     const state = EditorState.create({ doc: src, extensions: [go()] });
     const start = src.indexOf("abc");
     const chain: string[] = [];
-    let from = start, to = start + 3;
+    let from = start,
+      to = start + 3;
     for (let i = 0; i < 20; i++) {
       const r = growRange(state, from, to);
-      if (!r) break;
+      if (!r) {
+        break;
+      }
       chain.push(src.slice(r.from, r.to));
       ({ from, to } = r);
     }

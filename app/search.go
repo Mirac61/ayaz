@@ -31,12 +31,12 @@ func (s *WorkspaceService) HandleSearch(c *application.StreamConn) {
 	}
 	re, err := search.Compile(cfg.Options)
 	if err != nil {
-		c.SendJSON(searchFrame{Error: err.Error()})
+		_ = c.SendJSON(searchFrame{Error: err.Error()})
 		return
 	}
 	ix, root, err := s.index(cfg.WS, cfg.Ignored)
 	if err != nil {
-		c.SendJSON(searchFrame{Error: err.Error()})
+		_ = c.SendJSON(searchFrame{Error: err.Error()})
 		return
 	}
 
@@ -48,7 +48,7 @@ func (s *WorkspaceService) HandleSearch(c *application.StreamConn) {
 		batch = nil
 		mu.Unlock()
 		if len(b) > 0 {
-			c.SendJSON(searchFrame{Hits: b})
+			_ = c.SendJSON(searchFrame{Hits: b})
 		}
 	}
 	done, stopped := make(chan struct{}), make(chan struct{})

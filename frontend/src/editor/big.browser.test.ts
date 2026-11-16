@@ -30,11 +30,16 @@ test("big.md opens and scrolls to the end without errors or slow frames", async 
     const now = await frame();
     deltas.push(now - last);
     last = now;
-    if (view.scrollDOM.scrollTop === before) break; // at the end
+    if (view.scrollDOM.scrollTop === before) {
+      break;
+    } // at the end
   }
   const sorted = [...deltas].sort((a, b) => a - b);
-  const worst = sorted[sorted.length - 1], p95 = sorted[Math.floor(sorted.length * 0.95)];
-  console.log(`BIGMD open ${open.toFixed(0)} ms, ${deltas.length} frames, p95 ${p95.toFixed(1)} ms, worst ${worst.toFixed(1)} ms`);
+  const worst = sorted[sorted.length - 1],
+    p95 = sorted[Math.floor(sorted.length * 0.95)];
+  console.log(
+    `BIGMD open ${open.toFixed(0)} ms, ${deltas.length} frames, p95 ${p95.toFixed(1)} ms, worst ${worst.toFixed(1)} ms`,
+  );
 
   const atEnd = view.scrollDOM.scrollTop + view.scrollDOM.clientHeight >= view.scrollDOM.scrollHeight - 2;
   view.destroy();

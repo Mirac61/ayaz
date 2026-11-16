@@ -44,11 +44,15 @@ function fakeFiles(init: Record<string, string>) {
     preview: async () => ({ text: "", more: false }),
     readText: async (path) => {
       const f = disk.get(path);
-      if (!f) throw new Error(`open /x/${path}: no such file or directory`);
+      if (!f) {
+        throw new Error(`open /x/${path}: no such file or directory`);
+      }
       return { path, ...f };
     },
     writeText: async (path, content, expected) => {
-      if ((disk.get(path)?.mtime ?? 0) !== expected) throw new Error("file changed on disk");
+      if ((disk.get(path)?.mtime ?? 0) !== expected) {
+        throw new Error("file changed on disk");
+      }
       disk.set(path, { content, mtime: ++clock });
       return clock;
     },
@@ -148,7 +152,8 @@ describe("Buffers", () => {
 
 test("syncSwaps: dirty buffers keep their text in a swap, clean ones lose it", async () => {
   const { bufs, swaps } = make({ "a.go": "x", "b.go": "y" });
-  const a = await bufs.open("a.go"), b = await bufs.open("b.go");
+  const a = await bufs.open("a.go"),
+    b = await bufs.open("b.go");
   await bufs.syncSwaps();
   expect(swaps.size).toBe(0); // nothing unsaved
 
@@ -190,7 +195,9 @@ test("syncSwaps: a swap that fails to write is tried again", async () => {
   const a = await bufs.open("a.go");
   a.state = edit(a.state, "1");
   const write = files.swapWrite;
-  files.swapWrite = async () => { throw new Error("disk full"); };
+  files.swapWrite = async () => {
+    throw new Error("disk full");
+  };
   await expect(bufs.syncSwaps()).rejects.toThrow("disk full");
   files.swapWrite = write;
   await bufs.syncSwaps();
@@ -207,7 +214,9 @@ test("diff replaces only the changed middle", () => {
 test("head:// virtual buffer loads text from gitHead and is marked virtual", async () => {
   const { bufs, files } = make({ "hello.go": "world" });
   files.gitHead = async (p: string) => {
-    if (p === "hello.go") return { text: "hello original", tracked: true };
+    if (p === "hello.go") {
+      return { text: "hello original", tracked: true };
+    }
     return { text: "", tracked: false };
   };
   const b = await bufs.open("head://hello.go");
@@ -215,4 +224,16 @@ test("head:// virtual buffer loads text from gitHead and is marked virtual", asy
   expect(b.state.doc.toString()).toBe("hello original");
   // Cannot be saved
   await expect(bufs.save(b)).rejects.toThrow();
+});
+
+describe("plain (a line too long to highlight)", () => {
+  test("is set on load and on reload, not for normal files", async () => {
+    const { bufs, touch } = make({ "long.json": "x".repeat(20_001), "a.go": "package a\n" });
+    expect((await bufs.open("long.json")).plain).toBe(true);
+    expect((await bufs.open("a.go")).plain).toBe(false);
+    touch("long.json", "short\n");
+    const b = bufs.get("long.json")!;
+    expect(await bufs.checkDisk(b)).toMatchObject({ kind: "reload" });
+    expect(b.plain).toBe(false);
+  });
 });

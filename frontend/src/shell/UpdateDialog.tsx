@@ -12,8 +12,12 @@ const md = new MarkdownIt({
 });
 
 function formatBytes(bytes: number): string {
-  if (!bytes || bytes <= 0) return "";
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (!bytes || bytes <= 0) {
+    return "";
+  }
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
@@ -83,7 +87,9 @@ export function UpdateDialog({ onClose }: { onClose(): void }) {
   };
 
   const renderedNotes = useMemo(() => {
-    if (!info?.releaseNotes) return "";
+    if (!info?.releaseNotes) {
+      return "";
+    }
     const rawHtml = md.render(info.releaseNotes);
     return sanitizeHtml(rawHtml);
   }, [info?.releaseNotes]);
@@ -110,12 +116,7 @@ export function UpdateDialog({ onClose }: { onClose(): void }) {
             </div>
           </div>
           {state !== "downloading" && (
-            <button
-              className="update-dialog-close"
-              onClick={onClose}
-              aria-label="Close dialog"
-              title="Close (Esc)"
-            >
+            <button className="update-dialog-close" onClick={onClose} aria-label="Close dialog" title="Close (Esc)">
               <svg
                 width="14"
                 height="14"
@@ -137,11 +138,7 @@ export function UpdateDialog({ onClose }: { onClose(): void }) {
         {renderedNotes ? (
           <div className="update-dialog-body">
             <div className="update-dialog-section-label">Release Notes</div>
-            <div
-              className="update-dialog-notes"
-              dangerouslySetInnerHTML={{ __html: renderedNotes }}
-              onClick={handleNotesClick}
-            />
+            <div className="update-dialog-notes" dangerouslySetInnerHTML={{ __html: renderedNotes }} onClick={handleNotesClick} />
           </div>
         ) : null}
 
@@ -157,10 +154,7 @@ export function UpdateDialog({ onClose }: { onClose(): void }) {
               </span>
             </div>
             <div className="update-dialog-progress-bar-bg">
-              <div
-                className="update-dialog-progress-bar-fill"
-                style={{ width: `${progress?.percent ?? 0}%` }}
-              />
+              <div className="update-dialog-progress-bar-fill" style={{ width: `${progress?.percent ?? 0}%` }} />
             </div>
           </div>
         )}

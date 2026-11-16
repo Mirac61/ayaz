@@ -16,7 +16,9 @@ test("every built-in theme names every ui and syntax color and the terminal's co
   for (const [name, t] of Object.entries(BUILTIN_THEMES)) {
     expect(Object.keys(t.ui).sort(), name).toEqual(Object.keys(UI_VARS).sort());
     expect(Object.keys(t.syntax).sort(), name).toEqual([...SYNTAX_KEYS].sort());
-    for (const k of TERMINAL_KEYS.filter((k) => k !== "background")) expect(t.terminal[k], `${name} ${k}`).toBeTruthy();
+    for (const k of TERMINAL_KEYS.filter((k) => k !== "background")) {
+      expect(t.terminal[k], `${name} ${k}`).toBeTruthy();
+    }
   }
 });
 

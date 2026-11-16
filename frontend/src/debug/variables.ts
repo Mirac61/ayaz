@@ -14,12 +14,21 @@ export interface Row {
   isWatchScope?: boolean;
 }
 
-export const rowOf = (v: Variable): Row => (
-  { name: v.name, value: v.value, type: v.type, ref: v.variablesReference, open: false }
-);
+export const rowOf = (v: Variable): Row => ({
+  name: v.name,
+  value: v.value,
+  type: v.type,
+  ref: v.variablesReference,
+  open: false,
+});
 export const scopeRow = (s: Scope): Row => ({ name: s.name, value: "", ref: s.variablesReference, open: false });
 
-export interface Line { label: string; hint: string; row: Row; depth: number }
+export interface Line {
+  label: string;
+  hint: string;
+  row: Row;
+  depth: number;
+}
 
 // The visible lines: every open row's children follow it, indented. ▾ open, ▸ closed with something below.
 export function lines(rows: Row[], depth = 0): Line[] {
@@ -34,7 +43,11 @@ export function lines(rows: Row[], depth = 0): Line[] {
 
 // Opens or closes a row, loading its children the first time. load fetches by variablesReference.
 export async function toggle(row: Row, load: (ref: number) => Promise<Variable[]>) {
-  if (row.ref <= 0) return;
-  if (!row.open) row.children ??= (await load(row.ref)).map(rowOf);
+  if (row.ref <= 0) {
+    return;
+  }
+  if (!row.open) {
+    row.children ??= (await load(row.ref)).map(rowOf);
+  }
   row.open = !row.open;
 }

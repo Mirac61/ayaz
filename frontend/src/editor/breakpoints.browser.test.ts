@@ -19,8 +19,10 @@ function mount(doc = "one\ntwo\nthree\nfour\n") {
   return el;
 }
 // The spacer keeps the column's width and is hidden: only the dots of lines count.
-const dots = (el: HTMLElement) => [...el.querySelectorAll<HTMLElement>(".cm-bp .cm-gutterElement")]
-  .filter((e) => !e.style.visibility && e.querySelector(".cm-bp-dot"));
+const dots = (el: HTMLElement) =>
+  [...el.querySelectorAll<HTMLElement>(".cm-bp .cm-gutterElement")].filter(
+    (e) => !e.style.visibility && e.querySelector(".cm-bp-dot"),
+  );
 const cursorAt = (line: number) => view!.dispatch({ selection: { anchor: view!.state.doc.line(line).from + 1 } });
 const lines = () => breakpointLines(view!.state);
 

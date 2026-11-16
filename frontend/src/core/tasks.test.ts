@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { parseProblems, parseWatcherProblems } from "./tasks";
+import { expandTask, parseProblems, parseWatcherProblems } from "./tasks";
 
 const loc = (path: string, line: number, col: number, text: string) => ({ path, line, col, len: 0, text });
 
@@ -35,7 +35,9 @@ test("gcc/clang with absolute paths inside the folder, and tsc in both styles", 
 });
 
 test("lines that only look like locations stay out", () => {
-  const out = ["listening on http://localhost:8080/", "12:30:01 started", "ok  \texample.com/e2e\t0.2s", "[process exited]"].join("\n");
+  const out = ["listening on http://localhost:8080/", "12:30:01 started", "ok  \texample.com/e2e\t0.2s", "[process exited]"].join(
+    "\n",
+  );
   expect(parseProblems(out, "/ws")).toEqual([]);
 });
 
@@ -74,19 +76,12 @@ test("parseWatcherProblems: typst watch cycle extracts only current cycle and cl
     "[10:00:05] compiled with errors",
     "sub/chapter.typ:12:4: error: unknown import",
   ].join("\n");
-  expect(parseWatcherProblems(failedCycle, "/ws")).toEqual([
-    loc("sub/chapter.typ", 12, 3, "error: unknown import"),
-  ]);
+  expect(parseWatcherProblems(failedCycle, "/ws")).toEqual([loc("sub/chapter.typ", 12, 3, "error: unknown import")]);
 });
 
 test("parseWatcherProblems: LaTeX watcher loop with delimiters", () => {
-  const failed = [
-    "--- compiling ---",
-    "error: ./paper.tex:24: Undefined control sequence \\badcmd",
-  ].join("\n");
-  expect(parseWatcherProblems(failed, "/ws")).toEqual([
-    loc("paper.tex", 24, 0, "Undefined control sequence \\badcmd"),
-  ]);
+  const failed = ["--- compiling ---", "error: ./paper.tex:24: Undefined control sequence \\badcmd"].join("\n");
+  expect(parseWatcherProblems(failed, "/ws")).toEqual([loc("paper.tex", 24, 0, "Undefined control sequence \\badcmd")]);
 
   const success = [
     "--- compiling ---",
@@ -95,4 +90,71 @@ test("parseWatcherProblems: LaTeX watcher loop with delimiters", () => {
     "--- success ---",
   ].join("\n");
   expect(parseWatcherProblems(success, "/ws")).toEqual([]);
+});
+
+test("expandTask fills file, dir and line", () => {
+  const at = { file: "src/app.go", line: 42 };
+  expect(expandTask("vet ${file}", at)).toBe("vet 'src/app.go'");
+  expect(expandTask("go test ./${dir}", at)).toBe("go test ./'src'");
+  expect(expandTask("echo ${line}", at)).toBe("echo 42");
+  expect(expandTask("${file}:${line} in ${dir}", at)).toBe("'src/app.go':42 in 'src'");
+});
+
+test("expandTask quotes paths for the shell", () => {
+  expect(expandTask("cat ${file}", { file: "a b/it's; rm.txt" })).toBe("cat 'a b/it'\\''s; rm.txt'");
+});
+
+test("expandTask escapes for the quotes around the placeholder", () => {
+  const at = { file: "$(id) it's.txt", line: 3 };
+  expect(expandTask('cat "${file}"', at)).toBe('cat "\\$(id) it\'s.txt"');
+  expect(expandTask("cat '${file}'", at)).toBe("cat '$(id) it'\\''s.txt'");
+  expect(expandTask(`echo "a \\" '\${dir}'" \${line}`, at)).toBe(`echo "a \\" '.'" 3`);
+  expect(expandTask('cat "${file}" ${file}', { file: 'a"b' })).toBe(`cat "a\\"b" 'a"b'`);
+});
+
+test("expandTask refuses placeholders where it can't tell the quoting", () => {
+  const at = { file: "$(printf INJECTED).txt", line: 2 };
+  for (const cmd of [
+    `true;#'\nprintf "%s\\n" "\${file}" # '`,
+    "a#b ${file}",
+    `printf '%s\\n' "$(printf '%s' "\${file}")"`,
+    "echo `cat ${file}`",
+    "echo $(ls) ${dir}",
+    "cat <<EOF\n${file}\nEOF",
+    "echo $'it\\'s' ${file}",
+    'echo "${x:-"${file}"}"',
+    "true # it's\necho ${file}",
+    "echo '${file}",
+  ]) {
+    expect(() => expandTask(cmd, at), cmd).toThrow();
+  }
+  // ${line} is a number, safe anywhere; plain ${NAME}, a quoted #, $( or << in single quotes don't count
+  expect(expandTask("echo $(seq ${line})", at)).toBe("echo $(seq 2)");
+  expect(expandTask(`echo "\${HOME}#" '$(<<#' \${file}`, { file: "a.go" })).toBe(`echo "\${HOME}#" '$(<<#' 'a.go'`);
+});
+
+// The shell, not string equality, decides whether a hostile name stays literal. No /bin/sh (Windows) skips it.
+// Node modules load through a string so tsc, which has no Node types here, sees them as any.
+const node = (m: string) => import(m);
+const { execFileSync } = await node("node:child_process");
+const { existsSync, mkdtempSync, readdirSync } = await node("node:fs");
+const shells = ["/bin/sh", "/bin/bash", "/bin/zsh"].filter((s) => existsSync(s));
+test.skipIf(!shells.length)("expanded tasks pass hostile names through literally", () => {
+  const file = '$(touch PWNED) `touch PWNED` "q" it\'s\\n.txt';
+  for (const sh of shells) {
+    for (const tpl of ["printf %s ${file}", 'printf %s "${file}"', "printf %s '${file}'", `printf %s "x"'\${file}'`]) {
+      const dir = mkdtempSync("/tmp/ayaz-task-");
+      const got = execFileSync(sh, ["-c", expandTask(tpl, { file })!], { cwd: dir, encoding: "utf8" });
+      expect(got, `${sh}: ${tpl}`).toBe(tpl.includes('"x"') ? "x" + file : file);
+      expect(readdirSync(dir), `${sh}: ${tpl}`).toEqual([]);
+    }
+  }
+});
+
+test("expandTask: dir of a root file is '.', other ${} stays, no placeholder needs no file", () => {
+  expect(expandTask("ls ${dir}", { file: "main.go" })).toBe("ls '.'");
+  expect(expandTask("echo ${HOME} ${file}", { file: "a.go" })).toBe("echo ${HOME} 'a.go'");
+  expect(expandTask("go test ./...", {})).toBe("go test ./...");
+  expect(expandTask("echo ${file}", {})).toBeNull();
+  expect(expandTask("echo ${line}", {})).toBeNull();
 });

@@ -8,7 +8,11 @@ export function ScrollTest() {
   const [worst, setWorst] = useState(0); // longest frame in the last second, ms (K5: none > 50 ms)
 
   useEffect(() => {
-    let frames = 0, last = performance.now(), prev = last, max = 0, id = 0;
+    let frames = 0,
+      last = performance.now(),
+      prev = last,
+      max = 0,
+      id = 0;
     const tick = (now: number) => {
       frames++;
       max = Math.max(max, now - prev);
