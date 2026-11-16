@@ -77,3 +77,23 @@ test("two links on one row each get the cwd of their own position", async () => 
   expect(opened).toEqual([["a.go", 3, 1, "/ws/one"], ["b.go", 3, 1, "/ws/two"]]);
   term.dispose();
 });
+
+test("a wide character before a link shifts it by a cell, not by a string index", async () => {
+  const el = document.createElement("div");
+  document.body.append(el);
+  const term = new Terminal({ theme: terminalTheme() });
+  term.open(el);
+  const cwd = trackCwd(term);
+  // 界 is one UTF-16 unit but two cells: b.go starts at index 11, cell 12, right where /ws/two begins
+  await new Promise<void>((r) => term.write("\x1b]7;file:///ws/one\x07界 a.go:3:1 \x1b]7;file:///ws/two\x07b.go:3:1", r));
+  const opened: unknown[][] = [];
+  const links = await new Promise<{ range: unknown; activate(e: MouseEvent, t: string): void }[] | undefined>((r) =>
+    fileLinkProvider(term, (...a) => opened.push(a), cwd.at).provideLinks(1, r));
+  expect(links!.map((l) => l.range)).toEqual([
+    { start: { x: 4, y: 1 }, end: { x: 11, y: 1 } },
+    { start: { x: 13, y: 1 }, end: { x: 20, y: 1 } },
+  ]);
+  links!.forEach((l) => l.activate(new MouseEvent("click"), ""));
+  expect(opened).toEqual([["a.go", 3, 1, "/ws/one"], ["b.go", 3, 1, "/ws/two"]]);
+  term.dispose();
+});

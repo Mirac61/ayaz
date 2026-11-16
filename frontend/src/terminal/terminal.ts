@@ -84,7 +84,6 @@ function bufferText(t: Terminal): string {
 
 // path:line:col in the output as links. Plain clicks, like the URLs next to them.
 // A row that continues a wrapped line is no link: its path would be cut off at the wrap.
-// shortcut: columns are string indices, a wide character earlier in the row shifts the link
 // cwdAt(row, col): the directory the shell was in when the text there was written.
 export function fileLinkProvider(
   term: Terminal,
@@ -95,11 +94,18 @@ export function fileLinkProvider(
     provideLinks(y, callback) {
       const line = term.buffer.active.getLine(y - 1);
       if (line?.isWrapped) return callback(undefined);
-      const text = line?.translateToString(true) ?? "";
+      if (!line) return callback(undefined);
+      const text = line.translateToString(true);
+      // The cell column of each UTF-16 index: a wide character takes two cells, an emoji two code units.
+      const cols: number[] = [];
+      for (let x = 0; x < line.length; x++) {
+        const c = line.getCell(x)!;
+        if (c.getWidth()) cols.push(...Array<number>((c.getChars() || " ").length).fill(x));
+      }
       const links: ILink[] = fileLinks(text).map((l) => ({
-        range: { start: { x: l.start + 1, y }, end: { x: l.end, y } },
+        range: { start: { x: cols[l.start] + 1, y }, end: { x: cols[l.end - 1] + 1, y } },
         text: text.slice(l.start, l.end),
-        activate: () => onOpenFile(l.path, l.line, l.col, cwdAt(y - 1, l.start)),
+        activate: () => onOpenFile(l.path, l.line, l.col, cwdAt(y - 1, cols[l.start])),
       }));
       callback(links.length ? links : undefined);
     },
