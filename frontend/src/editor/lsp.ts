@@ -601,10 +601,6 @@ export function setPlatform(p: string) {
   }
 }
 
-export function currentPlatform(): PlatformId {
-  return activePlatform;
-}
-
 type PlatformMap = {
   darwin?: string;
   windows?: string;
