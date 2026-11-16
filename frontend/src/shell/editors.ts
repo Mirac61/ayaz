@@ -175,7 +175,7 @@ export class Editors {
       handle = openTerminal(box, {
         ...term,
         onMode: (m) => this.termMode(handle, m),
-        onOpenFile: (path, line, col) => this.onTermLink?.(resolveLink(path, handle!.cwd(), this.root), path, line, col),
+        onOpenFile: (path, line, col, cwd) => this.onTermLink?.(resolveLink(path, cwd ?? "", this.root), path, line, col),
         onExit: () => this.termExited(handle!, term.onExit),
       });
       this.showTerm(id, parent, { term: handle, box, title: `${term.cmd ?? "shell"} ${++this.terms}`, cmd: term.cmd ?? "" });

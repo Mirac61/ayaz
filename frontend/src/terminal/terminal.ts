@@ -1,5 +1,5 @@
 // xterm.js on a Wails "pty" stream (ADR-0013): the terminal provider for panes and the bottom panel.
-import { Terminal, type ILink, type ILinkProvider } from "@xterm/xterm";
+import { Terminal, type ILink, type ILinkProvider, type IMarker } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { SearchAddon } from "@xterm/addon-search";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
@@ -24,7 +24,7 @@ export interface TermOptions {
   cmd?: string; // run this instead of an interactive shell, e.g. "lazygit"
   dir?: string; // start here instead of the workspace root (a folder the shell of another terminal had cd'ed to)
   onExit?(): void;
-  onOpenFile?(path: string, line: number, col?: number): void; // a click on path:line:col in the output
+  onOpenFile?(path: string, line: number, col?: number, cwd?: string): void; // a click on path:line:col in the output
   onOutput?(text: string): void; // at exit, everything it printed (scrollback included), for tasks' problem lines
   onLiveOutput?(text: string): void; // while running, debounced live output for watchers
   onMode?(m: TermMode): void;
@@ -83,18 +83,55 @@ function bufferText(t: Terminal): string {
 }
 
 // path:line:col in the output as links. Plain clicks, like the URLs next to them.
-// shortcut: a path the terminal wrapped onto two rows is no link, upgrade with isWrapped like bufferText
+// A row that continues a wrapped line is no link: its path would be cut off at the wrap.
 // shortcut: columns are string indices, a wide character earlier in the row shifts the link
-export function fileLinkProvider(term: Terminal, onOpenFile: (path: string, line: number, col?: number) => void): ILinkProvider {
+// cwdAt(row): the directory the shell was in when that row was written.
+export function fileLinkProvider(
+  term: Terminal,
+  onOpenFile: (path: string, line: number, col?: number, cwd?: string) => void,
+  cwdAt: (row: number) => string = () => "",
+): ILinkProvider {
   return {
     provideLinks(y, callback) {
-      const text = term.buffer.active.getLine(y - 1)?.translateToString(true) ?? "";
+      const line = term.buffer.active.getLine(y - 1);
+      if (line?.isWrapped) return callback(undefined);
+      const text = line?.translateToString(true) ?? "";
       const links: ILink[] = fileLinks(text).map((l) => ({
         range: { start: { x: l.start + 1, y }, end: { x: l.end, y } },
         text: text.slice(l.start, l.end),
-        activate: () => onOpenFile(l.path, l.line, l.col),
+        activate: () => onOpenFile(l.path, l.line, l.col, cwdAt(y - 1)),
       }));
       callback(links.length ? links : undefined);
+    },
+  };
+}
+
+// OSC 7 as it arrives, kept per row: a link in old output resolves against where the shell was then.
+export function trackCwd(term: Terminal) {
+  let base = "", now = "";
+  const marks: { m: IMarker; cwd: string }[] = [];
+  term.parser.registerOscHandler(7, (data) => {
+    const c = parseOsc7(data);
+    if (c && c !== now) {
+      now = c;
+      const m = term.registerMarker(0);
+      if (m) {
+        const k = { m, cwd: c };
+        marks.push(k);
+        m.onDispose(() => { // scrolled out of the scrollback
+          base = k.cwd;
+          marks.splice(marks.indexOf(k), 1);
+        });
+      }
+    }
+    return true;
+  });
+  return {
+    now: () => now,
+    at(row: number) {
+      let c = base;
+      for (const k of marks) if (k.m.line <= row) c = k.cwd;
+      return c || now;
     },
   };
 }
@@ -114,16 +151,11 @@ export function openTerminal(el: HTMLElement, opts: TermOptions = {}): TermHandl
   term.loadAddon(new Unicode11Addon());
   term.unicode.activeVersion = "11";
   term.loadAddon(new WebLinksAddon((_e, uri) => void backend.openURL(uri)));
-  if (opts.onOpenFile) term.registerLinkProvider(fileLinkProvider(term, opts.onOpenFile));
+  const cwd = trackCwd(term);
+  if (opts.onOpenFile) term.registerLinkProvider(fileLinkProvider(term, opts.onOpenFile, cwd.at));
   term.open(el);
   if ((opts.renderer ?? defaultRenderer()) === "webgl") term.loadAddon(new WebglAddon());
   el.dataset.term = "";
-
-  let cwd = "";
-  term.parser.registerOscHandler(7, (data) => {
-    cwd = parseOsc7(data) || cwd;
-    return true;
-  });
 
   const ws = backend.stream("pty");
   // Go reads the config as the first frame (onopen below); keys or a resize before it would end the shell.
@@ -231,7 +263,7 @@ export function openTerminal(el: HTMLElement, opts: TermOptions = {}): TermHandl
     ws,
     ready,
     input,
-    cwd: () => cwd,
+    cwd: cwd.now,
     setMode,
     focus: () => term.focus(),
     setFont() {
