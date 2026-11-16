@@ -7,7 +7,7 @@ A code editor that feels like Neovim, but shows Markdown, PDFs and images proper
 
 ![Ayaz on a laptop: Go code and the rendered README of a small project side by side, a terminal below showing a program run and git log](docs/screenshot.png)
 
-I built it because the editors I use each miss one thing. VSCodium is heavy and its Vim mode is an emulation. Neovim can't show a PDF or an image, and has no Markdown that renders while you type. Obsidian wants a vault and isn't a code editor. Ayaz opens any folder, keeps your hands on the keyboard, and writes nothing into the folder.
+I built it because the editors I use each miss one thing. VSCodium is heavy and its Vim mode is an emulation. Neovim can't show a PDF or an image, and has no Markdown that renders while you type. Obsidian wants a vault and isn't a code editor. Ayaz opens any folder, keeps your hands on the keyboard, and keeps its own state (session, history, unsaved changes) outside your project.
 
 Daily-driven on macOS and Arch Linux/Hyprland. Windows builds ship with every release but are barely tested. Free to download and use; the source is closed to forks and redistribution, see [License](#license).
 
@@ -45,14 +45,16 @@ The leader key is `Space`. Everything is a command with an ID, and `<Space>fk` l
 
 ## Features
 
-- **Vim:** motions, text objects (also structural ones such as functions and arguments), operators, `.`, registers, macros, visual and block mode, `:` commands, surround.
-- **Language servers** for Go, C/C++, TypeScript/JavaScript, HTML/CSS/JSON, Java, Python, Rust, Lua, YAML, TOML, Dockerfile, LaTeX and Typst: diagnostics, completion, hover, go to definition, rename, code actions, semantic colours, call hierarchy. A missing server shows an install hint instead of failing.
-- **Debugger** for Go (Delve), Python (debugpy) and C, C++, Rust (lldb-dap): breakpoints, stepping, variables.
-- **Markdown** renders while you type, with a reading view and a side-by-side preview. **PDFs** and **images** (PNG, JPG, GIF, WebP, SVG) open in the same panes as text.
-- **Terminal** on a real PTY (xterm.js), so `htop`, `lazygit` and `nvim` work. `file:line:col` in its output opens the file.
-- **Git:** gutter marks, status in the tree, diff against HEAD, inline blame, stage and reset hunks, merge-conflict helpers.
-- **Search and navigation:** project search and replace, fuzzy file finder, command palette, quickfix list, project tasks.
-- **Folders:** one per window, session and unsaved changes restored, local file history, a start page with your recent folders. Updates come from the GitHub releases.
+| Area | What you get |
+|---|---|
+| Vim | motions, text objects (also structural ones such as functions and arguments), operators, `.`, registers, macros, visual and block mode, `:` commands, surround |
+| Languages | language servers for Go, C/C++, TypeScript/JavaScript, HTML/CSS/JSON, Java, Python, Rust, Lua, YAML, TOML, Dockerfile, LaTeX and Typst: diagnostics, completion, hover, go to definition, rename, code actions, semantic colours, call hierarchy. A missing server shows an install hint instead of failing |
+| Debugging | Go (Delve), Python (debugpy), C, C++ and Rust (lldb-dap): breakpoints, stepping, variables |
+| Documents | Markdown renders while you type, with a reading view and a side-by-side preview. PDFs and images (PNG, JPG, GIF, WebP, SVG) open in the same panes as text |
+| Terminal | a real PTY (xterm.js), so `htop`, `lazygit` and `nvim` work; `file:line:col` in the output opens the file |
+| Git | gutter marks, status in the tree, diff against HEAD, inline blame, stage and reset hunks, merge-conflict helpers |
+| Navigation | project search and replace, fuzzy file finder, command palette, quickfix list, project tasks |
+| Folders | one per window, session and unsaved changes restored, local file history, a start page with your recent folders. Updates come from the GitHub releases |
 
 ## Configure
 
@@ -75,7 +77,18 @@ bun run --cwd frontend test:browser   # browser tests (WebKit), not run in CI
 bun run --cwd frontend e2e            # Playwright against the server build, not run in CI
 ```
 
-The code is split into Wails services in `app/`, Go packages in `internal/` and the React and CodeMirror frontend in `frontend/src/`. [docs/02-architecture.md](docs/02-architecture.md) explains how they fit together, [docs/04-testing.md](docs/04-testing.md) what runs where, and the [ADRs](docs/adr/) why things are the way they are. Also in [docs/](docs/): [vision](docs/00-vision.md), [performance](docs/03-performance.md), [roadmap](docs/05-roadmap.md), [manual checks](docs/07-manual-checks.md) and [Windows notes](docs/08-windows.md).
+The code is split into Wails services in `app/`, Go packages in `internal/` and the React and CodeMirror frontend in `frontend/src/`. Where to read on:
+
+| Read | For |
+|---|---|
+| [Architecture](docs/02-architecture.md) | how the Go services, the frontend and Wails fit together, with diagrams |
+| [Testing](docs/04-testing.md) | what runs where, and what you have to run yourself |
+| [Decisions](docs/adr/) | one short record per big choice: Wails, CodeMirror, the terminal, search and more |
+| [Building](docs/building.md) | building from source, installing the language servers and debug adapters |
+| [Vision](docs/00-vision.md) | why Ayaz exists and what it leaves out on purpose |
+| [Performance](docs/03-performance.md) | the budgets and how they are measured |
+| [Roadmap](docs/05-roadmap.md) | every milestone and what is still open |
+| [Manual checks](docs/07-manual-checks.md) and [Windows](docs/08-windows.md) | what no automated test reaches |
 
 ## Contributing
 
