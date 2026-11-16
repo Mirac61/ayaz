@@ -9,7 +9,7 @@ A code editor that feels like Neovim, but shows Markdown, PDFs and images proper
 
 I built it because the editors I use each miss one thing. VSCodium is heavy. Neovim can't show a PDF or an image, and has no Markdown that renders while you type. Obsidian wants a vault and isn't a code editor. Ayaz opens any folder, keeps your hands on the keyboard, and keeps its own state (session, history, unsaved changes) outside your project.
 
-Daily-driven on macOS and Arch Linux/Hyprland. Windows builds ship with every release but are barely tested. Free to use, also at work. You can read, change and contribute to the source. What the license does not cover is selling Ayaz or offering it as a rival product, see [License](#license).
+Daily-driven on macOS and Arch Linux/Hyprland. Windows builds ship with every release but are barely tested. Free to use, also at work. You can read, change and contribute to the source. Just don't sell it or release it as a rival product, see [License](#license).
 
 ## Install
 
