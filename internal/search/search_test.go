@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -100,10 +101,10 @@ func TestMaxHitsAndCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	re, _ := Compile(Options{Query: "x"})
-	n := 0
-	Run(ctx, root, paths, re, func(h []Hit) { n += len(h) })
-	if n >= MaxHits {
-		t.Fatalf("cancelled search still found %d", n)
+	var n atomic.Int64 // emit runs on several goroutines
+	Run(ctx, root, paths, re, func(h []Hit) { n.Add(int64(len(h))) })
+	if n.Load() >= MaxHits {
+		t.Fatalf("cancelled search still found %d", n.Load())
 	}
 }
 
