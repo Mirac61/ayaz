@@ -54,7 +54,7 @@ function PickerBox({ source, onClose: closeNow, onQuery }: { source: PickerSourc
   const [cur, setCur] = useState(0);
   // The latest full answer, set before React renders it: an Enter right after it must not count as early.
   const answer = useRef<{ q: string | null; items: Item[]; cur: number }>({ q: null, items: [], cur: 0 });
-  const early = useRef(false); // Enter came before the answer to q: pick once it's there
+  const early = useRef<false | { side: boolean }>(false); // Enter came before the answer to q: pick once it's there (side: with Cmd/Ctrl)
   const seq = useRef(0);
   const list = useRef<HTMLUListElement>(null);
   const [shown, setShown] = useState<Preview | null>(null);
@@ -63,13 +63,19 @@ function PickerBox({ source, onClose: closeNow, onQuery }: { source: PickerSourc
   useEffect(() => {
     const n = ++seq.current;
     onQuery?.(q);
-    source.query(q, (r) => n === seq.current && setItems(r)).then((r) => {
+    // A streamed list is the answer too; it only grows, so cur -1 means "the cursor row stays the one to pick".
+    const stream = (r: Item[]) => {
+      if (n !== seq.current) return;
+      answer.current = { q, items: r, cur: -1 };
+      setItems(r);
+    };
+    source.query(q, stream).then((r) => {
       if (n !== seq.current) return;
       const c = q ? 0 : Math.min(source.start ?? 0, Math.max(r.length - 1, 0));
       answer.current = { q, items: r, cur: c };
       setItems(r);
       setCur(c);
-      if (early.current) pick(c, r);
+      if (early.current) pick(c, r, early.current.side);
     }, () => {
       if (n !== seq.current) return;
       answer.current = { q, items: [], cur: 0 };
@@ -117,8 +123,8 @@ function PickerBox({ source, onClose: closeNow, onQuery }: { source: PickerSourc
     }
     else if (e.key === "Enter") {
       const a = answer.current;
-      if (a.q !== q) early.current = true;
-      else pick(a.items === items ? cur : a.cur, a.items, e.metaKey || e.ctrlKey); // not rendered yet: its first item
+      if (a.q !== q) early.current = { side: e.metaKey || e.ctrlKey };
+      else pick(a.items === items || a.cur < 0 ? cur : a.cur, a.items, e.metaKey || e.ctrlKey); // not rendered yet: its first item
     }
     else if (ctrl && e.key === "q" && source.all) { onClose(); source.all(); }
     else if (e.key === "Escape" || ctrl && e.key === "c") onClose();

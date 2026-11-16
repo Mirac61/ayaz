@@ -47,11 +47,13 @@ export function findCommands(c: Ctx, q: QuickfixTools): Command[] {
     limit: LIMIT,
   });
 
-  const grepPicker = (): PickerSource => {
+  // `regex` overrides the toggle for this picker only; `initial` is searched at once.
+  const grepPicker = (o: { initial?: string; regex?: boolean; title?: string } = {}): PickerSource => {
     let g: Grep | null = null, hits: Loc[] = [], text = "";
-    const regex = grepRegex; // the quickfix list remembers it for :Replace's $1, $2
+    const regex = o.regex ?? grepRegex; // the quickfix list remembers it for :Replace's $1, $2
     return {
-      title: `Search in files${regex ? " (regex)" : ""} · <C-q> to quickfix`,
+      title: o.title ?? `Search in files${regex ? " (regex)" : ""} · <C-q> to quickfix`,
+      initial: o.initial,
       resumable: true,
       query(query, update) {
         g?.cancel();
@@ -113,6 +115,11 @@ export function findCommands(c: Ctx, q: QuickfixTools): Command[] {
       run: () => say((showIgnored = !showIgnored) ? "Find files: showing ignored files" : "Find files: hiding ignored files"),
     },
     { id: "find.grep", title: "Search in files", run: () => setPicker(grepPicker()) },
+    {
+      id: "find.todos",
+      title: "List TODO, FIXME and HACK comments",
+      run: () => setPicker(grepPicker({ initial: "\\b(TODO|FIXME|HACK|XXX)\\b", regex: true, title: "TODO comments · <C-q> to quickfix" })),
+    },
     {
       id: "find.toggleRegex",
       title: "Toggle regex in Search in files",

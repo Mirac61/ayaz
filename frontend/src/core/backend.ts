@@ -87,6 +87,7 @@ export interface Files {
   create(path: string, dir: boolean): Promise<void>; // missing parent folders too; rejects if path exists
   writeNew(path: string, base64: string): Promise<void>; // a new binary file (pasted image); rejects if path exists
   rename(from: string, to: string): Promise<void>; // rejects if `to` exists
+  duplicate(from: string, to: string): Promise<void>; // copies a file (`copy` is the clipboard); rejects if `to` exists
   trash(path: string): Promise<void>; // to the system trash
   reveal(path: string): Promise<void>; // in Finder / the file manager
   gitBranch(): Promise<string>; // "" outside a repository, a short SHA when detached
@@ -105,6 +106,7 @@ export interface Files {
   gitUnstageAll(): Promise<void>;
   gitCommit(msg: string): Promise<void>;
   gitPush(): Promise<void>;
+  gitBrowseURL(path: string, line: number, permalink: boolean): Promise<string>; // the file line on origin's web view
   gitPull(): Promise<void>;
   gitFetch(): Promise<void>;
   gitRebase(): Promise<void>;
@@ -193,6 +195,8 @@ export const backend: Backend = {
     create: (path, dir) => WorkspaceService.Create(ws, path, dir),
     writeNew: (path, data) => WorkspaceService.WriteNew(ws, path, data),
     rename: (from, to) => WorkspaceService.Rename(ws, from, to),
+    // By name: the generated bindings don't know Copy yet.
+    duplicate: (from, to) => Call.ByName("github.com/Mirac61/ayaz/app.WorkspaceService.Copy", ws, from, to),
     trash: (path) => WorkspaceService.Trash(ws, path),
     reveal: (path) => WorkspaceService.Reveal(ws, path),
     gitBranch: () => WorkspaceService.GitBranch(ws),
@@ -209,6 +213,7 @@ export const backend: Backend = {
     gitUnstageAll: () => WorkspaceService.GitUnstageAll(ws),
     gitCommit: (msg) => WorkspaceService.GitCommit(ws, msg),
     gitPush: () => Call.ByName("github.com/Mirac61/ayaz/app.WorkspaceService.GitPush", ws),
+    gitBrowseURL: (path, line, permalink) => Call.ByName("github.com/Mirac61/ayaz/app.WorkspaceService.GitBrowseURL", ws, path, line, permalink),
     gitPull: () => Call.ByName("github.com/Mirac61/ayaz/app.WorkspaceService.GitPull", ws),
     gitFetch: () => Call.ByName("github.com/Mirac61/ayaz/app.WorkspaceService.GitFetch", ws),
     gitRebase: () => Call.ByName("github.com/Mirac61/ayaz/app.WorkspaceService.GitRebase", ws),

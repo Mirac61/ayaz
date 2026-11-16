@@ -9,7 +9,7 @@ import { Commands } from "../core/commands";
 import { defaultKeymap, keyName, mergeKeymap, parseUserKeymap, Sequencer, type Binding } from "../core/keymap";
 import { diff, lf } from "../core/buffers";
 import { PREVIEW } from "../core/viewers";
-import { parseWatcherProblems } from "../core/tasks";
+import { expandTask, parseWatcherProblems } from "../core/tasks";
 import { docBuild, type DocBuild } from "../core/docBuild";
 import { Quickfix } from "../core/quickfix";
 import { setLspMessages, installHint } from "../editor/lsp";
@@ -461,6 +461,11 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       splitPane("row", { ws: ws.id, cmd, dir, ...more });
     };
 
+    ed.onTermLink = (rel, path, line, col) => {
+      if (rel === null) return fail(`"${path}" is outside this folder`);
+      ed.openAt(rel, line, (col ?? 1) - 1).catch((e) => fail(errText(e)));
+    };
+
     ed.onRunInTerminal = async (args) => {
       const quote = (a: string) => (/^[a-zA-Z0-9_\-\.\/]+$/.test(a) ? a : JSON.stringify(a));
       const cmd = args.args.map(quote).join(" ");
@@ -538,10 +543,20 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
     const q = quickfixTools(c);
 
     // M52: a task runs in a split that stays open when it ends; file:line lines it printed go to the quickfix list.
-    let lastTask: ProjectTask | null = null;
+    let lastTask: (() => void) | null = null;
     const loadTasks = () => projectTasks(() => files.list(""), async (n) => (await files.readText(n)).content, settings().tasks);
-    const runTask = ({ name, cmd }: ProjectTask) => {
-      lastTask = { name, cmd };
+    // expand is off for generated commands, whose quoted file names may contain ${line} themselves
+    const runTask = ({ name, cmd: raw }: ProjectTask, expand = true) => {
+      lastTask = () => runTask({ name, cmd: raw }, expand); // unexpanded, so <Space>rl uses the file that is active then
+      const path = ed.current()?.path;
+      const at = { file: path && !path.startsWith("/") ? path : undefined, line: ed.cursorLine() ?? undefined };
+      let cmd: string | null;
+      try {
+        cmd = expand ? expandTask(raw, at) : raw;
+      } catch (e) {
+        return fail(`Task "${name}": ${(e as Error).message}`);
+      }
+      if (cmd === null) return fail(`Task "${name}" needs an open file`);
       say(`Task "${name}": ${cmd}`);
       let hadLiveProblems = false;
       termSplit(cmd, {
@@ -576,7 +591,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       const [dir, name] = [pdf.slice(0, Math.max(slash, 0)), pdf.slice(slash + 1)];
       const alreadyExists = (await files.list(dir).catch(() => [])).some((e) => e.name === name);
 
-      runTask({ name: `Build ${path}`, cmd });
+      runTask({ name: `Build ${path}`, cmd }, false);
 
       if (alreadyExists) {
         return void openNext.current.set(splitPane("row", undefined, from), pdf);
@@ -900,7 +915,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
           });
         },
       },
-      { id: "task.last", title: "Run the last task again", run: () => (lastTask ? runTask(lastTask) : fail("No task run yet: <Space>rr")) },
+      { id: "task.last", title: "Run the last task again", run: () => (lastTask ? lastTask() : fail("No task run yet: <Space>rr")) },
       { id: "term.normal", title: "Terminal normal mode", run: () => ed.termNormal() },
       {
         id: "find.commands",
@@ -1317,6 +1332,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
         {status.words !== undefined && <Seg title="Words in this file">{plural(status.words, "word")}</Seg>}
         {status.indent && <Seg onPress={palette} title="Indentation of this file">{status.indent}</Seg>}
         {status.eol && <Seg onPress={palette} title="Line endings of this file are kept on save">{status.eol}</Seg>}
+        {status.plain && <Seg title="A line over 20,000 characters: syntax highlighting is off for this file">plain text</Seg>}
         {updateState === "ready" ? (
           <Seg className="update-ready" onPress={() => setShowUpdateDialog(true)} title="Update ready! Click to restart Ayaz">
             ↻ Restart to update
@@ -1744,6 +1760,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
                 if (el && !floatHandle.current) {
                   floatHandle.current = openTerminal(el, {
                     ws: ws.id,
+                    onOpenFile: ed.termLink,
                     onExit: () => {
                       setFloatTerm(false);
                       setFloatMounted(false);
