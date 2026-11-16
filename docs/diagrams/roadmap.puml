@@ -1,61 +1,32 @@
 @startuml roadmap
 !include _style.iuml
 skinparam linetype ortho
-package "Phase 1 · Daily editor" {
-  rectangle "M0\nSkeleton, spikes" as M0
-  rectangle "M1\nEditor, Vim" as M1
-  rectangle "M2\nCommands, fuzzy, splits" as M2
-  rectangle "M3\nFile watching" as M3
-  rectangle "M4\nTerminal" as M4
-  rectangle "M5\nMarkdown inline" as M5
-  rectangle "M6\nMarkdown blocks" as M6
+skinparam rectangle {
+  BackgroundColor #FFFFFF
 }
-package "Phase 2 · Code intelligence" {
-  rectangle "M7\nLSP Go" as M7
-  rectangle "M8\nProject search" as M8
-  rectangle "M9\nLSP C/C++, web, Java" as M9
+
+rectangle "**Phase 1**\nDaily editor\nM0–M6\n--\nFolder, tree, editor\nVim, terminal\nMarkdown preview" as P1
+rectangle "**Phase 2**\nCode intelligence\nM7–M9\n--\nLanguage servers\nProject search\nQuickfix" as P2
+rectangle "**Phase 3**\nViewers\nM10–M12\n--\nImages\nPDF\nSeparate preview" as P3
+rectangle "**Phase 4**\nShipping\nM13–M14\n--\nSeveral windows\nPackaging\nInstall guide" as P4
+rectangle "**Phase 5**\nDaily use\nM15–M67\n--\nSession, settings, Git\nTasks, history\nMore languages" as P5
+rectangle "**Phase 6**\nDebugger, polish\nM68–M82\n--\nDebugger, 4 languages\nAuto-update\nDocs Hub, themes" as P6
+
+P1 -right-> P2
+P2 -right-> P3
+P3 -right-> P4
+P4 -right-> P5
+P5 -right-> P6
+
+package "Planned (plans of 2026-11-16)" {
+  rectangle "**Git and review**\n--\nGit log\nDiff and merge" as G1 #line.dashed
+  rectangle "**Run and debug**\n--\nTest runner\nLaunch configs\nVS Code tasks\nEmbedded debugger" as G2 #line.dashed
+  rectangle "**Languages**\n--\nMore languages\nFormatters\nC#/.NET\nEmbedded basics" as G3 #line.dashed
+  rectangle "**Editor**\n--\nAgent (ACP)\nBreadcrumb\nProse check\nVim fidelity, QoL" as G4 #line.dashed
 }
-package "Phase 3 · Viewers" {
-  rectangle "M10\nImages" as M10
-  rectangle "M11\nPDF" as M11
-  rectangle "M12\nMD preview, tabs" as M12
-}
-package "Phase 4 · Shipping" {
-  rectangle "M13\nMultiple windows" as M13
-  rectangle "M14\nPackaging" as M14
-}
-package "Phase 5 · Daily use (M15–M67)" {
-  rectangle "M15–M31\nTree, session, zoom, symbols,\nsettings, first Git parts" as P5a
-  rectangle "M49–M67\nHot exit, history, tasks, semantic\ntokens, Git hunks, Vim fidelity,\nmore languages" as P5b
-}
-package "Phase 6 · Debugger, updates, polish (M68–M82)" {
-  rectangle "M68–M74\nDebugger: Go, Python,\nRust, C/C++" as P6a
-  rectangle "M75–M76\nWindows hardening,\nauto-update" as P6b
-  rectangle "M77–M82\nDocs Hub, Git remotes, themes,\nstandard mode, releases" as P6c
-}
-rectangle "Planned (2026-11-16)\nAgent (ACP), Git log, diff and merge,\ntest runner, launch configs, formatters,\nlanguages, C#/.NET, embedded, prose check,\nbreadcrumb, Vim fidelity" as PL #line.dashed
-M0 -down-> M1
-M1 -down-> M2
-M2 -down-> M3
-M3 -down-> M4
-M4 -down-> M5
-M5 -down-> M6
-M6 -[norank]-> M7
-M0 -[hidden]right- M7
-M7 -down-> M8
-M8 -down-> M9
-M9 -[norank]-> M10
-M7 -[hidden]right- M10
-M10 -down-> M11
-M11 -down-> M12
-M12 -[norank]-> M13
-M10 -[hidden]right- M13
-M13 -down-> M14
-M14 -down-> P5a
-P5a -down-> P5b
-P5b -down-> P6a
-P6a -down-> P6b
-P6b -down-> P6c
-P6c -down-> PL
+P2 -[hidden]down- G1
+G1 -[hidden]right- G2
+G2 -[hidden]right- G3
+G3 -[hidden]right- G4
 caption Fig. 7 – Milestones in order
 @enduml
