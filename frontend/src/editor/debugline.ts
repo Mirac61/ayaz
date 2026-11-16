@@ -1,4 +1,4 @@
-import { StateEffect, StateField, type EditorState, type Extension } from "@codemirror/state";
+import { StateEffect, StateField, type Extension } from "@codemirror/state";
 import { Decoration, EditorView, type DecorationSet } from "@codemirror/view";
 
 // The line the debugger stopped on (M48 D4): one at a time, in the buffer's state so every view of the file shows it.
@@ -28,12 +28,3 @@ const theme = EditorView.baseTheme({
 });
 
 export const debugLine: Extension = [field, theme];
-
-// The stopped line of a state, 1-based, null if none.
-export function debugLineOf(s: EditorState): number | null {
-  const d = s.field(field, false);
-  if (!d || !d.size) {
-    return null;
-  }
-  return s.doc.lineAt(d.iter().from).number;
-}
