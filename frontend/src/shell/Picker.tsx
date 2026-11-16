@@ -258,7 +258,7 @@ function highlight({ label, positions, dim }: Item) {
 // Up to this many lines are drawn: the pane shows a screenful, and a long head would only cost layout.
 const PREVIEW_LINES = 200;
 
-function PreviewPane({ preview, box }: { preview: Preview | null; box: React.RefObject<HTMLDivElement> }) {
+function PreviewPane({ preview, box }: { preview: Preview | null; box: React.RefObject<HTMLDivElement | null> }) {
   // Point at the hit: scroll it to the middle, or back to the top for a file's start.
   useEffect(() => {
     const el = box.current,
