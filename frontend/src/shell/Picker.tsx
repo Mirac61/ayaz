@@ -20,6 +20,7 @@ export interface PickerSource {
   close?(): void; // the picker went away: stop work
   start?: number; // cursor at open, e.g. the current quickfix entry
   initial?: string; // the input's text at open, e.g. the old name when renaming
+  resumable?: boolean; // <Space>f. can reopen it with its text (searches, not prompts or confirmations)
   placeholder?: string; // what the empty input says
   footer?: string; // a line of key hints under the list
   limit?: number; // the list is cut at this many rows: a full list says "50+ results"
@@ -30,7 +31,7 @@ export interface PickerSource {
 const PAGE = 10; // rows PageUp and PageDown move
 
 // Fuzzy picker overlay (files, recent, buffers, commands). Every keystroke queries; stale answers are dropped by sequence number.
-export function Picker(props: { source: PickerSource; onClose(): void }) {
+export function Picker(props: { source: PickerSource; onClose(): void; onQuery?(q: string): void }) {
   return <PickerBox key={sourceKey(props.source)} {...props} />;
 }
 
@@ -44,7 +45,7 @@ const sourceKey = (s: PickerSource) => {
   return keys.get(s)!;
 };
 
-function PickerBox({ source, onClose: closeNow }: { source: PickerSource; onClose(): void }) {
+function PickerBox({ source, onClose: closeNow, onQuery }: { source: PickerSource; onClose(): void; onQuery?(q: string): void }) {
   // Once closing, the focus trap lets go: what a pick opened (a terminal) must keep the focus it took.
   const closing = useRef(false);
   const onClose = () => { closing.current = true; closeNow(); };
@@ -61,6 +62,7 @@ function PickerBox({ source, onClose: closeNow }: { source: PickerSource; onClos
 
   useEffect(() => {
     const n = ++seq.current;
+    onQuery?.(q);
     // A streamed list is the answer too; it only grows, so cur -1 means "the cursor row stays the one to pick".
     const stream = (r: Item[]) => {
       if (n !== seq.current) return;

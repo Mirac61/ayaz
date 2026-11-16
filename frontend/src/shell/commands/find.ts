@@ -7,6 +7,7 @@ import { replacement, type Loc } from "../../core/quickfix";
 import { fileIcon } from "../../theme/icons";
 import type { Item, PickerSource } from "../Picker";
 import { previewFile } from "../preview";
+import { resumed } from "../resume";
 import { LIMIT, SHOWN, type Ctx } from "./context";
 import type { QuickfixTools } from "./quickfix";
 
@@ -34,6 +35,7 @@ export function findCommands(c: Ctx, q: QuickfixTools): Command[] {
 
   const filePicker = (title: string, list: () => string[], hint?: (p: string) => string | undefined): PickerSource => ({
     title,
+    resumable: true,
     async query(query) {
       const all = list();
       const ms = query.trim() ? await backend.rank(all, query, LIMIT) : all.slice(0, LIMIT).map((path) => ({ path, positions: [] }));
@@ -52,6 +54,7 @@ export function findCommands(c: Ctx, q: QuickfixTools): Command[] {
     return {
       title: o.title ?? `Search in files${regex ? " (regex)" : ""} · <C-q> to quickfix`,
       initial: o.initial,
+      resumable: true,
       query(query, update) {
         g?.cancel();
         hits = [];
@@ -83,6 +86,7 @@ export function findCommands(c: Ctx, q: QuickfixTools): Command[] {
         let at: { line?: number; col?: number } = {};
         setPicker({
           title: showIgnored ? "Files (incl. ignored)" : "Files",
+          resumable: true,
           async query(query) {
             const target = fileTarget(query);
             at = target;
@@ -120,6 +124,15 @@ export function findCommands(c: Ctx, q: QuickfixTools): Command[] {
       id: "find.toggleRegex",
       title: "Toggle regex in Search in files",
       run: () => say((grepRegex = !grepRegex) ? "Search in files: regex (Go RE2)" : "Search in files: literal"),
+    },
+    {
+      id: "find.resume",
+      title: "Resume the last picker",
+      run: () => {
+        const p = resumed();
+        if (p) setPicker(p);
+        else fail("No picker to resume yet");
+      },
     },
     { id: "find.recent", title: "Recent files", run: () => setPicker(filePicker("Recent files", () => ed.recent())) },
     {
