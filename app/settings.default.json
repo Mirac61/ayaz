@@ -78,10 +78,12 @@
   },
 
   // Your own test command per language, in place of the built-in one: <Space>rn runs the test at the cursor,
-  // <Space>rf the file, <Space>ra everything, <Space>rt repeats the last. Same placeholders as "tasks", plus
-  // ${name} for the test at the cursor (required for <Space>rn). Adapters: "go".
+  // <Space>rf the file, <Space>rt repeats the last. Same placeholders as "tasks", plus ${name} for the test at
+  // the cursor. A command with ${name} is for <Space>rn only, one without it for <Space>rf. <Space>ra (everything)
+  // always uses the built-in command. The output must be "go test -v" style, or no per-test results are kept.
+  // Adapters: "go", "js".
   "tests": {
-    // "go": "gotestsum -- -run '^${name}$' ./${dir}",
+    // "go": "gotestsum --format standard-verbose -- -run '^${name}$' ./${dir}",
   },
 
   // Width of a tab, and the indent unless "tabs" is on. 1 to 16.

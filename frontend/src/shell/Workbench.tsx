@@ -699,7 +699,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       );
     // expand is off for generated commands, whose quoted file names may contain ${line} themselves
     const runTask = ({ name, cmd: raw }: ProjectTask, expand = true, onText?: (text: string, done: boolean) => void) => {
-      lastTask = () => runTask({ name, cmd: raw }, expand); // unexpanded, so <Space>rl uses the file that is active then
+      lastTask = () => runTask({ name, cmd: raw }, expand, onText); // unexpanded, so <Space>rl uses the file that is active then
       const path = ed.current()?.path;
       const at = { file: path && !path.startsWith("/") ? path : undefined, line: ed.cursorLine() ?? undefined };
       let cmd: string | null;

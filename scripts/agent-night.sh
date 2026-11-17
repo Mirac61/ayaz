@@ -184,6 +184,8 @@ $(cat "$REPO_ROOT/prompts/runner.md")"
     --body-file "$PR_BODY_FILE")
   echo "$PR_URL"
   OPENED_PRS="$OPENED_PRS ${PR_URL##*/}"
+  # Default-Branch ist main: CodeRabbit überspringt PRs gegen dev und gestapelte PRs, also immer manuell anstoßen.
+  gh pr comment "${PR_URL##*/}" --body "@coderabbitai review" >/dev/null || true
 
   cd "$REPO_ROOT"
   git worktree remove --force "$WORKTREE_DIR" 2>/dev/null || true
