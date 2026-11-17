@@ -239,6 +239,8 @@ Ayaz renders rich documents natively alongside code without heavy Electron overh
 ## Markdown Reading View & Split Preview
 - **Reading View (\`<Space>mr\`):** Hides raw markdown formatting tokens for clean reading while maintaining Neovim motions.
 - **Toggle Split Preview (\`<Space>mp\`):** Opens a live rendered preview of the active Markdown document in an adjacent pane.
+- **Skins (\`<Space>ms\`):** Picks the look of the reading view: \`github\`, \`kairo\`, \`document\` (serif, for long reads), \`compact\` (dense, for notes and tables) or \`wide\` (full width). The cursor previews a skin, the pick is kept across restarts until \`"markdownSkin"\` in \`settings.json\` changes.
+- **Outline (\`<Space>mh\`):** Lists the document's headings and jumps to one, in the editor and in the reading view. It opens on the heading you are under.
 - **Smart Reading Mode:** Automatically opens older or existing documents in reading view, while newly created or edited files stay in edit mode (configurable in \`settings.json\`).
 - **Export & Build Support:** Directly compiles Typst, LaTeX and Markdown documents into live PDF views.
 `,

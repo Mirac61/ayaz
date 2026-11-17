@@ -95,6 +95,9 @@
   // Wrap long lines. <Space>uw toggles it for the open file.
   "wrap": false,
 
+  // The look of the rendered Markdown view: "github", "kairo", "document", "compact" or "wide". <Space>ms picks one.
+  "markdownSkin": "github",
+
   // How Markdown files open: "smart" (edit if newly created/modified, read if opened after inactivity), "always" or "never".
   "markdownReadingMode": "smart",
 
