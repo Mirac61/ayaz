@@ -59,7 +59,10 @@ func Available(dir, _, command string) bool {
 }
 
 // taskkillTimeout bounds taskkill, so a hanging taskkill cannot block a shutdown.
-const taskkillTimeout = 3 * time.Second
+var taskkillTimeout = 3 * time.Second
+
+// taskkillPath is the program that ends a process tree, a variable so a test can swap in one that hangs.
+var taskkillPath = "taskkill"
 
 // Kill is Terminate: taskkill /F already ends the tree for good. It returns the error of the Process.Kill fallback.
 func Kill(cmd *exec.Cmd) error { return taskkill(cmd) }
@@ -71,7 +74,7 @@ func Terminate(cmd *exec.Cmd) { _ = taskkill(cmd) }
 func taskkill(cmd *exec.Cmd) error {
 	ctx, cancel := context.WithTimeout(context.Background(), taskkillTimeout)
 	defer cancel()
-	kill := exec.CommandContext(ctx, "taskkill", "/T", "/F", "/PID", strconv.Itoa(cmd.Process.Pid))
+	kill := exec.CommandContext(ctx, taskkillPath, "/T", "/F", "/PID", strconv.Itoa(cmd.Process.Pid))
 	SetHideWindow(kill)
 	if kill.Run() == nil {
 		return nil
