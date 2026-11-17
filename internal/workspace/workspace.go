@@ -343,12 +343,14 @@ func (w *Workspace) Import(src, dir string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	s, err := filepath.EvalSymlinks(src) // Resolve's answer has no links either (/tmp is /private/tmp on macOS)
-	if err != nil {
-		return "", err
-	}
-	if into == s || strings.HasPrefix(into, s+string(filepath.Separator)) {
-		return "", fmt.Errorf("%s can't be copied into itself", filepath.Base(src))
+	// Same folder by inode, not by path: Root keeps the case it was opened with, and macOS ignores case (~/Code is ~/code)
+	for p := into; ; p = filepath.Dir(p) {
+		if pst, err := os.Stat(p); err == nil && os.SameFile(st, pst) {
+			return "", fmt.Errorf("%s can't be copied into itself", filepath.Base(src))
+		}
+		if filepath.Dir(p) == p {
+			break
+		}
 	}
 	if _, err := w.create(rel, true, 0); err != nil { // exclusive, so the cleanup below only removes our own folder
 		if errors.Is(err, fs.ErrExist) {

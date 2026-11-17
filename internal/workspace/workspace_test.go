@@ -332,6 +332,12 @@ func TestImport(t *testing.T) {
 	if _, err := w.Import(filepath.Join(w.Root, "sub"), "sub"); err == nil || !strings.Contains(err.Error(), "into itself") {
 		t.Errorf("Import(sub into sub) = %v, want into itself", err)
 	}
+	// The same folder under another case (macOS): a path compare misses it and the copy would recurse into itself.
+	if _, err := os.Stat(filepath.Join(w.Root, "SUB")); err == nil {
+		if _, err := w.Import(filepath.Join(w.Root, "SUB"), "sub"); err == nil || !strings.Contains(err.Error(), "into itself") {
+			t.Errorf("Import(SUB into sub) = %v, want into itself", err)
+		}
+	}
 	for _, bad := range []string{"..", "../x", "/etc", "out"} {
 		if _, err := w.Import(outside, bad); err == nil {
 			t.Errorf("Import into %q succeeded", bad)
