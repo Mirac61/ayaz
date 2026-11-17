@@ -423,8 +423,16 @@ class TableWidget extends WidgetType {
       const tr = parent.appendChild(document.createElement("tr"));
       row.forEach((text, i) => {
         const c = tr.appendChild(document.createElement(tag));
-        // Markdown only: html off keeps raw HTML from files as text (Q8), DOMPurify on top
+        // Markdown only: html off keeps raw HTML from files as text (Q8), DOMPurify on top. Links and images stay
+        // text: a click can't reach a link in the live view (the table turns back into source under the cursor), and
+        // an image would load from the app's origin or the network, where the live view leaves URLs raw (see imageSrc).
         c.innerHTML = DOMPurify.sanitize(cellMd.renderInline(text));
+        for (const a of c.querySelectorAll("a")) {
+          a.replaceWith(...a.childNodes);
+        }
+        for (const img of c.querySelectorAll("img")) {
+          img.replaceWith(img.getAttribute("alt") ?? "");
+        }
         if (this.t.align[i]) {
           c.style.textAlign = this.t.align[i]!;
         }

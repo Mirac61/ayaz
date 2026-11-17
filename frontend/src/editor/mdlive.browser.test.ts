@@ -180,12 +180,17 @@ test("an image shows as <img> through /fs/, raw while the cursor is on it", asyn
   expect(lines()[0]).toBe("![logo](a/pic.png)");
 });
 
-test("table cells show code, emphasis and links, raw HTML stays text", async () => {
-  await mount("above\n\n| key | what |\n|---|---|\n| `<Space>cr` | **rename** [doc](https://x.org) <b>no</b> |\n\nbelow");
+test("table cells show code and emphasis, links, images and raw HTML stay text", async () => {
+  await mount(
+    "above\n\n| key | what |\n|---|---|\n| `<Space>cr` | **rename** [doc](https://x.org) <b>no</b> ![logo](https://x.org/p.png) |\n\nbelow",
+  );
   const td = [...tableEl()!.querySelectorAll("td")];
   expect(td[0].querySelector("code")?.textContent).toBe("<Space>cr");
   expect(td[1].querySelector("strong")?.textContent).toBe("rename");
-  expect(td[1].querySelector("a")?.getAttribute("href")).toBe("https://x.org");
+  expect(td[1].querySelector("a")).toBeNull(); // no link to navigate the webview away from the app
+  expect(td[1].textContent).toContain("doc");
+  expect(td[1].querySelector("img")).toBeNull(); // nothing loads from the app origin or the network
+  expect(td[1].textContent).toContain("logo"); // the alt text stays
   expect(td[1].querySelector("b")).toBeNull();
   expect(td[1].textContent).toContain("<b>no</b>");
 });
