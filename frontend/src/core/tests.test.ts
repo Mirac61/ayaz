@@ -1,11 +1,7 @@
 import { expect, test } from "vitest";
 import { adapterFor, goAdapter } from "./tests";
 
-const at = (file: string, name?: string) => ({
-  file,
-  dir: file.includes("/") ? file.slice(0, file.lastIndexOf("/")) : ".",
-  name,
-});
+const at = (file: string, name?: string) => ({ file, name });
 
 test("go commands for the three scopes", () => {
   expect(goAdapter.command("file", at("a_test.go"))).toBe("go test -v .");
@@ -49,12 +45,20 @@ FAIL
 
 test("go parse: pass, fail, skip and subtests", () => {
   expect(goAdapter.parse(GO_OUT)).toEqual([
-    { name: "TestOk", status: "pass", ms: 0 },
-    { name: "TestBad", status: "fail", ms: 0 },
-    { name: "TestSkipped", status: "skip", ms: 0 },
-    { name: "TestSub", status: "fail", ms: 0 },
-    { name: "TestSub/good", status: "pass", ms: 0 },
-    { name: "TestSub/bad", status: "fail", ms: 0 },
+    { name: "TestOk", pkg: "fix", status: "pass", ms: 0 },
+    { name: "TestBad", pkg: "fix", status: "fail", ms: 0 },
+    { name: "TestSkipped", pkg: "fix", status: "skip", ms: 0 },
+    { name: "TestSub", pkg: "fix", status: "fail", ms: 0 },
+    { name: "TestSub/good", pkg: "fix", status: "pass", ms: 0 },
+    { name: "TestSub/bad", pkg: "fix", status: "fail", ms: 0 },
+  ]);
+});
+
+test("go parse: the same test name in two packages stays apart", () => {
+  const out = "--- PASS: TestNew (0.00s)\nPASS\nok  \texample/a\t0.1s\n--- FAIL: TestNew (0.00s)\nFAIL\nFAIL\texample/b\t0.2s\n";
+  expect(goAdapter.parse(out)).toEqual([
+    { name: "TestNew", pkg: "example/a", status: "pass", ms: 0 },
+    { name: "TestNew", pkg: "example/b", status: "fail", ms: 0 },
   ]);
 });
 

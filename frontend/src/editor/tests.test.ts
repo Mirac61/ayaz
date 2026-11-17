@@ -26,15 +26,22 @@ func TestWrongType(t *foo.T) {}
 func (s S) TestMethod(t *testing.T) {}
 
 func Test(t *testing.T) {}
+
+func TestResult(t *testing.T) error { return nil }
+
+func TestTwoNames(t, u *testing.T) {}
+
+func TestUnnamed(*testing.T) {}
 `;
 const state = (doc = SRC) => EditorState.create({ doc, extensions: [go()] });
 const pos = (s: string) => SRC.indexOf(s);
 
-test("testsIn finds TestA, Test_b and Test, nothing else", () => {
+test("testsIn finds TestA, Test_b, Test and TestUnnamed, nothing else", () => {
   expect(testsIn(state(), "p_test.go")).toEqual([
     { name: "TestA", line: 5 },
     { name: "Test_b", line: 11 },
     { name: "Test", line: 23 },
+    { name: "TestUnnamed", line: 29 },
   ]);
 });
 
