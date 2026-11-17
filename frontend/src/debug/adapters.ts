@@ -10,6 +10,8 @@ export interface DebugAdapter {
   target(path: string): string;
   // The arguments of the `launch` request, for the absolute path target() led to.
   launch(program: string, root: string): object;
+  // The same for one test of that package; an adapter without it can't debug a single test.
+  launchTest?(program: string, root: string, name: string): object;
 }
 
 export const goAdapter: DebugAdapter = {
@@ -18,6 +20,14 @@ export const goAdapter: DebugAdapter = {
   adapterId: "go",
   target: (path) => (path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : ""), // Delve debugs a package: the file's folder
   launch: (program, root) => ({ mode: "debug", program, cwd: root, console: "integratedTerminal" }),
+  // Delve's "test" mode runs the package's tests; args are the test binary's flags. Go test names are word characters, so no regex escaping.
+  launchTest: (program, _root, name) => ({
+    mode: "test",
+    program,
+    cwd: program, // like `go test`: the test binary runs in its package folder, so testdata/ resolves
+    args: ["-test.run", `^${name}$`, "-test.v"],
+    console: "integratedTerminal",
+  }),
 };
 
 export const pythonAdapter: DebugAdapter = {

@@ -27,7 +27,7 @@ function setup(opts: Parameters<typeof fakeAdapter>[0] = {}) {
 
 test("start runs the launch sequence and ends up running", async () => {
   const { f, log, session } = setup();
-  await session.start({ "main.go": [12] });
+  await session.start({ breakpoints: { "main.go": [12] } });
   expect(f.got).toEqual(["initialize", "launch", "setBreakpoints", "configurationDone"]);
   expect(session.state).toBe("running");
   expect(log).toEqual(["state starting", "state running"]);
@@ -35,7 +35,7 @@ test("start runs the launch sequence and ends up running", async () => {
 
 test("a stop shows the top frame's file (relative to the folder) and line, and the session is paused", async () => {
   const { f, log, session } = setup();
-  await session.start({});
+  await session.start({ breakpoints: {} });
   f.push({ type: "event", event: "stopped", body: { reason: "breakpoint", threadId: 3 } });
   await tick();
   expect(session.state).toBe("paused");
@@ -51,7 +51,7 @@ test("a frame outside the folder keeps its absolute path; a stop without source 
   const { f, log, session } = setup({
     answer: (m) => (m.command === "stackTrace" ? { stackFrames: [LIB] } : undefined),
   });
-  await session.start({});
+  await session.start({ breakpoints: {} });
   f.push({ type: "event", event: "stopped", body: { reason: "step", threadId: 1 } });
   await tick();
   expect(last(log)).toBe("stopped /usr/lib/go/fmt/print.go:7 step");
@@ -59,7 +59,7 @@ test("a frame outside the folder keeps its absolute path; a stop without source 
 
 test("continue, next, step in and step out go to the stopped thread and set running; while running they do nothing", async () => {
   const { f, log, session } = setup();
-  await session.start({});
+  await session.start({ breakpoints: {} });
   await session.resume("next"); // running: ignored
   expect(f.got).not.toContain("next");
   for (const step of ["next", "stepIn", "stepOut", "continue"] as const) {
@@ -87,7 +87,7 @@ test("active frame selection switches scope and evaluate target frame", async ()
       return undefined;
     },
   });
-  await session.start({});
+  await session.start({ breakpoints: {} });
   f.push({ type: "event", event: "stopped", body: { reason: "breakpoint", threadId: 1 } });
   await tick();
   expect(session.activeFrameId).toBe(1);
@@ -108,7 +108,7 @@ test("active frame selection switches scope and evaluate target frame", async ()
 
 test("program output and the adapter's console lines reach the output hook, telemetry doesn't", async () => {
   const { f, log, session } = setup();
-  await session.start({});
+  await session.start({ breakpoints: {} });
   f.push({ type: "event", event: "output", body: { category: "stdout", output: "hello\n" } });
   f.push({ type: "event", event: "output", body: { category: "stderr", output: "oops\n" } });
   f.push({ type: "event", event: "output", body: { category: "telemetry", output: "x" } });
@@ -119,7 +119,7 @@ test("program output and the adapter's console lines reach the output hook, tele
 
 test("terminated ends the session once; a stop afterwards does nothing", async () => {
   const { f, log, session } = setup();
-  await session.start({});
+  await session.start({ breakpoints: {} });
   f.push({ type: "event", event: "terminated" });
   f.push({ type: "event", event: "exited", body: { exitCode: 0 } });
   await tick();
@@ -131,23 +131,27 @@ test("terminated ends the session once; a stop afterwards does nothing", async (
 
 test("stop disconnects and terminates the program", async () => {
   const { f, log, session } = setup({ closeOnDisconnect: true });
-  await session.start({});
+  await session.start({ breakpoints: {} });
   await session.stop();
   expect(f.requests.find((r) => r.command === "disconnect")?.arguments).toEqual({ terminateDebuggee: true });
   expect(session.state).toBe("ended");
   expect(last(log)).toBe("ended");
 });
 
-test("a failed launch ends the session and rejects start", async () => {
-  const { log, session } = setup({ failLaunch: true });
-  await expect(session.start({})).rejects.toThrow("could not launch process");
+test("a failed launch ends the session, closes the adapter's connection and rejects start", async () => {
+  const { f, log, session } = setup({ failLaunch: true });
+  let closed = 0;
+  const close = f.transport.close.bind(f.transport);
+  f.transport.close = () => (closed++, close());
+  await expect(session.start({ breakpoints: {} })).rejects.toThrow("could not launch process");
   expect(session.state).toBe("ended");
   expect(log).toContain("ended");
+  expect(closed).toBe(1);
 });
 
 test("breakpoints for a file while running go out as setBreakpoints with the absolute path", async () => {
   const { f, session } = setup();
-  await session.start({});
+  await session.start({ breakpoints: {} });
   await session.breakpoints("main.go", [3, 4]);
   const req = last(f.requests);
   expect(req.command).toBe("setBreakpoints");

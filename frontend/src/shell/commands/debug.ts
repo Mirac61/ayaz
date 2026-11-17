@@ -5,6 +5,7 @@ import { formatBreakpointPrompt, parseBreakpointPrompt } from "../../editor/brea
 import { lines, type Row } from "../../debug/variables";
 import { installHint } from "../../editor/lsp";
 import type { Item, PickerSource } from "../Picker";
+import { cursorTest } from "./tests";
 import { errText, type Ctx } from "./context";
 
 export function debugCommands(c: Ctx): Command[] {
@@ -110,6 +111,29 @@ export function debugCommands(c: Ctx): Command[] {
       run: () => {
         const { adapter } = pickAdapter(c.ed.activePath());
         return c.dbg.start().catch((e) => startFailed(e, adapter.binary));
+      },
+    },
+    {
+      id: "debug.test",
+      title: "Debug the test at the cursor (<Space>rd)",
+      run: () => {
+        const at = cursorTest(c);
+        // pickAdapter falls back to Go for any file, so look at the extension
+        if (!(at ?? c.ed.current())?.path.endsWith(".go")) {
+          return c.fail("Debugging a test works for Go files only");
+        }
+        if (!at) {
+          return c.fail("Debugging a test works for files in the workspace only"); // outside the folder or a head:// view
+        }
+        if (!at.name) {
+          return c.fail("No test at the cursor");
+        }
+        // Delve builds the package from disk: an unsaved test isn't there yet and breakpoints would sit on old lines
+        const dir = (p: string) => p.slice(0, p.lastIndexOf("/") + 1);
+        if (c.ed.buffers.dirty().some((b) => b.path.endsWith(".go") && dir(b.path) === dir(at.path))) {
+          return c.fail("Unsaved changes in this package: :wa saves them");
+        }
+        return c.dbg.start({ test: at.name }).catch((e) => startFailed(e));
       },
     },
     {

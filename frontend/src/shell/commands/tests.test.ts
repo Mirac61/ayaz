@@ -27,7 +27,7 @@ function setup(path: string, at: string, tests: Record<string, string> = {}) {
   let onText: ((text: string, done: boolean) => void) | undefined;
   const sinks: NonNullable<typeof onText>[] = []; // every run's callback, oldest first
   const c = {
-    ed: { current: () => ({ path }), activeView: () => ({ state }) },
+    ed: { activePath: () => path, activeView: () => ({ state }) },
     task: (t: { name: string; cmd: string }, o?: { onText?: typeof onText }) => {
       ran.push(t);
       onText = o?.onText;
@@ -127,7 +127,7 @@ test("test.nearest in a TS file detects the runner first, then runs the test fro
   });
   const ran: { name: string; cmd: string }[] = [];
   const c = {
-    ed: { current: () => ({ path: "web/src/a.test.ts" }), activeView: () => ({ state }) },
+    ed: { activePath: () => "web/src/a.test.ts", activeView: () => ({ state }) },
     files: {
       list: async (dir: string) =>
         dir === "web"

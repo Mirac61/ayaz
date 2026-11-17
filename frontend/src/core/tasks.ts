@@ -41,6 +41,9 @@ export const escape = {
   single: (s: string) => s.replace(/'/g, "'\\''"),
   double: (s: string) => s.replace(/[$`"\\]/g, "\\$&"),
 };
+// An argv as one shell line (a debug adapter's runInTerminal): plain words stay readable, the rest is single-quoted.
+export const shellLine = (args: string[]) => args.map((a) => (/^[\w./-]+$/.test(a) ? a : escape.none(a))).join(" ");
+
 export function expandTask(cmd: string, at: { file?: string; line?: number; name?: string }): string | null {
   // ${name} (a test's name) counts only when the caller has one
   const keys = at.name === undefined ? "file|dir|line" : "file|dir|line|name";

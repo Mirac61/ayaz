@@ -11,7 +11,7 @@ import { Commands } from "../core/commands";
 import { defaultKeymap, keyName, mergeKeymap, parseUserKeymap, Sequencer, type Binding } from "../core/keymap";
 import { diff, lf } from "../core/buffers";
 import { PREVIEW } from "../core/viewers";
-import { expandTask, parseWatcherProblems } from "../core/tasks";
+import { expandTask, parseWatcherProblems, shellLine } from "../core/tasks";
 import { docBuild, type DocBuild } from "../core/docBuild";
 import { Quickfix } from "../core/quickfix";
 import { setLspMessages, installHint } from "../editor/lsp";
@@ -580,9 +580,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
     };
 
     ed.onRunInTerminal = async (args) => {
-      const quote = (a: string) => (/^[a-zA-Z0-9_\-\.\/]+$/.test(a) ? a : JSON.stringify(a));
-      const cmd = args.args.map(quote).join(" ");
-      termSplit(cmd, { dir: args.cwd });
+      termSplit(shellLine(args.args), { dir: args.cwd });
       return { processId: 1000 };
     };
 

@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { expandTask, parseProblems, parseWatcherProblems } from "./tasks";
+import { expandTask, parseProblems, parseWatcherProblems, shellLine } from "./tasks";
 
 const loc = (path: string, line: number, col: number, text: string) => ({ path, line, col, len: 0, text });
 
@@ -162,4 +162,10 @@ test("expandTask: dir of a root file is '.', other ${} stays, no placeholder nee
   expect(expandTask("go test ./...", {})).toBe("go test ./...");
   expect(expandTask("echo ${file}", {})).toBeNull();
   expect(expandTask("echo ${line}", {})).toBeNull();
+});
+
+test("shellLine keeps plain words and single-quotes the rest, so $() and backticks stay text", () => {
+  expect(shellLine(["dlv", "dap", "--client-addr=127.0.0.1:4000"])).toBe("dlv dap '--client-addr=127.0.0.1:4000'");
+  expect(shellLine(["echo", "$(rm -rf ~)", "`id`", "it's"])).toBe("echo '$(rm -rf ~)' '`id`' 'it'\\''s'");
+  expect(shellLine(["-test.run", "^TestA$"])).toBe("-test.run '^TestA$'");
 });

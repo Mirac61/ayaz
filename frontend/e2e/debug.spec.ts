@@ -273,3 +273,44 @@ int main() {
   await page.keyboard.press("F5");
   await expect(status).not.toContainText("DEBUG", { timeout: 30_000 });
 });
+
+test("debug a Go test at the cursor with <Space>rd: stops at the breakpoint inside the test", async ({ page }) => {
+  test.skip(!hasDlv, "dlv not in PATH");
+  test.skip(process.env.AYAZ_DEBUG_E2E !== "1", "set AYAZ_DEBUG_E2E=1 to run it (needs developer tools access on macOS)");
+  test.setTimeout(120_000);
+  mkdirSync(join(e2eWorkspace, "zgotest"), { recursive: true }); // a package of the workspace's module, like zdebug: no go.mod of its own
+  writeFileSync(
+    join(e2eWorkspace, "zgotest", "sum_test.go"),
+    `package zgotest
+
+import "testing"
+
+func TestSum(t *testing.T) {
+	total := 0
+	for i := 1; i <= 3; i++ {
+		total += i
+	}
+	if total != 6 {
+		t.Fatal(total)
+	}
+}
+`,
+  );
+  await page.goto("/");
+  const tree = page.getByRole("tree", { name: "Files" });
+  await tree.getByRole("treeitem", { name: "zgotest" }).click();
+  await tree.getByRole("treeitem", { name: "sum_test.go" }).click();
+  const code = page.locator(".cm-content");
+  await expect(code).toContainText("total += i");
+  const dots = page.locator(".cm-bp .cm-gutterElement:not([style*='visibility']) .cm-bp-dot");
+  await page.keyboard.type("gg7j db"); // line 8: total += i
+  await expect(dots).toHaveCount(1);
+  await page.keyboard.type(" rd");
+  const status = page.locator(".statusline");
+  await expect(status).toContainText("DEBUG paused", { timeout: 90_000 }); // Delve builds the test binary first
+  await expect(page.locator(".cm-debug-line")).toContainText("total += i");
+  await page.keyboard.press("F5");
+  await page.keyboard.press("F5");
+  await page.keyboard.press("F5");
+  await expect(status).not.toContainText("DEBUG", { timeout: 30_000 });
+});

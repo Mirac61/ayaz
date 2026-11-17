@@ -1011,7 +1011,7 @@ export class Editors {
   // The active editor's file, workspace-relative; null if there is none or it lies outside the folder.
   activePath(): string | null {
     const path = this.current()?.path;
-    return path && !path.startsWith("/") ? path : null;
+    return path && !path.startsWith("/") && !path.includes("://") ? path : null; // not outside the folder, not a head:// view
   }
 
   // Every loaded buffer's breakpoints (files without any are left out): what the debugger is given.

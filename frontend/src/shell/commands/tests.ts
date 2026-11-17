@@ -6,6 +6,13 @@ import { adapterFor, testCommand, type Scope, type TestAt, type TestResult } fro
 import { testAt, testsIn } from "../../editor/tests";
 import type { Ctx } from "./context";
 
+// The active workspace file, its view and the test at its cursor (if any); null outside the folder or in a head:// view.
+export function cursorTest(c: Ctx) {
+  const path = c.ed.activePath();
+  const view = c.ed.activeView();
+  return path && view ? { path, view, name: testAt(view.state, path, view.state.selection.main.head)?.name } : null;
+}
+
 const SCOPES: [Scope, string][] = [
   ["nearest", "the test at the cursor"],
   ["file", "the tests of this file"],
@@ -19,20 +26,17 @@ export function testCommands(c: Ctx, results: TestResults = testResults, templat
   const owner = new Map<string, number>(); // the run whose output a path's results show
 
   const start = (scope: Scope) => {
-    const path = c.ed.current()?.path;
-    const view = c.ed.activeView();
-    if (!path || !view || path.startsWith("/") || path.includes("://")) {
+    const at = cursorTest(c);
+    const adapter = at && adapterFor(at.path);
+    if (!at || !adapter) {
       return c.fail("No test runner for this file type");
     }
-    const adapter = adapterFor(path);
-    if (!adapter) {
-      return c.fail("No test runner for this file type");
-    }
+    const { path, view } = at;
     let name: string | undefined;
     const declared = testsIn(view.state, path).map((t) => t.name);
     const names = scope === "file" ? declared : undefined;
     if (scope === "nearest") {
-      name = testAt(view.state, path, view.state.selection.main.head)?.name;
+      name = at.name;
       if (!name) {
         return c.fail("No test at the cursor");
       }
