@@ -25,17 +25,26 @@ function setup(path: string, at: string, tests: Record<string, string> = {}) {
   const ran: { name: string; cmd: string }[] = [];
   const failed: string[] = [];
   let onText: ((text: string, done: boolean) => void) | undefined;
+  const sinks: NonNullable<typeof onText>[] = []; // every run's callback, oldest first
   const c = {
     ed: { current: () => ({ path }), activeView: () => ({ state }) },
     task: (t: { name: string; cmd: string }, o?: { onText?: typeof onText }) => {
       ran.push(t);
       onText = o?.onText;
+      sinks.push(onText!);
     },
     fail: (m: string) => failed.push(m),
   } as unknown as Ctx;
   const results = new TestResults();
   const cmds = new Map(testCommands(c, results, () => tests).map((x: Command) => [x.id, x]));
-  return { ran, failed, results, run: (id: string) => cmds.get(id)!.run(), text: (t: string, done = false) => onText!(t, done) };
+  return {
+    ran,
+    failed,
+    results,
+    sinks,
+    run: (id: string) => cmds.get(id)!.run(),
+    text: (t: string, done = false) => onText!(t, done),
+  };
 }
 
 test("test.nearest runs the test under the cursor and stores what the terminal prints", () => {
@@ -52,8 +61,15 @@ test("test.file and test.all run without a test at the cursor", () => {
   const w = setup("p_test.go", "helper");
   w.run("test.file");
   w.run("test.all");
-  expect(w.ran.map((t) => t.cmd)).toEqual(["go test -v .", "go test -v ./..."]);
+  expect(w.ran.map((t) => t.cmd)).toEqual(["go test -v -run '^(TestA)$' .", "go test -v ./..."]);
   expect(w.failed).toEqual([]);
+});
+
+test("test.file runs the package when the file declares no test the editor recognises", () => {
+  const d = setup("notests.go", "helper");
+  d.run("test.file");
+  expect(d.ran.map((t) => t.cmd)).toEqual(["go test -v ."]);
+  expect(d.failed).toEqual([]);
 });
 
 test("test.nearest fails outside a test, and without a runner for the file", () => {
@@ -73,6 +89,33 @@ test("test.last repeats the same command, also before there was one", () => {
   w.run("test.nearest");
   w.run("test.last");
   expect(w.ran.map((t) => t.cmd)).toEqual(["go test -v -run '^TestA$' .", "go test -v -run '^TestA$' ."]);
+});
+
+test("a tests template of settings.json replaces the command; nearest needs its ${name}", () => {
+  const w = setup("a/p_test.go", 't.Log("a")', { go: "gotestsum -- -run ${name} ./${dir}" });
+  w.run("test.nearest");
+  w.run("test.all");
+  expect(w.ran.map((t) => t.cmd)).toEqual(["gotestsum -- -run 'TestA' ./'a'", "go test -v ./..."]);
+  const v = setup("p_test.go", 't.Log("a")', { go: "gotestsum ./${dir}" });
+  v.run("test.nearest");
+  expect(v.failed).toEqual(["No ${name} in your tests.go command"]);
+  v.run("test.file");
+  expect(v.ran.map((t) => t.cmd)).toEqual(["gotestsum ./'.'"]);
+});
+
+test("a run keeps results that left the scrollback, and a newer run of the file silences the older one", () => {
+  const w = setup("p_test.go", 't.Log("a")');
+  w.run("test.nearest");
+  w.text("--- FAIL: TestA (0.00s)\n");
+  w.text("--- PASS: TestB (0.00s)\n"); // TestA scrolled out
+  const r = w.results.get("p_test.go")!.byName;
+  expect([r.get("TestA")?.status, r.get("TestB")?.status]).toEqual(["fail", "pass"]);
+  w.text("--- FAIL: TestA (0.00s)\n", true);
+  w.text("--- PASS: TestA (0.00s)\n"); // a replay of the same callback
+  expect(w.results.get("p_test.go")!.byName.get("TestA")?.status).toBe("pass");
+  w.run("test.nearest");
+  w.sinks[0]("--- PASS: TestC (0.00s)\n", false);
+  expect(w.results.get("p_test.go")!.byName.has("TestC")).toBe(false);
 });
 
 test("test.nearest in a TS file detects the runner first, then runs the test from the package folder", async () => {
@@ -104,17 +147,6 @@ test("test.nearest in a TS file detects the runner first, then runs the test fro
   expect(ran[0]).toEqual({ name: "Test adds", cmd: "cd web && pnpm exec vitest run --reporter=verbose -t 'adds' src/a.test.ts" });
   cmds.get("test.last")!.run();
   expect(ran.map((t) => t.cmd)).toEqual(Array(2).fill(ran[0].cmd));
-});
-
-test("a tests template of settings.json replaces the command; nearest needs its ${name}", () => {
-  const w = setup("a/p_test.go", 't.Log("a")', { go: "gotestsum -- -run ${name} ./${dir}" });
-  w.run("test.nearest");
-  w.run("test.all");
-  expect(w.ran.map((t) => t.cmd)).toEqual(["gotestsum -- -run 'TestA' ./'a'", "gotestsum -- -run ${name} ./'a'"]);
-  const v = setup("p_test.go", 't.Log("a")', { go: "gotestsum ./${dir}" });
-  v.run("test.nearest");
-  expect(v.failed).toEqual(["No ${name} in your tests.go command"]);
-  expect(v.ran).toEqual([]);
 });
 
 test("test.all stores only the results of tests this file declares", () => {
