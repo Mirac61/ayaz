@@ -5,8 +5,10 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 LOCK_DIR="/tmp/ayaz-agent.lock"
 WORKTREE_BASE="$REPO_ROOT/../ayaz-agent-worktrees"
 QUESTIONS_FILE="$REPO_ROOT/QUESTIONS.md"
-MAX_TASKS_PER_NIGHT="${1:-2}"
+MAX_TASKS_PER_NIGHT="${1:-4}"
 TASKS_DONE=0
+OPENED_PRS=""
+TOOLS="Read,Edit,Write,WebFetch,WebSearch,Bash(go test:*),Bash(go build:*),Bash(bun run:*),Bash(task test),Bash(git diff:*),Bash(git status)"
 
 # 1. Atomares Lock (verhindert doppelte Ausführung)
 if ! mkdir "$LOCK_DIR" 2>/dev/null; then
@@ -23,7 +25,6 @@ TODO_IDS=$(waypoint -p --json | jq -r '[.tasks[] | select(.status=="TODO")] | so
 
 if [ -z "$TODO_IDS" ]; then
   echo "Keine offenen TODO-Tasks in .waypoint.json."
-  exit 0
 fi
 
 for TARGET_ID in $TODO_IDS; do
@@ -54,8 +55,22 @@ for TARGET_ID in $TODO_IDS; do
   git worktree remove --force "$WORKTREE_DIR" 2>/dev/null || true
   git branch -D "$BRANCH_NAME" 2>/dev/null || true
 
+  # Stacking: hat ein früherer Task aus demselben Plan einen offenen PR, baut dieser darauf auf.
+  BASE_BRANCH=dev
+  PLAN=$(echo "$TASK_TITLE" | sed -nE 's/^\[([^]]+)\].*/\1/p')
+  if [ -n "$PLAN" ]; then
+    for P in $(waypoint -p --json | jq -r --arg p "[$PLAN]" --argjson id "$TARGET_ID" \
+        '[.tasks[] | select((.title | startswith($p)) and (.id | tonumber) < $id)] | sort_by(.id | tonumber) | reverse | .[].id'); do
+      P_STATE=$(gh pr view "feat/task-$P" --json state --jq .state 2>/dev/null || true)
+      [ "$P_STATE" = "OPEN" ] && BASE_BRANCH="feat/task-$P"
+      [ -n "$P_STATE" ] && break # jüngster Vorgänger mit PR entscheidet; gemergt heißt: dev
+    done
+  fi
+  git fetch origin "$BASE_BRANCH"
+  echo "Basis: $BASE_BRANCH"
+
   mkdir -p "$WORKTREE_BASE"
-  git worktree add "$WORKTREE_DIR" -b "$BRANCH_NAME" origin/dev
+  git worktree add "$WORKTREE_DIR" -b "$BRANCH_NAME" "origin/$BASE_BRANCH"
 
   # Plan-Docs ins Worktree kopieren: docs/plans/ ist per .git/info/exclude lokal
   # ausgeschlossen, der Agent muss sie lesen, committet werden sie nicht.
@@ -70,6 +85,7 @@ for TARGET_ID in $TODO_IDS; do
 
   PROMPT="Task-ID: $TARGET_ID
 Task-Titel: $TASK_TITLE
+BASIS: $BASE_BRANCH
 PR_BODY_FILE: $PR_BODY_FILE
 QUESTION_OUT: $QUESTION_OUT
 
@@ -81,7 +97,7 @@ $(cat "$REPO_ROOT/prompts/runner.md")"
     --append-system-prompt "$(cat "$REPO_ROOT/AGENTS.md")" \
     --max-turns 80 \
     --permission-mode acceptEdits \
-    --allowedTools "Read,Edit,Write,Bash(go test:*),Bash(go build:*),Bash(bun run:*),Bash(task test),Bash(git diff:*),Bash(git status)" \
+    --allowedTools "$TOOLS" \
     >> "$LOG_FILE" 2>&1 || true
 
   # FALL A: Der Agent hat eine Rückfrage gestellt
@@ -160,20 +176,93 @@ $(cat "$REPO_ROOT/prompts/runner.md")"
   git commit -m "feat: $CLEAN_TITLE [task $TARGET_ID]" -m "Co-Authored-By: Claude <noreply@anthropic.com>"
   git push -u origin "$BRANCH_NAME"
 
-  gh pr create \
-    --base dev \
+  [ "$BASE_BRANCH" != dev ] && printf '\n> Gestapelt auf `%s`. `scripts/agent-merge.sh` zieht diesen PR nach dem Merge des Vorgängers auf `dev` um.\n' "$BASE_BRANCH" >> "$PR_BODY_FILE"
+  PR_URL=$(gh pr create \
+    --base "$BASE_BRANCH" \
     --head "$BRANCH_NAME" \
     --title "feat: $CLEAN_TITLE [#$TARGET_ID]" \
-    --body-file "$PR_BODY_FILE"
+    --body-file "$PR_BODY_FILE")
+  echo "$PR_URL"
+  OPENED_PRS="$OPENED_PRS ${PR_URL##*/}"
 
   cd "$REPO_ROOT"
   git worktree remove --force "$WORKTREE_DIR" 2>/dev/null || true
   TASKS_DONE=$((TASKS_DONE + 1))
   echo "---> Task #$TARGET_ID erfolgreich als PR eingereicht ($CHANGED_LINES Zeilen)."
+done
 
-  # Dynamische Bremse: War der Task mittelgroß (> 200 Zeilen), heute keinen zweiten mehr starten
-  if [ "$CHANGED_LINES" -gt 200 ]; then
-    echo "Task #$TARGET_ID hatte $CHANGED_LINES Zeilen (> 200). Belasse es für heute bei 1 PR."
-    break
+# CodeRabbit-Durchlauf: Hinweise auf offenen Agent-PRs einmal selbst abarbeiten (Label cr-checked).
+# CodeRabbit braucht ~25 Min. Auf die PRs von heute Nacht höchstens 45 Min warten, ältere ohne Review kommen nächste Nacht dran.
+cr_reviewed() { gh api "repos/{owner}/{repo}/pulls/$1/reviews" --jq '[.[] | select(.user.login == "coderabbitai[bot]")] | length' 2>/dev/null || echo 0; }
+
+for _ in $(seq 15); do
+  [ -z "$OPENED_PRS" ] && break
+  WAITING=0
+  for B in $OPENED_PRS; do [ "$(cr_reviewed "$B")" -gt 0 ] || WAITING=1; done
+  [ "$WAITING" -eq 0 ] && break
+  echo "Warte auf CodeRabbit ..."
+  sleep 180
+done
+
+gh label create cr-checked --color ededed --description "Agent hat CodeRabbit-Hinweise bearbeitet" >/dev/null 2>&1 || true
+for ROW in $(gh pr list --state open --json number,headRefName,labels \
+    --jq '.[] | select((.headRefName | startswith("feat/task-")) and ([.labels[].name] | index("cr-checked") | not)) | "\(.number):\(.headRefName)"'); do
+  NR="${ROW%%:*}"; BR="${ROW#*:}"
+  [ "$(cr_reviewed "$NR")" -gt 0 ] || continue
+  COMMENTS=$(gh api "repos/{owner}/{repo}/pulls/$NR/comments" \
+    --jq '.[] | select(.user.login == "coderabbitai[bot]") | "### \(.path):\(.line // .original_line)\n\(.body)\n"')
+  REVIEWS=$(gh api "repos/{owner}/{repo}/pulls/$NR/reviews" --jq '.[] | select(.user.login == "coderabbitai[bot]") | .body')
+  echo "---> CodeRabbit-Durchlauf für PR #$NR ($BR)"
+
+  CR_DIR="$WORKTREE_BASE/cr-$NR"
+  CR_LOG="/tmp/ayaz-cr-$NR.log"
+  CR_OUT="/tmp/ayaz-cr-$NR.md"
+  rm -f "$CR_OUT" "$CR_LOG"
+  git fetch origin "$BR"
+  git worktree remove --force "$CR_DIR" 2>/dev/null || true
+  git worktree add -f -B "$BR" "$CR_DIR" "origin/$BR"
+  cd "$CR_DIR"
+  bun install --cwd frontend --frozen-lockfile >> "$CR_LOG" 2>&1
+  bun run --cwd frontend build >> "$CR_LOG" 2>&1
+  caffeinate -i perl -e 'alarm shift; exec @ARGV' 1200 \
+    claude -p "CR_OUT: $CR_OUT
+
+$(cat "$REPO_ROOT/prompts/coderabbit.md")
+
+## Review-Zusammenfassung
+$REVIEWS
+
+## Kommentare
+$COMMENTS" \
+    --append-system-prompt "$(cat "$REPO_ROOT/AGENTS.md")" \
+    --max-turns 60 \
+    --permission-mode acceptEdits \
+    --allowedTools "$TOOLS" \
+    >> "$CR_LOG" 2>&1 || true
+
+  rm -rf frontend/dist
+  git checkout -- .waypoint.json go.mod go.sum frontend/package.json frontend/bun.lock 2>/dev/null || true
+  if [ -n "$(git status --porcelain)" ]; then
+    bun run --cwd frontend build >> "$CR_LOG" 2>&1 || true
+    if task test >> "$CR_LOG" 2>&1 && go test -race ./... >> "$CR_LOG" 2>&1; then
+      rm -rf frontend/dist
+      git add -A
+      git commit -m "fix: CodeRabbit-Hinweise umgesetzt" -m "Co-Authored-By: Claude <noreply@anthropic.com>"
+      git push origin "$BR"
+    else
+      echo "Nach den CodeRabbit-Fixes ist das Test-Gate rot, nichts gepusht. Log: \`$CR_LOG\`" >> "$CR_OUT"
+    fi
   fi
+  [ -s "$CR_OUT" ] && gh pr comment "$NR" --body-file "$CR_OUT"
+  gh pr edit "$NR" --add-label cr-checked >/dev/null
+
+  # Reine Docs-PRs direkt auf dev mergen, sobald die CI grün ist.
+  BASE=$(gh pr view "$NR" --json baseRefName --jq .baseRefName)
+  NON_DOCS=$(gh pr diff "$NR" --name-only | grep -vE '^docs/|\.md$' || true)
+  if [ "$BASE" = dev ] && [ -z "$NON_DOCS" ] && gh pr checks "$NR" --watch >/dev/null 2>&1; then
+    "$REPO_ROOT/scripts/agent-merge.sh" "${BR#feat/task-}" || true
+  fi
+
+  cd "$REPO_ROOT"
+  git worktree remove --force "$CR_DIR" 2>/dev/null || true
 done
