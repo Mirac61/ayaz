@@ -16,12 +16,18 @@ func helper() {}
 `;
 
 // A workbench with one open file; the cursor sits on the first occurrence of `at`.
-function setup(path: string | null, at: string) {
+// `current` is the open buffer's own path (absolute outside the folder); `dirty` the unsaved buffers' paths.
+function setup(path: string | null, at: string, { current = path, dirty = [] as string[] } = {}) {
   const state = EditorState.create({ doc: SRC, extensions: [go()], selection: { anchor: SRC.indexOf(at) } });
   const started: unknown[] = [];
   const failed: string[] = [];
   const c = {
-    ed: { activePath: () => path, activeView: () => ({ state }) },
+    ed: {
+      activePath: () => path,
+      activeView: () => ({ state }),
+      current: () => (current === null ? null : { path: current }),
+      buffers: { dirty: () => dirty.map((p) => ({ path: p })) },
+    },
     dbg: { start: async (o: unknown) => void started.push(o) },
     fail: (m: string) => failed.push(m),
   } as unknown as Ctx;
@@ -61,4 +67,22 @@ test("debug.test: no workspace file (outside the folder or a head:// view, activ
   await w.run();
   expect(w.failed).toEqual(["Debugging a test works for Go files only"]);
   expect(w.started).toEqual([]);
+});
+
+test("debug.test: a Go file outside the folder says so instead of 'Go files only'", async () => {
+  const w = setup(null, 't.Log("a")', { current: "/usr/lib/go/src/fmt/p_test.go" });
+  await w.run();
+  expect(w.failed).toEqual(["Debugging a test works for files in the workspace only"]);
+  expect(w.started).toEqual([]);
+});
+
+test("debug.test: unsaved Go files of the test's package stop it; other packages and non-Go files don't", async () => {
+  const a = setup("pkg/p_test.go", 't.Log("a")', { dirty: ["pkg/p.go"] });
+  await a.run();
+  expect(a.failed).toEqual(["Unsaved changes in this package: :wa saves them"]);
+  expect(a.started).toEqual([]);
+  const b = setup("pkg/p_test.go", 't.Log("a")', { dirty: ["pkg/sub/q.go", "other/p.go", "pkg/README.md"] });
+  await b.run();
+  expect(b.failed).toEqual([]);
+  expect(b.started).toEqual([{ test: "TestA" }]);
 });
