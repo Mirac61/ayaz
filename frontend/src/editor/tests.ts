@@ -87,11 +87,40 @@ function jsTests(state: EditorState): Span[] {
   return out;
 }
 
+// Python: `def test_…` at the top level and in `Test…` classes of a `test_*.py` or `*_test.py` file; the name has the class in front.
+// shortcut: top-level classes only
+function pyTests(state: EditorState, path: string): Span[] {
+  if (!/(^|\/)(test_[^/]*|[^/]*_test)\.py$/.test(path)) {
+    return [];
+  }
+  const out: Span[] = [];
+  const text = (n: SyntaxNode) => state.sliceDoc(n.from, n.to);
+  // `stmt` is a `def`, or a decorated one: a cursor on the decorator is in the test as well
+  const add = (stmt: SyntaxNode, prefix: string) => {
+    const fn = stmt.name === "DecoratedStatement" ? stmt.getChild("FunctionDefinition") : stmt;
+    const id = fn?.name === "FunctionDefinition" ? fn.getChild("VariableName") : null;
+    if (fn && id && /^test_/.test(text(id))) {
+      out.push({ name: prefix + text(id), line: state.doc.lineAt(fn.from).number, from: stmt.from, to: stmt.to });
+    }
+  };
+  for (let n = syntaxTreeOf(state).topNode.firstChild; n; n = n.nextSibling) {
+    const cls = n.name === "ClassDefinition" ? n.getChild("VariableName") : null;
+    if (!cls) {
+      add(n, "");
+    } else if (/^Test/.test(text(cls))) {
+      for (let m = n.getChild("Body")?.firstChild; m; m = m.nextSibling) {
+        add(m, `${text(cls)}::`);
+      }
+    }
+  }
+  return out;
+}
+
 const JS_EXTS = new Set(["ts", "tsx", "js", "jsx", "mjs"]);
 
 function spans(state: EditorState, path: string): Span[] {
   const ext = path.slice(path.lastIndexOf(".") + 1).toLowerCase();
-  return ext === "go" ? goTests(state, path) : JS_EXTS.has(ext) ? jsTests(state) : [];
+  return ext === "go" ? goTests(state, path) : ext === "py" ? pyTests(state, path) : JS_EXTS.has(ext) ? jsTests(state) : [];
 }
 
 export function testsIn(state: EditorState, path: string): TestRef[] {

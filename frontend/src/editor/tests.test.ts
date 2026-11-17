@@ -2,6 +2,7 @@ import { expect, test } from "vitest";
 import { EditorState } from "@codemirror/state";
 import { go } from "@codemirror/lang-go";
 import { javascript } from "@codemirror/lang-javascript";
+import { python } from "@codemirror/lang-python";
 import { testAt, testsIn } from "./tests";
 
 const SRC = `package p
@@ -110,4 +111,67 @@ test("testAt (JS): the innermost test, else the innermost describe", () => {
   expect(testAt(js(), "a.test.ts", jpos("describe") + 1)).toEqual({ name: "group", line: 1 });
   expect(testAt(js(), "a.test.ts", jpos("top level") + 1)).toEqual({ name: "top level", line: 15 });
   expect(testAt(js(), "a.test.ts", JS.length)).toBeNull();
+});
+
+const PY = `import pytest
+
+
+def helper():
+    pass
+
+
+def test_top():
+    assert True
+
+
+@pytest.mark.slow
+def test_decorated():
+    assert True
+
+
+async def test_async():
+    pass
+
+
+class TestGroup:
+    def test_in_class(self):
+        pass
+
+    def helper(self):
+        pass
+
+    @pytest.mark.parametrize("x", [1])
+    def test_param(self, x):
+        pass
+
+
+class Other:
+    def test_not_collected(self):
+        pass
+`;
+const py = (doc = PY) => EditorState.create({ doc, extensions: [python()] });
+const ppos = (s: string) => PY.indexOf(s);
+
+test("testsIn (Python): test_ functions and methods of Test classes in a test file", () => {
+  expect(testsIn(py(), "t/test_a.py")).toEqual([
+    { name: "test_top", line: 8 },
+    { name: "test_decorated", line: 13 },
+    { name: "test_async", line: 17 },
+    { name: "TestGroup::test_in_class", line: 22 },
+    { name: "TestGroup::test_param", line: 29 },
+  ]);
+  expect(testsIn(py(), "a_test.py")).toHaveLength(5);
+});
+
+test("testsIn (Python): not in a file that pytest does not collect", () => {
+  expect(testsIn(py(), "t/helpers.py")).toEqual([]);
+  expect(testsIn(py(), "t/test_a.pyi")).toEqual([]);
+});
+
+test("testAt (Python): body, decorator, class method and outside", () => {
+  expect(testAt(py(), "test_a.py", ppos("assert True"))).toEqual({ name: "test_top", line: 8 });
+  expect(testAt(py(), "test_a.py", ppos("@pytest.mark.slow") + 3)).toEqual({ name: "test_decorated", line: 13 });
+  expect(testAt(py(), "test_a.py", ppos("def test_in_class") + 5)).toEqual({ name: "TestGroup::test_in_class", line: 22 });
+  expect(testAt(py(), "test_a.py", ppos("def helper"))).toBeNull();
+  expect(testAt(py(), "test_a.py", ppos("test_not_collected"))).toBeNull();
 });

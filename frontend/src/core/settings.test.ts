@@ -81,7 +81,7 @@ test("tests: adapter ids to command templates", () => {
   expect(parseSettings('{"tests": {"go": "gotestsum ./..."}}').tests).toEqual({ go: "gotestsum ./..." });
   expect(DEFAULTS.tests).toEqual({});
   expect(() => parseSettings('{"tests": ["go"]}')).toThrow('"tests" must be an object of adapter → command');
-  expect(() => parseSettings('{"tests": {"cobol": "x"}}')).toThrow("tests.cobol is not a test adapter (go, js)");
+  expect(() => parseSettings('{"tests": {"cobol": "x"}}')).toThrow("tests.cobol is not a test adapter (go, js, py)");
   expect(() => parseSettings('{"tests": {"go": 1}}')).toThrow("tests.go must be a command (a string)");
 });
 
