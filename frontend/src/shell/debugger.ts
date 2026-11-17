@@ -72,7 +72,8 @@ export class Debugger {
 
   // Starts debugging what the active file's adapter debugs (a Go file: its package) with the breakpoints of every loaded
   // buffer.
-  async start() {
+  // With `test`, only that test of the package runs (Go; <Space>rd).
+  async start({ test }: { test?: string } = {}) {
     if (this.session && this.session.state !== "ended") {
       return this.say("Already debugging: <Space>dq stops it");
     }
@@ -104,7 +105,7 @@ export class Debugger {
       runInTerminal: this.ed.runInTerminal ? (args) => this.ed.runInTerminal!(args) : undefined,
     }));
     try {
-      await session.start(this.ed.breakpoints(), target ? `${this.root}/${target}` : undefined, adapter);
+      await session.start(this.ed.breakpoints(), target ? `${this.root}/${target}` : undefined, adapter, test);
     } catch (e) {
       throw e instanceof Error ? e : new Error(String(e));
     }

@@ -169,6 +169,7 @@ test("defaultKeymap binds the test commands", () => {
   expect(km.find((b) => b.keys === "<Space>rf")?.command).toBe("test.file");
   expect(km.find((b) => b.keys === "<Space>ra")?.command).toBe("test.all");
   expect(km.find((b) => b.keys === "<Space>rt")?.command).toBe("test.last");
+  expect(km.find((b) => b.keys === "<Space>rd")?.command).toBe("debug.test");
 });
 
 test("defaultKeymap binds terminal send, tab, move to editor and floating scratchpad", () => {

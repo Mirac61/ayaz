@@ -60,6 +60,7 @@ const COMMAND_ICONS: Record<string, string> = {
   "harpoon.menu": "\uf02e",
   "debug.toggleBreakpoint": "\uf111",
   "debug.start": "\uf04b",
+  "debug.test": "\uf04b",
   "debug.continue": "\uf051",
   "debug.stop": "\uf04d",
   "debug.next": "\uf050",

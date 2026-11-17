@@ -58,10 +58,10 @@ export class DebugSession {
 
   // Launches program (an absolute path, the root's own by default) with these breakpoints (workspace-relative path
   // → breakpoints or lines). Rejects if launching fails.
-  async start(breakpoints: Record<string, (number | Breakpoint)[]>, program?: string, adapter?: DebugAdapter) {
+  async start(breakpoints: Record<string, (number | Breakpoint)[]>, program?: string, adapter?: DebugAdapter, test?: string) {
     this.hooks.state("starting");
     try {
-      await launch(this.client, { root: this.root, program, adapter, breakpoints });
+      await launch(this.client, { root: this.root, program, adapter, breakpoints, test });
     } catch (e) {
       this.end();
       throw e;
