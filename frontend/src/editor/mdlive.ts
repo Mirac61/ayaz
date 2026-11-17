@@ -1,7 +1,7 @@
 import { EditorSelection, EditorState, Facet, StateEffect, StateField, type Range } from "@codemirror/state";
 import { Decoration, EditorView, ViewPlugin, WidgetType, type DecorationSet, type ViewUpdate } from "@codemirror/view";
 import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
-import type { SyntaxNode } from "@lezer/common";
+import type { SyntaxNode, Tree } from "@lezer/common";
 import MarkdownIt from "markdown-it";
 import DOMPurify from "dompurify";
 
@@ -219,23 +219,21 @@ function cells(line: string): string[] {
 // shortcut: walks the whole tree on each update; fine for a few hundred tables, limit to the viewport if big.md hurts (K5).
 export interface MdHeading {
   level: number;
-  text: string; // as the reading view takes it for the heading's id: no # marks, no closing #s
+  text: string; // the title without # marks or closing #s
   from: number;
   line: number;
 }
 
 export interface MdOutline {
   headings: MdHeading[];
-  complete: boolean; // false when the parse ran out of its time budget: a large file lists only its beginning
+  complete: boolean; // false when the tree stops before the end of the document: only its beginning is listed
 }
 
-// Pure: the document's Markdown headings (# lines and setext), from the syntax tree, so a # in a code block is none.
-// The parse gets `budget` ms on this turn instead of the whole file at once; the rest follows in the background.
-export function mdOutline(state: EditorState, budget = 200): MdOutline {
+// Pure: the outline of an already parsed tree. The headings are # lines and setext ones, so a # in a code block is
+// none; the outline is complete when the tree reaches the end of the document.
+export function outlineOf(state: EditorState, tree: Tree): MdOutline {
   const doc = state.doc,
     out: MdHeading[] = [];
-  const whole = ensureSyntaxTree(state, doc.length, budget),
-    tree = whole ?? syntaxTree(state);
   tree.iterate({
     enter(n) {
       const m = /^(ATX|Setext)Heading(\d)$/.exec(n.name);
@@ -253,7 +251,13 @@ export function mdOutline(state: EditorState, budget = 200): MdOutline {
       return false;
     },
   });
-  return { headings: out, complete: !!whole || tree.length >= doc.length };
+  return { headings: out, complete: tree.length >= doc.length };
+}
+
+// The document's headings and whether the scan saw all of it. The parse gets 200 ms on this turn rather than the
+// whole file at once; the rest follows in the background and the next scan picks it up.
+export function mdOutline(state: EditorState): MdOutline {
+  return outlineOf(state, ensureSyntaxTree(state, state.doc.length, 200) ?? syntaxTree(state));
 }
 
 export function mdTables(state: EditorState): MdTable[] {
