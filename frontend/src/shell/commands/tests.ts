@@ -49,7 +49,9 @@ export function testCommands(c: Ctx, results: TestResults = testResults, templat
     const run = () => {
       const id = ++runs;
       owner.set(path, id);
-      const seen = new Map<string, TestResult>(); // the terminal's scrollback is capped: keep what scrolled out
+      // shortcut: keeps what scrolled out between callbacks, but the terminal's live callback is debounced, so output that
+      // streams past its 10_000 lines without a pause loses its start; upgrade: throttle onLiveOutput in terminal.ts
+      const seen = new Map<string, TestResult>();
       c.task(
         { name: label, cmd },
         {
