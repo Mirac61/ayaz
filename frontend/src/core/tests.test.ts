@@ -1,16 +1,18 @@
 import { expect, test } from "vitest";
 import { adapterFor, goAdapter } from "./tests";
 
-const at = (file: string, name?: string) => ({ file, dir: file.includes("/") ? file.slice(0, file.lastIndexOf("/")) : ".", name });
+const at = (file: string, name?: string) => ({
+  file,
+  dir: file.includes("/") ? file.slice(0, file.lastIndexOf("/")) : ".",
+  name,
+});
 
 test("go commands for the three scopes", () => {
   expect(goAdapter.command("file", at("a_test.go"))).toBe("go test -v .");
   expect(goAdapter.command("file", at("internal/git/a_test.go"))).toBe("go test -v ./internal/git");
   expect(goAdapter.command("all", at("internal/git/a_test.go"))).toBe("go test -v ./...");
   expect(goAdapter.command("nearest", at("a_test.go", "TestX"))).toBe("go test -v -run '^TestX$' .");
-  expect(goAdapter.command("nearest", at("internal/git/a_test.go", "TestX"))).toBe(
-    "go test -v -run '^TestX$' ./internal/git",
-  );
+  expect(goAdapter.command("nearest", at("internal/git/a_test.go", "TestX"))).toBe("go test -v -run '^TestX$' ./internal/git");
   expect(() => goAdapter.command("nearest", at("a_test.go"))).toThrow();
 });
 

@@ -1,6 +1,6 @@
 // Finds the tests in a document from its syntax tree, for the test runner.
 
-import { syntaxTree } from "@codemirror/language";
+import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
 import type { EditorState } from "@codemirror/state";
 import type { TestRef } from "../core/tests";
 
@@ -11,7 +11,8 @@ function goTests(state: EditorState, path: string): (TestRef & { from: number; t
     return [];
   }
   const out: (TestRef & { from: number; to: number })[] = [];
-  const cur = syntaxTree(state).topNode.cursor();
+  // syntaxTree() stops early in a large file (CodeMirror parses in the background); finish it, within 500 ms, before reading.
+  const cur = (ensureSyntaxTree(state, state.doc.length, 500) ?? syntaxTree(state)).topNode.cursor();
   if (!cur.firstChild()) {
     return out;
   }
@@ -23,8 +24,8 @@ function goTests(state: EditorState, path: string): (TestRef & { from: number; t
     const nameNode = node.getChild("DefName");
     const params = node.getChild("Parameters")?.getChildren("Parameter") ?? [];
     const name = nameNode && state.sliceDoc(nameNode.from, nameNode.to);
-    // `Test` alone or followed by a non-lowercase character: TestFoo, Test_foo, but not Testing
-    if (!name || !/^Test(?![a-z])/.test(name) || params.length !== 1) {
+    // `Test` alone or followed by a non-lowercase character: TestFoo, Test_foo, but not Testing or Testé; generics are never run
+    if (!name || !/^Test(?!\p{Ll})/u.test(name) || params.length !== 1 || node.getChild("TypeParams")) {
       continue;
     }
     const type = params[0].getChild("PointerType");

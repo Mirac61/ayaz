@@ -52,3 +52,13 @@ test("testAt: signature, body, sub-test body and outside", () => {
   expect(testAt(state(), "p_test.go", pos("func Testing") + 3)).toBeNull();
   expect(testAt(state(), "p.go", pos("t.Log"))).toBeNull();
 });
+
+test("testsIn skips lowercase-after-Test in any script and generic tests", () => {
+  const doc = `package p\n\nfunc Testé(t *testing.T) {}\n\nfunc TestG[T any](t *testing.T) {}\n\nfunc TestÉ(t *testing.T) {}\n`;
+  expect(testsIn(state(doc), "p_test.go")).toEqual([{ name: "TestÉ", line: 7 }]);
+});
+
+test("testsIn finds tests far down in a large file", () => {
+  const doc = "package p\n\n" + "var x = 1\n".repeat(5000) + "\nfunc TestLast(t *testing.T) {}\n";
+  expect(testsIn(state(doc), "p_test.go").map((t) => t.name)).toEqual(["TestLast"]);
+});
