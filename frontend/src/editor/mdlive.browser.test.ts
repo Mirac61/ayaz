@@ -3,7 +3,7 @@ import { userEvent } from "vitest/browser";
 import { EditorView } from "@codemirror/view";
 import { StateEffect } from "@codemirror/state";
 import { createState } from "./editor";
-import { mdOutline, toggleReading } from "./mdlive";
+import { isMarkdown, mdOutline, toggleReading } from "./mdlive";
 import { revealHeading } from "./mdrender";
 import { installVim } from "./vim/setup";
 import { defaultKeymap } from "../core/keymap";
@@ -178,6 +178,15 @@ test("an image shows as <img> through /fs/, raw while the cursor is on it", asyn
   await userEvent.keyboard("k");
   expect(view!.contentDOM.querySelector(".cm-md-img")).toBeNull();
   expect(lines()[0]).toBe("![logo](a/pic.png)");
+});
+
+test("only Markdown gets the live preview, and with it the outline", async () => {
+  const go = await createState("main.go", "package main\n");
+  expect(isMarkdown(go)).toBe(false);
+  expect(mdOutline(go).headings).toEqual([]);
+  const md = await createState("note.md", "# One\n");
+  expect(isMarkdown(md)).toBe(true);
+  expect(mdOutline(md).headings.map((h) => h.text)).toEqual(["One"]);
 });
 
 test("table cells show code and emphasis, links, images and raw HTML stay text", async () => {

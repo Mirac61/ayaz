@@ -47,6 +47,8 @@ export function toggleReading(v: EditorView): boolean | null {
 }
 
 export const isReading = (state: EditorState) => state.field(reading, false) === true;
+// Whether this is a Markdown buffer at all: the live preview, and with it the reading view, is only installed there.
+export const isMarkdown = (state: EditorState) => state.field(reading, false) !== undefined;
 
 // The line spans holding a cursor or selection; they show their raw source. None in the reading view.
 const activeRanges = (state: EditorState) =>
