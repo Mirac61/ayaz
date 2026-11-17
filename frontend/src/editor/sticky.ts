@@ -16,7 +16,7 @@ function panel(view: EditorView): Panel {
   const dom = document.createElement("div");
   dom.className = "cm-sticky";
   let frame = 0,
-    shown = "";
+    shown: string | null = null; // null: nothing rendered yet, so the first render also hides an empty panel
 
   const render = () => {
     const state = view.state;

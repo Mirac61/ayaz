@@ -7,8 +7,21 @@ const press = (fn: () => void) => (e: SyntheticEvent) => {
   fn();
 };
 
-// A square button with a Nerd Font glyph (the glyph is CSS content, so it never lands in the DOM text).
-export function IconButton({ glyph, label, tip, onPress }: { glyph: string; label: string; tip?: string; onPress(): void }) {
+// A button with a Nerd Font glyph (the glyph is CSS content, so it never lands in the DOM text) or, centered exactly,
+// an SVG icon: font glyphs carry side bearing and sit a pixel off.
+export function IconButton({
+  glyph,
+  icon,
+  label,
+  tip,
+  onPress,
+}: {
+  glyph?: string;
+  icon?: ReactNode;
+  label: string;
+  tip?: string;
+  onPress(): void;
+}) {
   return (
     <button
       type="button"
@@ -18,7 +31,9 @@ export function IconButton({ glyph, label, tip, onPress }: { glyph: string; labe
       aria-label={label}
       tabIndex={-1}
       onMouseDown={press(onPress)}
-    />
+    >
+      {icon}
+    </button>
   );
 }
 

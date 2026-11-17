@@ -31,9 +31,10 @@ Ayaz is a keyboard-first code editor. Every action is a registered command and c
 | Shortcut | Command | Description |
 |---|---|---|
 | \`<Space>ff\` / \`Cmd+P\` | \`find.files\` | Fast fuzzy file picker across workspace |
-| \`<Space>fg\` / \`Cmd+Shift+F\` | \`find.grep\` | Full-text grep search across project files |
+| \`<Space>fw\` / \`Cmd+Shift+F\` | \`find.grep\` | Full-text grep search across project files |
 | \`<Space>fo\` | \`find.recent\` | Recently opened files |
 | \`<Space>fb\` | \`find.buffers\` | List open editor buffers |
+| \`<Space>fp\` | \`folder.switch\` | Switch project: recent folders, or open another one |
 | \`<Space>t\` / \`Cmd+J\` | \`term.panel\` | Toggle integrated terminal bottom panel |
 | \`<Space>tf\` | \`term.float\` | Toggle floating scratchpad terminal |
 | \`<Space>tt\` | \`term.tab\` | Open terminal in current pane tab |

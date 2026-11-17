@@ -44,8 +44,23 @@ export const UI_VARS = {
 } as const;
 export type UiColors = Record<keyof typeof UI_VARS, string>;
 
-// Surfaces that data-glass (settings.json "glass") makes translucent from the stylesheet; a theme leaves them alone then.
-const GLASS_SURFACES: (keyof UiColors)[] = ["bg0", "bgSidebar", "bgTabs", "tab", "tabActive", "bg1", "bg2", "overlay"];
+// Surfaces that glass (settings.json "glass") makes translucent, with how much of the theme's own colour stays at
+// --glass 1. The strips (tab bar, sidebar header) only tint the panel under them, so both read the same colour on
+// the same line; the floating overlay stays nearly solid for legibility.
+export const GLASS_SURFACES: Partial<Record<keyof UiColors, number>> = {
+  bg0: 0.82,
+  bgSidebar: 0.78,
+  bgTabs: 0.4,
+  tab: 0.6,
+  tabActive: 0.9,
+  bg1: 0.78,
+  bg2: 0.84,
+  overlay: 0.95,
+};
+
+// The theme's colour at `share` of its opacity; --glass (settings.json "glassOpacity") scales it live.
+const glassed = (color: string, share: number) =>
+  color === "transparent" ? color : `color-mix(in srgb, ${color} calc(${share * 100}% * var(--glass, 1)), transparent)`;
 
 export const SYNTAX_KEYS = [
   "fg",
@@ -1007,14 +1022,11 @@ const isLight = (hex: string) => {
 };
 
 // Puts a theme on the page: chrome and syntax colors as variables on :root, the terminal's colors for new and open
-// terminals (they ask terminalTheme again). With glass on, the stylesheet keeps the translucent surfaces.
+// terminals (they ask terminalTheme again). With glass on, the surfaces are the theme's own colours, translucent.
 export function applyTheme(theme: Theme, glass = false, root = document.documentElement.style) {
   for (const [k, v] of Object.entries(UI_VARS) as [keyof UiColors, string][]) {
-    if (glass && GLASS_SURFACES.includes(k)) {
-      root.removeProperty(v);
-    } else {
-      root.setProperty(v, theme.ui[k]);
-    }
+    const share = glass ? GLASS_SURFACES[k] : undefined;
+    root.setProperty(v, share === undefined ? theme.ui[k] : glassed(theme.ui[k], share));
   }
   for (const k of SYNTAX_KEYS) {
     root.setProperty(synVar(k), theme.syntax[k]);
