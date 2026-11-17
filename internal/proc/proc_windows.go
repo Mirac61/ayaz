@@ -4,11 +4,13 @@
 package proc
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func init() {
@@ -56,14 +58,23 @@ func Available(dir, _, command string) bool {
 	return err == nil
 }
 
-// Kill is Terminate: taskkill /F already ends the tree for good.
-func Kill(cmd *exec.Cmd) error { Terminate(cmd); return nil }
+// taskkillTimeout bounds taskkill, so a hanging taskkill cannot block a shutdown.
+const taskkillTimeout = 3 * time.Second
+
+// Kill is Terminate: taskkill /F already ends the tree for good. It returns the error of the Process.Kill fallback.
+func Kill(cmd *exec.Cmd) error { return taskkill(cmd) }
 
 // Terminate ends the command and the programs it started.
-func Terminate(cmd *exec.Cmd) {
-	kill := exec.Command("taskkill", "/T", "/F", "/PID", strconv.Itoa(cmd.Process.Pid))
+func Terminate(cmd *exec.Cmd) { _ = taskkill(cmd) }
+
+// taskkill ends the tree; when taskkill fails or exceeds taskkillTimeout it kills just the process and returns that error.
+func taskkill(cmd *exec.Cmd) error {
+	ctx, cancel := context.WithTimeout(context.Background(), taskkillTimeout)
+	defer cancel()
+	kill := exec.CommandContext(ctx, "taskkill", "/T", "/F", "/PID", strconv.Itoa(cmd.Process.Pid))
 	SetHideWindow(kill)
-	if kill.Run() != nil {
-		cmd.Process.Kill()
+	if kill.Run() == nil {
+		return nil
 	}
+	return cmd.Process.Kill()
 }

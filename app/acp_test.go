@@ -40,7 +40,14 @@ func TestStreamCloseFreesBlockedSendAndEndsAgent(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("Send stays blocked after the stream closed")
 	}
-	if _, err := a.Recv(); err != io.EOF {
-		t.Errorf("agent still running: Recv = %v", err)
+	recv := make(chan error, 1)
+	go func() { _, err := a.Recv(); recv <- err }()
+	select {
+	case err := <-recv:
+		if err != io.EOF {
+			t.Errorf("agent still running: Recv = %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("agent still running: Recv stays blocked")
 	}
 }
