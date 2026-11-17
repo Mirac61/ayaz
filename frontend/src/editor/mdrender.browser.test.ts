@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { renderMarkdown } from "./mdrender";
+import { renderMarkdown, setSkin, skin } from "./mdrender";
 
 const html = (md: string, ctx: { ws: string; file: string } | null = null) => {
   const d = document.createElement("div");
@@ -28,4 +28,16 @@ test("task lists, tables and heading ids", () => {
   expect(d.querySelector("h1")?.id).toBe("hello-world");
   expect([...d.querySelectorAll("li.task input")].map((i) => (i as HTMLInputElement).checked)).toEqual([true, false]);
   expect(d.querySelectorAll("table td").length).toBe(2);
+});
+
+test("a picked skin is kept until settings.json names another one", () => {
+  localStorage.removeItem("ayaz.mdskin");
+  expect(skin()).toBe("github"); // the default
+  setSkin("document");
+  expect(skin()).toBe("document");
+  localStorage.setItem("ayaz.mdskin", JSON.stringify({ pick: "document", file: "kairo" })); // picked over another file value
+  expect(skin()).toBe("github");
+  localStorage.setItem("ayaz.mdskin", "{broken");
+  expect(skin()).toBe("github");
+  localStorage.removeItem("ayaz.mdskin");
 });

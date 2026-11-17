@@ -2,24 +2,46 @@ import MarkdownIt from "markdown-it";
 import DOMPurify from "dompurify";
 import { ViewPlugin, type EditorView, type ViewUpdate } from "@codemirror/view";
 import { backend } from "../core/backend";
-import { settings } from "../core/settings";
+import { MD_SKINS, settings } from "../core/settings";
 import { browsable, imageSrc, isReading, mdImages, resolveLink } from "./mdlive";
 import "./mdskins.css";
 
 // The reading view of a Markdown file as rendered HTML, raw HTML included (README badges, <p align="center">), in a skin.
 // It sits over the editor of the pane while the reading view is on and follows the buffer; the live view stays for writing.
 
-export const SKINS = ["github", "kairo"] as const;
+export const SKINS = MD_SKINS;
 export type Skin = (typeof SKINS)[number];
 
-let picked: Skin | null = null; // the skin command's choice: kept until the next start, settings.json "markdownSkin" is the default
+// The skin command's choice survives restarts, until settings.json names another skin than the one it was picked over.
+const SKIN_KEY = "ayaz.mdskin";
 const boxes = new Set<HTMLElement>();
-export const skin = (): Skin => picked ?? settings().markdownSkin;
+export function skin(): Skin {
+  const file = settings().markdownSkin;
+  try {
+    const saved = JSON.parse(localStorage.getItem(SKIN_KEY) ?? "null") as { pick: Skin; file: Skin } | null;
+    return saved?.file === file && SKINS.includes(saved.pick) ? saved.pick : file;
+  } catch {
+    return file;
+  }
+}
 export function setSkin(s: Skin) {
-  picked = s;
+  try {
+    localStorage.setItem(SKIN_KEY, JSON.stringify({ pick: s, file: settings().markdownSkin }));
+  } catch {
+    /* convenience: the skin then lasts until the next redraw */
+  }
   for (const b of boxes) {
     b.dataset.skin = s;
   }
+}
+
+// Scrolls view's reading view to the Markdown heading with this text; nth counts headings of the same text before it.
+// False when no reading view shows it. By id, not by index: raw HTML headings (<h1 align="center">) have none.
+export function revealHeading(view: EditorView, text: string, nth = 0): boolean {
+  const box = [...boxes].find((b) => view.dom.contains(b));
+  const h = box?.querySelectorAll(`[id="${CSS.escape(slug(text))}"]`)[nth];
+  h?.scrollIntoView({ block: "start" });
+  return !!h;
 }
 
 // Opens a workspace file a link points at; the shell sets it.

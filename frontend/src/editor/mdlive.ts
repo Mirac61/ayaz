@@ -1,7 +1,11 @@
 import { EditorSelection, EditorState, Facet, StateEffect, StateField, type Range } from "@codemirror/state";
 import { Decoration, EditorView, ViewPlugin, WidgetType, type DecorationSet, type ViewUpdate } from "@codemirror/view";
-import { syntaxTree } from "@codemirror/language";
+import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
 import type { SyntaxNode } from "@lezer/common";
+import MarkdownIt from "markdown-it";
+import DOMPurify from "dompurify";
+
+const cellMd = new MarkdownIt({ html: false, linkify: true }); // a table cell's code, emphasis and links
 
 // Markdown live preview, part 1 (ADR-0003): headings, emphasis, inline code and links read as rendered,
 // their markers hidden everywhere except on the lines holding a cursor or selection.
@@ -211,6 +215,37 @@ function cells(line: string): string[] {
 
 // Pure: the top-level GFM tables of the document, as plain data. Tables inside quotes and lists stay raw in v1.
 // shortcut: walks the whole tree on each update; fine for a few hundred tables, limit to the viewport if big.md hurts (K5).
+export interface MdHeading {
+  level: number;
+  text: string; // as the reading view takes it for the heading's id: no # marks, no closing #s
+  from: number;
+  line: number;
+}
+
+// Pure: the document's Markdown headings (# lines and setext), from the syntax tree, so a # in a code block is none.
+export function mdHeadings(state: EditorState): MdHeading[] {
+  const doc = state.doc,
+    out: MdHeading[] = [];
+  (ensureSyntaxTree(state, doc.length, 500) ?? syntaxTree(state)).iterate({
+    enter(n) {
+      const m = /^(ATX|Setext)Heading(\d)$/.exec(n.name);
+      if (!m) {
+        return !/Code|HTMLBlock/.test(n.name);
+      }
+      const src = doc.sliceString(n.from, n.to);
+      const text =
+        m[1] === "ATX"
+          ? src.replace(/^#{1,6}[ \t]*/, "").replace(/(^|[ \t]+)#+[ \t]*$/, "")
+          : src.replace(/\n[ \t]*[=-]+[ \t]*$/, "").replace(/\s*\n\s*/g, " ");
+      if (text.trim()) {
+        out.push({ level: Number(m[2]), text: text.trim(), from: n.from, line: doc.lineAt(n.from).number });
+      }
+      return false;
+    },
+  });
+  return out;
+}
+
 export function mdTables(state: EditorState): MdTable[] {
   const doc = state.doc,
     out: MdTable[] = [];
@@ -388,7 +423,8 @@ class TableWidget extends WidgetType {
       const tr = parent.appendChild(document.createElement("tr"));
       row.forEach((text, i) => {
         const c = tr.appendChild(document.createElement(tag));
-        c.textContent = text; // never innerHTML: no raw HTML from files (Q8)
+        // Markdown only: html off keeps raw HTML from files as text (Q8), DOMPurify on top
+        c.innerHTML = DOMPurify.sanitize(cellMd.renderInline(text));
         if (this.t.align[i]) {
           c.style.textAlign = this.t.align[i]!;
         }
@@ -578,8 +614,16 @@ const theme = EditorView.baseTheme({
   ".cm-md-quote": { borderLeft: "3px solid var(--bg-3, #3a3a3d)", paddingLeft: "8px", color: "#c8c093" },
   ".cm-md-table": { overflowX: "auto", padding: "4px 0" },
   ".cm-md-table table": { borderCollapse: "collapse" },
-  ".cm-md-table th, .cm-md-table td": { border: "1px solid var(--bg-3, #3a3a3d)", padding: "2px 10px" },
+  // CodeMirror's wrapping lines break "anywhere", which lets a table squeeze a column to one letter
+  ".cm-md-table th, .cm-md-table td": {
+    border: "1px solid var(--bg-3, #3a3a3d)",
+    padding: "2px 10px",
+    overflowWrap: "break-word",
+    wordBreak: "normal",
+  },
   ".cm-md-table th": { backgroundColor: "rgb(255 255 255 / 0.04)", fontWeight: "bold" },
+  ".cm-md-table code": { backgroundColor: "rgb(255 255 255 / 0.08)", borderRadius: "5px", padding: "1px 5px" },
+  ".cm-md-table a": { color: "var(--accent, #0a84ff)" },
   ".cm-md-check": { margin: "0 4px 0 0", verticalAlign: "middle", accentColor: "var(--accent, #0a84ff)" },
   ".cm-md-hr": { background: "linear-gradient(var(--bg-3, #3a3a3d), var(--bg-3, #3a3a3d)) center / 100% 1px no-repeat" },
   ".cm-md-img": { maxWidth: "100%", maxHeight: "400px", verticalAlign: "middle" },

@@ -4,7 +4,8 @@ import { backend } from "../../core/backend";
 import type { Command } from "../../core/commands";
 import { availableThemes, setThemeOverride, themeName, toggleGlass } from "../../core/settings";
 import { LIMIT } from "./context";
-import { SKINS, setSkin, skin } from "../../editor/mdrender";
+import { revealHeading, SKINS, setSkin, skin, type Skin } from "../../editor/mdrender";
+import { mdHeadings } from "../../editor/mdlive";
 import { BROWSER, PREVIEW } from "../../core/viewers";
 import { localUrl } from "../../viewers/browser";
 import { toggleDiagText } from "../diagText";
@@ -13,6 +14,13 @@ import type { Ctx } from "./context";
 
 const TABS_KEY = "ayaz.tabs";
 let lastBrowse = "localhost:3000";
+const SKIN_HINTS: Record<Skin, string> = {
+  github: "like on GitHub",
+  kairo: "calm, narrow column",
+  document: "serif, for long reads",
+  compact: "dense, for notes and tables",
+  wide: "full width, for wide tables",
+};
 
 export function viewCommands({ ed, say, fail, setPicker }: Ctx): Command[] {
   // In a terminal: the terminal font only (every terminal); elsewhere the whole page.
@@ -51,11 +59,26 @@ export function viewCommands({ ed, say, fail, setPicker }: Ctx): Command[] {
     },
     {
       id: "md.skin",
-      title: "Next Markdown skin (rendered view)",
+      title: "Markdown skin (rendered view)",
       run() {
-        const next = SKINS[(SKINS.indexOf(skin()) + 1) % SKINS.length];
-        setSkin(next);
-        say(`Markdown skin: ${next}`);
+        const before = skin();
+        let chosen = false;
+        setPicker({
+          title: "Markdown skin",
+          start: SKINS.indexOf(before),
+          async query(q) {
+            const ms = q.trim() ? await backend.rank([...SKINS], q, LIMIT) : SKINS.map((path) => ({ path, positions: [] }));
+            return ms.map((m) => ({ label: m.path, hint: SKIN_HINTS[m.path as Skin], positions: m.positions ?? [] }));
+          },
+          // the cursor tries a skin on an open reading view; leaving without a pick puts the old one back
+          cursor: (it) => void (it && setSkin(it.label as Skin)),
+          close: () => void (!chosen && setSkin(before)),
+          pick(it) {
+            chosen = true;
+            setSkin(it.label as Skin);
+            say(`Markdown skin: ${it.label}`);
+          },
+        });
       },
     },
     {
@@ -171,28 +194,23 @@ export function viewCommands({ ed, say, fail, setPicker }: Ctx): Command[] {
         if (!v) {
           return fail("No active editor");
         }
-        const doc = v.state.doc;
-        const headings: { line: number; level: number; text: string; pos: number }[] = [];
-        for (let i = 1; i <= doc.lines; i++) {
-          const l = doc.line(i);
-          const m = l.text.match(/^(#{1,6})\s+(.+)$/);
-          if (m) {
-            headings.push({ line: i, level: m[1].length, text: m[2].trim(), pos: l.from });
-          }
-        }
+        const headings = mdHeadings(v.state);
         if (!headings.length) {
           return fail("No headings found in document");
         }
-        const items = headings.map((h) => ({
+        const items = headings.map((h, i) => ({
           label: `${"  ".repeat(h.level - 1)}${"#".repeat(h.level)} ${h.text}`,
-          hint: `:${h.line}`,
+          hint: `:${h.line}`, // the line tells apart headings of the same text (### Features in a changelog)
           glyph: "\uf02e",
-          pos: h.pos,
-          text: h.text,
+          ...h,
+          nth: headings.slice(0, i).filter((o) => o.text === h.text).length,
         }));
+        // the heading the cursor is under, so the list opens where you are
+        const at = v.state.selection.main.head;
+        const here = Math.max(items.filter((h) => h.from <= at).length - 1, 0);
         setPicker({
           title: "Outline",
-          start: 0,
+          start: here,
           async query(q) {
             const trimmed = q.trim();
             if (!trimmed) {
@@ -203,20 +221,28 @@ export function viewCommands({ ed, say, fail, setPicker }: Ctx): Command[] {
               trimmed,
               LIMIT,
             );
-            return ms.map((m) => {
-              const it = items.find((candidate) => candidate.label === m.path) ?? items[0];
-              return { label: it.label, hint: it.hint, glyph: it.glyph, positions: m.positions ?? [] };
+            // equal labels rank as one name: hand each match the next heading of that label
+            const used = new Set<number>();
+            return ms.flatMap((m) => {
+              const i = items.findIndex((it, j) => it.label === m.path && !used.has(j));
+              if (i < 0) {
+                return [];
+              }
+              used.add(i);
+              const it = items[i];
+              return [{ label: it.label, hint: it.hint, glyph: it.glyph, positions: m.positions ?? [] }];
             });
           },
           pick(it) {
-            const match = items.find((cand) => cand.label === it.label);
+            const match = items.find((cand) => cand.label === it.label && cand.hint === it.hint);
             if (!match) {
               return;
             }
             v.dispatch({
-              selection: { anchor: match.pos },
-              effects: EditorView.scrollIntoView(match.pos, { y: "center" }),
+              selection: { anchor: match.from },
+              effects: EditorView.scrollIntoView(match.from, { y: "start" }),
             });
+            revealHeading(v, match.text, match.nth); // the reading view covers the editor: scroll it too
             say(`Heading: ${match.text}`);
           },
         });

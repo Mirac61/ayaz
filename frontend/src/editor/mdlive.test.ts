@@ -4,7 +4,7 @@ import { ensureSyntaxTree } from "@codemirror/language";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { codeLanguages } from "../lang/registry";
 import { LanguageDescription } from "@codemirror/language";
-import { browsable, imageSrc, linkAt, mdDecorations, mdTables, mdlive, resolveLink, toggleReading } from "./mdlive";
+import { browsable, imageSrc, linkAt, mdDecorations, mdHeadings, mdTables, mdlive, resolveLink, toggleReading } from "./mdlive";
 
 // "|" marks the cursor; "«" and "»" a selection instead. No marker: cursor at the very end.
 function state(src: string) {
@@ -360,4 +360,13 @@ test("an image is a widget off the cursor line, raw on it", () => {
     { from: 0, to: 20, kind: "image", alt: "alt text", url: "pic.png" },
   ]);
   expect(mdDecorations(state("![a](pic.png)|")).widgets).toEqual([]);
+});
+
+test("headings come from the syntax tree: closing #s and setext count, a # in code does not", () => {
+  const st = state("# One ##\n\n```sh\n# not a heading\n```\n\nTwo\n===\n\n### `code` & more\n\n#\n\n    # indented code\n");
+  expect(mdHeadings(st).map((h) => [h.level, h.text, h.line])).toEqual([
+    [1, "One", 1],
+    [1, "Two", 7],
+    [3, "`code` & more", 10],
+  ]);
 });
