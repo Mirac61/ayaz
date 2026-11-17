@@ -169,10 +169,11 @@ test("file.rename onto an existing file asks, then trashes the old one and renam
   ]);
 });
 
-test("file.rename never offers to replace the source itself or a folder holding it", async () => {
+test("file.rename never offers to replace the source itself, a folder holding it or one inside it", async () => {
   for (const [from, to] of [
     ["a.md", "A.md"],
     ["sub/a.md", "sub"],
+    ["sub", "sub/x"],
   ]) {
     const r = await renameOnto(from, to);
     expect(r.picker()).toBeNull();

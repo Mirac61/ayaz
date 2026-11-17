@@ -58,6 +58,7 @@ jobs:
           bun install --frozen-lockfile
           bun run typecheck
           bun run lint
+          bun run lint:css
           bun run test
 
   windows:
