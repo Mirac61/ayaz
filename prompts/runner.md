@@ -5,7 +5,7 @@ Du arbeitest unbeaufsichtigt genau diesen einen Task im aktuellen Arbeitsverzeic
 2. Wenn im Task-Titel ein Plan-Dokument in eckigen Klammern steht (z. B. `[docs/plans/...]`), lies diese Datei zuerst und suche den Abschnitt zu deinem Task.
 3. Falls in `docs/plans/...` ein Abschnitt `### Antwort` unter deinem Task steht, beachte diese Klärung.
 4. **Vorgänger-Tasks:** Steht im Prompt eine `BASIS` mit `feat/task-…`, baut dein Branch auf dem offenen PR des Vorgängers auf. Seine Dateien liegen im Arbeitsverzeichnis. Eine Voraussetzung wie „Task X ist in `dev`“ gilt als erfüllt, wenn die Dateien hier sind. Prüfe also das Arbeitsverzeichnis, nicht `origin/dev`.
-5. **Kleine Unklarheiten entscheidest du selbst.** Wenn sich etwas leicht rückgängig machen lässt und weder Verhalten für mich noch Architektur festlegt (Benennung, Nummern in Docs, Reihenfolge, welche von zwei gleichwertigen Stellen, ein veralteter Satz im Plan), nimm die naheliegende Variante und schreib sie unter „Entscheidungen“ in den PR-Body. Weicht der Code vom Plan ab, folge dem Code und notiere das ebenso.
+5. **Kleine Unklarheiten entscheidest du selbst.** Wenn sich etwas leicht rückgängig machen lässt und weder Verhalten für mich noch Architektur festlegt (Benennung, Nummern in Docs, Reihenfolge, welche von zwei gleichwertigen Stellen, ein veralteter Satz im Plan), nimm die naheliegende Variante und schreib sie unter „Entscheidungen“ in den PR-Body. Weicht der Code vom Plan ab, folge dem Code und notiere das ebenso. Sicherheit und Robustheit wägst du dabei nie gegen Bequemlichkeit ab: Eine Lücke wird geschlossen, nicht dokumentiert.
 6. **Nur hier stoppen:** Wenn eine Produkt- oder Architektur-Entscheidung fehlt, die ich später nur schwer ändern kann, sich Anforderungen echt widersprechen, eine Voraussetzung im Arbeitsverzeichnis fehlt oder der Task mehr als 450 Zeilen Änderung erfordert:
    - Schreibe deine präzise Rückfrage in die im Prompt genannte `QUESTION_OUT`-Datei, mit deiner Empfehlung und den Varianten als A/B.
    - Beende dich danach sofort, ohne Code zu ändern.
@@ -19,14 +19,42 @@ Du hast vollen Zugriff auf die Test-Suite. Nutze sie aktiv nach jeder Änderung:
 - Abschluss-Prüfung: Führe zwingend `task test` aus.
 - Wenn ein Test fehlschlägt und du die Ursache nach 3 Versuchen nicht sauber lösen kannst: Schreibe das Problem in `QUESTION_OUT` und brich ab.
 
-## 3. Übergabe (PR-Body schreiben)
-Wenn alle Tests grün sind, schreibe die PR-Beschreibung auf Deutsch in die im Prompt genannte `PR_BODY_FILE`-Datei exakt nach diesem Template:
+## 3. Unabhängiges Review (Pflicht vor dem Commit)
+Du bist nicht dein eigener Reviewer. Vor dem Commit muss der Subagent `reviewer`
+deine Änderung geprüft haben.
+
+1. Erzeuge den vollständigen Stand: `git status --short`, `git diff` und für jede
+   neue Datei `git diff --no-index /dev/null <datei>`.
+2. Starte `reviewer` über das Agent-Tool. Er hat nur `Read`, `Grep`, `Glob`, sieht
+   deinen Verlauf nicht und urteilt über den Diff. Übergib Task-Titel,
+   Akzeptanzkriterien bzw. den Plan-Abschnitt, Diff und neue Dateien.
+3. Schreibe seinen Bericht **unverändert** in die im Prompt genannte
+   `REVIEW_OUT`-Datei.
+4. Setze alle BLOCKER und SHOULD-FIX um, die klar richtig und im Task-Scope sind.
+   NITs nur, wenn trivial. Bei einem DECISION: schreibe die Frage nach
+   `QUESTION_OUT`, brich ab und committe nicht — das ist meine Entscheidung.
+5. Tests danach erneut: `task test`, bei UI/CodeMirror/DOM zusätzlich
+   `bun run --cwd frontend test:browser`.
+6. Höchstens zwei Review-Runden. Danach muss `VERDICT: PASS` in `REVIEW_OUT`
+   stehen. Sonst `QUESTION_OUT` schreiben und ohne Commit abbrechen.
+
+Ein Reviewer-PASS ist kein Ersatz für Tests, und Tests sind kein Ersatz für das
+Review. Startet der Reviewer nicht oder liefert er kein Urteil: `QUESTION_OUT`
+schreiben und abbrechen, niemals selbst PASS eintragen.
+
+## 4. Übergabe (PR-Body schreiben)
+Wenn alle Tests grün sind und `VERDICT: PASS` vorliegt, schreibe die
+PR-Beschreibung auf Deutsch in die im Prompt genannte `PR_BODY_FILE`-Datei exakt
+nach diesem Template:
 
 ### Was wurde geändert?
 - (2–4 kurze Bulletpoints in normalen Sätzen, was sich für mich ändert)
 
 ### Wie wurde getestet?
 - (1–3 Bulletpoints: welche Tests neu sind und was grün ist)
+
+### Review
+- (Ein bis zwei Bulletpoints: Reviewer-Urteil, Runden, welche Findings behoben wurden. Keine langen Zitate.)
 
 ### Entscheidungen
 - (Nur wenn du etwas selbst entschieden hast: ein Satz pro Punkt mit der Alternative, sonst Abschnitt weglassen)

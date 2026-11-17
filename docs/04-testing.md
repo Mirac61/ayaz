@@ -90,6 +90,31 @@ Not reachable here: native windows, OS menus, native file dialogs. The server bu
 
 The list lives in [07 – Manual checks](07-manual-checks.md). Aim for 10 minutes; if it takes longer, automate something.
 
+## Independent review (agent runs)
+
+Unbeaufsichtigte Agent-Läufe (`scripts/agent-night.sh`) committen nur mit einem
+unabhängigen Review. Der Reviewer ist ein eigener, read-only Subagent
+(`.claude/agents/reviewer.md`) mit frischem Kontext und eigenem Auftrag: Bugs,
+Edge Cases, Sicherheit, Testqualität und Scope. Er gibt `VERDICT: PASS` nur ohne
+BLOCKER, SHOULD-FIX und offene Entscheidung.
+
+| Befehl | Was passiert |
+|---|---|
+| `/review [fokus]` | Prüft den aktuellen Diff, ändert nichts |
+| `/work [task-id]` | Setzt einen Waypoint-Task um, reviewt, fixt Findings, committet (kein Push) |
+| `scripts/agent-night.sh` | Blockiert den Task statt eines PRs, wenn das Urteil nicht PASS ist |
+
+Die Modelle sind getrennt: Umsetzen auf `sonnet` (`--model sonnet` in
+`scripts/agent-night.sh`, im Chat `sonnet` oder `opus`), Review auf `fable` mit
+`effort: high`. Ein Reviewer auf demselben Modell teilt die blinden Flecken des
+Umsetzers und winkt zu viel durch; `/review` und `/work` im Chat prüfen deshalb
+auch dann mit `fable`, wenn die Session auf `sonnet` läuft. Wer das Monatslimit
+schonen muss, setzt in `.claude/agents/reviewer.md` `model: inherit`; das Review
+wird dadurch schwächer, nicht das Gate.
+
+Der Reviewer ersetzt keine Tests und keine manuellen Prüfungen: native Fenster,
+WebKit, Performance und Aussehen bleiben in [07 – Manual checks](07-manual-checks.md).
+
 ## CI
 
 One job (`ci.yml`) on Ubuntu for every pull request and push to `main` or `dev`:

@@ -8,7 +8,7 @@ QUESTIONS_FILE="$REPO_ROOT/QUESTIONS.md"
 MAX_TASKS_PER_NIGHT="${1:-4}"
 TASKS_DONE=0
 OPENED_PRS=""
-TOOLS="Read,Edit,Write,WebFetch,WebSearch,Bash(go test:*),Bash(go build:*),Bash(bun run:*),Bash(task test),Bash(git diff:*),Bash(git status)"
+TOOLS="Read,Edit,Write,Grep,Glob,WebFetch,WebSearch,Agent,Bash(go test:*),Bash(go build:*),Bash(bun run:*),Bash(task test),Bash(git diff:*),Bash(git status:*)"
 
 # 1. Atomares Lock (verhindert doppelte Ausführung)
 if ! mkdir "$LOCK_DIR" 2>/dev/null; then
@@ -49,9 +49,10 @@ for TARGET_ID in $TODO_IDS; do
   BRANCH_NAME="feat/task-$TARGET_ID"
   PR_BODY_FILE="/tmp/ayaz-pr-$TARGET_ID.md"
   QUESTION_OUT="/tmp/ayaz-question-$TARGET_ID.md"
+  REVIEW_OUT="/tmp/ayaz-review-$TARGET_ID.md"
   LOG_FILE="/tmp/ayaz-run-$TARGET_ID.log"
 
-  rm -f "$PR_BODY_FILE" "$QUESTION_OUT" "$LOG_FILE"
+  rm -f "$PR_BODY_FILE" "$QUESTION_OUT" "$REVIEW_OUT" "$LOG_FILE"
   git worktree remove --force "$WORKTREE_DIR" 2>/dev/null || true
   git branch -D "$BRANCH_NAME" 2>/dev/null || true
 
@@ -79,6 +80,15 @@ for TARGET_ID in $TODO_IDS; do
 
   cd "$WORKTREE_DIR"
 
+  # Reviewer-Definition mitnehmen, falls der Basis-Branch sie noch nicht enthält.
+  # Wird vor dem Commit wieder entfernt, damit sie nicht im Task-PR landet.
+  REVIEW_AGENT_COPIED=0
+  if [ ! -f .claude/agents/reviewer.md ]; then
+    mkdir -p .claude/agents
+    cp "$REPO_ROOT/.claude/agents/reviewer.md" .claude/agents/reviewer.md
+    REVIEW_AGENT_COPIED=1
+  fi
+
   # Dependencies & Initial-Build für Go-Embed bereitstellen
   bun install --cwd frontend --frozen-lockfile >> "$LOG_FILE" 2>&1
   bun run --cwd frontend build >> "$LOG_FILE" 2>&1
@@ -88,14 +98,17 @@ Task-Titel: $TASK_TITLE
 BASIS: $BASE_BRANCH
 PR_BODY_FILE: $PR_BODY_FILE
 QUESTION_OUT: $QUESTION_OUT
+REVIEW_OUT: $REVIEW_OUT
 
 $(cat "$REPO_ROOT/prompts/runner.md")"
 
-  # Claude im Worktree starten (Timeout: 30 Min, Max 80 Turns, Mac wachhalten)
+  # Claude im Worktree starten (Timeout: 30 Min, Max 100 Turns, Mac wachhalten).
+  # Coding auf Sonnet; das Review läuft im reviewer-Subagenten auf fable.
   caffeinate -i perl -e 'alarm shift; exec @ARGV' 1800 \
     claude -p "$PROMPT" \
+    --model sonnet \
     --append-system-prompt "$(cat "$REPO_ROOT/AGENTS.md")" \
-    --max-turns 80 \
+    --max-turns 100 \
     --permission-mode acceptEdits \
     --allowedTools "$TOOLS" \
     >> "$LOG_FILE" 2>&1 || true
@@ -132,6 +145,25 @@ $(cat "$REPO_ROOT/prompts/runner.md")"
     continue
   fi
 
+  # Review-Gate: ohne unabhängiges PASS gibt es keinen Commit und keinen PR.
+  if [ ! -s "$REVIEW_OUT" ] || ! grep -q '^VERDICT: PASS' "$REVIEW_OUT"; then
+    echo "Task #$TARGET_ID ohne Reviewer-PASS -> BLOCKED."
+    cd "$REPO_ROOT"
+    waypoint task block "$TARGET_ID"
+    {
+      echo "## 🔎 Review nicht bestanden bei Task #$TARGET_ID: $TASK_TITLE ($(date "+%Y-%m-%d %H:%M"))"
+      if [ -s "$REVIEW_OUT" ]; then
+        cat "$REVIEW_OUT"
+      else
+        echo "Der Agent hat keinen Reviewer-Bericht erzeugt. Log: \`$LOG_FILE\`"
+      fi
+      echo ""
+      echo "---"
+      echo ""
+    } >> "$QUESTIONS_FILE"
+    continue
+  fi
+
   # Unabhängiges Host-Gate (Frontend-Build für Embed + task test + go test -race)
   bun run --cwd frontend build >> "$LOG_FILE" 2>&1 || true
   if ! task test >> "$LOG_FILE" 2>&1 || ! go test -race ./... >> "$LOG_FILE" 2>&1 || [ ! -s "$PR_BODY_FILE" ]; then
@@ -154,6 +186,9 @@ $(cat "$REPO_ROOT/prompts/runner.md")"
   # Build-Artefakte vor dem Commit wieder entfernen
   rm -rf frontend/dist
   git checkout -- frontend/dist 2>/dev/null || true
+
+  # Nur für den Lauf kopierte Reviewer-Definition nicht mitcommitten.
+  [ "${REVIEW_AGENT_COPIED:-0}" = 1 ] && rm -f .claude/agents/reviewer.md
 
   # Größen-Gate prüfen (Max 450 Zeilen, inkl. neuer Dateien)
   git add -A
@@ -236,6 +271,7 @@ $REVIEWS
 
 ## Kommentare
 $COMMENTS" \
+    --model sonnet \
     --append-system-prompt "$(cat "$REPO_ROOT/AGENTS.md")" \
     --max-turns 60 \
     --permission-mode acceptEdits \

@@ -18,6 +18,7 @@
 ## Stil & Qualität
 - UI-Strings, Code-Kommentare und Commit-Subjects auf Englisch; Plan-Docs und PR-Beschreibungen dürfen Deutsch sein.
 - Jede Logik-Änderung braucht einen echten Unit-/Browser-Test direkt neben dem Code.
+- Unbeaufsichtigte Läufe committen nur mit `VERDICT: PASS` des Reviewers (`.claude/agents/reviewer.md`); Review-Findings werden nie durch Test-Abschwächung „gelöst“.
 - Kleinste saubere Lösung: Keine ungefragten Refactorings oder Umbenennungen außerhalb des Tasks.
 
 ## Doku
