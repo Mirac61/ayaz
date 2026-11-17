@@ -13,6 +13,25 @@ import (
 	"time"
 )
 
+// ProgramOf returns the first shell word of command with its quotes removed: `'/a b/agent' --stdio` gives `/a b/agent`.
+func ProgramOf(command string) string {
+	var w strings.Builder
+	var quote rune
+	for _, r := range strings.TrimSpace(command) {
+		switch {
+		case quote != 0 && r == quote:
+			quote = 0
+		case quote == 0 && (r == '\'' || r == '"'):
+			quote = r
+		case quote == 0 && (r == ' ' || r == '\t'):
+			return w.String()
+		default:
+			w.WriteRune(r)
+		}
+	}
+	return w.String() // shortcut: no backslash escapes, a path with a backslash-escaped space is read wrong
+}
+
 // quoteShell returns s wrapped in single quotes with existing single quotes escaped.
 func quoteShell(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"

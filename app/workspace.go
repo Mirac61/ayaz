@@ -165,8 +165,10 @@ func (s *WorkspaceService) Close(ws string) {
 	delete(s.indexes, indexKey{ws, false})
 	delete(s.indexes, indexKey{ws, true})
 	s.mu.Unlock()
-	s.stop(func(w string) bool { return w == ws })
+	// The registry goes first: trackServer refuses a server of an unknown workspace, so one that registers after
+	// the stop snapshot below can only have registered before the workspace vanished, and the snapshot sees it.
 	s.reg.Close(ws)
+	s.stop(func(w string) bool { return w == ws })
 }
 
 // bindWindow ties ws to the calling window. Its first workspace hooks the window: a close asks the frontend first
