@@ -69,11 +69,11 @@ const clampSidebar = (w: number) => Math.round(Math.min(640, Math.max(160, w)));
 type Dock = "bottom" | "right" | "top";
 const DOCKS: Dock[] = ["bottom", "right", "top"]; // term.dock cycles them
 
+const GIT_GAP = 300; // ms between two `git status` runs while files keep changing
+
 // One workspace: tree on the left, editor panes in splits, status line. Every action is a command (ADR-0010).
 // onSwitch opens another folder in this window: a root from the recent list, or null for the folder dialog.
 // initial: a file to open in pane 1 after the session is back (settings.json in the settings window).
-const GIT_GAP = 300; // ms between two `git status` runs while files keep changing
-
 export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: string | null): void; initial?: string }) {
   const files = useMemo(() => backend.files(ws.id), [ws.id]);
   const [status, setStatus] = useState<Status>({ pane: 1, path: null, dirty: false, mode: "normal", line: 1, col: 1, lines: 1 });

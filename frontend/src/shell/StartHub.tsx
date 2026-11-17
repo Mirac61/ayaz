@@ -6,7 +6,7 @@ import { recentFolders } from "./folders";
 import { ago, branchText } from "./startPage";
 import "./startHub.css";
 
-const short = (p: string) => p.replace(/^\/Users\/[^/]+/, "~").replace(/^\/home\/[^/]+/, "~");
+const short = (p: string) => p.replace(/^(?:\/Users\/|\/home\/|[A-Za-z]:\\Users\\)[^/\\]+/, "~");
 
 interface Props {
   name: string;
