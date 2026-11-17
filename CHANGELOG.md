@@ -1,5 +1,56 @@
 # Changelog
 
+## [0.10.0](https://github.com/Mirac61/ayaz/compare/v0.9.0...v0.10.0) (2026-11-16)
+
+
+### Features
+
+* **find:** `<Space>f.` resumes the last search picker with its text ([bfd5891](https://github.com/Mirac61/ayaz/commit/bfd5891721ceeae5f263c5d01d1cf58c2426d52e))
+* **find:** `<Space>fT` lists TODO, FIXME, HACK and XXX comments ([4162d40](https://github.com/Mirac61/ayaz/commit/4162d40bc6c7845817fa9327fafccfe8c768eda3))
+* **history:** Cmd/Ctrl+Enter restores an earlier save as unsaved changes ([3f74a15](https://github.com/Mirac61/ayaz/commit/3f74a15cd2a2f91bb3559dc626baf56ce97ae25e))
+* **statusbar:** show "plain text" when a long line turns highlighting off ([311839d](https://github.com/Mirac61/ayaz/commit/311839d4b79a2da1b36204e156bf3433121c183a))
+* **tasks:** ${file}, ${dir} and ${line} placeholders in settings tasks ([089273c](https://github.com/Mirac61/ayaz/commit/089273cad59e52c00e7e853c770ad1ae9c742bc7))
+* **terminal:** file:line:col in terminal output opens the file ([57b2597](https://github.com/Mirac61/ayaz/commit/57b25973cae99026edc0f5904f663af209eb53ff))
+
+
+### Bug Fixes
+
+* **ci:** bump Go to 1.27.4 for GO-2026-6859 ([e42d613](https://github.com/Mirac61/ayaz/commit/e42d61328fa8c518b118edc7def804964e1f860e))
+* **history:** review fixes for the restore pick ([b084564](https://github.com/Mirac61/ayaz/commit/b084564bc9db560bdb1f48d395aa8db8c07ab4d4))
+* **picker:** Enter opens the selected hit of a streamed search ([df184f9](https://github.com/Mirac61/ayaz/commit/df184f9e87411884d3a07388cdd9274c73887958))
+* **tasks:** quote-aware placeholder expansion, no expansion for doc builds ([12e8aa9](https://github.com/Mirac61/ayaz/commit/12e8aa923020e41eefa2b32645f351b512963ed8))
+* **tasks:** refuse ${file}/${dir} where the quoting can't be told ([0793087](https://github.com/Mirac61/ayaz/commit/07930873884df6269222758c161ae7b8fe9e049c))
+* **tasks:** treat any unquoted # as a possible comment ([e3033c7](https://github.com/Mirac61/ayaz/commit/e3033c74057bfee8af70f469f28ee5c96bd899df))
+* **terminal:** file links use cell columns, not string offsets ([0dc2605](https://github.com/Mirac61/ayaz/commit/0dc260546e81636a69551803401e025ab99113eb))
+* **terminal:** resolve a link against the cwd at its own column ([d8c2e7c](https://github.com/Mirac61/ayaz/commit/d8c2e7cd7ebf8f9c69581638c0b4851e0f8e6c4b))
+* **terminal:** resolve file links against the output's cwd, skip wrapped rows, clamp column 0 ([da6aa68](https://github.com/Mirac61/ayaz/commit/da6aa68d3d062741b51542bdf3fb2b189935a07f))
+* **terminal:** same-row cwd change, column 0 test, file links in the scratch terminal ([8d71d6e](https://github.com/Mirac61/ayaz/commit/8d71d6e9eef2f418082d12e011c0a230535a5d5e))
+
+## [0.9.0](https://github.com/Mirac61/ayaz/compare/v0.8.2...v0.9.0) (2026-11-16)
+
+
+### Features
+
+* **git:** `<Space>go` opens the line on GitHub, `<Space>gy` copies a permalink ([f30a3f4](https://github.com/Mirac61/ayaz/commit/f30a3f4a1ec732383e273ed251d0331c9b2002c1))
+* **tree:** c duplicates a file ([92404eb](https://github.com/Mirac61/ayaz/commit/92404eb7d84575a549f8c71a02af2dd3e5e36306))
+
+
+### Bug Fixes
+
+* **git:** keep the token out of bad remotes, keep a leading space in the prefix, strip head:// from links ([247231a](https://github.com/Mirac61/ayaz/commit/247231a965a904a80eebd1aa9aaccfa9a827ac5a))
+* **tree:** copy writes through the handle it created, tests for backslash paths, umask and path cleaning ([4cb183e](https://github.com/Mirac61/ayaz/commit/4cb183e3b8694f95a9c7cbd2bd471208ea3a482e))
+* **tree:** duplicate reveals the canonical path out of the filter, copy never exists wider than its source, refuse backslash paths on Windows ([687c307](https://github.com/Mirac61/ayaz/commit/687c30724f74f904d5ca06566254be4270b9b131))
+* **tree:** reveal keeps the cursor on the revealed file, with a browser test for a filtered duplicate ([0146f9b](https://github.com/Mirac61/ayaz/commit/0146f9b1b7ce30c378d546ba808a8bb8a97ff325))
+* **window:** ask about the current workspace when the close button is clicked ([167fd3c](https://github.com/Mirac61/ayaz/commit/167fd3c263c7469ab0a0ac98f3fb85971cba6ea2))
+* **window:** close button does nothing after Switch folder ([191cbe2](https://github.com/Mirac61/ayaz/commit/191cbe2e43486d51ee79a79a015f7ea3e5ee3dec))
+
+## [0.8.2](https://github.com/Mirac61/ayaz/compare/v0.8.1...v0.8.2) (2026-11-15)
+
+
+### Bug Fixes
+
+* **ui:** statusline fields overlapped, flatten the project chip ([01129f1](https://github.com/Mirac61/ayaz/commit/01129f134a08b59b9103ccefd4b40cfdb2a72a98))
+
 ## [0.8.1](https://github.com/Mirac61/ayaz/compare/v0.8.0...v0.8.1) (2026-11-15)
 
 
@@ -19,20 +70,14 @@
 
 * Add sternklar theme ([1572479](https://github.com/Mirac61/ayaz/commit/15724799a67ab6107c09ec67b000a9576f9bc832))
 * Clear hierarchy in the clone dialog ([e3928f3](https://github.com/Mirac61/ayaz/commit/e3928f3c470671405d053e50aaecc6f9deee13aa))
-* Clear hierarchy in the clone dialog ([abff53a](https://github.com/Mirac61/ayaz/commit/abff53a7db1d08bbe599b95edb96874dbeedc039))
 * Recent folders as a star chart on the start page ([8e6bd3c](https://github.com/Mirac61/ayaz/commit/8e6bd3cb2d267d57ef8a8358f899cd6bbd0a5cf1))
-* Recent folders as a star chart on the start page ([cdb0294](https://github.com/Mirac61/ayaz/commit/cdb02942ae950287c754fc122e7b360050ae49c4))
 * **settings:** add "ligatures" setting for the editor font ([00e95ed](https://github.com/Mirac61/ayaz/commit/00e95ed60db2c1d36fd840e9cfd411e4d8631b9b))
-* **settings:** add "ligatures" setting for the editor font [task 29] ([0c5fbfd](https://github.com/Mirac61/ayaz/commit/0c5fbfd68e87612ad13d8a80dc770fcaf34dae05))
 * Sidebar tabs and git remote actions as icons, visible commit field ([f447ed9](https://github.com/Mirac61/ayaz/commit/f447ed96837c1f5d1b5f925d47f75e77df916296))
-* Sternklar theme, icon sidebar tabs and git actions ([df37879](https://github.com/Mirac61/ayaz/commit/df378797c964c3cfc5142762d83f7137e33f8694))
-* Sternklar theme, star chart start page, ligatures setting ([c25d65e](https://github.com/Mirac61/ayaz/commit/c25d65e355782ac00472286cdd03ea11ac8b6fec))
 
 
 ### Bug Fixes
 
 * **git:** english tooltips, short commit placeholder and nowrap remote buttons ([9172eb4](https://github.com/Mirac61/ayaz/commit/9172eb46156c08ffc2af188f2e9a08ba22e9a22b))
-* **git:** english tooltips, short commit placeholder and nowrap remote buttons [task 28] ([18c7077](https://github.com/Mirac61/ayaz/commit/18c70775d8289990a3465eaebbbbed95536857d4))
 * Keep star names inside the chart, plain key numbers ([21a0cf4](https://github.com/Mirac61/ayaz/commit/21a0cf4ba2c45a16b7ea856b8e425feb8b0e3b21))
 
 ## [0.7.0](https://github.com/Mirac61/ayaz/compare/v0.6.0...v0.7.0) (2026-11-15)
@@ -55,11 +100,8 @@
 ### Features
 
 * **ci:** automate releases with release-please and multi-platform packaging ([6354c9f](https://github.com/Mirac61/ayaz/commit/6354c9faff1422ded9da106e17ddefb71a3b4555))
-* **ci:** automate releases with release-please and multi-platform packaging ([4de984f](https://github.com/Mirac61/ayaz/commit/4de984f34c9084acd944d3b04b9e3a771a75926b))
 * **docs:** dedicated DocsHub page with logical categories and smart markdown reading mode ([24f1b18](https://github.com/Mirac61/ayaz/commit/24f1b181ce5930e8a81a2d62b97777b850b3a2df))
-* **docs:** dedicated DocsHub page with reading flow, light mode, and collapsible TOC ([86e1b2d](https://github.com/Mirac61/ayaz/commit/86e1b2d612f5b1189155ebdfff2cb84a24c77b8d))
 * **docs:** polish DocsHub layout, add light mode, and collapsible TOC ([a668717](https://github.com/Mirac61/ayaz/commit/a6687172fbce002dc760978514eb2950e74680d4))
-* Welcome Hub Relaunch, DocsHub & Automated Release Pipeline ([bc02899](https://github.com/Mirac61/ayaz/commit/bc0289975de0eb1522c2a1b44a904c31c26d3c8c))
 
 
 ### Bug Fixes
@@ -68,4 +110,3 @@
 * **review:** address CodeRabbit feedback for release workflow and DocsHub ([cee0ada](https://github.com/Mirac61/ayaz/commit/cee0ada89fb56d5ee085013c827b9983c5771166))
 * **ui:** center welcome action tile icons with Lucide SVG components ([287a781](https://github.com/Mirac61/ayaz/commit/287a781604cc9edc8f6a3d2886de9b66ad5b5486))
 * **ui:** center welcome action tile icons with Lucide SVG vectors ([82e8717](https://github.com/Mirac61/ayaz/commit/82e8717bce30e4ce609d0db543f380be8f8d91e6))
-* **ui:** center welcome action tile icons with Lucide SVG vectors ([81c89dc](https://github.com/Mirac61/ayaz/commit/81c89dc7288e52b7e68488b5860f70f0f62a7ccb))
