@@ -278,8 +278,7 @@ test("debug a Go test at the cursor with <Space>rd: stops at the breakpoint insi
   test.skip(!hasDlv, "dlv not in PATH");
   test.skip(process.env.AYAZ_DEBUG_E2E !== "1", "set AYAZ_DEBUG_E2E=1 to run it (needs developer tools access on macOS)");
   test.setTimeout(120_000);
-  mkdirSync(join(e2eWorkspace, "zgotest"), { recursive: true });
-  writeFileSync(join(e2eWorkspace, "zgotest", "go.mod"), "module zgotest\n\ngo 1.21\n");
+  mkdirSync(join(e2eWorkspace, "zgotest"), { recursive: true }); // a package of the workspace's module, like zdebug: no go.mod of its own
   writeFileSync(
     join(e2eWorkspace, "zgotest", "sum_test.go"),
     `package zgotest
@@ -303,7 +302,9 @@ func TestSum(t *testing.T) {
   await tree.getByRole("treeitem", { name: "sum_test.go" }).click();
   const code = page.locator(".cm-content");
   await expect(code).toContainText("total += i");
+  const dots = page.locator(".cm-bp .cm-gutterElement:not([style*='visibility']) .cm-bp-dot");
   await page.keyboard.type("gg7j db"); // line 8: total += i
+  await expect(dots).toHaveCount(1);
   await page.keyboard.type(" rd");
   const status = page.locator(".statusline");
   await expect(status).toContainText("DEBUG paused", { timeout: 90_000 }); // Delve builds the test binary first

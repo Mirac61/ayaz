@@ -16,7 +16,7 @@ func helper() {}
 `;
 
 // A workbench with one open file; the cursor sits on the first occurrence of `at`.
-function setup(path: string, at: string) {
+function setup(path: string | null, at: string) {
   const state = EditorState.create({ doc: SRC, extensions: [go()], selection: { anchor: SRC.indexOf(at) } });
   const started: unknown[] = [];
   const failed: string[] = [];
@@ -47,4 +47,18 @@ test("debug.test fails outside a test and in a file that isn't Go, and starts no
   await b.run();
   expect(b.failed).toEqual(["Debugging a test works for Go files only"]);
   expect(a.started.concat(b.started)).toEqual([]);
+});
+
+test("debug.test: a Go file that isn't a test file has no test at the cursor", async () => {
+  const w = setup("p.go", 't.Log("a")');
+  await w.run();
+  expect(w.failed).toEqual(["No test at the cursor"]);
+  expect(w.started).toEqual([]);
+});
+
+test("debug.test: no workspace file (outside the folder or a head:// view, activePath is null) starts nothing", async () => {
+  const w = setup(null, 't.Log("a")');
+  await w.run();
+  expect(w.failed).toEqual(["Debugging a test works for Go files only"]);
+  expect(w.started).toEqual([]);
 });

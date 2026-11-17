@@ -21,10 +21,10 @@ export const goAdapter: DebugAdapter = {
   target: (path) => (path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : ""), // Delve debugs a package: the file's folder
   launch: (program, root) => ({ mode: "debug", program, cwd: root, console: "integratedTerminal" }),
   // Delve's "test" mode runs the package's tests; args are the test binary's flags. Go test names are word characters, so no regex escaping.
-  launchTest: (program, root, name) => ({
+  launchTest: (program, _root, name) => ({
     mode: "test",
     program,
-    cwd: root,
+    cwd: program, // like `go test`: the test binary runs in its package folder, so testdata/ resolves
     args: ["-test.run", `^${name}$`, "-test.v"],
     console: "integratedTerminal",
   }),

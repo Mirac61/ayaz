@@ -13,6 +13,11 @@ describe("vim ex parser", () => {
     expect(isEx("q!")).toBe(true);
   });
 
+  it("identifies the test ex commands, :DebugTest among them", () => {
+    expect(isEx("TestNearest")).toBe(true);
+    expect(isEx("DebugTest")).toBe(true);
+  });
+
   it("identifies git ex commands and shortcuts", () => {
     expect(isEx("Gpush")).toBe(true);
     expect(isEx("Gp")).toBe(true);

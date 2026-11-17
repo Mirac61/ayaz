@@ -78,6 +78,9 @@ export class Debugger {
       return this.say("Already debugging: <Space>dq stops it");
     }
     const { adapter, target } = pickAdapter(this.ed.activePath());
+    if (test !== undefined && !adapter.launchTest) {
+      throw new Error(`No debug-test support for ${adapter.id}`); // before the adapter is started
+    }
     const session = (this.session = new DebugSession(new DapClient(this.connect(adapter.id)), this.root, {
       state: (s) => {
         if (this.session === session) {
@@ -105,7 +108,12 @@ export class Debugger {
       runInTerminal: this.ed.runInTerminal ? (args) => this.ed.runInTerminal!(args) : undefined,
     }));
     try {
-      await session.start(this.ed.breakpoints(), target ? `${this.root}/${target}` : undefined, adapter, test);
+      await session.start({
+        breakpoints: this.ed.breakpoints(),
+        program: target ? `${this.root}/${target}` : undefined,
+        adapter,
+        test,
+      });
     } catch (e) {
       throw e instanceof Error ? e : new Error(String(e));
     }

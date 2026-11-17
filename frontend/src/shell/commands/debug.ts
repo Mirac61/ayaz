@@ -2,10 +2,10 @@
 import type { Command } from "../../core/commands";
 import { pickAdapter } from "../../debug/adapters";
 import { formatBreakpointPrompt, parseBreakpointPrompt } from "../../editor/breakpoints";
-import { testAt } from "../../editor/tests";
 import { lines, type Row } from "../../debug/variables";
 import { installHint } from "../../editor/lsp";
 import type { Item, PickerSource } from "../Picker";
+import { cursorTest } from "./tests";
 import { errText, type Ctx } from "./context";
 
 export function debugCommands(c: Ctx): Command[] {
@@ -117,17 +117,15 @@ export function debugCommands(c: Ctx): Command[] {
       id: "debug.test",
       title: "Debug the test at the cursor (<Space>rd)",
       run: () => {
-        const path = c.ed.activePath();
-        const view = c.ed.activeView();
+        const at = cursorTest(c);
         // pickAdapter falls back to Go for any file, so look at the extension
-        if (!path || !view || !path.endsWith(".go")) {
+        if (!at?.path.endsWith(".go")) {
           return c.fail("Debugging a test works for Go files only");
         }
-        const test = testAt(view.state, path, view.state.selection.main.head);
-        if (!test) {
+        if (!at.name) {
           return c.fail("No test at the cursor");
         }
-        return c.dbg.start({ test: test.name }).catch((e) => startFailed(e));
+        return c.dbg.start({ test: at.name }).catch((e) => startFailed(e));
       },
     },
     {

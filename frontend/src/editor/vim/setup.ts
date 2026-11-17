@@ -42,6 +42,7 @@ const EX: [name: string, prefix: string, command: string][] = [
   ["TestNearest", "TestNearest", "test.nearest"],
   ["TestFile", "TestFile", "test.file"],
   ["TestAll", "TestAll", "test.all"],
+  ["DebugTest", "DebugTest", "debug.test"],
   ["Gwrite", "Gw", "git.stageFile"],
   ["Gread", "Gr", "git.discardFile"],
   ["Gcommit", "Gc", "git.commit"],
