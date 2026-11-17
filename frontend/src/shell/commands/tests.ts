@@ -2,8 +2,8 @@
 import type { Command } from "../../core/commands";
 import { settings } from "../../core/settings";
 import { testResults, type TestResults } from "../../core/testResults";
-import { adapterFor, testCommand, type Scope } from "../../core/tests";
-import { testAt } from "../../editor/tests";
+import { adapterFor, testCommand, type Scope, type TestResult } from "../../core/tests";
+import { testAt, testsIn } from "../../editor/tests";
 import type { Ctx } from "./context";
 
 const SCOPES: [Scope, string][] = [
@@ -15,6 +15,8 @@ const SCOPES: [Scope, string][] = [
 export function testCommands(c: Ctx, results: TestResults = testResults, templates = () => settings().tests): Command[] {
   // The built command, not the scope: <Space>rt repeats the same test from any file.
   let last: (() => void) | null = null;
+  let runs = 0;
+  const owner = new Map<string, number>(); // the run whose output a path's results show
 
   const start = (scope: Scope) => {
     const path = c.ed.current()?.path;
@@ -27,6 +29,10 @@ export function testCommands(c: Ctx, results: TestResults = testResults, templat
       return c.fail("No test runner for this file type");
     }
     let name: string | undefined;
+    const names = scope === "file" ? testsIn(view.state, path).map((t) => t.name) : undefined;
+    if (names && !names.length) {
+      return c.fail("No tests in this file");
+    }
     if (scope === "nearest") {
       name = testAt(view.state, path, view.state.selection.main.head)?.name;
       if (!name) {
@@ -35,16 +41,35 @@ export function testCommands(c: Ctx, results: TestResults = testResults, templat
     }
     let cmd: string;
     try {
-      cmd = testCommand(adapter, scope, { file: path, name }, templates()[adapter.id]);
+      cmd = testCommand(adapter, scope, { file: path, name, names }, templates()[adapter.id]);
     } catch (e) {
       return c.fail((e as Error).message);
     }
     const label = scope === "nearest" ? `Test ${name}` : scope === "file" ? `Test ${path}` : "Test all";
-    const run = () =>
+    const run = () => {
+      const id = ++runs;
+      owner.set(path, id);
+      const seen = new Map<string, TestResult>(); // the terminal's scrollback is capped: keep what scrolled out
       c.task(
         { name: label, cmd },
-        { onText: (text) => results.set(path, adapter.parse(text), Date.now()) }, // the terminal hands over all of its text each time
+        {
+          onText: (text, done) => {
+            if (owner.get(path) !== id) {
+              return; // a newer run of this file took over
+            }
+            for (const r of adapter.parse(text)) {
+              if (r.status === "fail" || seen.get(r.name)?.status !== "fail") {
+                seen.set(r.name, r);
+              }
+            }
+            results.set(path, [...seen.values()], Date.now());
+            if (done) {
+              seen.clear(); // <Space>rl replays this callback: the next run starts empty
+            }
+          },
+        },
       );
+    };
     last = run;
     run();
   };

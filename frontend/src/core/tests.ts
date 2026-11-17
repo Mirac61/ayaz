@@ -13,11 +13,17 @@ export interface TestResult {
   status: "pass" | "fail" | "skip";
   ms?: number;
 }
+// `name` is needed for "nearest"; `names` are the tests the file declares, for "file".
+export interface TestAt {
+  file: string;
+  name?: string;
+  names?: string[];
+}
 export interface TestAdapter {
   id: string;
   exts: string[];
-  // The shell line for a scope. `file` is workspace-relative; `name` is needed for "nearest".
-  command(scope: Scope, at: { file: string; name?: string }): string;
+  // The shell line for a scope. `file` is workspace-relative.
+  command(scope: Scope, at: TestAt): string;
   parse(output: string): TestResult[];
 }
 
@@ -34,14 +40,15 @@ const STATUS = { PASS: "pass", FAIL: "fail", SKIP: "skip" } as const;
 export const goAdapter: TestAdapter = {
   id: "go",
   exts: ["go"],
-  command(scope, { file, name }) {
+  command(scope, { file, name, names }) {
     const slash = file.lastIndexOf("/");
     const pkg = slash < 0 ? "." : arg(`./${file.slice(0, slash)}`);
     if (scope === "all") {
       return "go test -v ./...";
     }
     if (scope === "file") {
-      return `go test -v ${pkg}`;
+      // go test runs packages, not files: the names this file declares keep the other files' tests out
+      return names?.length ? `go test -v -run ${q(`^(${names.join("|")})$`)} ${pkg}` : `go test -v ${pkg}`;
     }
     if (!name) {
       throw new Error("A nearest test needs a test name");
@@ -74,15 +81,17 @@ export const goAdapter: TestAdapter = {
 
 export const adapters = [goAdapter];
 
-// The shell line for a scope: the adapter's own, or the user's `tests` template from settings.json (all three scopes).
-export function testCommand(a: TestAdapter, scope: Scope, at: { file: string; name?: string }, template?: string): string {
-  if (template === undefined) {
+// The shell line for a scope: the adapter's own, or the user's `tests` template from settings.json.
+// A template with ${name} is for "nearest" only and one without it for "file"; "all" is always the adapter's own.
+export function testCommand(a: TestAdapter, scope: Scope, at: TestAt, template?: string): string {
+  const named = template?.includes("${name}") ?? false;
+  if (template === undefined || scope === "all" || (named && scope !== "nearest")) {
     return a.command(scope, at);
   }
-  if (scope === "nearest" && !template.includes("${name}")) {
+  if (scope === "nearest" && !named) {
     throw new Error(`No \${name} in your tests.${a.id} command`);
   }
-  return expandTask(template, { file: at.file, name: scope === "nearest" ? at.name : undefined }) ?? template;
+  return expandTask(template, { file: at.file, name: at.name }) ?? template;
 }
 
 // The adapter for a path by its extension, or null when no runner knows it.
