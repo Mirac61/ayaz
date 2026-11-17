@@ -77,6 +77,8 @@ export interface Backend {
   onFsChanged(ws: string, fn: (c: FsChange) => void): () => void;
   // Finder or Dock files dropped on the file tree were copied into ws: the new workspace paths and what failed.
   onDropped(ws: string, fn: (d: { paths: string[] | null; errors: string[] | null }) => void): () => void;
+  // While a big drop (16 MB and up) is copied: bytes done of total for one dropped item, a few times a second.
+  onDropProgress(ws: string, fn: (p: { name: string; done: number; total: number }) => void): () => void;
   onLspStatus(ws: string, fn: (s: LspStatus) => void): () => void;
   // HEAD, the index or the reflog of ws's repository moved (commit, checkout, stage); Go polls every second.
   onGitChanged(ws: string, fn: () => void): () => void;
@@ -218,6 +220,12 @@ export const backend: Backend = {
     }),
   onDropped: (ws, fn) =>
     Events.On("app:dropped", (e: { data: { ws: string; paths: string[] | null; errors: string[] | null } }) => {
+      if (e.data.ws === ws) {
+        fn(e.data);
+      }
+    }),
+  onDropProgress: (ws, fn) =>
+    Events.On("app:drop-progress", (e: { data: { ws: string; name: string; done: number; total: number } }) => {
       if (e.data.ws === ws) {
         fn(e.data);
       }

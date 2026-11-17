@@ -30,7 +30,7 @@ func TestImportFailureLeavesNothing(t *testing.T) {
 	must(t, os.MkdirAll(src, 0o755))
 	must(t, os.WriteFile(filepath.Join(src, "a.png"), []byte("a"), 0o644))
 	must(t, os.WriteFile(filepath.Join(src, "locked.png"), []byte("b"), 0o000)) // unreadable: the copy fails half way
-	if _, err := w.Import(src, ""); err == nil {
+	if _, err := w.Import(src, "", nil); err == nil {
 		t.Skip("running as root, the file is readable")
 	}
 	if _, err := os.Lstat(filepath.Join(w.Root, "pics")); err == nil {

@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/Mirac61/ayaz/internal/git"
 	"github.com/Mirac61/ayaz/internal/index"
@@ -302,6 +303,20 @@ type DropEvent struct {
 	Errors []string `json:"errors"`
 }
 
+// DropProgress is the "app:drop-progress" payload while a big drop is copied: bytes done of total for one dropped item.
+type DropProgress struct {
+	WS    string `json:"ws"`
+	Name  string `json:"name"`
+	Done  int64  `json:"done"`
+	Total int64  `json:"total"`
+}
+
+// Copies smaller than this are done before a percentage could be read; bigger ones report at most every progressEvery.
+const (
+	progressFrom  = 16 << 20
+	progressEvery = 200 * time.Millisecond
+)
+
 // importDropped copies files dropped on the tree into the workspace folder dir; the tree shows them by the watcher.
 func (s *WorkspaceService) importDropped(ws, dir string, srcs []string) {
 	w, err := s.reg.Get(ws)
@@ -310,7 +325,15 @@ func (s *WorkspaceService) importDropped(ws, dir string, srcs []string) {
 	}
 	ev := DropEvent{WS: ws}
 	for _, src := range srcs {
-		if rel, err := w.Import(src, dir); err != nil {
+		var last time.Time
+		progress := func(done, total int64) {
+			if total < progressFrom || time.Since(last) < progressEvery {
+				return
+			}
+			last = time.Now()
+			s.emit("app:drop-progress", DropProgress{WS: ws, Name: filepath.Base(src), Done: done, Total: total})
+		}
+		if rel, err := w.Import(src, dir, progress); err != nil {
 			ev.Errors = append(ev.Errors, err.Error())
 		} else {
 			ev.Paths = append(ev.Paths, rel)

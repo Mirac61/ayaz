@@ -184,6 +184,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
   const [updateState, setUpdateState] = useState<UpdateState>(() => updaterStore.state);
   const [updateInfo, setUpdateInfo] = useState(() => updaterStore.info);
   const [updateProgress, setUpdateProgress] = useState<UpdateProgress | null>(() => updaterStore.progress);
+  const [copying, setCopying] = useState<{ name: string; percent: number } | null>(null); // a big Finder drop
 
   useEffect(() => {
     return updaterStore.subscribe(() => {
@@ -1307,20 +1308,24 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
     [ed, ws.id],
   );
 
-  // Finder or Dock files dropped on the tree were copied (Go): the cursor goes to the first, failures are said.
-  useEffect(
-    () =>
-      backend.onDropped(ws.id, ({ paths, errors }) => {
-        if (paths?.length) {
-          void tree.current?.reveal(paths[0]);
-          say(paths.length === 1 ? `Copied "${paths[0]}"` : `Copied ${paths.length} items`);
-        }
-        if (errors?.length) {
-          fail(errors.join("; "));
-        }
-      }),
-    [ws.id],
-  );
+  // Finder or Dock files dropped on the tree were copied (Go): the cursor goes to the first, failures are said. A big
+  // copy shows its percentage in the status line until then.
+  useEffect(() => {
+    const progress = backend.onDropProgress(ws.id, ({ name, done, total }) =>
+      setCopying({ name, percent: Math.min(100, Math.floor((done * 100) / total)) }),
+    );
+    const dropped = backend.onDropped(ws.id, ({ paths, errors }) => {
+      setCopying(null);
+      if (paths?.length) {
+        void tree.current?.reveal(paths[0]);
+        say(paths.length === 1 ? `Copied "${paths[0]}"` : `Copied ${paths.length} items`);
+      }
+      if (errors?.length) {
+        fail(errors.join("; "));
+      }
+    });
+    return () => (progress(), dropped());
+  }, [ws.id]);
 
   // A commit or checkout (lazygit in the terminal, too): new HEAD for the gutter, maybe a new branch.
   useEffect(() => {
@@ -1712,6 +1717,9 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
           </Seg>
         )}
         {status.plain && <Seg title="A line over 20,000 characters: syntax highlighting is off for this file">plain text</Seg>}
+        {copying && (
+          <Seg title={`Copying "${copying.name}" into the folder: ${copying.percent}%`}>⇣ Copying {copying.percent}%</Seg>
+        )}
         {updateState === "ready" ? (
           <Seg className="update-ready" onPress={() => setShowUpdateDialog(true)} title="Update ready! Click to restart Ayaz">
             ↻ Restart to update
