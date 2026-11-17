@@ -113,11 +113,12 @@ function pyTests(state: EditorState, path: string): Span[] {
     }
   };
   for (let n = syntaxTreeOf(state).topNode.firstChild; n; n = n.nextSibling) {
-    const cls = n.name === "ClassDefinition" ? n.getChild("VariableName") : null;
+    const stmt = n.name === "DecoratedStatement" ? (n.getChild("ClassDefinition") ?? n) : n;
+    const cls = stmt.name === "ClassDefinition" ? stmt.getChild("VariableName") : null;
     if (!cls) {
       add(n, "");
     } else if (/^Test/.test(text(cls))) {
-      for (let m = n.getChild("Body")?.firstChild; m; m = m.nextSibling) {
+      for (let m = stmt.getChild("Body")?.firstChild; m; m = m.nextSibling) {
         add(m, `${text(cls)}::`);
       }
     }

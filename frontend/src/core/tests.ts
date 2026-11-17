@@ -174,7 +174,11 @@ export const jsAdapter: TestAdapter = {
 };
 
 // `<path>::<Class>::<test>[params] PASSED  [ 40%]` of `pytest -v`; a skip reason may follow the status.
-const PY_LINE = /^(\S+?\.py)::(.+?) (PASSED|FAILED|SKIPPED|XFAIL|XPASS|ERROR)\b/;
+// The path may hold spaces; params may hold `] PASSED`, so they match greedily up to the last `] <status>`.
+// shortcut: a skip reason with `] <status>` in it misreads that line, upgrade to a junit-xml report if it bites
+const PY_LINE = /^(.+?\.py)::([^\s[]+(?:\[.*\])?) (PASSED|FAILED|SKIPPED|XFAIL|XPASS|ERROR)\b/;
+// results end at the first `=== … ===` section after the header (FAILURES, summary), whose text can look like a result
+const PY_SECTION = /^=+ (?!test session starts).* =+$/;
 const PY_STATUS: Record<string, TestResult["status"]> = {
   PASSED: "pass",
   XPASS: "pass",
@@ -203,6 +207,9 @@ export const pyAdapter: TestAdapter = {
   parse(output) {
     const out: TestResult[] = [];
     for (const line of output.replace(ANSI, "").split(/\r?\n/)) {
+      if (PY_SECTION.test(line)) {
+        break;
+      }
       const m = PY_LINE.exec(line);
       if (m) {
         out.push({ name: m[2].replace(/\[.*$/, ""), pkg: m[1], status: PY_STATUS[m[3]] });

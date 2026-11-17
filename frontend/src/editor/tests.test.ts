@@ -180,3 +180,9 @@ test("testAt (Python): body, decorator, class method and outside", () => {
   expect(testAt(py(), "test_a.py", ppos("def helper"))).toBeNull();
   expect(testAt(py(), "test_a.py", ppos("test_not_collected"))).toBeNull();
 });
+
+test("testsIn/testAt (Python): methods of a decorated Test class", () => {
+  const doc = '@pytest.mark.usefixtures("db")\nclass TestDb:\n    def test_q(self):\n        assert db\n';
+  expect(testsIn(py(doc), "test_a.py")).toEqual([{ name: "TestDb::test_q", line: 3 }]);
+  expect(testAt(py(doc), "test_a.py", doc.indexOf("assert db"))).toEqual({ name: "TestDb::test_q", line: 3 });
+});

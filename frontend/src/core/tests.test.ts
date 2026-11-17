@@ -293,3 +293,27 @@ test("py parse: XFAIL, XPASS and ERROR, and the summary lines are not results", 
     ["test_c", "fail"],
   ]);
 });
+
+test("py parse: a param id with a status word in it, and a path with a space", () => {
+  const out = "test_a.py::test_x[label PASSED] FAILED  [ 50%]\nmy tests/test_a.py::test_y PASSED  [100%]\n";
+  expect(pyAdapter.parse(out)).toEqual([
+    { name: "test_x", pkg: "test_a.py", status: "fail" },
+    { name: "test_y", pkg: "my tests/test_a.py", status: "pass" },
+  ]);
+});
+
+// the two lines CodeRabbit reproduced with pytest 8.3.2 on PR #71
+test("py parse: the status after the last `]`, and nothing from the summary section", () => {
+  const out = [
+    "test_a.py::test_x[label] PASSED more] FAILED [ 50%]",
+    "test_a.py::test_summary FAILED [100%]",
+    "=================================== FAILURES ===================================",
+    '    assert False, "b.py::test_z PASSED"',
+    "=========================== short test summary info ============================",
+    "FAILED test_a.py::test_summary - AssertionError: b.py::test_z PASSED",
+  ].join("\n");
+  expect(pyAdapter.parse(out).map((r) => [r.name, r.status])).toEqual([
+    ["test_x", "fail"],
+    ["test_summary", "fail"],
+  ]);
+});
