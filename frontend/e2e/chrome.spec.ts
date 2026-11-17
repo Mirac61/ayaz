@@ -63,8 +63,8 @@ test("glass surfaces derive from the theme and the header line stays", async ({ 
   await expect(page.locator(".titlebar")).toContainText("README.md");
   await toggleGlass(page);
   await expect(page.locator("html")).toHaveAttribute("data-glass", /.*/);
-  for (const sel of ["html", "body", "#root"]) {
-    // nothing under the surfaces adds a layer: else the glass is nearly opaque
+  for (const sel of ["html", "body", "#root", ".panes", ".sidebar-title"]) {
+    // nothing under the surfaces adds a layer: else the glass is nearly opaque; the sidebar header shows the sidebar's colour
     expect(await page.locator(sel).evaluate((el) => getComputedStyle(el).backgroundColor), sel).toBe("rgba(0, 0, 0, 0)");
   }
   const css = (sel: string, prop: string) =>

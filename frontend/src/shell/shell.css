@@ -513,7 +513,7 @@
   flex: none;
   padding: 0 8px;
   color: var(--fg-3);
-  background: var(--bg-tabs);
+  background: none; /* the panel's own colour (--bg-sidebar) shows through, so header and tree are exactly one colour */
   border-bottom: 1px solid var(--edge); /* the same line as the tab strip's, same height */
   gap: 6px;
   overflow: hidden;

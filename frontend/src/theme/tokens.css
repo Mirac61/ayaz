@@ -86,6 +86,10 @@ body,
 :root[data-glass] #root {
   background: transparent;
 }
+/* Each .pane paints its own surface; the box around the panes must not add a second translucent layer under it. */
+:root[data-glass] .panes {
+  background: transparent;
+}
 
 @media (prefers-reduced-motion: reduce) {
   :root {
