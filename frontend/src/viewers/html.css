@@ -48,5 +48,5 @@
   flex: 1;
   width: 100%;
   border: none;
-  background: #ffffff;
+  background: white; /* a page is white whatever the theme */
 }

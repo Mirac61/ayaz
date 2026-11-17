@@ -18,7 +18,7 @@
   background: var(--overlay, rgba(24, 25, 32, 0.94));
   backdrop-filter: blur(20px) saturate(1.25);
   -webkit-backdrop-filter: blur(20px) saturate(1.25);
-  border: 1px solid var(--edge-overlay, #363646);
+  border: 1px solid var(--edge-overlay);
   border-radius: var(--radius, 8px);
   box-shadow:
     0 20px 48px rgba(0, 0, 0, 0.55),
@@ -49,13 +49,13 @@
 
 .cmdline-badge.mode-ex {
   background: rgba(126, 156, 216, 0.18);
-  color: var(--accent, #7e9cd8);
+  color: var(--accent);
   border: 1px solid rgba(126, 156, 216, 0.3);
 }
 
 .cmdline-badge.mode-search {
   background: rgba(118, 148, 106, 0.18);
-  color: var(--search, #98bb6c);
+  color: var(--insert);
   border: 1px solid rgba(118, 148, 106, 0.3);
 }
 
@@ -71,12 +71,12 @@
   border: none;
   outline: none;
   font: 14px/1.2 var(--font-mono, monospace);
-  color: var(--fg-1, #dcd7ba);
-  caret-color: var(--accent, #7e9cd8);
+  color: var(--fg-1);
+  caret-color: var(--accent);
 }
 
 .cmdline-input::placeholder {
-  color: var(--fg-4, #727169);
+  color: var(--fg-4);
   font-style: italic;
   opacity: 0.7;
 }
@@ -84,7 +84,7 @@
 .cmdline-suggestions {
   max-height: 220px;
   overflow-y: auto;
-  border-top: 1px solid var(--edge-overlay, #363646);
+  border-top: 1px solid var(--edge-overlay);
   padding: 4px 0;
   margin: 0;
   list-style: none;
@@ -97,14 +97,14 @@
   gap: 12px;
   padding: 6px 14px;
   font: 13px var(--font-mono, monospace);
-  color: var(--fg-2, #c8c093);
+  color: var(--fg-2);
   cursor: pointer;
   transition: background-color 0.1s ease;
 }
 
 .cmdline-item.selected {
   background: var(--hover, rgba(255, 255, 255, 0.08));
-  color: var(--fg-1, #dcd7ba);
+  color: var(--fg-1);
 }
 
 .cmdline-item-label {
@@ -114,14 +114,14 @@
 }
 
 .cmdline-item-prefix {
-  color: var(--accent, #7e9cd8);
+  color: var(--accent);
   font-weight: 600;
 }
 
 .cmdline-item-hint {
   font-size: 11px;
   font-family: var(--font-ui, sans-serif);
-  color: var(--fg-4, #727169);
+  color: var(--fg-4);
 }
 
 @keyframes cmdline-in {
