@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.11.0](https://github.com/Mirac61/ayaz/compare/v0.10.0...v0.11.0) (2026-11-17)
+
+
+### Features
+
+* ACP: Go-Brücke (internal/acp, Stream acp) [[#45](https://github.com/Mirac61/ayaz/issues/45)] ([db889f0](https://github.com/Mirac61/ayaz/commit/db889f0c7d1591fe6e9590c3d133616f324a0c88))
+* Dateien aus Finder und Dock in den Dateibaum ziehen ([#76](https://github.com/Mirac61/ayaz/issues/76)) ([46b66e1](https://github.com/Mirac61/ayaz/commit/46b66e17fd2d8f820a9661841d7514873227487b))
+* Docs: Roadmap M83 und Manual-Checks für die QoL-Tasks nachziehen [[#44](https://github.com/Mirac61/ayaz/issues/44)] ([b4a9c91](https://github.com/Mirac61/ayaz/commit/b4a9c91fc07fa9406b4871ec55137beeef52e93e))
+* Docs: Roadmap M83 und Manual-Checks für die QoL-Tasks nachziehen [task 44] ([1885781](https://github.com/Mirac61/ayaz/commit/1885781535a361716317d747ff1a56554dd535f3))
+* Go-Test im Debugger (`<Space>rd`) [[#59](https://github.com/Mirac61/ayaz/issues/59)] ([#73](https://github.com/Mirac61/ayaz/issues/73)) ([7f4e661](https://github.com/Mirac61/ayaz/commit/7f4e66153d8be66c89f18af30e7f460e3f50acf6))
+* Pass/Fail-Marker im Gutter [[#58](https://github.com/Mirac61/ayaz/issues/58)] ([#72](https://github.com/Mirac61/ayaz/issues/72)) ([2ffe90c](https://github.com/Mirac61/ayaz/commit/2ffe90cdc9146b06ef769739b4cdbb9773746b63))
+* Test-Adapter für Python [[#66](https://github.com/Mirac61/ayaz/issues/66)] ([#71](https://github.com/Mirac61/ayaz/issues/71)) ([2f6a455](https://github.com/Mirac61/ayaz/commit/2f6a45552f2ef9c34844409576717fa4c8f45d74))
+* Test-Adapter für TypeScript/JavaScript [[#57](https://github.com/Mirac61/ayaz/issues/57)] ([#70](https://github.com/Mirac61/ayaz/issues/70)) ([1c52f9b](https://github.com/Mirac61/ayaz/commit/1c52f9b58c69ced289d29124bd0e56f0806eb0fc))
+* Test-Befehle, Lauf im Terminal und Ergebnisse (`shell/commands/tests.ts`) [[#56](https://github.com/Mirac61/ayaz/issues/56)] ([#69](https://github.com/Mirac61/ayaz/issues/69)) ([67cc895](https://github.com/Mirac61/ayaz/commit/67cc89577288b830064e988480c95a3583dd655b))
+* Test-Runner: Modell und Go-Adapter (core/tests.ts) [[#55](https://github.com/Mirac61/ayaz/issues/55)] ([#64](https://github.com/Mirac61/ayaz/issues/64)) ([d459b6f](https://github.com/Mirac61/ayaz/commit/d459b6f1f3c2992cf0683e688788b8aa15cba943))
+
+
+### Bug Fixes
+
+* CodeRabbit-Review für jeden Agent-PR anstoßen, auch gegen dev ([#75](https://github.com/Mirac61/ayaz/issues/75)) ([2cbc4d7](https://github.com/Mirac61/ayaz/commit/2cbc4d7645519a37aa34e641ab6351430216be20))
+* Kontextmenü im Glass-Modus lesbar (Blur wie Picker, kräftigere Schrift) ([#78](https://github.com/Mirac61/ayaz/issues/78)) ([02e5ec5](https://github.com/Mirac61/ayaz/commit/02e5ec54ef152db49a7e0ffd7711fdd127c5e7ed))
+* release cleanup (vitest artifacts out of git, stylelint in CI, rename guard) ([#79](https://github.com/Mirac61/ayaz/issues/79)) ([b383987](https://github.com/Mirac61/ayaz/commit/b3839876650e437be3f3dca0b370d7fea01fc792))
+* rename and duplicate onto an existing file ask to replace it ([#77](https://github.com/Mirac61/ayaz/issues/77)) ([7916753](https://github.com/Mirac61/ayaz/commit/7916753fe82a6079e4a1161819539b5df99c7b81))
+* **ui:** Kopfzeile, Sidebar-Lag, Startseite und Glasmodus ([44b7375](https://github.com/Mirac61/ayaz/commit/44b737559cfa9d30c87c604972511bef2b0c0d8e))
+
 ## [0.10.0](https://github.com/Mirac61/ayaz/compare/v0.9.0...v0.10.0) (2026-11-16)
 
 
