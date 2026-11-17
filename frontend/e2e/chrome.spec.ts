@@ -67,6 +67,8 @@ test("glass surfaces derive from the theme and the header line stays", async ({ 
     // nothing under the surfaces adds a layer: else the glass is nearly opaque; the sidebar header shows the sidebar's colour
     expect(await page.locator(sel).evaluate((el) => getComputedStyle(el).backgroundColor), sel).toBe("rgba(0, 0, 0, 0)");
   }
+  // an empty sticky-scroll panel must not stay as a 4 px strip of its own colour under the titlebar
+  await expect(page.locator(".cm-sticky")).toBeHidden();
   const css = (sel: string, prop: string) =>
     page
       .locator(sel)
