@@ -62,7 +62,16 @@ const JS_MODS = new Set(["only", "skip"]);
 
 // JS/TS: `test("title", …)`, `it(…)` and `describe(…)`, also as `.only` / `.skip`, with a plain string as the first argument.
 // `test.each(…)(…)` is not found: its title is a pattern, not a name. Nested calls follow their parent.
-// shortcut: a title is the string as written (backslash escapes are dropped, not decoded)
+const ESCAPE = /\\(u\{[0-9a-fA-F]+\}|u[0-9a-fA-F]{4}|x[0-9a-fA-F]{2}|\r\n|[\s\S])/g;
+const SIMPLE: Record<string, string> = { n: "\n", t: "\t", r: "\r", b: "\b", f: "\f", v: "\v", "0": "\0" };
+// One JavaScript string escape: \u0061, \u{61}, \x61, \n, a line continuation (nothing) or the escaped character itself.
+function unescape(_: string, e: string): string {
+  if (e.length > 1 && /^[ux]/.test(e)) {
+    return String.fromCodePoint(parseInt(e.replace(/^[ux]\{?|\}$/g, ""), 16));
+  }
+  return /^(\r\n|[\n\r\u2028\u2029])$/.test(e) ? "" : (SIMPLE[e] ?? e);
+}
+
 function jsTests(state: EditorState): Span[] {
   const out: Span[] = [];
   const text = (n: SyntaxNode) => state.sliceDoc(n.from, n.to);
@@ -80,7 +89,7 @@ function jsTests(state: EditorState): Span[] {
       if (title.name !== "String" && !(title.name === "TemplateString" && !title.getChild("Interpolation"))) {
         return;
       }
-      const name = state.sliceDoc(title.from + 1, title.to - 1).replace(/\\(.)/g, "$1");
+      const name = state.sliceDoc(title.from + 1, title.to - 1).replace(ESCAPE, unescape);
       out.push({ name, line: state.doc.lineAt(ref.from).number, from: ref.from, to: ref.to, suite: text(head) === "describe" });
     },
   });

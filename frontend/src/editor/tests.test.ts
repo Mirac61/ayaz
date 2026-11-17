@@ -113,6 +113,11 @@ test("testAt (JS): the innermost test, else the innermost describe", () => {
   expect(testAt(js(), "a.test.ts", JS.length)).toBeNull();
 });
 
+test("js test titles decode their string escapes", () => {
+  const doc = 'test("\\u0061dds \\x62 \\u{63} a\\\\b \\"q\\"", () => {});';
+  expect(testsIn(js(doc), "a.test.ts")).toEqual([{ name: 'adds b c a\\b "q"', line: 1 }]);
+});
+
 const PY = `import pytest
 
 
