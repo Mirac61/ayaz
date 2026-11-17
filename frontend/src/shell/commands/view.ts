@@ -5,7 +5,7 @@ import type { Command } from "../../core/commands";
 import { availableThemes, setThemeOverride, themeName, toggleGlass } from "../../core/settings";
 import { LIMIT } from "./context";
 import { revealHeading, SKINS, setSkin, skin, type Skin } from "../../editor/mdrender";
-import { mdHeadings } from "../../editor/mdlive";
+import { mdOutline } from "../../editor/mdlive";
 import { BROWSER, PREVIEW } from "../../core/viewers";
 import { localUrl } from "../../viewers/browser";
 import { toggleDiagText } from "../diagText";
@@ -194,11 +194,11 @@ export function viewCommands({ ed, say, fail, setPicker }: Ctx): Command[] {
         if (!v) {
           return fail("No active editor");
         }
-        const headings = mdHeadings(v.state);
-        if (!headings.length) {
-          return fail("No headings found in document");
+        const outline = mdOutline(v.state);
+        if (!outline.headings.length) {
+          return fail(outline.complete ? "No headings found in document" : "No headings yet: this file is still parsing");
         }
-        const items = headings.map((h, i) => ({
+        const items = outline.headings.map((h, i) => ({
           label: `${"  ".repeat(h.level - 1)}${"#".repeat(h.level)} ${h.text}`,
           hint: `:${h.line}`, // the line tells apart headings of the same text (### Features in a changelog)
           glyph: "\uf02e",
@@ -208,6 +208,9 @@ export function viewCommands({ ed, say, fail, setPicker }: Ctx): Command[] {
         // the heading the cursor is under, so the list opens where you are
         const at = v.state.selection.main.head;
         const here = Math.max(items.filter((h) => h.from <= at).length - 1, 0);
+        if (!outline.complete) {
+          say("Outline: this file is large, only the part parsed so far is listed");
+        }
         setPicker({
           title: "Outline",
           start: here,

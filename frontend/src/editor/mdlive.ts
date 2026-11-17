@@ -222,11 +222,19 @@ export interface MdHeading {
   line: number;
 }
 
+export interface MdOutline {
+  headings: MdHeading[];
+  complete: boolean; // false when the parse ran out of its time budget: a large file lists only its beginning
+}
+
 // Pure: the document's Markdown headings (# lines and setext), from the syntax tree, so a # in a code block is none.
-export function mdHeadings(state: EditorState): MdHeading[] {
+// The parse gets `budget` ms on this turn instead of the whole file at once; the rest follows in the background.
+export function mdOutline(state: EditorState, budget = 200): MdOutline {
   const doc = state.doc,
     out: MdHeading[] = [];
-  (ensureSyntaxTree(state, doc.length, 500) ?? syntaxTree(state)).iterate({
+  const whole = ensureSyntaxTree(state, doc.length, budget),
+    tree = whole ?? syntaxTree(state);
+  tree.iterate({
     enter(n) {
       const m = /^(ATX|Setext)Heading(\d)$/.exec(n.name);
       if (!m) {
@@ -243,7 +251,7 @@ export function mdHeadings(state: EditorState): MdHeading[] {
       return false;
     },
   });
-  return out;
+  return { headings: out, complete: !!whole || tree.length >= doc.length };
 }
 
 export function mdTables(state: EditorState): MdTable[] {

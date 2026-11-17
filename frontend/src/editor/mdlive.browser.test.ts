@@ -3,7 +3,7 @@ import { userEvent } from "vitest/browser";
 import { EditorView } from "@codemirror/view";
 import { StateEffect } from "@codemirror/state";
 import { createState } from "./editor";
-import { mdHeadings, toggleReading } from "./mdlive";
+import { mdOutline, toggleReading } from "./mdlive";
 import { revealHeading } from "./mdrender";
 import { installVim } from "./vim/setup";
 import { defaultKeymap } from "../core/keymap";
@@ -209,7 +209,7 @@ test("the outline's headings scroll the reading view, also the second of two equ
   await mount(`# Top\n\n${body}## Features\n\n${body}## Features\n\n${body}`);
   toggleReading(view!);
   const box = view!.dom.querySelector<HTMLElement>(".md-render")!;
-  expect(mdHeadings(view!.state).map((h) => h.text)).toEqual(["Top", "Features", "Features"]);
+  expect(mdOutline(view!.state).headings.map((h) => h.text)).toEqual(["Top", "Features", "Features"]);
   expect(revealHeading(view!, 2)).toBe(true); // the second "Features"
   const second = box.querySelectorAll("h2")[1];
   expect(Math.abs(second.getBoundingClientRect().top - box.getBoundingClientRect().top)).toBeLessThan(40);
