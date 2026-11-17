@@ -3,7 +3,8 @@
   width: 360px;
   max-width: calc(100% - 32px);
   max-height: 100%;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 18px;

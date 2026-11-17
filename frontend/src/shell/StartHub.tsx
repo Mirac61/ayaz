@@ -46,10 +46,8 @@ export function StartHub({ name, root, branch, changes, files, keys, run, switch
       type="button"
       className="hub-row"
       tabIndex={-1}
-      onMouseDown={(e) => {
-        e.preventDefault();
-        run(command);
-      }}
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={() => run(command)}
     >
       <span className="hub-icon">{icon}</span>
       <span className="hub-what">{what}</span>
@@ -58,7 +56,7 @@ export function StartHub({ name, root, branch, changes, files, keys, run, switch
   );
 
   return (
-    <div className="pane-empty" aria-hidden>
+    <div className="pane-empty">
       <div className="hub">
         <header className="hub-head">
           <AyazLogo size={40} className="pane-empty-logo" />
@@ -102,10 +100,8 @@ export function StartHub({ name, root, branch, changes, files, keys, run, switch
                 className="hub-row hub-project"
                 tabIndex={-1}
                 title={f.root}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  switchTo(f.root);
-                }}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => switchTo(f.root)}
               >
                 <span className="hub-what">{f.name}</span>
                 <span className="hub-meta">{[detail[f.root], ago(f.at)].filter(Boolean).join(" · ")}</span>
@@ -124,10 +120,8 @@ export function StartHub({ name, root, branch, changes, files, keys, run, switch
                 className={i ? "pane-empty-file" : "pane-empty-file first"}
                 tabIndex={-1}
                 title={p}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  run("file.open", p);
-                }}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => run("file.open", p)}
               >
                 <span className="dir">{p.slice(0, p.lastIndexOf("/") + 1)}</span>
                 {p.slice(p.lastIndexOf("/") + 1)}
