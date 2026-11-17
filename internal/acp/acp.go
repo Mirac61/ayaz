@@ -99,11 +99,15 @@ func (a *Agent) Recv() ([]byte, error) {
 	}
 }
 
-// killGrace is how long an agent gets to end after SIGTERM before its process group is killed.
+// killGrace is how long an agent gets to end after SIGTERM, and again after SIGKILL, before Close gives up on it.
 var killGrace = 3 * time.Second
 
+// kill is proc.Kill, a variable so a test can make the kill fail.
+var kill = proc.Kill
+
 // Close ends the agent's process group and waits: SIGTERM first, SIGKILL when the agent ignores it for killGrace.
-// Safe to call more than once.
+// The wait is bounded: if the kill fails or the process still lingers after another killGrace, Close logs it and
+// returns (the Wait goroutine keeps owning the process and reaps it later). Safe to call more than once.
 func (a *Agent) Close() {
 	a.close.Do(func() {
 		a.in.Close()
@@ -112,9 +116,16 @@ func (a *Agent) Close() {
 		go func() { a.cmd.Wait(); close(done) }()
 		select {
 		case <-done:
+			return
 		case <-time.After(killGrace):
-			proc.Kill(a.cmd)
-			<-done
+		}
+		if err := kill(a.cmd); err != nil {
+			log.Println("acp: kill:", err)
+		}
+		select {
+		case <-done:
+		case <-time.After(killGrace):
+			log.Println("acp: agent still running after kill, not waiting any longer")
 		}
 	})
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"runtime"
@@ -13,6 +14,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Mirac61/ayaz/internal/proc"
 )
 
 // TestMain doubles as the fake agent: the tests re-run this binary with ACP_HELPER set.
@@ -188,5 +191,21 @@ func TestStartResolvesProgramLikeTheShell(t *testing.T) {
 				t.Errorf("got %s", got)
 			}
 		})
+	}
+}
+
+func TestCloseGivesUpWhenKillFails(t *testing.T) {
+	oldGrace, oldKill := killGrace, kill
+	killGrace, kill = 200*time.Millisecond, func(*exec.Cmd) error { return errors.New("kill failed") }
+	t.Cleanup(func() { killGrace, kill = oldGrace, oldKill })
+	a := start(t, "stubborn")
+	time.Sleep(200 * time.Millisecond)
+	t.Cleanup(func() { proc.Kill(a.cmd) }) // the fake kill left the agent running
+	done := make(chan struct{})
+	go func() { a.Close(); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Close blocks although the kill failed")
 	}
 }

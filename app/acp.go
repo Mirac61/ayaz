@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"errors"
 	"log"
 	"strings"
@@ -43,10 +44,7 @@ func (s *WorkspaceService) HandleACP(c *application.StreamConn) {
 	}
 	defer s.trackServer(a, cfg.WS, false)
 	// A Send stuck on a full pipe never reaches Receive again; the closing stream ends the agent instead.
-	go func() {
-		<-c.Context().Done()
-		a.Close()
-	}()
+	go closeWhenDone(c.Context(), a)
 
 	go func() {
 		for {
@@ -66,4 +64,11 @@ func (s *WorkspaceService) HandleACP(c *application.StreamConn) {
 			return
 		}
 	}
+}
+
+// closeWhenDone ends srv once ctx is done (the stream closed). That unblocks a Send stuck on a pipe the agent
+// doesn't read, which is why the receive loop can't do it.
+func closeWhenDone(ctx context.Context, srv closer) {
+	<-ctx.Done()
+	srv.Close()
 }

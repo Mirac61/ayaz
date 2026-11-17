@@ -78,4 +78,4 @@ func Available(dir, shell, command string) bool {
 func Terminate(cmd *exec.Cmd) { syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM) }
 
 // Kill ends the command's process group for good, for a program that ignored Terminate.
-func Kill(cmd *exec.Cmd) { syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }
+func Kill(cmd *exec.Cmd) error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }

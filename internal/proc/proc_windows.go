@@ -57,7 +57,7 @@ func Available(dir, _, command string) bool {
 }
 
 // Kill is Terminate: taskkill /F already ends the tree for good.
-func Kill(cmd *exec.Cmd) { Terminate(cmd) }
+func Kill(cmd *exec.Cmd) error { Terminate(cmd); return nil }
 
 // Terminate ends the command and the programs it started.
 func Terminate(cmd *exec.Cmd) {
