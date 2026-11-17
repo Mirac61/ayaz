@@ -104,6 +104,11 @@ BLOCKER, SHOULD-FIX und offene Entscheidung.
 | `/work [task-id]` | Setzt einen Waypoint-Task um, reviewt, fixt Findings, committet (kein Push) |
 | `scripts/agent-night.sh` | Blockiert den Task statt eines PRs, wenn das Urteil nicht PASS ist |
 
+Im Nachtlauf startet der Host den Reviewer selbst (`claude -p --agent reviewer`)
+auf dem finalen Diff; der Bericht des Umsetzers zählt nicht als Nachweis, weil er
+ihn selbst schreiben könnte. Der Umsetzer reviewt vorher trotzdem, damit Findings
+noch vor dem Ende behoben sind — committet wird nur nach dem Host-Urteil.
+
 Die Modelle sind getrennt: Umsetzen auf `sonnet` (`--model sonnet` in
 `scripts/agent-night.sh`, im Chat `sonnet` oder `opus`), Review auf `fable` mit
 `effort: high`. Ein Reviewer auf demselben Modell teilt die blinden Flecken des

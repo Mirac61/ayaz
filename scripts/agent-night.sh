@@ -50,9 +50,11 @@ for TARGET_ID in $TODO_IDS; do
   PR_BODY_FILE="/tmp/ayaz-pr-$TARGET_ID.md"
   QUESTION_OUT="/tmp/ayaz-question-$TARGET_ID.md"
   REVIEW_OUT="/tmp/ayaz-review-$TARGET_ID.md"
+  HOST_REVIEW_OUT="/tmp/ayaz-review-host-$TARGET_ID.md"
+  REVIEW_INPUT="/tmp/ayaz-diff-$TARGET_ID.md"
   LOG_FILE="/tmp/ayaz-run-$TARGET_ID.log"
 
-  rm -f "$PR_BODY_FILE" "$QUESTION_OUT" "$REVIEW_OUT" "$LOG_FILE"
+  rm -f "$PR_BODY_FILE" "$QUESTION_OUT" "$REVIEW_OUT" "$HOST_REVIEW_OUT" "$REVIEW_INPUT" "$LOG_FILE"
   git worktree remove --force "$WORKTREE_DIR" 2>/dev/null || true
   git branch -D "$BRANCH_NAME" 2>/dev/null || true
 
@@ -80,10 +82,10 @@ for TARGET_ID in $TODO_IDS; do
 
   cd "$WORKTREE_DIR"
 
-  # Reviewer-Definition mitnehmen, falls der Basis-Branch sie noch nicht enthält.
-  # Wird vor dem Commit wieder entfernt, damit sie nicht im Task-PR landet.
+  # Reviewer-Definition auf den Stand des Repos bringen, damit der Host-Reviewer
+  # garantiert die aktuelle Fassung nutzt. Vor dem Commit wird sie zurückgesetzt.
   REVIEW_AGENT_COPIED=0
-  if [ ! -f .claude/agents/reviewer.md ]; then
+  if ! cmp -s "$REPO_ROOT/.claude/agents/reviewer.md" .claude/agents/reviewer.md 2>/dev/null; then
     mkdir -p .claude/agents
     cp "$REPO_ROOT/.claude/agents/reviewer.md" .claude/agents/reviewer.md
     REVIEW_AGENT_COPIED=1
@@ -145,17 +147,43 @@ $(cat "$REPO_ROOT/prompts/runner.md")"
     continue
   fi
 
-  # Review-Gate: ohne unabhängiges PASS gibt es keinen Commit und keinen PR.
-  if [ ! -s "$REVIEW_OUT" ] || ! grep -q '^VERDICT: PASS' "$REVIEW_OUT"; then
+  # Review-Gate: Der Host startet den Reviewer selbst auf dem finalen Diff.
+  # Der Bericht des Umsetzers ($REVIEW_OUT) ist kein Nachweis — er könnte ihn
+  # selbst geschrieben haben. Nur ein Host-Urteil gibt den Commit frei.
+  {
+    echo "Review the change in this repository (working tree, task: $TASK_TITLE, base: $BASE_BRANCH)."
+    echo "Everything you need is below; report in the format from your instructions."
+    echo
+    echo '```diff'
+    git diff HEAD -- . ':(exclude).claude/agents/reviewer.md'
+    git ls-files --others --exclude-standard -- . ':(exclude).claude/agents/reviewer.md' \
+      | while IFS= read -r f; do
+          git diff --no-index /dev/null "$f" || true
+        done
+    echo '```'
+  } > "$REVIEW_INPUT"
+
+  caffeinate -i perl -e 'alarm shift; exec @ARGV' 900 \
+    claude -p \
+    --agent reviewer \
+    --allowedTools "Read,Grep,Glob" \
+    --max-turns 30 \
+    < "$REVIEW_INPUT" >> "$HOST_REVIEW_OUT" 2>&1 || true
+
+  if ! grep -q '^VERDICT: PASS' "$HOST_REVIEW_OUT" 2>/dev/null; then
     echo "Task #$TARGET_ID ohne Reviewer-PASS -> BLOCKED."
     cd "$REPO_ROOT"
     waypoint task block "$TARGET_ID"
     {
       echo "## 🔎 Review nicht bestanden bei Task #$TARGET_ID: $TASK_TITLE ($(date "+%Y-%m-%d %H:%M"))"
-      if [ -s "$REVIEW_OUT" ]; then
-        cat "$REVIEW_OUT"
+      if [ -s "$HOST_REVIEW_OUT" ]; then
+        cat "$HOST_REVIEW_OUT"
       else
-        echo "Der Agent hat keinen Reviewer-Bericht erzeugt. Log: \`$LOG_FILE\`"
+        echo "Der Host-Reviewer hat keinen Bericht erzeugt. Log: \`$LOG_FILE\`"
+      fi
+      if [ -s "$REVIEW_OUT" ]; then
+        echo ""
+        echo "Bericht des Umsetzers (nicht das Gate): \`$REVIEW_OUT\`"
       fi
       echo ""
       echo "---"
@@ -187,8 +215,10 @@ $(cat "$REPO_ROOT/prompts/runner.md")"
   rm -rf frontend/dist
   git checkout -- frontend/dist 2>/dev/null || true
 
-  # Nur für den Lauf kopierte Reviewer-Definition nicht mitcommitten.
-  [ "${REVIEW_AGENT_COPIED:-0}" = 1 ] && rm -f .claude/agents/reviewer.md
+  # Für den Lauf ersetzte Reviewer-Definition zurücksetzen, damit sie nicht im Task-PR landet.
+  if [ "${REVIEW_AGENT_COPIED:-0}" = 1 ]; then
+    git checkout -- .claude/agents/reviewer.md 2>/dev/null || rm -f .claude/agents/reviewer.md
+  fi
 
   # Größen-Gate prüfen (Max 450 Zeilen, inkl. neuer Dateien)
   git add -A

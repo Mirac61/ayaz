@@ -23,8 +23,9 @@ Du hast vollen Zugriff auf die Test-Suite. Nutze sie aktiv nach jeder Änderung:
 Du bist nicht dein eigener Reviewer. Vor dem Commit muss der Subagent `reviewer`
 deine Änderung geprüft haben.
 
-1. Erzeuge den vollständigen Stand: `git status --short`, `git diff` und für jede
-   neue Datei `git diff --no-index /dev/null <datei>`.
+1. Erzeuge den vollständigen Stand: `git status --short`, `git diff HEAD` (nicht
+   `git diff`, das lässt bereits gestagte Änderungen aus) und für jede neue Datei
+   `git diff --no-index /dev/null <datei>`.
 2. Starte `reviewer` über das Agent-Tool. Er hat nur `Read`, `Grep`, `Glob`, sieht
    deinen Verlauf nicht und urteilt über den Diff. Übergib Task-Titel,
    Akzeptanzkriterien bzw. den Plan-Abschnitt, Diff und neue Dateien.
@@ -37,6 +38,15 @@ deine Änderung geprüft haben.
    `bun run --cwd frontend test:browser`.
 6. Höchstens zwei Review-Runden. Danach muss `VERDICT: PASS` in `REVIEW_OUT`
    stehen. Sonst `QUESTION_OUT` schreiben und ohne Commit abbrechen.
+
+Jede Änderung nach einem Review macht sein Urteil ungültig, auch das Beheben
+eines NITs: Sammle den Diff neu, starte `reviewer` erneut und ersetze den Bericht.
+Committe nur, wenn das letzte Review den finalen Stand abdeckt; würde eine weitere
+Runde die zwei überschreiten, brich ohne Commit ab.
+
+Im Nachtlauf entscheidet dein Bericht nicht: der Host startet `reviewer` nach
+deinem Lauf selbst auf dem finalen Diff. Dein Review ist die Vorarbeit davor,
+damit Findings schon behoben sind.
 
 Ein Reviewer-PASS ist kein Ersatz für Tests, und Tests sind kein Ersatz für das
 Review. Startet der Reviewer nicht oder liefert er kein Urteil: `QUESTION_OUT`
