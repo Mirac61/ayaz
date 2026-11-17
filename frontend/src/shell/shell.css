@@ -508,12 +508,13 @@
   align-items: center;
   justify-content: space-between;
   height: var(--head);
+  min-height: var(--head);
   box-sizing: border-box;
   flex: none;
-  padding: 0 8px 0 10px;
+  padding: 0 8px;
   color: var(--fg-3);
-  background: var(--bg-tabs);
-  border-bottom: 1px solid var(--edge);
+  background: none; /* the panel's own colour (--bg-sidebar) shows through, so header and tree are exactly one colour */
+  border-bottom: 1px solid var(--edge); /* the same line as the tab strip's, same height */
   gap: 6px;
   overflow: hidden;
 }
@@ -523,12 +524,16 @@
   gap: 2px;
   flex: none;
 }
-.sidebar-tab {
+/* Every header control is one 24 px square with its icon centered by flex (SVG, not a font glyph). */
+.sidebar-tab,
+.sidebar-tools .ui-icon {
+  box-sizing: border-box;
   height: var(--row-sm);
-  padding: 0 8px;
+  min-width: var(--row-sm);
+  padding: 0;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
   background: transparent;
   border: 0;
   border-radius: var(--radius-sm);
@@ -538,12 +543,17 @@
     color var(--t-fast) var(--ease),
     background-color var(--t-fast) var(--ease);
 }
-.sidebar-tab::before {
-  content: attr(data-glyph);
-  font: var(--text-md) var(--font-mono);
+.sidebar-tab > svg,
+.sidebar-tools .ui-icon > svg {
+  flex: none;
+  display: block;
+  width: 15px;
+  height: 15px;
 }
-.sidebar-tab:hover {
-  color: var(--fg-2);
+.sidebar-tab:hover,
+.sidebar-tools .ui-icon:hover {
+  color: var(--fg-1);
+  background: var(--hover);
 }
 /* The tab you are on takes a colour; the others stay grey. */
 .sidebar-tab.active {
@@ -555,6 +565,11 @@
 .sidebar-tab.git.active {
   color: var(--status-terminal);
 }
+/* A tab with a badge is wider than a square: icon and count sit side by side, centered together. */
+.sidebar-tab:has(.sidebar-tab-badge) {
+  padding: 0 6px 0 5px;
+  gap: 4px;
+}
 .sidebar-tab-badge {
   display: inline-flex;
   align-items: center;
@@ -565,8 +580,8 @@
   padding: 0 4px;
   min-width: 14px;
   height: 14px;
+  box-sizing: border-box;
   border-radius: 7px;
-  margin-left: 4px;
   background: var(--bg-3);
   color: var(--fg-2);
   line-height: 1;
@@ -578,27 +593,9 @@
 .sidebar-tools {
   display: flex;
   align-items: center;
-  gap: 1px;
+  gap: 2px;
   flex: none;
   margin-left: auto;
-}
-.sidebar-tools .icon-btn {
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--fg-3);
-  border-radius: 4px;
-  font-size: 12px;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-}
-.sidebar-tools .icon-btn:hover {
-  color: var(--fg-1);
-  background: var(--bg-2);
 }
 .git-changes {
   flex: 1;
@@ -934,6 +931,7 @@
   outline: none;
   padding: 0 0 8px;
   color: var(--fg-2);
+  transition: background-color var(--t-fast) var(--ease);
 }
 /* The scrollbar shows only while the pointer is over the tree, so it doesn't sit next to the panel's border as a second line. */
 .tree::-webkit-scrollbar-thumb {
@@ -979,6 +977,15 @@
 .tree:focus .tree-row.cursor {
   background-color: color-mix(in srgb, var(--accent) 12%, var(--bg-3));
   color: var(--fg-1);
+}
+/* Finder files dragged over the tree (Wails sets the class): a calm tint on the row they land in, a fainter one on the
+   whole tree for the root. No border: the pane drop zone's frame is too loud for a 28px row. */
+.tree-row.file-drop-target-active {
+  background-color: color-mix(in srgb, var(--accent) 26%, transparent);
+  color: var(--fg-1);
+}
+.tree.file-drop-target-active {
+  background-color: color-mix(in srgb, var(--accent) 9%, transparent);
 }
 .tree-chevron {
   width: 12px;
@@ -1800,8 +1807,12 @@
   box-shadow: 0 16px 40px rgb(0 0 0 / 0.45);
   animation: overlay-in var(--t) var(--ease);
 }
-:root[data-glass] :is(.picker, .hints, .cm-panels-bottom) {
+:root[data-glass] :is(.picker, .hints, .ui-menu, .cm-panels-bottom) {
   backdrop-filter: blur(18px) saturate(1.2);
+}
+/* A menu sits right on the tree's rows: with glass their text still shows through, so the labels get more weight. */
+:root[data-glass] .ui-menu button {
+  font-weight: 500;
 }
 .picker {
   width: min(560px, 100%);
@@ -2081,6 +2092,7 @@
 /* Ayaz Crystalline Tab-Bar: 5px micro-chamfer cut, single crystal focus shard, seamless bottom transition */
 .tabbar {
   height: var(--head);
+  min-height: var(--head);
   box-sizing: border-box;
   display: flex;
   align-items: stretch;

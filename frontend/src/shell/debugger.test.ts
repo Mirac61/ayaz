@@ -4,12 +4,12 @@ import { Debugger, type DebugEditor, type DebugStatus } from "./debugger";
 
 const tick = () => new Promise((r) => setTimeout(r, 10));
 
-function setup(breakpoints: Record<string, number[]> = { "main.go": [6] }) {
+function setup(breakpoints: Record<string, number[]> = { "main.go": [6] }, active: string | null = null) {
   const log: string[] = [];
   const statuses: DebugStatus[] = [];
   const ed: DebugEditor = {
     breakpoints: () => breakpoints,
-    activePath: () => null,
+    activePath: () => active,
     openAt: async (path, line) => void log.push(`open ${path}:${line}`),
     setDebugLine: (path, line) => void log.push(`line ${path ?? "none"}${path ? `:${line}` : ""}`),
     appendOutput: async (text) => void log.push(`out ${text.trim()}`),
@@ -22,14 +22,15 @@ function setup(breakpoints: Record<string, number[]> = { "main.go": [6] }) {
     closeOnDisconnect: true,
   });
   const said: string[] = [];
+  let connects = 0;
   const dbg = new Debugger(
     "/p",
     ed,
-    () => f.transport,
+    () => (connects++, f.transport),
     (s) => statuses.push(s),
     (t) => said.push(t),
   );
-  return { f, log, statuses, said, dbg };
+  return { f, log, statuses, said, dbg, connects: () => connects };
 }
 
 test("start sends the loaded buffers' breakpoints; a stop opens the file at the line and marks it", async () => {
@@ -330,4 +331,29 @@ test("frames and activeFrameId exposed on Debugger and updated on selectFrame", 
 
   dbg.selectFrame(1);
   expect(dbg.activeFrameId).toBe(1);
+});
+
+const launchArgs = (f: ReturnType<typeof setup>["f"]) => f.requests.find((r) => r.command === "launch")?.arguments;
+
+test("start({ test }) launches Delve in test mode for just that test; without it the launch stays a plain debug", async () => {
+  const t = setup({}, "pkg/foo_test.go");
+  await t.dbg.start({ test: "TestFoo" });
+  // cwd is the package folder, as with `go test`, so a test's testdata/ resolves
+  expect(launchArgs(t.f)).toMatchObject({
+    mode: "test",
+    program: "/p/pkg",
+    cwd: "/p/pkg",
+    args: ["-test.run", "^TestFoo$", "-test.v"],
+  });
+  const plain = setup();
+  await plain.dbg.start();
+  expect(launchArgs(plain.f)).toMatchObject({ mode: "debug" });
+  expect(launchArgs(plain.f)).not.toHaveProperty("args");
+});
+
+test("start({ test }) with an adapter that can't debug a test fails before the adapter is started", async () => {
+  const t = setup({}, "tool.py");
+  await expect(t.dbg.start({ test: "TestFoo" })).rejects.toThrow("No debug-test support for python");
+  expect(t.connects()).toBe(0);
+  expect(t.f.got).toEqual([]);
 });

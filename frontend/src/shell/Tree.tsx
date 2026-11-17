@@ -118,12 +118,14 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
   const load = (dir: string) =>
     files.list(dir).then(
       (es) =>
-        setChildren((m) =>
-          new Map(m).set(
-            dir,
-            es.filter((e) => dir !== "" || e.name !== ".git"),
-          ),
-        ),
+        setChildren((m) => {
+          const next = es.filter((e) => dir !== "" || e.name !== ".git");
+          const old = m.get(dir);
+          // The same listing again (a watcher batch that touched a file's content): keep the state, so nothing re-renders.
+          return old && old.length === next.length && old.every((e, i) => e.name === next[i].name && e.dir === next[i].dir)
+            ? m
+            : new Map(m).set(dir, next);
+        }),
       () =>
         setChildren((m) => {
           const n = new Map(m);
@@ -402,6 +404,9 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
         tabIndex={0}
         role="tree"
         aria-label="Files"
+        // Wails reports Finder drops only on data-file-drop-target elements; Go copies into data-drop-dir ("" is the root).
+        data-file-drop-target=""
+        data-drop-dir=""
         onKeyDown={onKeyDown}
         onScroll={(e) => {
           // The window of rows moves only after a few rows of scrolling, and at once (before the frame is drawn): an
@@ -427,6 +432,8 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
                 aria-expanded={r.dir ? open : undefined}
                 className={i === cur ? "tree-row cursor" : "tree-row"}
                 style={{ top: i * ROW, height: ROW, paddingLeft: 8 + r.depth * 16, ...{ "--depth": r.depth } }}
+                data-file-drop-target=""
+                data-drop-dir={r.dir ? r.path : parent(r.path)}
                 onMouseDown={r.dir ? undefined : (e) => startDrag(e, r.path)}
                 onClick={() => {
                   setCursor(i);

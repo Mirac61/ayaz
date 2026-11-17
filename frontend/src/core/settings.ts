@@ -1,4 +1,5 @@
 import { extOf } from "../lang/registry";
+import { adapters } from "./tests";
 import { applyTheme, DEFAULT_THEME, parseThemeSpecs, resolveTheme, themeNames, type ThemeSpec } from "../theme/themes";
 
 // settings.json next to keymap.json. Read at start and again whenever it is saved (like the keymap).
@@ -32,6 +33,7 @@ export interface Settings extends FileSettings {
   themes: Record<string, ThemeSpec>; // your own, each on top of another ("extends"), by name
   statusColors: Partial<Record<StatusColor, string>>; // hex colors over tokens.css --status-*
   tasks: Record<string, string>; // name → shell command, run with <Space>rr in the folder
+  tests: Record<string, string>; // test adapter id ("go") → command template, replaces the built-in test command
   debugProgram?: string; // custom binary path for debugging (e.g. for lldb-dap)
   languages: Record<string, Partial<FileSettings>>;
 }
@@ -68,6 +70,7 @@ export const DEFAULTS: Settings = {
   themes: {},
   statusColors: {},
   tasks: {},
+  tests: {},
   tabWidth: 4,
   tabs: false,
   wrap: false,
@@ -169,6 +172,7 @@ export function parseSettings(json: string): Settings {
     themes,
     statusColors,
     tasks,
+    tests,
     languages,
     ...file
   } = data as Record<string, unknown>;
@@ -237,6 +241,19 @@ export function parseSettings(json: string): Settings {
       }
     }
   }
+  if (tests !== undefined) {
+    if (!tests || typeof tests !== "object" || Array.isArray(tests)) {
+      throw new Error('settings.json: "tests" must be an object of adapter → command');
+    }
+    for (const [k, v] of Object.entries(tests)) {
+      if (!adapters.some((a) => a.id === k)) {
+        throw new Error(`settings.json: tests.${k} is not a test adapter (${adapters.map((a) => a.id).join(", ")})`);
+      }
+      if (typeof v !== "string") {
+        throw new Error(`settings.json: tests.${k} must be a command (a string)`);
+      }
+    }
+  }
   for (const [k, v] of Object.entries({ fontSize, terminalFontSize })) {
     if (v !== undefined && !(typeof v === "number" && v >= 6 && v <= 48)) {
       throw new Error(`settings.json: "${k}" must be a number from 6 to 48`);
@@ -276,6 +293,7 @@ export function parseSettings(json: string): Settings {
     themes: specs,
     ...(statusColors !== undefined && { statusColors: statusColors as Settings["statusColors"] }), // checked above
     ...(tasks !== undefined && { tasks: tasks as Settings["tasks"] }), // checked above
+    ...(tests !== undefined && { tests: tests as Settings["tests"] }), // checked above
     languages: langs,
   };
 }

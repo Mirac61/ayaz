@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { expandTask, parseProblems, parseWatcherProblems } from "./tasks";
+import { expandTask, parseProblems, parseWatcherProblems, shellLine } from "./tasks";
 
 const loc = (path: string, line: number, col: number, text: string) => ({ path, line, col, len: 0, text });
 
@@ -100,6 +100,11 @@ test("expandTask fills file, dir and line", () => {
   expect(expandTask("${file}:${line} in ${dir}", at)).toBe("'src/app.go':42 in 'src'");
 });
 
+test("expandTask fills ${name} only when given one", () => {
+  expect(expandTask("t ${name}", { file: "a.go", name: "it's" })).toBe("t 'it'\\''s'");
+  expect(expandTask("t ${name}", { file: "a.go" })).toBe("t ${name}");
+});
+
 test("expandTask quotes paths for the shell", () => {
   expect(expandTask("cat ${file}", { file: "a b/it's; rm.txt" })).toBe("cat 'a b/it'\\''s; rm.txt'");
 });
@@ -157,4 +162,10 @@ test("expandTask: dir of a root file is '.', other ${} stays, no placeholder nee
   expect(expandTask("go test ./...", {})).toBe("go test ./...");
   expect(expandTask("echo ${file}", {})).toBeNull();
   expect(expandTask("echo ${line}", {})).toBeNull();
+});
+
+test("shellLine keeps plain words and single-quotes the rest, so $() and backticks stay text", () => {
+  expect(shellLine(["dlv", "dap", "--client-addr=127.0.0.1:4000"])).toBe("dlv dap '--client-addr=127.0.0.1:4000'");
+  expect(shellLine(["echo", "$(rm -rf ~)", "`id`", "it's"])).toBe("echo '$(rm -rf ~)' '`id`' 'it'\\''s'");
+  expect(shellLine(["-test.run", "^TestA$"])).toBe("-test.run '^TestA$'");
 });

@@ -1,12 +1,13 @@
 Du arbeitest unbeaufsichtigt genau diesen einen Task im aktuellen Arbeitsverzeichnis ab.
 
-## 1. Spezifikation prüfen (Fragen statt Raten!)
+## 1. Spezifikation prüfen (selbst entscheiden, nur bei Wichtigem fragen)
 1. Lies `AGENTS.md`.
 2. Wenn im Task-Titel ein Plan-Dokument in eckigen Klammern steht (z. B. `[docs/plans/...]`), lies diese Datei zuerst und suche den Abschnitt zu deinem Task.
 3. Falls in `docs/plans/...` ein Abschnitt `### Antwort` unter deinem Task steht, beachte diese Klärung.
-4. **Stop-Bedingung bei Unklarheit:** Wenn eine Design-/Architektur-Entscheidung fehlt, sich Anforderungen widersprechen oder der Task mehr als 450 Zeilen Änderung erfordert:
-   - **Rate nicht!**
-   - Schreibe deine präzise Rückfrage an mich in die im Prompt genannte `QUESTION_OUT`-Datei.
+4. **Vorgänger-Tasks:** Steht im Prompt eine `BASIS` mit `feat/task-…`, baut dein Branch auf dem offenen PR des Vorgängers auf. Seine Dateien liegen im Arbeitsverzeichnis. Eine Voraussetzung wie „Task X ist in `dev`“ gilt als erfüllt, wenn die Dateien hier sind. Prüfe also das Arbeitsverzeichnis, nicht `origin/dev`.
+5. **Kleine Unklarheiten entscheidest du selbst.** Wenn sich etwas leicht rückgängig machen lässt und weder Verhalten für mich noch Architektur festlegt (Benennung, Nummern in Docs, Reihenfolge, welche von zwei gleichwertigen Stellen, ein veralteter Satz im Plan), nimm die naheliegende Variante und schreib sie unter „Entscheidungen“ in den PR-Body. Weicht der Code vom Plan ab, folge dem Code und notiere das ebenso.
+6. **Nur hier stoppen:** Wenn eine Produkt- oder Architektur-Entscheidung fehlt, die ich später nur schwer ändern kann, sich Anforderungen echt widersprechen, eine Voraussetzung im Arbeitsverzeichnis fehlt oder der Task mehr als 450 Zeilen Änderung erfordert:
+   - Schreibe deine präzise Rückfrage in die im Prompt genannte `QUESTION_OUT`-Datei, mit deiner Empfehlung und den Varianten als A/B.
    - Beende dich danach sofort, ohne Code zu ändern.
 
 ## 2. Umsetzen & Testen (Pflicht!)
@@ -26,6 +27,9 @@ Wenn alle Tests grün sind, schreibe die PR-Beschreibung auf Deutsch in die im P
 
 ### Wie wurde getestet?
 - (1–3 Bulletpoints: welche Tests neu sind und was grün ist)
+
+### Entscheidungen
+- (Nur wenn du etwas selbst entschieden hast: ein Satz pro Punkt mit der Alternative, sonst Abschnitt weglassen)
 
 ### Offen
 - (Nur wenn etwas rot bleibt: ein Satz pro Problem, sonst Abschnitt weglassen)

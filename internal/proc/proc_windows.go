@@ -4,10 +4,13 @@
 package proc
 
 import (
+	"context"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func init() {
@@ -42,21 +45,39 @@ func Command(_, command string) *exec.Cmd {
 	return cmd
 }
 
-// Available reports whether the program of command is on PATH.
-func Available(_, command string) bool {
-	f := strings.Fields(command)
-	if len(f) == 0 {
+// Available reports whether the program of command is on PATH, or at its relative path below dir.
+func Available(dir, _, command string) bool {
+	bin := ProgramOf(command)
+	if bin == "" {
 		return false
 	}
-	_, err := exec.LookPath(f[0])
+	if strings.ContainsAny(bin, `/\`) && !filepath.IsAbs(bin) {
+		bin = filepath.Join(dir, bin)
+	}
+	_, err := exec.LookPath(bin)
 	return err == nil
 }
 
+// taskkillTimeout bounds taskkill, so a hanging taskkill cannot block a shutdown.
+var taskkillTimeout = 3 * time.Second
+
+// taskkillPath is the program that ends a process tree, a variable so a test can swap in one that hangs.
+var taskkillPath = "taskkill"
+
+// Kill is Terminate: taskkill /F already ends the tree for good. It returns the error of the Process.Kill fallback.
+func Kill(cmd *exec.Cmd) error { return taskkill(cmd) }
+
 // Terminate ends the command and the programs it started.
-func Terminate(cmd *exec.Cmd) {
-	kill := exec.Command("taskkill", "/T", "/F", "/PID", strconv.Itoa(cmd.Process.Pid))
+func Terminate(cmd *exec.Cmd) { _ = taskkill(cmd) }
+
+// taskkill ends the tree; when taskkill fails or exceeds taskkillTimeout it kills just the process and returns that error.
+func taskkill(cmd *exec.Cmd) error {
+	ctx, cancel := context.WithTimeout(context.Background(), taskkillTimeout)
+	defer cancel()
+	kill := exec.CommandContext(ctx, taskkillPath, "/T", "/F", "/PID", strconv.Itoa(cmd.Process.Pid))
 	SetHideWindow(kill)
-	if kill.Run() != nil {
-		cmd.Process.Kill()
+	if kill.Run() == nil {
+		return nil
 	}
+	return cmd.Process.Kill()
 }

@@ -41,3 +41,18 @@ test("single: calls during a run start one more run afterwards, never two at onc
   expect(runs).toBe(2);
   expect(max).toBe(1);
 });
+
+test("single with a gap: a burst of calls runs at most once per gap", async () => {
+  let runs = 0;
+  const load = single(async () => void runs++, 50);
+  load(); // runs now
+  for (let i = 0; i < 5; i++) {
+    load(); // all of these ask for one more run
+  }
+  expect(runs).toBe(1);
+  await new Promise((r) => setTimeout(r, 20));
+  expect(runs).toBe(1); // still inside the gap
+  await vi.waitFor(() => expect(runs).toBe(2));
+  await new Promise((r) => setTimeout(r, 80));
+  expect(runs).toBe(2);
+});

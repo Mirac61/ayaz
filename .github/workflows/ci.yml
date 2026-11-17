@@ -58,4 +58,20 @@ jobs:
           bun install --frozen-lockfile
           bun run typecheck
           bun run lint
+          bun run lint:css
           bun run test
+
+  windows:
+    name: Process tests (Windows)
+    runs-on: windows-2025
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Go Unit Tests (process packages)
+        run: go test ./internal/proc ./internal/acp

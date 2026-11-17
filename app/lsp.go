@@ -122,14 +122,20 @@ func hasCompileDB(root string) bool {
 	return false
 }
 
-func (s *WorkspaceService) trackServer(srv closer, ws string, on bool) {
+// trackServer registers (on) or forgets srv. Registering fails, and registers nothing, once ws is closed: the
+// caller must then close srv itself, because Close has already taken its snapshot of the workspace's servers.
+func (s *WorkspaceService) trackServer(srv closer, ws string, on bool) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if on {
-		s.servers[srv] = ws
-	} else {
+	if !on {
 		delete(s.servers, srv)
+		return true
 	}
+	if _, err := s.reg.Get(ws); err != nil {
+		return false
+	}
+	s.servers[srv] = ws
+	return true
 }
 
 // System headers clangd may jump into; missing ones are skipped by readLibrary.

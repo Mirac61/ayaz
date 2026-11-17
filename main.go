@@ -55,6 +55,7 @@ func main() {
 	a.HandleStream("pty", ws.HandleTerminal)
 	a.HandleStream("lsp", ws.HandleLSP)
 	a.HandleStream("dap", ws.HandleDAP)
+	a.HandleStream("acp", ws.HandleACP)
 	a.HandleStream("search", ws.HandleSearch)
 	a.HandleStream("echo", app.HandleEcho)
 

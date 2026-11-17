@@ -1,6 +1,6 @@
 # 07 – Manual checks
 
-Updated 2026-11-16
+Updated 2026-11-17
 
 What no automated test reaches: the native window, system dialogs, the real clipboard, other shells and servers, and the Hyprland machine. Tick them off here; a finding goes to the milestone's "Still open" in `05-roadmap.md`.
 
@@ -26,6 +26,14 @@ What no automated test reaches: the native window, system dialogs, the real clip
 | lazygit commit from the terminal split; btop and tables render | M5, M6 |
 | Hot exit: kill the app while typing, start again, restore offered per file | M49 |
 | Tasks: `<Space>rr` runs one from `settings.json`, errors fill the quickfix list | M52 |
+| A file with one 30,000-character line (`python3 -c "print('x'*30000)" > long.json`): the status bar shows `plain text` with a tooltip; a normal `.go` file does not | M83 |
+| In the tree, `c` on a file, change the name, Enter: the copy appears and is selected; the same name again says "already exists"; a folder says only files work | M83 |
+| Tasks with `${file}`, `${dir}`, `${line}` in `settings.json`: `<Space>rr` on an open Go file prints path and line; with no editor open, `<Space>rl` says the task needs an open file | M82 |
+| `<Space>fT` lists TODO, FIXME and HACK comments without typing, Enter jumps there, `<C-q>` fills the quickfix list | M82 |
+| `<Space>fh` on a file saved twice: Cmd+Enter on the older version restores it as unsaved changes (tab shows `[+]`, disk keeps the new text), `u` undoes it | M82 |
+| `<Space>fw`, type "func", Esc, then `<Space>f.`: the same picker opens with "func" and its results | M82 |
+| In the terminal, `echo "main.go:3:1: x"`: the path is underlined on hover and a click opens `main.go` at line 3 in the editor pane next to it; an `https://` URL still opens the browser | M82 |
+| `<Space>go` in a file of a repo with a GitHub remote opens the browser on the current branch at the cursor line; `<Space>gy` copies a permalink with the commit SHA and `#L<line>` | M82 |
 
 ## Hyprland (Arch, Intel UHD)
 

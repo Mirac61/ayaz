@@ -6,6 +6,7 @@ package proc
 import (
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"syscall"
 )
@@ -50,23 +51,31 @@ func Command(shell, command string) *exec.Cmd {
 	return cmd
 }
 
-// Available reports whether command's program is found on PATH or by the login shell.
-func Available(shell, command string) bool {
-	f := strings.Fields(command)
-	if len(f) == 0 {
+// Available reports whether command's program is found on PATH or by the login shell. A relative path
+// (./agent) is looked up in dir, the folder the command will run in; "" means the app's own.
+func Available(dir, shell, command string) bool {
+	bin := ProgramOf(command)
+	if bin == "" {
 		return false
 	}
-	bin := f[0]
+	if strings.Contains(bin, "/") && !filepath.IsAbs(bin) {
+		bin = filepath.Join(dir, bin)
+	}
 	if _, err := exec.LookPath(bin); err == nil {
 		return true
 	}
 	curPath := os.Getenv("PATH")
-	cmdStr := "command -v " + bin
+	cmdStr := "command -v " + quoteShell(bin)
 	if curPath != "" {
 		cmdStr = "export PATH=" + quoteShell(curPath) + "; " + cmdStr
 	}
-	return exec.Command(shell, "-l", "-c", cmdStr).Run() == nil
+	probe := exec.Command(shell, "-l", "-c", cmdStr)
+	probe.Dir = dir
+	return probe.Run() == nil
 }
 
-// Terminate ends the command's process group (the program it started goes with it).
+// Terminate asks the command's process group to end (SIGTERM; the program it started goes with it).
 func Terminate(cmd *exec.Cmd) { syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM) }
+
+// Kill ends the command's process group for good, for a program that ignored Terminate.
+func Kill(cmd *exec.Cmd) error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }

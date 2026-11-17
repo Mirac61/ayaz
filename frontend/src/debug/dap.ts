@@ -188,12 +188,22 @@ export interface LaunchOptions {
   program?: string; // absolute path of what the adapter debugs (for Go the package folder); the folder's own by default
   adapter?: DebugAdapter; // Go (Delve) by default
   breakpoints: Record<string, (number | Breakpoint)[]>; // workspace-relative path → breakpoints or lines (1-based)
+  test?: string; // debug just this test of the program's package (the adapter's launchTest)
 }
 
 // Starts debugging program (the folder's root by default): initialize, launch, then (after the adapter says "initialized")
 // the breakpoints, then configurationDone. Delve answers launch only after configurationDone, so it isn't awaited first.
 export async function launch(client: DapClient, opts: LaunchOptions): Promise<void> {
   const adapter = opts.adapter ?? goAdapter;
+  const program = opts.program ?? opts.root;
+  let args: object;
+  if (opts.test === undefined) {
+    args = adapter.launch(program, opts.root);
+  } else if (adapter.launchTest) {
+    args = adapter.launchTest(program, opts.root, opts.test);
+  } else {
+    throw new Error(`No debug-test support for ${adapter.id}`); // before anything is sent
+  }
   await client.request("initialize", {
     clientID: "ayaz",
     clientName: "Ayaz",
@@ -205,7 +215,7 @@ export async function launch(client: DapClient, opts: LaunchOptions): Promise<vo
     supportsRunInTerminalRequest: true,
   });
   const initialized = client.next("initialized");
-  const launched = client.request("launch", adapter.launch(opts.program ?? opts.root, opts.root));
+  const launched = client.request("launch", args);
   await Promise.race([initialized, launched]); // a failed launch answers before "initialized"
   for (const [path, lines] of Object.entries(opts.breakpoints)) {
     await setBreakpoints(client, opts.root, path, lines);

@@ -36,13 +36,18 @@ export function parseProblems(output: string, root: string): Loc[] {
 // shortcut: POSIX sh/bash/zsh quoting only; commands that re-parse their argument (sh -c "…${file}", eval, ssh) and
 // Windows shells are not covered
 const UNMODELLED = /\$\(|`|<<|\$'|\$\{(?![A-Za-z_]\w*\})|#/y;
-const escape = {
+export const escape = {
   none: (s: string) => `'${s.replace(/'/g, "'\\''")}'`,
   single: (s: string) => s.replace(/'/g, "'\\''"),
   double: (s: string) => s.replace(/[$`"\\]/g, "\\$&"),
 };
-export function expandTask(cmd: string, at: { file?: string; line?: number }): string | null {
-  if (!/\$\{(file|dir|line)\}/.test(cmd)) {
+// An argv as one shell line (a debug adapter's runInTerminal): plain words stay readable, the rest is single-quoted.
+export const shellLine = (args: string[]) => args.map((a) => (/^[\w./-]+$/.test(a) ? a : escape.none(a))).join(" ");
+
+export function expandTask(cmd: string, at: { file?: string; line?: number; name?: string }): string | null {
+  // ${name} (a test's name) counts only when the caller has one
+  const keys = at.name === undefined ? "file|dir|line" : "file|dir|line|name";
+  if (!new RegExp(String.raw`\$\{(${keys})\}`).test(cmd)) {
     return cmd;
   }
   if (at.file === undefined) {
@@ -50,8 +55,8 @@ export function expandTask(cmd: string, at: { file?: string; line?: number }): s
   }
   const { file } = at,
     slash = file.lastIndexOf("/");
-  const vals = { file, dir: slash < 0 ? "." : file.slice(0, slash), line: String(at.line ?? 1) };
-  const ph = /\$\{(file|dir|line)\}/y;
+  const vals = { file, dir: slash < 0 ? "." : file.slice(0, slash), line: String(at.line ?? 1), name: at.name ?? "" };
+  const ph = new RegExp(String.raw`\$\{(${keys})\}`, "y");
   let out = "",
     ctx: keyof typeof escape = "none",
     unmodelled = "",

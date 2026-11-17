@@ -37,7 +37,7 @@ ayaz/
     src/
       core/               # commands, keymap, backend.ts, viewer registry, buffers, quickfix, settings, tasks
       shell/              # layout, splits, tabs, tree, picker, palette, status line, debugger UI
-      editor/             # CM6 setup, vim/, Markdown live preview (mdlive), LSP transport, git gutter
+      editor/             # CM6 setup, vim/, Markdown live preview (mdlive), LSP transport, git gutter, test gutter (testgutter)
       lang/               # extension → language package + LSP server
       terminal/           # xterm.js provider, theme, stream, file:line links
       viewers/            # pdf, image, html, browser
@@ -77,6 +77,7 @@ ayaz/
 | `core/viewers` | provider registry, picks a provider per file |
 | `core/buffers` | buffer store (EditorState, path, mtime, dirty) |
 | `core/quickfix` | one list for search hits, LSP references, later build errors; `:cn`/`:cp` |
+| `core/tests`, `core/testResults` | test adapters (command per scope, parser of the runner's text) and the last result per file; `shell/commands/tests.ts` runs them as tasks (`<Space>rn/rf/ra/rt`) |
 | `shell` | layout, splits, optional tab bar, virtualized tree, picker, palette, status line |
 | `editor` | CM6 per buffer, Vim, Markdown live preview (`mdlive`), git gutter, LSP client per language |
 | `lang` | table extension/filename → language package (lazy) + LSP server ID |
@@ -210,6 +211,7 @@ Leader is `<Space>`. A selection of the defaults; the full list is in the comman
 | `<Space>fw` | project search (grep) |
 | `<Space>fb` | buffers |
 | `<Space>fo` | recent files |
+| `<Space>fp` | switch project (recent folders, open folder) |
 | `<Space>fk` | list keymaps |
 | `<Space>fd` | diagnostics |
 | `<Space>t` | terminal in the bottom panel |

@@ -86,7 +86,7 @@ test("settings.json: theme and themes are checked together", () => {
   expect(() => parseSettings('{"themes": {"x": {"extends": "missing"}}}')).toThrow('unknown theme "missing"');
 });
 
-test("applyTheme sets the variables; with glass the translucent surfaces stay with the stylesheet", () => {
+test("applyTheme sets the variables; with glass the surfaces are the theme's own colours, translucent", () => {
   const set = new Map<string, string>();
   const root = {
     setProperty: (k: string, v: string) => void set.set(k, v),
@@ -100,7 +100,11 @@ test("applyTheme sets the variables; with glass the translucent surfaces stay wi
   expect(set.get("--syn-line-highlight")).toBe(t.syntax.lineHighlight);
   expect(terminalTheme().background).toBe(t.ui.bg1); // no terminal background: the pane's
   applyTheme(BUILTIN_THEMES.kanagawa, true, root);
-  expect(set.has("--bg-0")).toBe(false);
+  expect(set.get("--bg-0")).toBe(
+    `color-mix(in srgb, ${BUILTIN_THEMES.kanagawa.ui.bg0} calc(82% * var(--glass, 1)), transparent)`,
+  );
   expect(set.get("--fg-1")).toBe(BUILTIN_THEMES.kanagawa.ui.fg1);
   expect(terminalTheme().background).toBe("#16171d");
+  applyTheme(BUILTIN_THEMES.graphite, true, root);
+  expect(set.get("--tab")).toBe("transparent"); // an inactive tab stays see-through, not a solid box
 });

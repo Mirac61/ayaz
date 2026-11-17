@@ -22,9 +22,15 @@
     background-color var(--t-fast),
     color var(--t-fast);
 }
-.ui-icon::before {
+.ui-icon[data-glyph]::before {
   content: attr(data-glyph);
   font: var(--text-md) var(--font-mono);
+}
+.ui-icon > svg {
+  flex: none;
+  display: block;
+  width: 15px;
+  height: 15px;
 }
 .ui-icon:hover {
   color: var(--fg-1);

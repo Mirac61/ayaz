@@ -303,6 +303,48 @@ func TestCopy(t *testing.T) {
 	}
 }
 
+func TestImport(t *testing.T) {
+	w := newTestWS(t)
+	outside := filepath.Join(filepath.Dir(w.Root), "outside")
+	read := func(rel string) string { b, _ := os.ReadFile(filepath.Join(w.Root, rel)); return string(b) }
+
+	// A file lands in the folder under its own name, a folder with everything in it.
+	if rel, err := w.Import(filepath.Join(outside, "secret"), "sub", nil); err != nil || rel != "sub/secret" || read("sub/secret") != "s" {
+		t.Errorf("Import(file) = %q, %v, content %q", rel, err, read("sub/secret"))
+	}
+	if rel, err := w.Import(outside, "", nil); err != nil || rel != "outside" || read("outside/secret") != "s" {
+		t.Errorf("Import(folder) = %q, %v", rel, err)
+	}
+
+	// Nothing is replaced or merged.
+	must(t, os.WriteFile(filepath.Join(outside, "secret"), []byte("new"), 0o644))
+	for _, dir := range []string{"sub", ""} {
+		src := map[string]string{"sub": filepath.Join(outside, "secret"), "": outside}[dir]
+		if _, err := w.Import(src, dir, nil); err == nil || !strings.Contains(err.Error(), "already exists") {
+			t.Errorf("Import(%q, %q) = %v, want already exists", src, dir, err)
+		}
+	}
+	if read("sub/secret") != "s" || read("outside/secret") != "s" {
+		t.Error("an existing target was changed")
+	}
+
+	// A folder can't go into itself, and the target folder must be inside the workspace.
+	if _, err := w.Import(filepath.Join(w.Root, "sub"), "sub", nil); err == nil || !strings.Contains(err.Error(), "into itself") {
+		t.Errorf("Import(sub into sub) = %v, want into itself", err)
+	}
+	// The same folder under another case (macOS): a path compare misses it and the copy would recurse into itself.
+	if _, err := os.Stat(filepath.Join(w.Root, "SUB")); err == nil {
+		if _, err := w.Import(filepath.Join(w.Root, "SUB"), "sub", nil); err == nil || !strings.Contains(err.Error(), "into itself") {
+			t.Errorf("Import(SUB into sub) = %v, want into itself", err)
+		}
+	}
+	for _, bad := range []string{"..", "../x", "/etc", "out"} {
+		if _, err := w.Import(outside, bad, nil); err == nil {
+			t.Errorf("Import into %q succeeded", bad)
+		}
+	}
+}
+
 func TestCopyReadOnlySource(t *testing.T) {
 	w := newTestWS(t)
 	must(t, os.WriteFile(filepath.Join(w.Root, "ro.txt"), []byte("x"), 0o400))
@@ -332,5 +374,36 @@ func TestBackslashPathsOnWindows(t *testing.T) {
 	}
 	if es, _ := os.ReadDir(w.Root); len(es) != len(before) { // no file and no parent folder was made
 		t.Errorf("workspace has %d entries after refused copies, was %d", len(es), len(before))
+	}
+}
+
+func TestImportProgress(t *testing.T) {
+	w := newTestWS(t)
+	src := filepath.Join(t.TempDir(), "big")
+	must(t, os.MkdirAll(filepath.Join(src, "deep"), 0o755))
+	must(t, os.WriteFile(filepath.Join(src, "a"), make([]byte, 300_000), 0o644))
+	must(t, os.WriteFile(filepath.Join(src, "deep", "b"), make([]byte, 5), 0o644))
+	must(t, os.Symlink("a", filepath.Join(src, "link"))) // links are copied as links, not counted
+
+	// The count only grows, the total stays, and the last call is everything.
+	check := func(name string, rel string, want int64) {
+		var calls, last, total int64
+		progress := func(done, tot int64) {
+			if done < last || (calls > 0 && tot != total) {
+				t.Errorf("%s: done %d after %d, total %d after %d", name, done, last, tot, total)
+			}
+			calls, last, total = calls+1, done, tot
+		}
+		if _, err := w.Import(rel, "", progress); err != nil {
+			t.Fatal(err)
+		}
+		if calls < 2 || last != want || total != want {
+			t.Errorf("%s: %d calls, last %d of %d, want %d", name, calls, last, total, want)
+		}
+	}
+	check("folder", src, 300_005)
+	check("file", filepath.Join(src, "a"), 300_000)
+	if l, err := os.Readlink(filepath.Join(w.Root, "big", "link")); err != nil || l != "a" {
+		t.Errorf("link = %q, %v", l, err)
 	}
 }

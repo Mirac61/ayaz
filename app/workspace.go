@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/Mirac61/ayaz/internal/git"
 	"github.com/Mirac61/ayaz/internal/index"
@@ -165,8 +166,10 @@ func (s *WorkspaceService) Close(ws string) {
 	delete(s.indexes, indexKey{ws, false})
 	delete(s.indexes, indexKey{ws, true})
 	s.mu.Unlock()
-	s.stop(func(w string) bool { return w == ws })
+	// The registry goes first: trackServer refuses a server of an unknown workspace, so one that registers after
+	// the stop snapshot below can only have registered before the workspace vanished, and the snapshot sees it.
 	s.reg.Close(ws)
+	s.stop(func(w string) bool { return w == ws })
 }
 
 // bindWindow ties ws to the calling window. Its first workspace hooks the window: a close asks the frontend first
@@ -189,6 +192,14 @@ func (s *WorkspaceService) bindWindow(ctx context.Context, ws string) {
 		if cur, ask := s.closeRequest(id); ask {
 			e.Cancel()
 			win.EmitEvent("app:close-request", cur) // events reach every window: the payload says whose it is
+		}
+	})
+	win.OnWindowEvent(events.Common.WindowFilesDropped, func(e *application.WindowEvent) {
+		if dir, ok := treeDrop(e); ok {
+			s.mu.Lock()
+			ws := s.windows[id]
+			s.mu.Unlock()
+			go s.importDropped(ws, dir, e.Context().DroppedFiles())
 		}
 	})
 	win.OnWindowEvent(events.Common.WindowClosing, func(*application.WindowEvent) {
@@ -270,9 +281,65 @@ func NewWindow(a *application.App, name, url string) *application.WebviewWindow 
 	win := a.Window.NewWithOptions(opts)
 	win.OnWindowEvent(events.Common.WindowRuntimeReady, func(*application.WindowEvent) { UncapFrameRate(win) })
 	win.OnWindowEvent(events.Common.WindowFilesDropped, func(e *application.WindowEvent) {
-		go openDropped(e.Context().DroppedFiles())
+		if _, ok := treeDrop(e); !ok { // the file tree's drops copy, see bindWindow
+			go openDropped(e.Context().DroppedFiles())
+		}
 	})
 	return win
+}
+
+// treeDrop is the workspace folder a drop on the file tree goes to: its rows and the tree carry data-drop-dir.
+func treeDrop(e *application.WindowEvent) (dir string, ok bool) {
+	if t := e.Context().DropTargetDetails(); t != nil {
+		dir, ok = t.Attributes["data-drop-dir"]
+	}
+	return dir, ok
+}
+
+// DropEvent is the "app:dropped" payload: the workspace paths a drop on the file tree created, and what failed.
+type DropEvent struct {
+	WS     string   `json:"ws"`
+	Paths  []string `json:"paths"`
+	Errors []string `json:"errors"`
+}
+
+// DropProgress is the "app:drop-progress" payload while a big drop is copied: bytes done of total for one dropped item.
+type DropProgress struct {
+	WS    string `json:"ws"`
+	Name  string `json:"name"`
+	Done  int64  `json:"done"`
+	Total int64  `json:"total"`
+}
+
+// Copies smaller than this are done before a percentage could be read; bigger ones report at most every progressEvery.
+const (
+	progressFrom  = 16 << 20
+	progressEvery = 200 * time.Millisecond
+)
+
+// importDropped copies files dropped on the tree into the workspace folder dir; the tree shows them by the watcher.
+func (s *WorkspaceService) importDropped(ws, dir string, srcs []string) {
+	w, err := s.reg.Get(ws)
+	if err != nil {
+		return
+	}
+	ev := DropEvent{WS: ws}
+	for _, src := range srcs {
+		var last time.Time
+		progress := func(done, total int64) {
+			if total < progressFrom || time.Since(last) < progressEvery {
+				return
+			}
+			last = time.Now()
+			s.emit("app:drop-progress", DropProgress{WS: ws, Name: filepath.Base(src), Done: done, Total: total})
+		}
+		if rel, err := w.Import(src, dir, progress); err != nil {
+			ev.Errors = append(ev.Errors, err.Error())
+		} else {
+			ev.Paths = append(ev.Paths, rel)
+		}
+	}
+	s.emit("app:dropped", ev)
 }
 
 // openDropped opens dropped files like `ayaz file` does, through the app's own socket: the window that has the file's

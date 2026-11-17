@@ -1,7 +1,9 @@
 import { mdLinks } from "../editor/mdrender";
 import { setDropHandler } from "./dnd";
 import { AyazLogo } from "./AyazLogo";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { StartHub } from "./StartHub";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { FilePlus, FolderOpen, FolderPlus, GitBranch, GitCommitHorizontal, ListChevronsDownUp } from "lucide-react";
 import { flushSync } from "react-dom";
 import { EditorView } from "@codemirror/view";
 import { backend, type FileStatus, type Info, type OpenEvent } from "../core/backend";
@@ -9,7 +11,7 @@ import { Commands } from "../core/commands";
 import { defaultKeymap, keyName, mergeKeymap, parseUserKeymap, Sequencer, type Binding } from "../core/keymap";
 import { diff, lf } from "../core/buffers";
 import { PREVIEW } from "../core/viewers";
-import { expandTask, parseWatcherProblems } from "../core/tasks";
+import { expandTask, parseWatcherProblems, shellLine } from "../core/tasks";
 import { docBuild, type DocBuild } from "../core/docBuild";
 import { Quickfix } from "../core/quickfix";
 import { setLspMessages, installHint } from "../editor/lsp";
@@ -39,6 +41,7 @@ import { lspCommands } from "./commands/lsp";
 import { quickfixTools } from "./commands/quickfix";
 import { restoreTabs, viewCommands } from "./commands/view";
 import { harpoonCommands } from "./commands/harpoon";
+import { testCommands } from "./commands/tests";
 import { recentFolders } from "./folders";
 import { updaterStore, type UpdateProgress, type UpdateState } from "../core/updater";
 import { UpdateDialog } from "./UpdateDialog";
@@ -66,6 +69,8 @@ const SIDEBAR_CLOSE = 100; // dragging the edge below this width closes the tree
 const clampSidebar = (w: number) => Math.round(Math.min(640, Math.max(160, w)));
 type Dock = "bottom" | "right" | "top";
 const DOCKS: Dock[] = ["bottom", "right", "top"]; // term.dock cycles them
+
+const GIT_GAP = 300; // ms between two `git status` runs while files keep changing
 
 // One workspace: tree on the left, editor panes in splits, status line. Every action is a command (ADR-0010).
 // onSwitch opens another folder in this window: a root from the recent list, or null for the folder dialog.
@@ -179,6 +184,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
   const [updateState, setUpdateState] = useState<UpdateState>(() => updaterStore.state);
   const [updateInfo, setUpdateInfo] = useState(() => updaterStore.info);
   const [updateProgress, setUpdateProgress] = useState<UpdateProgress | null>(() => updaterStore.progress);
+  const [copying, setCopying] = useState<{ name: string; percent: number } | null>(null); // a big Finder drop
 
   useEffect(() => {
     return updaterStore.subscribe(() => {
@@ -321,6 +327,11 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
     }
   };
 
+  // Another folder in this window (null: the folder dialog); unsaved text stays, so it must be saved first.
+  const switchProject = (root: string | null) => {
+    const d = ed.buffers.dirty();
+    return d.length ? fail(`No write since last change for "${d[0].path}": save first (:w)`) : onSwitch(root);
+  };
   const commands = useMemo(() => new Commands(), []);
   const qf = useMemo(() => new Quickfix(), []);
   const msgTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -364,6 +375,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
     ed.onBreakpointsChanged = (path, bps) => {
       dbg.breakpointsChanged(path, bps);
     };
+    ed.onTestClick = () => void run("test.nearest");
     return () => {
       clearTimeout(msgTimer.current);
       dbg.dispose();
@@ -569,9 +581,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
     };
 
     ed.onRunInTerminal = async (args) => {
-      const quote = (a: string) => (/^[a-zA-Z0-9_\-\.\/]+$/.test(a) ? a : JSON.stringify(a));
-      const cmd = args.args.map(quote).join(" ");
-      termSplit(cmd, { dir: args.cwd });
+      termSplit(shellLine(args.args), { dir: args.cwd });
       return { processId: 1000 };
     };
 
@@ -661,7 +671,21 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
           ),
       });
     };
-    const c: Ctx = { ws, files, ed, dbg, qf, tree, run, say, fail, setPicker, prompt, closePane };
+    const c: Ctx = {
+      ws,
+      files,
+      ed,
+      dbg,
+      qf,
+      tree,
+      run,
+      say,
+      fail,
+      setPicker,
+      prompt,
+      closePane,
+      task: (t, o) => runTask(t, false, o?.onText),
+    };
     const q = quickfixTools(c);
 
     // M52: a task runs in a split that stays open when it ends; file:line lines it printed go to the quickfix list.
@@ -673,8 +697,8 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
         settings().tasks,
       );
     // expand is off for generated commands, whose quoted file names may contain ${line} themselves
-    const runTask = ({ name, cmd: raw }: ProjectTask, expand = true) => {
-      lastTask = () => runTask({ name, cmd: raw }, expand); // unexpanded, so <Space>rl uses the file that is active then
+    const runTask = ({ name, cmd: raw }: ProjectTask, expand = true, onText?: (text: string, done: boolean) => void) => {
+      lastTask = () => runTask({ name, cmd: raw }, expand, onText); // unexpanded, so <Space>rl uses the file that is active then
       const path = ed.current()?.path;
       const at = { file: path && !path.startsWith("/") ? path : undefined, line: ed.cursorLine() ?? undefined };
       let cmd: string | null;
@@ -691,6 +715,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       termSplit(cmd, {
         onExit: () => {}, // keep the pane and its output
         onLiveOutput(text) {
+          onText?.(text, false);
           const locs = parseWatcherProblems(text, ws.root);
           if (locs.length) {
             hadLiveProblems = true;
@@ -702,6 +727,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
           }
         },
         onOutput(text) {
+          onText?.(text, true);
           const locs = parseWatcherProblems(text, ws.root);
           if (locs.length) {
             q.set(`Task "${name}"`, locs, false, false);
@@ -744,6 +770,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       ...fileCommands(c),
       ...findCommands(c, q),
       ...harpoonCommands(c),
+      ...testCommands(c),
       ...lspCommands(c, q),
       ...gitCommands(c),
       ...debugCommands(c),
@@ -876,7 +903,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       },
       {
         id: "folder.switch",
-        title: "Switch folder",
+        title: "Switch project (<Space>fp)",
         run: () =>
           setPicker({
             title: "Switch folder",
@@ -901,13 +928,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
                   (it.hint && it.hint.toLowerCase().includes(q.toLowerCase())),
               );
             },
-            pick(it) {
-              const d = ed.buffers.dirty();
-              if (d.length) {
-                return fail(`No write since last change for "${d[0].path}": save first (:w)`);
-              }
-              onSwitch((it as { root?: string }).root ?? (it.hint === "dialog" ? null : it.label));
-            },
+            pick: (it) => switchProject((it as { root?: string }).root ?? (it.hint === "dialog" ? null : it.label)),
           }),
       },
       { id: "pane.close", title: "Close pane (:q)", run: (a) => closePane(bang(a).force) },
@@ -1232,8 +1253,11 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
     };
   }, [ed]);
 
-  // The tree's colors; asked again on every change on disk and in the repository, one `git status` at a time.
+  // The tree's colors; asked again on changes on disk and in the repository, one `git status` at a time and at most one
+  // every GIT_GAP ms, so a build or a language server writing files costs a few runs, not one per watcher batch.
   const [git, setGit] = useState(() => gitMarks({}));
+  const gitNow = useRef(git);
+  gitNow.current = git;
   const loadGit = useMemo(
     () =>
       single(async () => {
@@ -1245,15 +1269,24 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
         } catch {
           // ignore outside repository
         }
-        try {
-          const detailed = await files.gitDetailedStatus();
-          setGitDetailed(detailed);
-        } catch {
-          setGitDetailed([]);
-        }
-      }),
+      }, GIT_GAP),
     [files],
   );
+
+  // The Git tab's per-file list: a second `git status`, so only while that tab is open.
+  useEffect(() => {
+    if (sideTab !== "git") {
+      return;
+    }
+    let stale = false;
+    files.gitDetailedStatus().then(
+      (d) => !stale && setGitDetailed(d),
+      () => !stale && setGitDetailed([]),
+    );
+    return () => {
+      stale = true;
+    };
+  }, [sideTab, gitStatus, files]);
 
   // Changes on disk (git checkout, codegen, our own saves) reach the tree and the open buffers.
   useEffect(
@@ -1261,7 +1294,10 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       backend.onFsChanged(ws.id, async (c) => {
         const paths = c.rescan ? null : (c.paths ?? []);
         tree.current?.refresh(paths);
-        loadGit();
+        // Writes inside ignored folders (build output, caches) cannot change `git status`.
+        if (!paths || paths.some((p) => gitNow.current(p) !== "!")) {
+          loadGit();
+        }
         const note = await ed.diskChanged(paths);
         if (note) {
           fail(note);
@@ -1269,6 +1305,25 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       }),
     [ed, ws.id],
   );
+
+  // Finder or Dock files dropped on the tree were copied (Go): the cursor goes to the first, failures are said. A big
+  // copy shows its percentage in the status line until then.
+  useEffect(() => {
+    const progress = backend.onDropProgress(ws.id, ({ name, done, total }) =>
+      setCopying({ name, percent: Math.min(100, Math.floor((done * 100) / total)) }),
+    );
+    const dropped = backend.onDropped(ws.id, ({ paths, errors }) => {
+      setCopying(null);
+      if (paths?.length) {
+        void tree.current?.reveal(paths[0]);
+        say(paths.length === 1 ? `Copied "${paths[0]}"` : `Copied ${paths.length} items`);
+      }
+      if (errors?.length) {
+        fail(errors.join("; "));
+      }
+    });
+    return () => (progress(), dropped());
+  }, [ws.id]);
 
   // A commit or checkout (lazygit in the terminal, too): new HEAD for the gutter, maybe a new branch.
   useEffect(() => {
@@ -1594,9 +1649,9 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
     <IconButton key={id} glyph={glyph} label={label} tip={tip(label, id)} onPress={go(id)} />
   );
   // The tree's own buttons: the file commands act on the tree's cursor row while the tree has the focus.
-  const sideTool = (label: string, id: string, glyph: string, arg?: string) => (
+  const sideTool = (label: string, id: string, icon: ReactNode, arg?: string) => (
     <IconButton
-      glyph={glyph}
+      icon={icon}
       label={label}
       onPress={() => {
         tree.current?.focus();
@@ -1660,6 +1715,9 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
           </Seg>
         )}
         {status.plain && <Seg title="A line over 20,000 characters: syntax highlighting is off for this file">plain text</Seg>}
+        {copying && (
+          <Seg title={`Copying "${copying.name}" into the folder: ${copying.percent}%`}>⇣ Copying {copying.percent}%</Seg>
+        )}
         {updateState === "ready" ? (
           <Seg className="update-ready" onPress={() => setShowUpdateDialog(true)} title="Update ready! Click to restart Ayaz">
             ↻ Restart to update
@@ -1748,31 +1806,36 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
             <button
               type="button"
               className={`sidebar-tab files ${sideTab === "files" ? "active" : ""}`}
-              data-glyph={"\uea83"}
               title="Files"
               aria-label="Files"
               onClick={() => setSideTab("files")}
-            />
+            >
+              <FolderOpen />
+            </button>
             <button
               type="button"
               className={`sidebar-tab git ${sideTab === "git" ? "active" : ""}`}
-              data-glyph={"\ue725"}
               title="Git"
               aria-label="Git"
               onClick={() => setSideTab("git")}
             >
+              <GitBranch />
               {changes > 0 && <span className="sidebar-tab-badge">{changes}</span>}
             </button>
           </div>
           <span className="sidebar-tools">
             {sideTab === "files" ? (
               <>
-                {sideTool("New file", "file.new", "\uea7f")}
-                {sideTool("New folder", "file.new", "\uea80", "dir")}
-                <IconButton glyph={"\ueac5"} label="Collapse all folders" onPress={() => tree.current?.collapseAll()} />
+                {sideTool("New file", "file.new", <FilePlus />)}
+                {sideTool("New folder", "file.new", <FolderPlus />, "dir")}
+                <IconButton
+                  icon={<ListChevronsDownUp />}
+                  label="Collapse all folders"
+                  onPress={() => tree.current?.collapseAll()}
+                />
               </>
             ) : (
-              <IconButton glyph={"\ue702"} label="Open Lazygit (<Space>gg)" onPress={() => run("term.lazygit")} />
+              <IconButton icon={<GitCommitHorizontal />} label="Open Lazygit (<Space>gg)" onPress={() => run("term.lazygit")} />
             )}
           </span>
         </div>
@@ -2035,43 +2098,16 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
           />
         ))}
         {status.path === null && status.lines === 1 && status.col === 1 && panes(layout).length === 1 && (
-          <div className="pane-empty" aria-hidden>
-            <AyazLogo size={48} className="pane-empty-logo" />
-            <div className="pane-empty-name">{ws.name}</div>
-            {(
-              [
-                ["find.files", "Go to file"],
-                ["find.grep", "Search in files"],
-                ["find.commands", "Command palette"],
-                ["term.panel", "Terminal"],
-                ["tree.focus", "File tree"],
-              ] as const
-            ).map(([id, what]) => (
-              <div key={id} className="pane-empty-row">
-                <span>{what}</span>
-                <kbd>{bindings.find((b) => b.command === id)?.keys}</kbd>
-              </div>
-            ))}
-            {ed
-              .recent()
-              .slice(0, 5)
-              .map((p, i) => (
-                <button
-                  key={p}
-                  type="button"
-                  className={i ? "pane-empty-file" : "pane-empty-file first"}
-                  tabIndex={-1}
-                  title={p}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    run("file.open", p);
-                  }}
-                >
-                  <span className="dir">{p.slice(0, p.lastIndexOf("/") + 1)}</span>
-                  {p.slice(p.lastIndexOf("/") + 1)}
-                </button>
-              ))}
-          </div>
+          <StartHub
+            name={ws.name}
+            root={ws.root}
+            branch={branch}
+            changes={changes}
+            files={ed.recent().slice(0, 5)}
+            keys={(id) => bindings?.find((b) => b.command === id)?.keys}
+            run={run}
+            switchTo={switchProject}
+          />
         )}
         {borders(layout).map((b) => (
           <Handle

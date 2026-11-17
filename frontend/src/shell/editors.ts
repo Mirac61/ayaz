@@ -1,6 +1,8 @@
 import { startDrag } from "./dnd";
 import { EditorState, Transaction, Annotation, Text } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import { testResults, type FileResults } from "../core/testResults";
+import { setTestResults } from "../editor/testgutter";
 import { redo, undo, undoDepth } from "@codemirror/commands";
 import { indentUnit } from "@codemirror/language";
 import { getCM, Vim } from "@replit/codemirror-vim";
@@ -123,6 +125,8 @@ export class Editors {
   cursors: Record<string, number> = {}; // from the session: where the cursor was when a file loads again
   bps: Record<string, Breakpoint[]> = {}; // from the session: the breakpoints a file gets when it loads again
   onBreakpointsChanged?: (path: string, bps: Breakpoint[]) => void;
+  onTestClick?: (view: EditorView, line: number) => void; // a marker in the test gutter: run that test
+  private shownResults = new Map<string, FileResults | undefined>(); // what each buffer was last given
   private jumps = new Map<number, Jumps>(); // per pane: back/forward across files
   private navigating = false; // nav() is opening a file: not a new jump
   private closed: string[] = []; // closed tabs, last on top (Cmd+Shift+T)
@@ -161,8 +165,9 @@ export class Editors {
     this.editorConfig = this.loadEditorConfig();
     this.buffers = new Buffers(files, async (path, doc) => {
       await this.editorConfig;
-      return createState(path, doc, wsId, root);
+      return createState(path, doc, wsId, root, (v, line) => this.onTestClick?.(v, line));
     });
+    testResults.subscribe(() => this.buffers.list().forEach((b) => this.pushResults(b.path)));
     setLspHost(wsId, { display: (path) => this.display(path), apply: async (e) => (await this.applyEdit(e)).length > 0 });
     this.recentKey = `ayaz.recent:${root}`;
   }
@@ -821,6 +826,8 @@ export class Editors {
     });
     if (firstDisplay) {
       void this.loadHead(path);
+      this.shownResults.delete(path);
+      this.pushResults(path);
       const lines = this.bps[path];
       if (lines?.length) {
         b.state = b.state.update({ effects: setBreakpointLines.of(lines) }).state;
@@ -1004,7 +1011,7 @@ export class Editors {
   // The active editor's file, workspace-relative; null if there is none or it lies outside the folder.
   activePath(): string | null {
     const path = this.current()?.path;
-    return path && !path.startsWith("/") ? path : null;
+    return path && !path.startsWith("/") && !path.includes("://") ? path : null; // not outside the folder, not a head:// view
   }
 
   // Every loaded buffer's breakpoints (files without any are left out): what the debugger is given.
@@ -1207,6 +1214,25 @@ export class Editors {
     }
   }
 
+  // Gives the file's buffer the test results the runner last reported, unless it has them already.
+  private pushResults(path: string) {
+    const b = this.buffers.get(path);
+    const fr = testResults.get(path);
+    if (!b || this.shownResults.get(path) === fr) {
+      return;
+    }
+    this.shownResults.set(path, fr);
+    const results = new Map([...(fr?.byName ?? [])].map(([name, r]) => [name, r.status] as const));
+    const effects = setTestResults.of(results);
+    const shown = [...this.panes.values()].filter((p) => p.buf === b);
+    for (const p of shown) {
+      p.view!.dispatch({ effects });
+    }
+    if (!shown.length) {
+      b.state = b.state.update({ effects }).state;
+    }
+  }
+
   // <Space>gd in the active editor; false when there is nothing to compare with.
   toggleDiff() {
     const v = this.activeView();
@@ -1232,7 +1258,8 @@ export class Editors {
   // Brings loaded buffers in line with disk after a watcher event (null = check all). Clean buffers reload in place,
   // keeping cursor and undo; returns a notice for dirty or deleted ones.
   async diskChanged(paths: string[] | null): Promise<string | null> {
-    if (!paths || paths.includes(".editorconfig")) {
+    let touched = !paths || paths.includes(".editorconfig");
+    if (touched) {
       this.editorConfig = this.loadEditorConfig();
       await this.editorConfig;
       this.settingsChanged();
@@ -1240,6 +1267,7 @@ export class Editors {
     const hit = (p: string) => !paths || paths.some((c) => p === c || p.startsWith(c + "/")); // a folder covers its files
     let note: string | null = null;
     for (const b of this.buffers.list().filter((b) => hit(b.path))) {
+      touched = true;
       const r = await this.buffers.checkDisk(b).catch(() => ({ kind: "same" as const })); // unreadable now: leave it
       if (r.kind === "conflict") {
         note ??= `"${b.path}" changed on disk. :w! overwrites, :e! reloads`;
@@ -1261,10 +1289,13 @@ export class Editors {
     const viewerPath = (title?: string) => (title?.startsWith(PREVIEW) ? title.slice(PREVIEW.length) : (title ?? ""));
     for (const p of this.panes.values()) {
       if (p.viewer && hit(viewerPath(p.title))) {
+        touched = true;
         p.viewer.reload?.();
       }
     }
-    this.emit();
+    if (touched) {
+      this.emit(); // a build writing elsewhere changes nothing on screen: no status update, no re-render
+    }
     return note;
   }
 
