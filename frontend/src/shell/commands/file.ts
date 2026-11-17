@@ -57,6 +57,38 @@ export function fileCommands({ ws, files, ed, tree, say, fail, setPicker, prompt
   };
   const unsavedUnder = (path: string) => ed.buffers.dirty().find((b) => b.path === path || b.path.startsWith(path + "/"));
 
+  // op refused because "to" exists: ask, then move the old "to" to the trash (recoverable) and run op again.
+  const orReplace = async (from: string, to: string, op: () => Promise<void>) => {
+    try {
+      return await op();
+    } catch (e) {
+      const f = from.toLowerCase(),
+        t = to.toLowerCase();
+      // a case-only rename (macOS sees the source itself) or a folder holding the source must never be trashed
+      if (!/already exists/.test(errText(e)) || f === t || f.startsWith(t + "/")) {
+        throw e;
+      }
+    }
+    const d = unsavedUnder(to);
+    if (d) {
+      return fail(`"${d.path}" has unsaved changes: save first (:w)`);
+    }
+    const back = inTree();
+    setPicker({
+      title: `"${to}" already exists. Replace it? · Enter confirms, Esc cancels`,
+      query: async () => [{ label: "Replace (the old one goes to the trash)", icon: fileIcon(to) }],
+      pick: () =>
+        void files
+          .trash(to)
+          .then(() => ed.moved(to, null))
+          .then(op)
+          .then(
+            () => back && tree.current?.focus(),
+            (e) => fail(errText(e)),
+          ),
+    });
+  };
+
   return [
     { id: "file.save", title: "Save file (:w)", run: (a) => save(bang(a).force) },
     {
@@ -129,10 +161,12 @@ export function fileCommands({ ws, files, ed, tree, say, fail, setPicker, prompt
           if (to === t.path) {
             return;
           }
-          await files.rename(t.path, to);
-          await ed.moved(t.path, to);
-          await tree.current?.reveal(to);
-          say(`Renamed to "${to}"`);
+          await orReplace(t.path, to, async () => {
+            await files.rename(t.path, to);
+            await ed.moved(t.path, to);
+            await tree.current?.reveal(to);
+            say(`Renamed to "${to}"`);
+          });
         });
       },
     },
@@ -155,9 +189,11 @@ export function fileCommands({ ws, files, ed, tree, say, fail, setPicker, prompt
           if (to === t.path) {
             return;
           }
-          await files.duplicate(t.path, to);
-          await tree.current?.reveal(to);
-          say(`Duplicated to "${to}"`);
+          await orReplace(t.path, to, async () => {
+            await files.duplicate(t.path, to);
+            await tree.current?.reveal(to);
+            say(`Duplicated to "${to}"`);
+          });
         });
       },
     },
