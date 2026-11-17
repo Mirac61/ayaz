@@ -36,7 +36,7 @@ export function parseProblems(output: string, root: string): Loc[] {
 // shortcut: POSIX sh/bash/zsh quoting only; commands that re-parse their argument (sh -c "…${file}", eval, ssh) and
 // Windows shells are not covered
 const UNMODELLED = /\$\(|`|<<|\$'|\$\{(?![A-Za-z_]\w*\})|#/y;
-const escape = {
+export const escape = {
   none: (s: string) => `'${s.replace(/'/g, "'\\''")}'`,
   single: (s: string) => s.replace(/'/g, "'\\''"),
   double: (s: string) => s.replace(/[$`"\\]/g, "\\$&"),
