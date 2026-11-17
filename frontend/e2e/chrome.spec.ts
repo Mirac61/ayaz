@@ -116,3 +116,27 @@ test("empty window offers the project switch", async ({ page }) => {
   await wallpaper(page);
   await shot(page, "ui-overhaul-start-glass");
 });
+
+// Glass: the tree's context menu blurs what is under it like the picker, else the rows' text reads through its labels.
+test("glass: the tree's context menu blurs the rows under it and its labels are heavier", async ({ page }) => {
+  await page.goto("/?renderer=dom");
+  const tree = page.getByRole("tree", { name: "Files" });
+  await expect(tree).toBeFocused();
+  await toggleGlass(page);
+  await expect(page.locator("html")).toHaveAttribute("data-glass", /.*/);
+  await wallpaper(page);
+  await tree.getByRole("treeitem", { name: "README.md" }).click({ button: "right" });
+  const menu = page.getByRole("menu");
+  await expect(menu).toBeVisible();
+  expect(await menu.evaluate((el) => getComputedStyle(el).backdropFilter || getComputedStyle(el).webkitBackdropFilter)).toContain(
+    "blur",
+  );
+  expect(
+    await menu
+      .getByRole("menuitem")
+      .first()
+      .evaluate((el) => getComputedStyle(el).fontWeight),
+  ).toBe("500");
+  await menu.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished))); // the shot after the fade-in
+  await shot(page, "pr-context-menu-glass");
+});
