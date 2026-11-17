@@ -203,7 +203,7 @@ export function viewCommands({ ed, say, fail, setPicker }: Ctx): Command[] {
           hint: `:${h.line}`, // the line tells apart headings of the same text (### Features in a changelog)
           glyph: "\uf02e",
           ...h,
-          nth: headings.slice(0, i).filter((o) => o.text === h.text).length,
+          index: i, // the reading view's data-md-heading, so equal titles still go to their own place
         }));
         // the heading the cursor is under, so the list opens where you are
         const at = v.state.selection.main.head;
@@ -242,7 +242,7 @@ export function viewCommands({ ed, say, fail, setPicker }: Ctx): Command[] {
               selection: { anchor: match.from },
               effects: EditorView.scrollIntoView(match.from, { y: "start" }),
             });
-            revealHeading(v, match.text, match.nth); // the reading view covers the editor: scroll it too
+            revealHeading(v, match.index); // the reading view covers the editor: scroll it too
             say(`Heading: ${match.text}`);
           },
         });

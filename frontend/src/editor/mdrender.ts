@@ -35,11 +35,11 @@ export function setSkin(s: Skin) {
   }
 }
 
-// Scrolls view's reading view to the Markdown heading with this text; nth counts headings of the same text before it.
-// False when no reading view shows it. By id, not by index: raw HTML headings (<h1 align="center">) have none.
-export function revealHeading(view: EditorView, text: string, nth = 0): boolean {
+// Scrolls view's reading view to its nth Markdown heading (the outline's index); false when no reading view shows it.
+// By index, not by text: two titles can share a slug, and raw HTML can bring its own id (<h1 align="center">).
+export function revealHeading(view: EditorView, index: number): boolean {
   const box = [...boxes].find((b) => view.dom.contains(b));
-  const h = box?.querySelectorAll(`[id="${CSS.escape(slug(text))}"]`)[nth];
+  const h = box?.querySelector(`[data-md-heading="${index}"]`);
   h?.scrollIntoView({ block: "start" });
   return !!h;
 }
@@ -55,10 +55,26 @@ const slug = (t: string) =>
     .replace(/\s/g, "-");
 
 const md = new MarkdownIt({ html: true, linkify: true });
-md.renderer.rules.heading_open = (tokens, i, o, _env, self) => {
-  tokens[i].attrSet("id", slug(tokens[i + 1]?.content ?? ""));
-  return self.renderToken(tokens, i, o);
-};
+// Duplicate titles get "…-1", "…-2" like on GitHub. data-md-heading is the heading's place among the document's
+// headings, so the outline can scroll by index: two titles can share a slug, raw HTML can carry its own id.
+md.core.ruler.after("inline", "headings", ({ tokens }) => {
+  const ids = new Map<string, number>();
+  let n = 0;
+  for (let i = 0; i < tokens.length; i++) {
+    if (tokens[i].type !== "heading_open") {
+      continue;
+    }
+    const content = tokens[i + 1]?.content ?? "",
+      base = slug(content),
+      seen = ids.get(base) ?? 0;
+    ids.set(base, seen + 1);
+    tokens[i].attrSet("id", seen ? `${base}-${seen}` : base);
+    if (content.trim()) {
+      // an empty heading ("#") is no outline entry, and skipping it keeps the indexes in step with the outline
+      tokens[i].attrSet("data-md-heading", String(n++));
+    }
+  }
+});
 // "- [ ] x" and "- [x] x" are checkboxes, like on GitHub.
 md.core.ruler.after("inline", "tasks", (state) => {
   const t = state.tokens;

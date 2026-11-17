@@ -30,6 +30,17 @@ test("task lists, tables and heading ids", () => {
   expect(d.querySelectorAll("table td").length).toBe(2);
 });
 
+test("headings carry unique ids and their place for the outline", () => {
+  const d = html("# Features\n\n## Features\n\n## API?\n\n## API");
+  expect([...d.querySelectorAll("h1, h2")].map((h) => h.id)).toEqual(["features", "features-1", "api", "api-1"]);
+  expect([...d.querySelectorAll("[data-md-heading]")].map((h) => h.getAttribute("data-md-heading"))).toEqual([
+    "0",
+    "1",
+    "2",
+    "3",
+  ]);
+});
+
 test("a picked skin is kept until settings.json names another one", () => {
   localStorage.removeItem("ayaz.mdskin");
   expect(skin()).toBe("github"); // the default

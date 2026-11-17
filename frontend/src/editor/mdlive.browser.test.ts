@@ -209,12 +209,24 @@ test("the outline's headings scroll the reading view, also the second of two equ
   await mount(`# Top\n\n${body}## Features\n\n${body}## Features\n\n${body}`);
   toggleReading(view!);
   const box = view!.dom.querySelector<HTMLElement>(".md-render")!;
-  const hs = mdHeadings(view!.state);
-  expect(hs.map((h) => h.text)).toEqual(["Top", "Features", "Features"]);
-  expect(revealHeading(view!, "Features", 1)).toBe(true);
+  expect(mdHeadings(view!.state).map((h) => h.text)).toEqual(["Top", "Features", "Features"]);
+  expect(revealHeading(view!, 2)).toBe(true); // the second "Features"
   const second = box.querySelectorAll("h2")[1];
   expect(Math.abs(second.getBoundingClientRect().top - box.getBoundingClientRect().top)).toBeLessThan(40);
-  expect(revealHeading(view!, "Missing")).toBe(false);
+  expect(revealHeading(view!, 9)).toBe(false);
+});
+
+test("a heading whose slug another one shares still scrolls to its own place", async () => {
+  const body = "text\n\n".repeat(30);
+  await mount(`# API\n\n${body}## API?\n\n${body}## C++\n\n${body}## C\n\n${body}`);
+  toggleReading(view!);
+  const box = view!.dom.querySelector<HTMLElement>(".md-render")!;
+  const at = (h: Element) => Math.abs(h.getBoundingClientRect().top - box.getBoundingClientRect().top) < 40;
+  expect([...box.querySelectorAll("h1, h2")].map((h) => h.id)).toEqual(["api", "api-1", "c", "c-1"]); // unique
+  expect(revealHeading(view!, 1)).toBe(true); // "API?", not "API"
+  expect(at(box.querySelectorAll("h1, h2")[1])).toBe(true);
+  expect(revealHeading(view!, 3)).toBe(true); // "C", not "C++"
+  expect(at(box.querySelectorAll("h1, h2")[3])).toBe(true);
 });
 
 test("a live table keeps every column readable next to a long one, also with line wrap", async () => {
