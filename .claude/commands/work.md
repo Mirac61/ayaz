@@ -27,10 +27,12 @@ Du bist der Umsetzer, der `reviewer` ist die Gegenprüfung.
    sind, behebst du. NITs nur wenn trivial. Tests danach erneut. Jede Änderung
    macht das Urteil aus Schritt 5 ungültig, auch ein NIT-Fix. Bei DECISION:
    stelle mir die Frage mit A/B und stoppe — rate nicht.
-7. **Letzte Runde.** Höchstens zwei Review-Runden. Der finale Stand braucht
-   `VERDICT: PASS` aus einem Review, das genau diesen Stand abdeckt. Deckt das
-   Urteil ihn nicht ab oder würde eine weitere Runde die zwei sprengen:
-   `waypoint task block <id>`, Bericht zeigen, keinen Commit.
+7. **Zweite Runde.** Höchstens zwei Review-Runden. Nach jedem Fix sammelst du den
+   Diff neu (`git status --short`, `git diff HEAD`, neue Dateien separat), startest
+   `reviewer` erneut und ersetzt den Bericht in `/tmp/ayaz-review-<id>.md`. Für den
+   Commit muss das letzte Review genau den finalen Stand abdecken. Wäre dafür eine
+   dritte Runde nötig oder kommt kein Urteil: `waypoint task block <id>`, Bericht
+   zeigen, keinen Commit.
 8. **Commit.** Conventional Commit, ohne Push und ohne `gh` (macht das
    Host-Skript). Kein `DONE` setzen — das passiert nach dem Merge.
 

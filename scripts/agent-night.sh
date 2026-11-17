@@ -10,6 +10,16 @@ TASKS_DONE=0
 OPENED_PRS=""
 TOOLS="Read,Edit,Write,Grep,Glob,WebFetch,WebSearch,Agent,Bash(go test:*),Bash(go build:*),Bash(bun run:*),Bash(task test),Bash(git diff:*),Bash(git status:*)"
 
+# Reviewer-Definition auf den Repo-Stand bringen. Der Umsetzer darf sie nicht
+# verändern; deshalb wird sie auch direkt vor dem Host-Review nochmal erneuert.
+sync_reviewer_agent() {
+  if ! cmp -s "$REPO_ROOT/.claude/agents/reviewer.md" .claude/agents/reviewer.md 2>/dev/null; then
+    mkdir -p .claude/agents
+    cp "$REPO_ROOT/.claude/agents/reviewer.md" .claude/agents/reviewer.md
+    REVIEW_AGENT_COPIED=1
+  fi
+}
+
 # 1. Atomares Lock (verhindert doppelte Ausführung)
 if ! mkdir "$LOCK_DIR" 2>/dev/null; then
   echo "Ein anderer Agent-Lauf ist noch aktiv ($LOCK_DIR). Breche ab."
@@ -50,11 +60,10 @@ for TARGET_ID in $TODO_IDS; do
   PR_BODY_FILE="/tmp/ayaz-pr-$TARGET_ID.md"
   QUESTION_OUT="/tmp/ayaz-question-$TARGET_ID.md"
   REVIEW_OUT="/tmp/ayaz-review-$TARGET_ID.md"
-  HOST_REVIEW_OUT="/tmp/ayaz-review-host-$TARGET_ID.md"
   REVIEW_INPUT="/tmp/ayaz-diff-$TARGET_ID.md"
   LOG_FILE="/tmp/ayaz-run-$TARGET_ID.log"
 
-  rm -f "$PR_BODY_FILE" "$QUESTION_OUT" "$REVIEW_OUT" "$HOST_REVIEW_OUT" "$REVIEW_INPUT" "$LOG_FILE"
+  rm -f "$PR_BODY_FILE" "$QUESTION_OUT" "$REVIEW_OUT" "$REVIEW_INPUT" "$LOG_FILE"
   git worktree remove --force "$WORKTREE_DIR" 2>/dev/null || true
   git branch -D "$BRANCH_NAME" 2>/dev/null || true
 
@@ -82,14 +91,10 @@ for TARGET_ID in $TODO_IDS; do
 
   cd "$WORKTREE_DIR"
 
-  # Reviewer-Definition auf den Stand des Repos bringen, damit der Host-Reviewer
-  # garantiert die aktuelle Fassung nutzt. Vor dem Commit wird sie zurückgesetzt.
+  # Reviewer-Definition bereitstellen: der Umsetzer reviewt damit selbst, der
+  # Host nutzt dieselbe Fassung. Vor dem Commit wird sie zurückgesetzt.
   REVIEW_AGENT_COPIED=0
-  if ! cmp -s "$REPO_ROOT/.claude/agents/reviewer.md" .claude/agents/reviewer.md 2>/dev/null; then
-    mkdir -p .claude/agents
-    cp "$REPO_ROOT/.claude/agents/reviewer.md" .claude/agents/reviewer.md
-    REVIEW_AGENT_COPIED=1
-  fi
+  sync_reviewer_agent
 
   # Dependencies & Initial-Build für Go-Embed bereitstellen
   bun install --cwd frontend --frozen-lockfile >> "$LOG_FILE" 2>&1
@@ -149,7 +154,11 @@ $(cat "$REPO_ROOT/prompts/runner.md")"
 
   # Review-Gate: Der Host startet den Reviewer selbst auf dem finalen Diff.
   # Der Bericht des Umsetzers ($REVIEW_OUT) ist kein Nachweis — er könnte ihn
-  # selbst geschrieben haben. Nur ein Host-Urteil gibt den Commit frei.
+  # selbst geschrieben haben. Deshalb erst jetzt eine frische Datei mit
+  # zufälligem Namen anlegen, die Definition erneuern, mit `>` schreiben und
+  # den Exit-Status prüfen; `>>` auf einen erratbaren Pfad wäre fälschbar.
+  sync_reviewer_agent
+  HOST_REVIEW_OUT=$(mktemp "${TMPDIR:-/tmp}/ayaz-review-host.XXXXXX")
   {
     echo "Review the change in this repository (working tree, task: $TASK_TITLE, base: $BASE_BRANCH)."
     echo "Everything you need is below; report in the format from your instructions."
@@ -163,19 +172,22 @@ $(cat "$REPO_ROOT/prompts/runner.md")"
     echo '```'
   } > "$REVIEW_INPUT"
 
+  REVIEW_EXIT=0
   caffeinate -i perl -e 'alarm shift; exec @ARGV' 900 \
     claude -p \
     --agent reviewer \
     --allowedTools "Read,Grep,Glob" \
     --max-turns 30 \
-    < "$REVIEW_INPUT" >> "$HOST_REVIEW_OUT" 2>&1 || true
+    < "$REVIEW_INPUT" > "$HOST_REVIEW_OUT" 2>&1 || REVIEW_EXIT=$?
 
-  if ! grep -q '^VERDICT: PASS' "$HOST_REVIEW_OUT" 2>/dev/null; then
+  if [ "$REVIEW_EXIT" -ne 0 ] || ! grep -q '^VERDICT: PASS' "$HOST_REVIEW_OUT"; then
     echo "Task #$TARGET_ID ohne Reviewer-PASS -> BLOCKED."
     cd "$REPO_ROOT"
     waypoint task block "$TARGET_ID"
     {
       echo "## 🔎 Review nicht bestanden bei Task #$TARGET_ID: $TASK_TITLE ($(date "+%Y-%m-%d %H:%M"))"
+      echo "Reviewer-Exit-Status: $REVIEW_EXIT"
+      echo ""
       if [ -s "$HOST_REVIEW_OUT" ]; then
         cat "$HOST_REVIEW_OUT"
       else
