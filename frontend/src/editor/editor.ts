@@ -29,6 +29,7 @@ import { pasteImage } from "./pasteImage";
 import { mdRender } from "./mdrender";
 import { lspExtension } from "./lsp";
 import { gitGutter } from "./gitgutter";
+import { testGutter } from "./testgutter";
 import { swatches } from "./swatches";
 import { diagnosticText } from "./diagtext";
 import { editorConfigIndent } from "../core/editorconfig";
@@ -153,7 +154,13 @@ export const spellcheckFor = (path: string | null) => !!(path && PROSE.has(extOf
 
 // Builds the state for a file, with its language loaded first so highlighting is there on the first frame.
 // M51: a file with a very long line opens as plain text (see hasLongLine); the file size alone is no reason.
-export async function createState(path: string | null, doc: string, ws?: string, root?: string): Promise<EditorState> {
+export async function createState(
+  path: string | null,
+  doc: string,
+  ws?: string,
+  root?: string,
+  runTest?: (view: EditorView, line: number) => void,
+): Promise<EditorState> {
   const lang = path && !hasLongLine(doc) ? await loadLanguage(path) : null;
   return EditorState.create({
     doc,
@@ -166,6 +173,7 @@ export async function createState(path: string | null, doc: string, ws?: string,
       path && ws && root && !path.startsWith("docs://") ? [lspExtension(ws, root, path), diagnosticText] : [],
       path?.startsWith("/") || (path && isVirtual(path)) ? EditorState.readOnly.of(true) : [],
       path ? snippetCompletion(extOf(path)) : [],
+      path && runTest && !path.startsWith("/") && !isVirtual(path) ? testGutter(path, runTest) : [],
       path && SWATCHED.has(extOf(path)) ? swatches : [],
       path && (extOf(path) === "md" || path.startsWith("docs://"))
         ? [mdlive, mdRender, ws ? [mdImages.of({ ws, file: path }), pasteImage(ws, path)] : []]

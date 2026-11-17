@@ -374,6 +374,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
     ed.onBreakpointsChanged = (path, bps) => {
       dbg.breakpointsChanged(path, bps);
     };
+    ed.onTestClick = () => void run("test.nearest");
     return () => {
       clearTimeout(msgTimer.current);
       dbg.dispose();
