@@ -3,11 +3,15 @@ package proc
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
 
 func TestParseZshrcPaths(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX paths")
+	}
 	fakeHome := "/Users/testuser"
 	content := `
 # Some comment
@@ -110,6 +114,9 @@ func TestDetectNvmPaths(t *testing.T) {
 }
 
 func TestEnrichPath(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX paths")
+	}
 	orig := "/usr/bin:/bin"
 	enriched := EnrichPath(orig)
 	if !strings.Contains(enriched, orig) {

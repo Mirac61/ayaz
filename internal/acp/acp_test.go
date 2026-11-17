@@ -166,6 +166,9 @@ func TestLongStderrLineDoesNotStallAgent(t *testing.T) {
 }
 
 func TestStartResolvesProgramLikeTheShell(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX shell scripts")
+	}
 	root := t.TempDir()
 	spaced := filepath.Join(root, "Agent Tools")
 	if err := os.Mkdir(spaced, 0o755); err != nil {
