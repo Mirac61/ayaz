@@ -77,6 +77,7 @@ ayaz/
 | `core/viewers` | provider registry, picks a provider per file |
 | `core/buffers` | buffer store (EditorState, path, mtime, dirty) |
 | `core/quickfix` | one list for search hits, LSP references, later build errors; `:cn`/`:cp` |
+| `core/tests`, `core/testResults` | test adapters (command per scope, parser of the runner's text) and the last result per file; `shell/commands/tests.ts` runs them as tasks (`<Space>rn/rf/ra/rt`) |
 | `shell` | layout, splits, optional tab bar, virtualized tree, picker, palette, status line |
 | `editor` | CM6 per buffer, Vim, Markdown live preview (`mdlive`), git gutter, LSP client per language |
 | `lang` | table extension/filename → language package (lazy) + LSP server ID |

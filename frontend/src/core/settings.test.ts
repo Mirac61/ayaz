@@ -77,6 +77,14 @@ test("the status line goes top or bottom, its colors are hex per key", () => {
   expect(() => parseSettings('{"statusColors": {"normal": "blue"}}')).toThrow("statusColors.normal must be a hex color");
 });
 
+test("tests: adapter ids to command templates", () => {
+  expect(parseSettings('{"tests": {"go": "gotestsum ./..."}}').tests).toEqual({ go: "gotestsum ./..." });
+  expect(DEFAULTS.tests).toEqual({});
+  expect(() => parseSettings('{"tests": ["go"]}')).toThrow('"tests" must be an object of adapter → command');
+  expect(() => parseSettings('{"tests": {"cobol": "x"}}')).toThrow("tests.cobol is not a test adapter (go)");
+  expect(() => parseSettings('{"tests": {"go": 1}}')).toThrow("tests.go must be a command (a string)");
+});
+
 test("tasks: names to shell commands", () => {
   expect(parseSettings('{"tasks": {"vet": "go vet ./..."}}').tasks).toEqual({ vet: "go vet ./..." });
   expect(() => parseSettings('{"tasks": ["go vet"]}')).toThrow('"tasks" must be an object of name → command');

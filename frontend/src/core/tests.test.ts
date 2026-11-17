@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { adapterFor, goAdapter } from "./tests";
+import { adapterFor, goAdapter, testCommand } from "./tests";
 
 const at = (file: string, name?: string) => ({ file, name });
 
@@ -73,6 +73,30 @@ test("go parse: durations in ms, ANSI colours and CRLF", () => {
 test("go parse: empty output and unrelated lines give nothing", () => {
   expect(goAdapter.parse("")).toEqual([]);
   expect(goAdapter.parse("ok  \tfix\t0.1s\nPASS\n")).toEqual([]);
+});
+
+test("testCommand: the adapter's own command without a template", () => {
+  expect(testCommand(goAdapter, "file", { file: "a/b_test.go" })).toBe("go test -v ./a");
+});
+
+test("testCommand: a template fills file, dir and name, all quoted", () => {
+  const at = { file: "a b/x_test.go", name: "TestA; rm -rf ~" };
+  expect(testCommand(goAdapter, "nearest", at, "t ${file} ${dir} ${name}")).toBe("t 'a b/x_test.go' 'a b' 'TestA; rm -rf ~'");
+  expect(testCommand(goAdapter, "file", at, "t ${file}")).toBe("t 'a b/x_test.go'");
+});
+
+test("testCommand: nearest without ${name} throws; ${name} templates are for nearest, all is always built in", () => {
+  expect(() => testCommand(goAdapter, "nearest", { file: "x_test.go", name: "TestA" }, "t ${file}")).toThrow(
+    "No ${name} in your tests.go command",
+  );
+  expect(testCommand(goAdapter, "file", { file: "x_test.go" }, "t ${name}")).toBe("go test -v .");
+  expect(testCommand(goAdapter, "all", { file: "x_test.go" }, "t ${file}")).toBe("go test -v ./...");
+});
+
+test("goAdapter: the file scope runs only the tests the file declares", () => {
+  expect(goAdapter.command("file", { file: "a/x_test.go", names: ["TestA", "TestB"] })).toBe(
+    "go test -v -run '^(TestA|TestB)$' ./a",
+  );
 });
 
 test("adapterFor picks by extension", () => {

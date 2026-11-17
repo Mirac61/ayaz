@@ -41,6 +41,7 @@ import { lspCommands } from "./commands/lsp";
 import { quickfixTools } from "./commands/quickfix";
 import { restoreTabs, viewCommands } from "./commands/view";
 import { harpoonCommands } from "./commands/harpoon";
+import { testCommands } from "./commands/tests";
 import { recentFolders } from "./folders";
 import { updaterStore, type UpdateProgress, type UpdateState } from "../core/updater";
 import { UpdateDialog } from "./UpdateDialog";
@@ -670,7 +671,21 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
           ),
       });
     };
-    const c: Ctx = { ws, files, ed, dbg, qf, tree, run, say, fail, setPicker, prompt, closePane };
+    const c: Ctx = {
+      ws,
+      files,
+      ed,
+      dbg,
+      qf,
+      tree,
+      run,
+      say,
+      fail,
+      setPicker,
+      prompt,
+      closePane,
+      task: (t, o) => runTask(t, false, o?.onText),
+    };
     const q = quickfixTools(c);
 
     // M52: a task runs in a split that stays open when it ends; file:line lines it printed go to the quickfix list.
@@ -682,8 +697,8 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
         settings().tasks,
       );
     // expand is off for generated commands, whose quoted file names may contain ${line} themselves
-    const runTask = ({ name, cmd: raw }: ProjectTask, expand = true) => {
-      lastTask = () => runTask({ name, cmd: raw }, expand); // unexpanded, so <Space>rl uses the file that is active then
+    const runTask = ({ name, cmd: raw }: ProjectTask, expand = true, onText?: (text: string, done: boolean) => void) => {
+      lastTask = () => runTask({ name, cmd: raw }, expand, onText); // unexpanded, so <Space>rl uses the file that is active then
       const path = ed.current()?.path;
       const at = { file: path && !path.startsWith("/") ? path : undefined, line: ed.cursorLine() ?? undefined };
       let cmd: string | null;
@@ -700,6 +715,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       termSplit(cmd, {
         onExit: () => {}, // keep the pane and its output
         onLiveOutput(text) {
+          onText?.(text, false);
           const locs = parseWatcherProblems(text, ws.root);
           if (locs.length) {
             hadLiveProblems = true;
@@ -711,6 +727,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
           }
         },
         onOutput(text) {
+          onText?.(text, true);
           const locs = parseWatcherProblems(text, ws.root);
           if (locs.length) {
             q.set(`Task "${name}"`, locs, false, false);
@@ -753,6 +770,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       ...fileCommands(c),
       ...findCommands(c, q),
       ...harpoonCommands(c),
+      ...testCommands(c),
       ...lspCommands(c, q),
       ...gitCommands(c),
       ...debugCommands(c),
