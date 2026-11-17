@@ -64,6 +64,13 @@ test("test.file and test.all run without a test at the cursor", () => {
   expect(w.failed).toEqual([]);
 });
 
+test("test.file runs the package when the file declares no test the editor recognises", () => {
+  const d = setup("notests.go", "helper");
+  d.run("test.file");
+  expect(d.ran.map((t) => t.cmd)).toEqual(["go test -v ."]);
+  expect(d.failed).toEqual([]);
+});
+
 test("test.nearest fails outside a test, and without a runner for the file", () => {
   const a = setup("p_test.go", "helper");
   a.run("test.nearest");

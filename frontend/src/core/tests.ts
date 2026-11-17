@@ -47,7 +47,7 @@ export const goAdapter: TestAdapter = {
       return "go test -v ./...";
     }
     if (scope === "file") {
-      // go test runs packages, not files: the names this file declares keep the other files' tests out
+      // go test runs packages, not files: the names this file declares keep the other files' tests out; none found (testsIn knows only *testing.T) runs the package
       return names?.length ? `go test -v -run ${q(`^(${names.join("|")})$`)} ${pkg}` : `go test -v ${pkg}`;
     }
     if (!name) {

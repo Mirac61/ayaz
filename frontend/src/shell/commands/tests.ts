@@ -30,9 +30,6 @@ export function testCommands(c: Ctx, results: TestResults = testResults, templat
     }
     let name: string | undefined;
     const names = scope === "file" ? testsIn(view.state, path).map((t) => t.name) : undefined;
-    if (names && !names.length) {
-      return c.fail("No tests in this file");
-    }
     if (scope === "nearest") {
       name = testAt(view.state, path, view.state.selection.main.head)?.name;
       if (!name) {
