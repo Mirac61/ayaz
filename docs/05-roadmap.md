@@ -121,6 +121,7 @@ M0–M5 have no date recorded.
 | M80 | Standard mode and HTML preview | Non-Vim standard mode (`Cmd/Ctrl+Shift+M`) and an internal browser preview for HTML. | 2026-11-14 |
 | M81 | Release automation | release-please writes the release PR and `CHANGELOG.md`; multi-platform packaging. | 2026-11-14 |
 | M82 | Small daily things, part 2 | GitHub links, search resume and TODO list, history restore, task placeholders, terminal file links. | 2026-11-16 |
+| M83 | Quality of life | A "plain text" hint in the status bar for files with a very long line, and duplicating a file in the tree with `c`. | 2026-11-17 |
 
 ## Planned
 
