@@ -37,3 +37,31 @@ test('reveal of "./b.go" from a filtered tree leaves the filter and selects b.go
   await vi.waitFor(() => expect(host.querySelector(".tree-row.cursor")?.textContent).toContain("b.go"));
   expect(onOpen).not.toHaveBeenCalled();
 });
+
+test("Finder drops land in the folder under the pointer: a folder row is itself, a file row its folder, the tree the root", async () => {
+  const host = document.body.appendChild(document.createElement("div"));
+  const listed: Record<string, { name: string; dir: boolean }[]> = {
+    "": [
+      { name: "src", dir: true },
+      { name: "a.go", dir: false },
+    ],
+    src: [{ name: "b.go", dir: false }],
+  };
+  const files = { list: async (dir: string) => listed[dir] ?? [] } as unknown as Files;
+  const ref = createRef<TreeHandle>();
+  createRoot(host).render(createElement(Tree, { ref, files, onOpen() {}, onLeave() {}, onCommand() {}, git: () => undefined }));
+  await vi.waitFor(() => expect(host.querySelectorAll(".tree-row").length).toBe(2));
+  await ref.current!.reveal("src/b.go");
+  await vi.waitFor(() => expect(host.querySelectorAll(".tree-row").length).toBe(3));
+  const dirs = [...host.querySelectorAll<HTMLElement>(".tree-row[data-file-drop-target]")].map((r) => [
+    r.querySelector(".tree-name")!.textContent,
+    r.dataset.dropDir,
+  ]);
+  expect(dirs).toEqual([
+    ["src", "src"],
+    ["b.go", "src"],
+    ["a.go", ""],
+  ]);
+  const tree = host.querySelector<HTMLElement>(".tree")!;
+  expect(tree.hasAttribute("data-file-drop-target") && tree.dataset.dropDir).toBe("");
+});

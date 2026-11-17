@@ -404,6 +404,9 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
         tabIndex={0}
         role="tree"
         aria-label="Files"
+        // Wails reports Finder drops only on data-file-drop-target elements; Go copies into data-drop-dir ("" is the root).
+        data-file-drop-target=""
+        data-drop-dir=""
         onKeyDown={onKeyDown}
         onScroll={(e) => {
           // The window of rows moves only after a few rows of scrolling, and at once (before the frame is drawn): an
@@ -429,6 +432,8 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
                 aria-expanded={r.dir ? open : undefined}
                 className={i === cur ? "tree-row cursor" : "tree-row"}
                 style={{ top: i * ROW, height: ROW, paddingLeft: 8 + r.depth * 16, ...{ "--depth": r.depth } }}
+                data-file-drop-target=""
+                data-drop-dir={r.dir ? r.path : parent(r.path)}
                 onMouseDown={r.dir ? undefined : (e) => startDrag(e, r.path)}
                 onClick={() => {
                   setCursor(i);

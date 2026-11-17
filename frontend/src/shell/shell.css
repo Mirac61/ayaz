@@ -931,6 +931,7 @@
   outline: none;
   padding: 0 0 8px;
   color: var(--fg-2);
+  transition: background-color var(--t-fast) var(--ease);
 }
 /* The scrollbar shows only while the pointer is over the tree, so it doesn't sit next to the panel's border as a second line. */
 .tree::-webkit-scrollbar-thumb {
@@ -976,6 +977,15 @@
 .tree:focus .tree-row.cursor {
   background-color: color-mix(in srgb, var(--accent) 12%, var(--bg-3));
   color: var(--fg-1);
+}
+/* Finder files dragged over the tree (Wails sets the class): a calm tint on the row they land in, a fainter one on the
+   whole tree for the root. No border: the pane drop zone's frame is too loud for a 28px row. */
+.tree-row.file-drop-target-active {
+  background-color: color-mix(in srgb, var(--accent) 26%, transparent);
+  color: var(--fg-1);
+}
+.tree.file-drop-target-active {
+  background-color: color-mix(in srgb, var(--accent) 9%, transparent);
 }
 .tree-chevron {
   width: 12px;

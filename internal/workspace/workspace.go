@@ -310,7 +310,7 @@ func (w *Workspace) Rename(from, to string) error {
 
 // Copy duplicates a file inside the workspace, with its permissions and missing parent folders of the target. It never
 // replaces an existing target. shortcut: files only, folders need a recursive walk
-func (w *Workspace) Copy(from, to string) (err error) {
+func (w *Workspace) Copy(from, to string) error {
 	src, err := w.entry(from)
 	if err != nil {
 		return err
@@ -322,9 +322,115 @@ func (w *Workspace) Copy(from, to string) (err error) {
 	if !st.Mode().IsRegular() {
 		return errors.New("only files can be duplicated")
 	}
+	return w.copyFile(src, st.Mode().Perm(), to, nil)
+}
+
+// Import copies a file or folder from anywhere (a Finder or Dock drop) into the workspace folder dir ("" is the root),
+// under its own name. It never replaces anything, and a folder that fails half way is removed again.
+// progress, if not nil, gets the bytes copied so far and the total while the copy runs.
+func (w *Workspace) Import(src, dir string, progress func(done, total int64)) (string, error) {
+	rel := path.Join(dir, filepath.Base(src))
+	st, err := os.Stat(src)
+	if err != nil {
+		return "", err
+	}
+	if st.Mode().IsRegular() {
+		return rel, w.copyFile(src, st.Mode().Perm(), rel, counting(progress, st.Size()))
+	}
+	if !st.IsDir() {
+		return "", fmt.Errorf("%s is not a file or folder", filepath.Base(src))
+	}
+	into, err := w.Resolve(dir)
+	if err != nil {
+		return "", err
+	}
+	// Same folder by inode, not by path: Root keeps the case it was opened with, and macOS ignores case (~/Code is ~/code)
+	for p := into; ; p = filepath.Dir(p) {
+		if pst, err := os.Stat(p); err == nil && os.SameFile(st, pst) {
+			return "", fmt.Errorf("%s can't be copied into itself", filepath.Base(src))
+		}
+		if filepath.Dir(p) == p {
+			break
+		}
+	}
+	if _, err := w.create(rel, true, 0); err != nil { // exclusive, so the cleanup below only removes our own folder
+		if errors.Is(err, fs.ErrExist) {
+			return "", fmt.Errorf("%s already exists", rel)
+		}
+		return "", err
+	}
+	dst, err := w.entry(rel)
+	if err != nil {
+		return "", err
+	}
+	fsys := os.DirFS(src).(dirFS)
+	var total int64
+	if progress != nil {
+		_ = fs.WalkDir(fsys, ".", func(_ string, d fs.DirEntry, err error) error {
+			if err == nil && d.Type().IsRegular() {
+				if info, err := d.Info(); err == nil {
+					total += info.Size()
+				}
+			}
+			return nil // a total that is a little off still shows progress; CopyFS reports the error
+		})
+	}
+	if err := os.CopyFS(dst, countFS{fsys, counting(progress, total)}); err != nil {
+		os.RemoveAll(dst)
+		return "", err
+	}
+	return rel, nil
+}
+
+// counting turns progress into a running byte count for countFile; nil without progress.
+func counting(progress func(done, total int64), total int64) func(int) {
+	if progress == nil {
+		return nil
+	}
+	var done int64
+	return func(n int) {
+		done += int64(n)
+		progress(done, total)
+	}
+}
+
+// dirFS is what os.DirFS offers and os.CopyFS uses (links, listings); countFS keeps all of it and counts what files read.
+type dirFS interface {
+	fs.ReadDirFS
+	fs.ReadLinkFS
+	fs.StatFS
+}
+
+type countFS struct {
+	dirFS
+	add func(int)
+}
+
+func (c countFS) Open(name string) (fs.File, error) {
+	f, err := c.dirFS.Open(name)
+	if err != nil || c.add == nil {
+		return f, err
+	}
+	return countFile{f, c.add}, nil
+}
+
+type countFile struct {
+	fs.File
+	add func(int)
+}
+
+func (f countFile) Read(p []byte) (int, error) {
+	n, err := f.File.Read(p)
+	f.add(n)
+	return n, err
+}
+
+// copyFile copies the file at the absolute path src to the workspace path to, with mode perm and missing parents.
+// add, if not nil, is told how many bytes each read got.
+func (w *Workspace) copyFile(src string, perm fs.FileMode, to string, add func(int)) (err error) {
 	// create makes the target exclusively (O_EXCL) and its parents, so a race cannot replace anything. It stays open
 	// for the content, so even a 0400 source copies; the final Chmod sets the exact mode (the umask may have cut it).
-	out, err := w.create(to, false, st.Mode().Perm())
+	out, err := w.create(to, false, perm)
 	if err != nil {
 		if errors.Is(err, fs.ErrExist) {
 			return fmt.Errorf("%s already exists", to)
@@ -346,13 +452,17 @@ func (w *Workspace) Copy(from, to string) (err error) {
 		return err
 	}
 	defer in.Close()
-	if _, err = io.Copy(out, in); err != nil {
+	var r io.Reader = in
+	if add != nil {
+		r = countFile{in, add}
+	}
+	if _, err = io.Copy(out, r); err != nil {
 		return err
 	}
 	if err = out.Close(); err != nil {
 		return err
 	}
-	return os.Chmod(dst, st.Mode().Perm())
+	return os.Chmod(dst, perm)
 }
 
 // Trash moves a file or folder to the system trash.
