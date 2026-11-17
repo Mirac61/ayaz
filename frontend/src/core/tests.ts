@@ -1,6 +1,6 @@
 // Test runner model: what a runner is called with and what its output means. No editor imports.
 
-import { escape } from "./tasks";
+import { escape, expandTask } from "./tasks";
 
 export type Scope = "nearest" | "file" | "all";
 export interface TestRef {
@@ -72,7 +72,18 @@ export const goAdapter: TestAdapter = {
   },
 };
 
-const adapters = [goAdapter];
+export const adapters = [goAdapter];
+
+// The shell line for a scope: the adapter's own, or the user's `tests` template from settings.json (all three scopes).
+export function testCommand(a: TestAdapter, scope: Scope, at: { file: string; name?: string }, template?: string): string {
+  if (template === undefined) {
+    return a.command(scope, at);
+  }
+  if (scope === "nearest" && !template.includes("${name}")) {
+    throw new Error(`No \${name} in your tests.${a.id} command`);
+  }
+  return expandTask(template, { file: at.file, name: scope === "nearest" ? at.name : undefined }) ?? template;
+}
 
 // The adapter for a path by its extension, or null when no runner knows it.
 export function adapterFor(path: string): TestAdapter | null {

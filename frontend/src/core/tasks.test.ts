@@ -100,6 +100,11 @@ test("expandTask fills file, dir and line", () => {
   expect(expandTask("${file}:${line} in ${dir}", at)).toBe("'src/app.go':42 in 'src'");
 });
 
+test("expandTask fills ${name} only when given one", () => {
+  expect(expandTask("t ${name}", { file: "a.go", name: "it's" })).toBe("t 'it'\\''s'");
+  expect(expandTask("t ${name}", { file: "a.go" })).toBe("t ${name}");
+});
+
 test("expandTask quotes paths for the shell", () => {
   expect(expandTask("cat ${file}", { file: "a b/it's; rm.txt" })).toBe("cat 'a b/it'\\''s; rm.txt'");
 });

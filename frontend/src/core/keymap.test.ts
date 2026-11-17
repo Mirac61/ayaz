@@ -163,6 +163,14 @@ test("defaultKeymap binds Harpoon quick keys", () => {
   expect(km.find((b) => b.keys === "<Space>fa")?.command).toBe("harpoon.menu");
 });
 
+test("defaultKeymap binds the test commands", () => {
+  const km = defaultKeymap();
+  expect(km.find((b) => b.keys === "<Space>rn")?.command).toBe("test.nearest");
+  expect(km.find((b) => b.keys === "<Space>rf")?.command).toBe("test.file");
+  expect(km.find((b) => b.keys === "<Space>ra")?.command).toBe("test.all");
+  expect(km.find((b) => b.keys === "<Space>rt")?.command).toBe("test.last");
+});
+
 test("defaultKeymap binds terminal send, tab, move to editor and floating scratchpad", () => {
   const km = defaultKeymap();
   expect(km.find((b) => b.keys === "<Space>ts")?.command).toBe("term.send");

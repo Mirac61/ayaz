@@ -1,6 +1,7 @@
 // What the command modules share with the Workbench (ADR-0010): the workspace, its editors and the ways to talk to the user.
 import type { EditorView } from "@codemirror/view";
 import type { Files, Info } from "../../core/backend";
+import type { ProjectTask } from "../../core/projectTasks";
 import type { Quickfix } from "../../core/quickfix";
 import type { Debugger } from "../debugger";
 import type { Editors } from "../editors";
@@ -15,6 +16,8 @@ export interface Ctx {
   qf: Quickfix;
   tree: { current: TreeHandle | null };
   run(id: string, arg?: string): void;
+  // Runs a command in a terminal split; onText gets everything it has printed so far (done once it ended).
+  task(t: ProjectTask, o?: { onText?(text: string, done: boolean): void }): void;
   say(text: string): void;
   fail(text: string): void;
   setPicker(p: PickerSource | null): void;

@@ -77,6 +77,13 @@
     // "test": "go test ./...",
   },
 
+  // Your own test command per language, in place of the built-in one: <Space>rn runs the test at the cursor,
+  // <Space>rf the file, <Space>ra everything, <Space>rt repeats the last. Same placeholders as "tasks", plus
+  // ${name} for the test at the cursor (required for <Space>rn). Adapters: "go".
+  "tests": {
+    // "go": "gotestsum -- -run '^${name}$' ./${dir}",
+  },
+
   // Width of a tab, and the indent unless "tabs" is on. 1 to 16.
   "tabWidth": 4,
 
