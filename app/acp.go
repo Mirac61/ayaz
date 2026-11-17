@@ -37,9 +37,16 @@ func (s *WorkspaceService) HandleACP(c *application.StreamConn) {
 		log.Println("acp:", err)
 		return
 	}
-	s.trackServer(a, cfg.WS, true)
-	defer s.trackServer(a, cfg.WS, false)
 	defer a.Close()
+	if !s.trackServer(a, cfg.WS, true) { // the workspace closed while the agent started
+		return
+	}
+	defer s.trackServer(a, cfg.WS, false)
+	// A Send stuck on a full pipe never reaches Receive again; the closing stream ends the agent instead.
+	go func() {
+		<-c.Context().Done()
+		a.Close()
+	}()
 
 	go func() {
 		for {

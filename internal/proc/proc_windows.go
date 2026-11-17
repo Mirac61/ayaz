@@ -6,6 +6,7 @@ package proc
 import (
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -42,15 +43,21 @@ func Command(_, command string) *exec.Cmd {
 	return cmd
 }
 
-// Available reports whether the program of command is on PATH.
-func Available(_, command string) bool {
-	f := strings.Fields(command)
-	if len(f) == 0 {
+// Available reports whether the program of command is on PATH, or at its relative path below dir.
+func Available(dir, _, command string) bool {
+	bin := ProgramOf(command)
+	if bin == "" {
 		return false
 	}
-	_, err := exec.LookPath(f[0])
+	if strings.ContainsAny(bin, `/\`) && !filepath.IsAbs(bin) {
+		bin = filepath.Join(dir, bin)
+	}
+	_, err := exec.LookPath(bin)
 	return err == nil
 }
+
+// Kill is Terminate: taskkill /F already ends the tree for good.
+func Kill(cmd *exec.Cmd) { Terminate(cmd) }
 
 // Terminate ends the command and the programs it started.
 func Terminate(cmd *exec.Cmd) {

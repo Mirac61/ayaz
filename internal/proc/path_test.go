@@ -129,10 +129,10 @@ func TestEnrichPath(t *testing.T) {
 
 func TestAvailableAndCommand(t *testing.T) {
 	shell := Shell()
-	if !Available(shell, "ls") {
+	if !Available("", shell, "ls") {
 		t.Errorf("ls should be available")
 	}
-	if Available(shell, "non_existent_binary_xyz_12345") {
+	if Available("", shell, "non_existent_binary_xyz_12345") {
 		t.Errorf("non_existent_binary should not be available")
 	}
 
@@ -143,5 +143,19 @@ func TestAvailableAndCommand(t *testing.T) {
 	}
 	if !strings.Contains(string(out), "hello world") {
 		t.Errorf("unexpected output: %q", string(out))
+	}
+}
+
+func TestProgramOf(t *testing.T) {
+	for in, want := range map[string]string{
+		"gopls serve":                    "gopls",
+		"  ./agent --x":                  "./agent",
+		"'/tmp/Agent Tools/agent' --std": "/tmp/Agent Tools/agent",
+		`"/a b/c"`:                       "/a b/c",
+		"":                               "",
+	} {
+		if got := ProgramOf(in); got != want {
+			t.Errorf("ProgramOf(%q) = %q, want %q", in, got, want)
+		}
 	}
 }

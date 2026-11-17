@@ -107,3 +107,33 @@ func TestStartDir(t *testing.T) {
 		}
 	}
 }
+
+// A server that registers after its workspace closed (the agent was still starting) must be refused, or nothing
+// would ever stop it.
+func TestTrackServerRefusesClosedWorkspace(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("needs /bin/sh")
+	}
+	s := NewWorkspaceService(nil)
+	b, err := s.Open(context.Background(), t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv, err := lsp.Start(t.TempDir(), "/bin/sh", "cat")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer srv.Close()
+	if !s.trackServer(srv, b.ID, true) {
+		t.Fatal("open workspace refused")
+	}
+	s.Close(b.ID)
+	if s.trackServer(srv, b.ID, true) {
+		t.Error("closed workspace accepted a server")
+	}
+	s.trackServer(srv, b.ID, false) // what the handler's defer does
+	s.trackServer(srv, b.ID, true)
+	if len(s.servers) != 0 {
+		t.Errorf("%d servers registered for a closed workspace", len(s.servers))
+	}
+}

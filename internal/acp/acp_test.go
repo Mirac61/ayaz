@@ -6,8 +6,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
+	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -30,6 +33,13 @@ func TestMain(m *testing.M) {
 		}
 	case "exit":
 		return
+	case "stubborn": // ignores SIGTERM and stdin EOF
+		signal.Ignore(syscall.SIGTERM)
+		select {}
+	case "noisy": // a stderr line far above the Scanner limit, then a normal answer
+		fmt.Fprint(os.Stderr, strings.Repeat("e", 200<<10), "\n")
+		fmt.Println(`{"id":1}`)
+		select {}
 	case "big":
 		fmt.Print(strings.Repeat("x", MaxMessage+10), "\n")
 		select {}
@@ -120,5 +130,63 @@ func TestStartMissingCommand(t *testing.T) {
 	}
 	if _, err := Start(t.TempDir(), "/bin/sh", "ayaz-no-such-agent --flag"); !errors.Is(err, ErrNotFound) {
 		t.Errorf("got %v, want ErrNotFound", err)
+	}
+}
+
+func TestCloseKillsAgentThatIgnoresSIGTERM(t *testing.T) {
+	old := killGrace
+	killGrace = 200 * time.Millisecond
+	t.Cleanup(func() { killGrace = old })
+	a := start(t, "stubborn")
+	time.Sleep(200 * time.Millisecond) // let the helper install its signal handler
+	done := make(chan struct{})
+	go func() { a.Close(); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Close hangs on an agent that ignores SIGTERM")
+	}
+}
+
+func TestLongStderrLineDoesNotStallAgent(t *testing.T) {
+	a := start(t, "noisy")
+	got := make(chan error, 1)
+	go func() { _, err := a.Recv(); got <- err }()
+	select {
+	case err := <-got:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("agent blocked on a full stderr pipe")
+	}
+}
+
+func TestStartResolvesProgramLikeTheShell(t *testing.T) {
+	root := t.TempDir()
+	spaced := filepath.Join(root, "Agent Tools")
+	if err := os.Mkdir(spaced, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	script := "#!/bin/sh\nread l\necho '{\"id\":1}'\n"
+	for _, p := range []string{filepath.Join(spaced, "agent"), filepath.Join(root, "local-agent")} {
+		if err := os.WriteFile(p, []byte(script), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for name, command := range map[string]string{
+		"quoted path with a space":  "'" + filepath.Join(spaced, "agent") + "' --stdio",
+		"relative to the workspace": "./local-agent",
+	} {
+		t.Run(name, func(t *testing.T) {
+			a, err := Start(root, "/bin/sh", command)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer a.Close()
+			if got := roundTrip(t, a, "{}"); got != `{"id":1}` {
+				t.Errorf("got %s", got)
+			}
+		})
 	}
 }

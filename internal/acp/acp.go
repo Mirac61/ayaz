@@ -8,7 +8,9 @@ import (
 	"io"
 	"log"
 	"os/exec"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/Mirac61/ayaz/internal/proc"
 )
@@ -34,7 +36,7 @@ type Agent struct {
 // Start runs `shell -l -c "exec <command>"` in dir, in its own process group. The login shell finds the agent in the
 // user's PATH even for a Finder-started app. The agent's stderr goes to the log, not to the message stream.
 func Start(dir, shell, command string) (*Agent, error) {
-	if !proc.Available(shell, command) {
+	if !proc.Available(dir, shell, command) {
 		return nil, ErrNotFound
 	}
 	cmd := proc.Command(shell, command)
@@ -54,10 +56,16 @@ func Start(dir, shell, command string) (*Agent, error) {
 	if err := cmd.Start(); err != nil {
 		return nil, err
 	}
-	go func() {
-		s := bufio.NewScanner(errOut)
-		for s.Scan() {
-			log.Println("acp:", s.Text())
+	go func() { // drain to the end: a full stderr pipe would stall the agent. A long line is logged in pieces.
+		r := bufio.NewReaderSize(errOut, 4<<10)
+		for {
+			line, err := r.ReadSlice('\n')
+			if len(line) > 0 {
+				log.Println("acp:", strings.TrimRight(string(line), "\r\n"))
+			}
+			if err != nil && err != bufio.ErrBufferFull {
+				return
+			}
 		}
 	}()
 	return &Agent{cmd: cmd, in: in, out: bufio.NewReaderSize(out, 64<<10)}, nil
@@ -91,11 +99,22 @@ func (a *Agent) Recv() ([]byte, error) {
 	}
 }
 
-// Close ends the agent's process group and waits. Safe to call more than once.
+// killGrace is how long an agent gets to end after SIGTERM before its process group is killed.
+var killGrace = 3 * time.Second
+
+// Close ends the agent's process group and waits: SIGTERM first, SIGKILL when the agent ignores it for killGrace.
+// Safe to call more than once.
 func (a *Agent) Close() {
 	a.close.Do(func() {
 		a.in.Close()
 		proc.Terminate(a.cmd)
-		a.cmd.Wait()
+		done := make(chan struct{})
+		go func() { a.cmd.Wait(); close(done) }()
+		select {
+		case <-done:
+		case <-time.After(killGrace):
+			proc.Kill(a.cmd)
+			<-done
+		}
 	})
 }

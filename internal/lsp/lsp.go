@@ -64,7 +64,7 @@ type Server struct {
 
 // Available reports whether command is found by the login shell, i.e. in the user's PATH.
 func Available(shell, command string) bool {
-	return proc.Available(shell, command)
+	return proc.Available("", shell, command)
 }
 
 // Start runs `shell -l -c "exec <command>"` in dir. The login shell finds servers in the user's PATH
