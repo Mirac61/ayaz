@@ -1,6 +1,7 @@
 import { go } from "@codemirror/lang-go";
+import { javascript } from "@codemirror/lang-javascript";
 import { EditorState } from "@codemirror/state";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import type { Command } from "../../core/commands";
 import { TestResults } from "../../core/testResults";
 import type { Ctx } from "./context";
@@ -115,4 +116,42 @@ test("a run keeps results that left the scrollback, and a newer run of the file 
   w.run("test.nearest");
   w.sinks[0]("--- PASS: TestC (0.00s)\n", false);
   expect(w.results.get("p_test.go")!.byName.has("TestC")).toBe(false);
+});
+
+test("test.nearest in a TS file detects the runner first, then runs the test from the package folder", async () => {
+  const doc = 'it("adds", () => {\n  expect(1).toBe(1);\n});\n';
+  const state = EditorState.create({
+    doc,
+    extensions: [javascript({ typescript: true })],
+    selection: { anchor: doc.indexOf("expect") },
+  });
+  const ran: { name: string; cmd: string }[] = [];
+  const c = {
+    ed: { current: () => ({ path: "web/src/a.test.ts" }), activeView: () => ({ state }) },
+    files: {
+      list: async (dir: string) =>
+        dir === "web"
+          ? [
+              { name: "package.json", dir: false },
+              { name: "pnpm-lock.yaml", dir: false },
+            ]
+          : [],
+      readText: async () => ({ content: '{"devDependencies":{"vitest":"1"}}' }),
+    },
+    task: (t: { name: string; cmd: string }) => ran.push(t),
+    fail: () => {},
+  } as unknown as Ctx;
+  const cmds = new Map(testCommands(c, new TestResults(), () => ({})).map((x: Command) => [x.id, x]));
+  cmds.get("test.nearest")!.run();
+  await vi.waitFor(() => expect(ran).toHaveLength(1));
+  expect(ran[0]).toEqual({ name: "Test adds", cmd: "cd web && pnpm exec vitest run --reporter=verbose -t 'adds' src/a.test.ts" });
+  cmds.get("test.last")!.run();
+  expect(ran.map((t) => t.cmd)).toEqual(Array(2).fill(ran[0].cmd));
+});
+
+test("test.all stores only the results of tests this file declares", () => {
+  const w = setup("p_test.go", "helper");
+  w.run("test.all");
+  w.text("--- PASS: TestA (0.00s)\n--- FAIL: TestElsewhere (0.00s)\n", true);
+  expect([...w.results.get("p_test.go")!.byName.keys()]).toEqual(["TestA"]);
 });

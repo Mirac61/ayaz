@@ -2,7 +2,7 @@
 import type { Command } from "../../core/commands";
 import { settings } from "../../core/settings";
 import { testResults, type TestResults } from "../../core/testResults";
-import { adapterFor, testCommand, type Scope, type TestResult } from "../../core/tests";
+import { adapterFor, testCommand, type Scope, type TestAt, type TestResult } from "../../core/tests";
 import { testAt, testsIn } from "../../editor/tests";
 import type { Ctx } from "./context";
 
@@ -29,48 +29,60 @@ export function testCommands(c: Ctx, results: TestResults = testResults, templat
       return c.fail("No test runner for this file type");
     }
     let name: string | undefined;
-    const names = scope === "file" ? testsIn(view.state, path).map((t) => t.name) : undefined;
+    const declared = testsIn(view.state, path).map((t) => t.name);
+    const names = scope === "file" ? declared : undefined;
     if (scope === "nearest") {
       name = testAt(view.state, path, view.state.selection.main.head)?.name;
       if (!name) {
         return c.fail("No test at the cursor");
       }
     }
-    let cmd: string;
-    try {
-      cmd = testCommand(adapter, scope, { file: path, name, names }, templates()[adapter.id]);
-    } catch (e) {
-      return c.fail((e as Error).message);
-    }
-    const label = scope === "nearest" ? `Test ${name}` : scope === "file" ? `Test ${path}` : "Test all";
-    const run = () => {
-      const id = ++runs;
-      owner.set(path, id);
-      // shortcut: keeps what scrolled out between callbacks, but the terminal's live callback is debounced, so output that
-      // streams past its 10_000 lines without a pause loses its start; upgrade: throttle onLiveOutput in terminal.ts
-      const seen = new Map<string, TestResult>();
-      c.task(
-        { name: label, cmd },
-        {
-          onText: (text, done) => {
-            if (owner.get(path) !== id) {
-              return; // a newer run of this file took over
-            }
-            for (const r of adapter.parse(text)) {
-              if (r.status === "fail" || seen.get(r.name)?.status !== "fail") {
-                seen.set(r.name, r);
+    const template = templates()[adapter.id];
+    const launch = (found: Partial<TestAt>) => {
+      let cmd: string;
+      try {
+        cmd = testCommand(adapter, scope, { file: path, name, names, ...found }, template);
+      } catch (e) {
+        return c.fail((e as Error).message);
+      }
+      const label = scope === "nearest" ? `Test ${name}` : scope === "file" ? `Test ${path}` : "Test all";
+      const run = () => {
+        const id = ++runs;
+        owner.set(path, id);
+        // shortcut: keeps what scrolled out between callbacks, but the terminal's live callback is debounced, so output that
+        // streams past its 10_000 lines without a pause loses its start; upgrade: throttle onLiveOutput in terminal.ts
+        const seen = new Map<string, TestResult>();
+        c.task(
+          { name: label, cmd },
+          {
+            onText: (text, done) => {
+              if (owner.get(path) !== id) {
+                return; // a newer run of this file took over
               }
-            }
-            results.set(path, [...seen.values()], Date.now());
-            if (done) {
-              seen.clear(); // <Space>rl replays this callback: the next run starts empty
-            }
+              for (const r of adapter.parse(text)) {
+                if (r.status === "fail" || seen.get(r.name)?.status !== "fail") {
+                  seen.set(r.name, r);
+                }
+              }
+              // shortcut: everything ran, so keep only the tests this file declares; a same-named test elsewhere still lands here
+              const own = scope === "all" ? [...seen.values()].filter((r) => declared.includes(r.name)) : [...seen.values()];
+              results.set(path, own, Date.now());
+              if (done) {
+                seen.clear(); // <Space>rl replays this callback: the next run starts empty
+              }
+            },
           },
-        },
-      );
+        );
+      };
+      last = run;
+      run();
     };
-    last = run;
-    run();
+    // A user template needs no detection; without one the project says which runner it has.
+    if (adapter.detect && template === undefined) {
+      void adapter.detect(path, c.files).then(launch);
+    } else {
+      launch({});
+    }
   };
 
   return [

@@ -11,7 +11,10 @@ const hasResult = (fn: SyntaxNode) => {
   return !!next && next.name !== "Block";
 };
 
-type Span = TestRef & { from: number; to: number };
+type Span = TestRef & { from: number; to: number; suite?: boolean };
+
+// syntaxTree() stops early in a large file (CodeMirror parses in the background); finish it, within 500 ms, before reading.
+const syntaxTreeOf = (state: EditorState) => ensureSyntaxTree(state, state.doc.length, 500) ?? syntaxTree(state);
 
 // Go: top-level `func Test…(t *testing.T)` in a `_test.go` file. `path` is the file's name, since a state has none.
 // shortcut: top-level tests only, upgrade by reading t.Run names
@@ -20,8 +23,7 @@ function goTests(state: EditorState, path: string): Span[] {
     return [];
   }
   const out: Span[] = [];
-  // syntaxTree() stops early in a large file (CodeMirror parses in the background); finish it, within 500 ms, before reading.
-  const cur = (ensureSyntaxTree(state, state.doc.length, 500) ?? syntaxTree(state)).topNode.cursor();
+  const cur = syntaxTreeOf(state).topNode.cursor();
   if (!cur.firstChild()) {
     return out;
   }
@@ -55,12 +57,60 @@ function goTests(state: EditorState, path: string): Span[] {
   return out;
 }
 
+const JS_CALLS = new Set(["test", "it", "describe"]);
+const JS_MODS = new Set(["only", "skip"]);
+
+// JS/TS: `test("title", …)`, `it(…)` and `describe(…)`, also as `.only` / `.skip`, with a plain string as the first argument.
+// `test.each(…)(…)` is not found: its title is a pattern, not a name. Nested calls follow their parent.
+const ESCAPE = /\\(u\{[0-9a-fA-F]+\}|u[0-9a-fA-F]{4}|x[0-9a-fA-F]{2}|\r\n|[\s\S])/g;
+const SIMPLE: Record<string, string> = { n: "\n", t: "\t", r: "\r", b: "\b", f: "\f", v: "\v", "0": "\0" };
+// One JavaScript string escape: \u0061, \u{61}, \x61, \n, a line continuation (nothing) or the escaped character itself.
+function unescape(_: string, e: string): string {
+  if (e.length > 1 && /^[ux]/.test(e)) {
+    return String.fromCodePoint(parseInt(e.replace(/^[ux]\{?|\}$/g, ""), 16));
+  }
+  return /^(\r\n|[\n\r\u2028\u2029])$/.test(e) ? "" : (SIMPLE[e] ?? e);
+}
+
+function jsTests(state: EditorState): Span[] {
+  const out: Span[] = [];
+  const text = (n: SyntaxNode) => state.sliceDoc(n.from, n.to);
+  syntaxTreeOf(state).iterate({
+    enter(ref) {
+      if (ref.name !== "CallExpression") {
+        return;
+      }
+      const callee = ref.node.firstChild;
+      const head = callee?.name === "MemberExpression" && JS_MODS.has(text(callee.lastChild!)) ? callee.firstChild : callee;
+      const title = ref.node.getChild("ArgList")?.firstChild?.nextSibling;
+      if (head?.name !== "VariableName" || !JS_CALLS.has(text(head)) || !title) {
+        return;
+      }
+      if (title.name !== "String" && !(title.name === "TemplateString" && !title.getChild("Interpolation"))) {
+        return;
+      }
+      const name = state.sliceDoc(title.from + 1, title.to - 1).replace(ESCAPE, unescape);
+      out.push({ name, line: state.doc.lineAt(ref.from).number, from: ref.from, to: ref.to, suite: text(head) === "describe" });
+    },
+  });
+  return out;
+}
+
+const JS_EXTS = new Set(["ts", "tsx", "js", "jsx", "mjs"]);
+
+function spans(state: EditorState, path: string): Span[] {
+  const ext = path.slice(path.lastIndexOf(".") + 1).toLowerCase();
+  return ext === "go" ? goTests(state, path) : JS_EXTS.has(ext) ? jsTests(state) : [];
+}
+
 export function testsIn(state: EditorState, path: string): TestRef[] {
-  return goTests(state, path).map(({ name, line }) => ({ name, line }));
+  return spans(state, path).map(({ name, line }) => ({ name, line }));
 }
 
 // The test around pos: its signature or body (a t.Run body belongs to the top-level test), else null.
+// In JS the innermost `test`/`it`, else the innermost `describe`.
 export function testAt(state: EditorState, path: string, pos: number): TestRef | null {
-  const t = goTests(state, path).find((x) => pos >= x.from && pos <= x.to);
+  const around = spans(state, path).filter((x) => pos >= x.from && pos <= x.to);
+  const t = around.filter((x) => !x.suite).pop() ?? around.pop(); // a nested call comes after its parent
   return t ? { name: t.name, line: t.line } : null;
 }
