@@ -173,7 +173,53 @@ export const jsAdapter: TestAdapter = {
   },
 };
 
-export const adapters = [goAdapter, jsAdapter];
+// `<path>::<Class>::<test>[params] PASSED  [ 40%]` of `pytest -v`; a skip reason may follow the status.
+// The path may hold spaces; params may hold `] PASSED`, so they match greedily up to the last `] <status>`.
+// shortcut: a skip reason with `] <status>` in it misreads that line, upgrade to a junit-xml report if it bites
+const PY_LINE = /^(.+?\.py)::([^\s[]+(?:\[.*\])?) (PASSED|FAILED|SKIPPED|XFAIL|XPASS|ERROR)\b/;
+// results end at the first `=== … ===` section after the header (FAILURES, summary), whose text can look like a result
+const PY_SECTION = /^=+ (?!test session starts).* =+$/;
+const PY_STATUS: Record<string, TestResult["status"]> = {
+  PASSED: "pass",
+  XPASS: "pass",
+  FAILED: "fail",
+  ERROR: "fail",
+  SKIPPED: "skip",
+  XFAIL: "skip",
+};
+
+export const pyAdapter: TestAdapter = {
+  id: "py",
+  exts: ["py"],
+  command(scope, { file, name }) {
+    if (scope === "all") {
+      return "python3 -m pytest -v";
+    }
+    if (scope === "file") {
+      return `python3 -m pytest -v ${arg(file)}`;
+    }
+    if (!name) {
+      throw new Error("A nearest test needs a test name");
+    }
+    return `python3 -m pytest -v ${q(`${file}::${name}`)}`;
+  },
+  // shortcut: parametrized cases (`test_x[1]`) count as their function; top-level classes only
+  parse(output) {
+    const out: TestResult[] = [];
+    for (const line of output.replace(ANSI, "").split(/\r?\n/)) {
+      if (PY_SECTION.test(line)) {
+        break;
+      }
+      const m = PY_LINE.exec(line);
+      if (m) {
+        out.push({ name: m[2].replace(/\[.*$/, ""), pkg: m[1], status: PY_STATUS[m[3]] });
+      }
+    }
+    return out;
+  },
+};
+
+export const adapters = [goAdapter, jsAdapter, pyAdapter];
 
 // The shell line for a scope: the adapter's own, or the user's `tests` template from settings.json.
 // A template with ${name} is for "nearest" only and one without it for "file"; "all" is always the adapter's own.

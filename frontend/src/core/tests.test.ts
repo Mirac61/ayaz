@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { adapterFor, goAdapter, jsAdapter, testCommand } from "./tests";
+import { adapterFor, goAdapter, jsAdapter, pyAdapter, testCommand } from "./tests";
 
 const at = (file: string, name?: string) => ({ file, name });
 
@@ -105,6 +105,7 @@ test("adapterFor picks by extension", () => {
   expect(adapterFor("Makefile")).toBeNull();
   expect(adapterFor("src/a.test.ts")).toBe(jsAdapter);
   expect(adapterFor("a.mjs")).toBe(jsAdapter);
+  expect(adapterFor("t/test_a.py")).toBe(pyAdapter);
 });
 
 const files = (tree: Record<string, string[]>, pkgs: Record<string, string> = {}) => ({
@@ -245,5 +246,74 @@ test("js parse: a skipped title ending in a duration keeps it, a passed one lose
   expect(jsAdapter.parse("(skip) times out after 100ms\n(pass) works [0.5ms]\n")).toEqual([
     { name: "times out after 100ms", status: "skip" },
     { name: "works", status: "pass", ms: 1 },
+  ]);
+});
+
+test("py commands: pytest through python3 for the three scopes", () => {
+  expect(pyAdapter.command("all", at("t/test_a.py"))).toBe("python3 -m pytest -v");
+  expect(pyAdapter.command("file", at("t/test_a.py"))).toBe("python3 -m pytest -v t/test_a.py");
+  expect(pyAdapter.command("nearest", at("t/test_a.py", "test_x"))).toBe("python3 -m pytest -v 't/test_a.py::test_x'");
+  expect(pyAdapter.command("nearest", at("test_a.py", "TestA::test_x"))).toBe("python3 -m pytest -v 'test_a.py::TestA::test_x'");
+  expect(() => pyAdapter.command("nearest", at("test_a.py"))).toThrow();
+});
+
+// NOT run here (pytest is not installed): written after the `-v` format in the pytest docs.
+const PY_OUT = `============================= test session starts ==============================
+platform linux -- Python 3.12.1, pytest-8.3.2, pluggy-1.5.0 -- /usr/bin/python3
+collecting ... collected 6 items
+
+test_sample.py::test_ok PASSED                                           [ 16%]
+test_sample.py::test_bad FAILED                                          [ 33%]
+test_sample.py::test_later SKIPPED (not yet)                             [ 50%]
+test_sample.py::TestGroup::test_in_class PASSED                          [ 66%]
+test_sample.py::test_param[1-a b] PASSED                                 [ 83%]
+test_sample.py::test_param[2-c] FAILED                                   [100%]
+
+=========================== short test summary info ============================
+FAILED test_sample.py::test_bad - assert 1 == 2
+`;
+
+test("py parse: pytest -v output; parameters fold into the function name", () => {
+  expect(pyAdapter.parse(PY_OUT)).toEqual([
+    { name: "test_ok", pkg: "test_sample.py", status: "pass" },
+    { name: "test_bad", pkg: "test_sample.py", status: "fail" },
+    { name: "test_later", pkg: "test_sample.py", status: "skip" },
+    { name: "TestGroup::test_in_class", pkg: "test_sample.py", status: "pass" },
+    { name: "test_param", pkg: "test_sample.py", status: "pass" },
+    { name: "test_param", pkg: "test_sample.py", status: "fail" },
+  ]);
+});
+
+test("py parse: XFAIL, XPASS and ERROR, and the summary lines are not results", () => {
+  const out =
+    "a/test_x.py::test_a XFAIL  [ 33%]\na/test_x.py::test_b XPASS  [ 66%]\na/test_x.py::test_c ERROR  [100%]\nERROR a/test_x.py::test_c - boom\n";
+  expect(pyAdapter.parse(out).map((r) => [r.name, r.status])).toEqual([
+    ["test_a", "skip"],
+    ["test_b", "pass"],
+    ["test_c", "fail"],
+  ]);
+});
+
+test("py parse: a param id with a status word in it, and a path with a space", () => {
+  const out = "test_a.py::test_x[label PASSED] FAILED  [ 50%]\nmy tests/test_a.py::test_y PASSED  [100%]\n";
+  expect(pyAdapter.parse(out)).toEqual([
+    { name: "test_x", pkg: "test_a.py", status: "fail" },
+    { name: "test_y", pkg: "my tests/test_a.py", status: "pass" },
+  ]);
+});
+
+// the two lines CodeRabbit reproduced with pytest 8.3.2 on PR #71
+test("py parse: the status after the last `]`, and nothing from the summary section", () => {
+  const out = [
+    "test_a.py::test_x[label] PASSED more] FAILED [ 50%]",
+    "test_a.py::test_summary FAILED [100%]",
+    "=================================== FAILURES ===================================",
+    '    assert False, "b.py::test_z PASSED"',
+    "=========================== short test summary info ============================",
+    "FAILED test_a.py::test_summary - AssertionError: b.py::test_z PASSED",
+  ].join("\n");
+  expect(pyAdapter.parse(out).map((r) => [r.name, r.status])).toEqual([
+    ["test_x", "fail"],
+    ["test_summary", "fail"],
   ]);
 });
