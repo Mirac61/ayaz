@@ -32,13 +32,9 @@ export function skin(): Skin {
   if (preview) {
     return preview;
   }
-  const file = settings().markdownSkin;
-  for (const p of [stored(), session]) {
-    if (p?.file === file) {
-      return p.pick;
-    }
-  }
-  return file;
+  const file = settings().markdownSkin,
+    pick = stored() ?? session; // session only exists when storage is blocked, so it never competes with a stored pick
+  return pick?.file === file ? pick.pick : file;
 }
 
 const paint = () => {
