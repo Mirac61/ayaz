@@ -64,8 +64,8 @@ export function fileCommands({ ws, files, ed, tree, say, fail, setPicker, prompt
     } catch (e) {
       const f = from.toLowerCase(),
         t = to.toLowerCase();
-      // a case-only rename (macOS sees the source itself) or a folder holding the source must never be trashed
-      if (!/already exists/.test(errText(e)) || f === t || f.startsWith(t + "/")) {
+      // a case-only rename (macOS sees the source itself), a folder holding the source or one inside it must never be trashed
+      if (!/already exists/.test(errText(e)) || f === t || f.startsWith(t + "/") || t.startsWith(f + "/")) {
         throw e;
       }
     }
