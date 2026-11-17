@@ -4,7 +4,7 @@ import { backend } from "../../core/backend";
 import type { Command } from "../../core/commands";
 import { availableThemes, setThemeOverride, themeName, toggleGlass } from "../../core/settings";
 import { LIMIT } from "./context";
-import { revealHeading, SKINS, setSkin, skin, type Skin } from "../../editor/mdrender";
+import { previewSkin, revealHeading, SKINS, setSkin, skin, type Skin } from "../../editor/mdrender";
 import { isMarkdown, mdOutline } from "../../editor/mdlive";
 import { BROWSER, PREVIEW } from "../../core/viewers";
 import { localUrl } from "../../viewers/browser";
@@ -61,20 +61,17 @@ export function viewCommands({ ed, say, fail, setPicker }: Ctx): Command[] {
       id: "md.skin",
       title: "Markdown skin (rendered view)",
       run() {
-        const before = skin();
-        let chosen = false;
         setPicker({
           title: "Markdown skin",
-          start: SKINS.indexOf(before),
+          start: SKINS.indexOf(skin()),
           async query(q) {
             const ms = q.trim() ? await backend.rank([...SKINS], q, LIMIT) : SKINS.map((path) => ({ path, positions: [] }));
             return ms.map((m) => ({ label: m.path, hint: SKIN_HINTS[m.path as Skin], positions: m.positions ?? [] }));
           },
-          // the cursor tries a skin on an open reading view; leaving without a pick puts the old one back
-          cursor: (it) => void (it && setSkin(it.label as Skin)),
-          close: () => void (!chosen && setSkin(before)),
+          // the cursor tries a skin on an open reading view; leaving without a pick leaves nothing behind
+          cursor: (it) => previewSkin(it ? (it.label as Skin) : null),
+          close: () => previewSkin(null),
           pick(it) {
-            chosen = true;
             setSkin(it.label as Skin);
             say(`Markdown skin: ${it.label}`);
           },

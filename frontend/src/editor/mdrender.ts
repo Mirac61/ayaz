@@ -13,26 +13,57 @@ export const SKINS = MD_SKINS;
 export type Skin = (typeof SKINS)[number];
 
 // The skin command's choice survives restarts, until settings.json names another skin than the one it was picked over.
+// A preview (the picker's cursor) is only shown: closing the window mid-preview keeps the skin that was picked.
 const SKIN_KEY = "ayaz.mdskin";
 const boxes = new Set<HTMLElement>();
+type Picked = { pick: Skin; file: Skin };
+let preview: Skin | null = null; // the picker's cursor, this session only
+let session: Picked | null = null; // the last pick, so a blocked localStorage still keeps it until the next start
+
+const stored = (): Picked | null => {
+  try {
+    const v = JSON.parse(localStorage.getItem(SKIN_KEY) ?? "null") as Picked | null;
+    return v && SKINS.includes(v.pick) ? v : null;
+  } catch {
+    return null; // blocked or broken: settings.json decides
+  }
+};
 export function skin(): Skin {
+  if (preview) {
+    return preview;
+  }
   const file = settings().markdownSkin;
-  try {
-    const saved = JSON.parse(localStorage.getItem(SKIN_KEY) ?? "null") as { pick: Skin; file: Skin } | null;
-    return saved?.file === file && SKINS.includes(saved.pick) ? saved.pick : file;
-  } catch {
-    return file;
+  for (const p of [stored(), session]) {
+    if (p?.file === file) {
+      return p.pick;
+    }
   }
+  return file;
 }
-export function setSkin(s: Skin) {
-  try {
-    localStorage.setItem(SKIN_KEY, JSON.stringify({ pick: s, file: settings().markdownSkin }));
-  } catch {
-    /* convenience: the skin then lasts until the next redraw */
-  }
+
+const paint = () => {
+  const s = skin();
   for (const b of boxes) {
     b.dataset.skin = s;
   }
+};
+
+// The picker's cursor tries a skin on every open reading view; null goes back to the picked one.
+export function previewSkin(s: Skin | null) {
+  preview = s;
+  paint();
+}
+
+export function setSkin(s: Skin) {
+  preview = null;
+  const picked = { pick: s, file: settings().markdownSkin };
+  try {
+    localStorage.setItem(SKIN_KEY, JSON.stringify(picked));
+    session = null;
+  } catch {
+    session = picked; // no storage: the pick still lasts this session
+  }
+  paint();
 }
 
 // Scrolls view's reading view to its nth Markdown heading (the outline's index); false when no reading view shows it.
