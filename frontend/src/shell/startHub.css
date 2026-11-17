@@ -1,0 +1,140 @@
+/* The empty window's start hub (StartHub.tsx): one 360 px column on the editor surface, no cards. */
+.hub {
+  width: 360px;
+  max-width: calc(100% - 32px);
+  max-height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.hub-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.hub-head .pane-empty-logo {
+  flex: none;
+  margin: 0;
+}
+.hub-title {
+  min-width: 0;
+}
+.hub .pane-empty-name {
+  margin: 0 0 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg-1);
+}
+.hub-sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font: var(--text-sm) var(--font-mono);
+  color: var(--fg-3);
+  white-space: nowrap;
+}
+.hub-sub > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hub-sub svg {
+  flex: none;
+  width: 13px;
+  height: 13px;
+}
+.hub-dot {
+  color: var(--fg-4);
+}
+.hub-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.hub .label {
+  padding: 0 8px 4px;
+}
+.hub-row,
+.hub .pane-empty-file {
+  box-sizing: border-box;
+  width: 100%;
+  height: var(--row);
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 8px;
+  font: var(--text-md) var(--font-ui);
+  color: var(--fg-2);
+  text-align: left;
+  white-space: nowrap;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  pointer-events: auto;
+  transition:
+    background-color var(--t-fast) var(--ease),
+    color var(--t-fast) var(--ease);
+}
+.hub-row:hover,
+.hub .pane-empty-file:hover {
+  color: var(--fg-1);
+  background: var(--hover);
+}
+.hub .pane-empty-file {
+  gap: 0;
+}
+.hub .pane-empty-file.first {
+  margin-top: 0;
+}
+.hub-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  color: var(--fg-3);
+}
+.hub-icon svg {
+  width: 15px;
+  height: 15px;
+}
+.hub-what {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hub-row kbd {
+  flex: none;
+  font: var(--text-sm) var(--font-mono);
+  color: var(--fg-2);
+}
+.hub-meta {
+  flex: none;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font: var(--text-sm) var(--font-ui);
+  color: var(--fg-4);
+}
+/* The two keys that open everything else, on one quiet line under the actions. */
+.hub-more {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 0;
+  font: var(--text-sm) var(--font-ui);
+  color: var(--fg-4);
+}
+.hub-more kbd {
+  font: var(--text-sm) var(--font-mono);
+  color: var(--fg-2);
+}
+.hub-more kbd + span {
+  margin-left: auto;
+}

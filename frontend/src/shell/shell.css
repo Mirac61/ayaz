@@ -508,12 +508,13 @@
   align-items: center;
   justify-content: space-between;
   height: var(--head);
+  min-height: var(--head);
   box-sizing: border-box;
   flex: none;
-  padding: 0 8px 0 10px;
+  padding: 0 8px;
   color: var(--fg-3);
   background: var(--bg-tabs);
-  border-bottom: 1px solid var(--edge);
+  border-bottom: 1px solid var(--edge); /* the same line as the tab strip's, same height */
   gap: 6px;
   overflow: hidden;
 }
@@ -523,12 +524,16 @@
   gap: 2px;
   flex: none;
 }
-.sidebar-tab {
+/* Every header control is one 24 px square with its icon centered by flex (SVG, not a font glyph). */
+.sidebar-tab,
+.sidebar-tools .ui-icon {
+  box-sizing: border-box;
   height: var(--row-sm);
-  padding: 0 8px;
+  min-width: var(--row-sm);
+  padding: 0;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
   background: transparent;
   border: 0;
   border-radius: var(--radius-sm);
@@ -538,12 +543,17 @@
     color var(--t-fast) var(--ease),
     background-color var(--t-fast) var(--ease);
 }
-.sidebar-tab::before {
-  content: attr(data-glyph);
-  font: var(--text-md) var(--font-mono);
+.sidebar-tab > svg,
+.sidebar-tools .ui-icon > svg {
+  flex: none;
+  display: block;
+  width: 15px;
+  height: 15px;
 }
-.sidebar-tab:hover {
-  color: var(--fg-2);
+.sidebar-tab:hover,
+.sidebar-tools .ui-icon:hover {
+  color: var(--fg-1);
+  background: var(--hover);
 }
 /* The tab you are on takes a colour; the others stay grey. */
 .sidebar-tab.active {
@@ -555,6 +565,11 @@
 .sidebar-tab.git.active {
   color: var(--status-terminal);
 }
+/* A tab with a badge is wider than a square: icon and count sit side by side, centered together. */
+.sidebar-tab:has(.sidebar-tab-badge) {
+  padding: 0 6px 0 5px;
+  gap: 4px;
+}
 .sidebar-tab-badge {
   display: inline-flex;
   align-items: center;
@@ -565,8 +580,8 @@
   padding: 0 4px;
   min-width: 14px;
   height: 14px;
+  box-sizing: border-box;
   border-radius: 7px;
-  margin-left: 4px;
   background: var(--bg-3);
   color: var(--fg-2);
   line-height: 1;
@@ -578,27 +593,9 @@
 .sidebar-tools {
   display: flex;
   align-items: center;
-  gap: 1px;
+  gap: 2px;
   flex: none;
   margin-left: auto;
-}
-.sidebar-tools .icon-btn {
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--fg-3);
-  border-radius: 4px;
-  font-size: 12px;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-}
-.sidebar-tools .icon-btn:hover {
-  color: var(--fg-1);
-  background: var(--bg-2);
 }
 .git-changes {
   flex: 1;
@@ -2081,6 +2078,7 @@
 /* Ayaz Crystalline Tab-Bar: 5px micro-chamfer cut, single crystal focus shard, seamless bottom transition */
 .tabbar {
   height: var(--head);
+  min-height: var(--head);
   box-sizing: border-box;
   display: flex;
   align-items: stretch;

@@ -65,19 +65,6 @@
     "Ayaz Symbols", monospace;
 }
 
-/* Optional glass mode ("glass": true in settings.json); solid is the default. */
-:root[data-glass] {
-  /* --glass (settings.json "glassOpacity", 0.3 to 1) scales how much of each colour is left. */
-  --bg-0: rgb(17 18 22 / calc(0.78 * var(--glass, 1)));
-  --bg-sidebar: rgb(20 21 26 / calc(0.8 * var(--glass, 1)));
-  --bg-tabs: rgb(17 18 22 / calc(0.8 * var(--glass, 1)));
-  --tab: rgb(21 22 28 / calc(0.82 * var(--glass, 1)));
-  --tab-active: rgb(35 37 48 / calc(0.9 * var(--glass, 1)));
-  --bg-1: rgb(22 23 29 / calc(0.82 * var(--glass, 1)));
-  --bg-2: rgb(25 26 33 / calc(0.86 * var(--glass, 1)));
-  --overlay: rgb(24 25 32 / 0.9);
-}
-
 :root[data-mac] {
   --bar: 30px;
 }
@@ -91,6 +78,13 @@ body,
   color: var(--fg-1);
   font: 13px/18px var(--font-ui);
   -webkit-font-smoothing: antialiased;
+}
+
+/* Glass: each surface carries its own alpha (themes.ts), so nothing under it may add a second layer on top of the window. */
+:root[data-glass],
+:root[data-glass] body,
+:root[data-glass] #root {
+  background: transparent;
 }
 
 @media (prefers-reduced-motion: reduce) {

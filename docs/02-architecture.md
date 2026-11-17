@@ -210,6 +210,7 @@ Leader is `<Space>`. A selection of the defaults; the full list is in the comman
 | `<Space>fw` | project search (grep) |
 | `<Space>fb` | buffers |
 | `<Space>fo` | recent files |
+| `<Space>fp` | switch project (recent folders, open folder) |
 | `<Space>fk` | list keymaps |
 | `<Space>fd` | diagnostics |
 | `<Space>t` | terminal in the bottom panel |

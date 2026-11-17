@@ -1232,7 +1232,8 @@ export class Editors {
   // Brings loaded buffers in line with disk after a watcher event (null = check all). Clean buffers reload in place,
   // keeping cursor and undo; returns a notice for dirty or deleted ones.
   async diskChanged(paths: string[] | null): Promise<string | null> {
-    if (!paths || paths.includes(".editorconfig")) {
+    let touched = !paths || paths.includes(".editorconfig");
+    if (touched) {
       this.editorConfig = this.loadEditorConfig();
       await this.editorConfig;
       this.settingsChanged();
@@ -1240,6 +1241,7 @@ export class Editors {
     const hit = (p: string) => !paths || paths.some((c) => p === c || p.startsWith(c + "/")); // a folder covers its files
     let note: string | null = null;
     for (const b of this.buffers.list().filter((b) => hit(b.path))) {
+      touched = true;
       const r = await this.buffers.checkDisk(b).catch(() => ({ kind: "same" as const })); // unreadable now: leave it
       if (r.kind === "conflict") {
         note ??= `"${b.path}" changed on disk. :w! overwrites, :e! reloads`;
@@ -1261,10 +1263,13 @@ export class Editors {
     const viewerPath = (title?: string) => (title?.startsWith(PREVIEW) ? title.slice(PREVIEW.length) : (title ?? ""));
     for (const p of this.panes.values()) {
       if (p.viewer && hit(viewerPath(p.title))) {
+        touched = true;
         p.viewer.reload?.();
       }
     }
-    this.emit();
+    if (touched) {
+      this.emit(); // a build writing elsewhere changes nothing on screen: no status update, no re-render
+    }
     return note;
   }
 

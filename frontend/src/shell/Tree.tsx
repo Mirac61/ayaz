@@ -118,12 +118,14 @@ export const Tree = forwardRef<TreeHandle, Props>(function Tree({ files, onOpen,
   const load = (dir: string) =>
     files.list(dir).then(
       (es) =>
-        setChildren((m) =>
-          new Map(m).set(
-            dir,
-            es.filter((e) => dir !== "" || e.name !== ".git"),
-          ),
-        ),
+        setChildren((m) => {
+          const next = es.filter((e) => dir !== "" || e.name !== ".git");
+          const old = m.get(dir);
+          // The same listing again (a watcher batch that touched a file's content): keep the state, so nothing re-renders.
+          return old && old.length === next.length && old.every((e, i) => e.name === next[i].name && e.dir === next[i].dir)
+            ? m
+            : new Map(m).set(dir, next);
+        }),
       () =>
         setChildren((m) => {
           const n = new Map(m);
