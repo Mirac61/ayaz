@@ -116,3 +116,10 @@ test("a tests template of settings.json replaces the command; nearest needs its 
   expect(v.failed).toEqual(["No ${name} in your tests.go command"]);
   expect(v.ran).toEqual([]);
 });
+
+test("test.all stores only the results of tests this file declares", () => {
+  const w = setup("p_test.go", "helper");
+  w.run("test.all");
+  w.text("--- PASS: TestA (0.00s)\n--- FAIL: TestElsewhere (0.00s)\n", true);
+  expect([...w.results.get("p_test.go")!.byName.keys()]).toEqual(["TestA"]);
+});

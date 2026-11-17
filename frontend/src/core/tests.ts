@@ -87,7 +87,7 @@ const dirOf = (p: string) => p.slice(0, Math.max(p.lastIndexOf("/"), 0));
 // One line of vitest (`✓ a.test.ts > group > title 3ms`, maybe `|project|` after the mark), jest (`✓ title (3 ms)`, `○ skipped title`)
 // or bun (`(pass) group > title [0.5ms]`).
 const JS_LINE =
-  /^\s*(?:([✓✕×↓○])\s+(?:\|[^|]*\|\s+)?|\((pass|fail|skip|todo)\)\s+)(.*?)(?:\s+(?:\[(\d+(?:\.\d+)?)ms\]|\((\d+(?:\.\d+)?) ms\)|(\d+(?:\.\d+)?)ms))?\s*$/;
+  /^\s*(?:([✓✕×↓○])\s+(?:\|[^|]*\|\s+)?|\((pass|fail|skip|todo)\)\s+)(.*?)(\s+(?:\[(\d+(?:\.\d+)?)ms\]|\((\d+(?:\.\d+)?) ms\)|(\d+(?:\.\d+)?)ms))?\s*$/;
 const JS_STATUS: Record<string, TestResult["status"]> = {
   "✓": "pass",
   "✕": "fail",
@@ -148,7 +148,8 @@ export const jsAdapter: TestAdapter = {
         ? ` ${runner === "node" ? "--test-name-pattern" : "-t"} ${q(name!.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))}`
         : "";
     const target = scope === "all" ? "" : ` ${arg(runner === "bun" ? `./${rel}` : rel)}`; // bun takes a bare name as a filter
-    return `${pkgDir ? `cd ${arg(pkgDir)} && ` : ""}${base}${pattern}${target}`;
+    const byPath = runner === "jest" && scope !== "all" ? " --runTestsByPath" : ""; // jest reads a bare target as a regex
+    return `${pkgDir ? `cd ${arg(pkgDir)} && ` : ""}${base}${pattern}${byPath}${target}`;
   },
   // shortcut: matches by title, describe blocks are ignored; two tests with one title share a result (fail wins)
   parse(output) {
@@ -156,9 +157,12 @@ export const jsAdapter: TestAdapter = {
     for (const line of output.replace(ANSI, "").split(/\r?\n/)) {
       const m = JS_LINE.exec(line);
       if (m) {
-        const title = (m[1] === "○" ? m[3].replace(/^skipped /, "") : m[3]).split(" > ").pop()!;
-        const ms = m[4] ?? m[5] ?? m[6];
-        out.push({ name: title, status: JS_STATUS[m[1] ?? m[2]], ...(ms === undefined ? {} : { ms: Math.round(Number(ms)) }) });
+        const status = JS_STATUS[m[1] ?? m[2]];
+        // a skipped test has no duration, so a title ending in `100ms` keeps it
+        const raw = status === "skip" ? m[3] + (m[4] ?? "") : m[3];
+        const title = (m[1] === "○" ? raw.replace(/^skipped /, "") : raw).split(" > ").pop()!;
+        const ms = status === "skip" ? undefined : (m[5] ?? m[6] ?? m[7]);
+        out.push({ name: title, status, ...(ms === undefined ? {} : { ms: Math.round(Number(ms)) }) });
       }
     }
     return out;

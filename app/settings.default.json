@@ -79,7 +79,8 @@
 
   // Your own test command per language, in place of the built-in one: <Space>rn runs the test at the cursor,
   // <Space>rf the file, <Space>ra everything, <Space>rt repeats the last. Same placeholders as "tasks", plus
-  // ${name} for the test at the cursor (required for <Space>rn). Adapters: "go".
+  // ${name} for the test at the cursor (required for <Space>rn). One template serves all three scopes: ${dir} is the
+  // active file's folder, so <Space>ra runs that folder only, and ${name} stays unexpanded outside <Space>rn. Adapters: "go".
   "tests": {
     // "go": "gotestsum -- -run '^${name}$' ./${dir}",
   },

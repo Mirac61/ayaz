@@ -145,7 +145,7 @@ test("js detect: bun without vitest or jest, node otherwise, nothing without a p
 
 test("js commands: jest, bun and node, with and without a package folder", () => {
   expect(jsAdapter.command("file", { file: "a.test.js", runner: "jest", pm: "npx", pkgDir: "" })).toBe(
-    "npx jest --verbose a.test.js",
+    "npx jest --verbose --runTestsByPath a.test.js",
   );
   expect(jsAdapter.command("nearest", { file: "p/a.test.ts", name: "x", runner: "bun", pkgDir: "p" })).toBe(
     "cd p && bun test -t 'x' ./a.test.ts",
@@ -159,7 +159,7 @@ test("js commands: jest, bun and node, with and without a package folder", () =>
 
 test("js commands: a test name cannot start a second shell command", () => {
   const cmd = jsAdapter.command("nearest", { file: "a.test.ts", name: "x'; rm -rf ~; echo '", runner: "jest", pm: "npx" });
-  expect(cmd).toBe("npx jest --verbose -t 'x'\\''; rm -rf ~; echo '\\''' a.test.ts");
+  expect(cmd).toBe("npx jest --verbose -t 'x'\\''; rm -rf ~; echo '\\''' --runTestsByPath a.test.ts");
 });
 
 // Real output of `vitest run --reporter=verbose` (v5, project "node") for a passing, a failing and a skipped test.
@@ -226,4 +226,17 @@ test("js parse: jest verbose output, ANSI colours first", () => {
 test("js parse: noise gives nothing", () => {
   expect(jsAdapter.parse("")).toEqual([]);
   expect(jsAdapter.parse("Tests  1 failed\n → expected 1\n")).toEqual([]);
+});
+
+test("jest takes a file target by path, so a bracket folder matches itself", () => {
+  const at = { file: "src/[id]/a.test.js", runner: "jest" as const, pm: "npx", pkgDir: "" };
+  expect(jsAdapter.command("file", at)).toBe("npx jest --verbose --runTestsByPath 'src/[id]/a.test.js'");
+  expect(jsAdapter.command("all", at)).toBe("npx jest --verbose");
+});
+
+test("js parse: a skipped title ending in a duration keeps it, a passed one loses it", () => {
+  expect(jsAdapter.parse("(skip) times out after 100ms\n(pass) works [0.5ms]\n")).toEqual([
+    { name: "times out after 100ms", status: "skip" },
+    { name: "works", status: "pass", ms: 1 },
+  ]);
 });

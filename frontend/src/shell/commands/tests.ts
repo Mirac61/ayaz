@@ -3,7 +3,7 @@ import type { Command } from "../../core/commands";
 import { settings } from "../../core/settings";
 import { testResults, type TestResults } from "../../core/testResults";
 import { adapterFor, testCommand, type Scope, type TestAt } from "../../core/tests";
-import { testAt } from "../../editor/tests";
+import { testAt, testsIn } from "../../editor/tests";
 import type { Ctx } from "./context";
 
 const SCOPES: [Scope, string][] = [
@@ -45,7 +45,18 @@ export function testCommands(c: Ctx, results: TestResults = testResults, templat
       const run = () =>
         c.task(
           { name: label, cmd },
-          { onText: (text) => results.set(path, adapter.parse(text), Date.now()) }, // the terminal hands over all of its text each time
+          {
+            // the terminal hands over all of its text each time
+            onText: (text) => {
+              let found = adapter.parse(text);
+              if (scope === "all") {
+                // shortcut: everything ran, so keep only the tests this file declares; a same-named test elsewhere still lands here
+                const own = new Set(testsIn(view.state, path).map((t) => t.name));
+                found = found.filter((r) => own.has(r.name));
+              }
+              results.set(path, found, Date.now());
+            },
+          },
         );
       last = run;
       run();
