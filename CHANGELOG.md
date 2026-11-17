@@ -1,5 +1,59 @@
 # Changelog
 
+## [0.10.0](https://github.com/Mirac61/ayaz/compare/v0.9.0...v0.10.0) (2026-11-16)
+
+
+### Features
+
+* **find:** &lt;Space&gt;f. resumes the last search picker with its text ([bfd5891](https://github.com/Mirac61/ayaz/commit/bfd5891721ceeae5f263c5d01d1cf58c2426d52e))
+* **find:** &lt;Space&gt;fT lists TODO, FIXME, HACK and XXX comments ([4162d40](https://github.com/Mirac61/ayaz/commit/4162d40bc6c7845817fa9327fafccfe8c768eda3))
+* **history:** Cmd/Ctrl+Enter restores an earlier save as unsaved changes ([3f74a15](https://github.com/Mirac61/ayaz/commit/3f74a15cd2a2f91bb3559dc626baf56ce97ae25e))
+* **statusbar:** show "plain text" when a long line turns highlighting off ([311839d](https://github.com/Mirac61/ayaz/commit/311839d4b79a2da1b36204e156bf3433121c183a))
+* **tasks:** ${file}, ${dir} and ${line} placeholders in settings tasks ([089273c](https://github.com/Mirac61/ayaz/commit/089273cad59e52c00e7e853c770ad1ae9c742bc7))
+* **terminal:** file:line:col in terminal output opens the file ([57b2597](https://github.com/Mirac61/ayaz/commit/57b25973cae99026edc0f5904f663af209eb53ff))
+
+
+### Bug Fixes
+
+* **ci:** bump Go to 1.27.4 for GO-2026-6859 ([e42d613](https://github.com/Mirac61/ayaz/commit/e42d61328fa8c518b118edc7def804964e1f860e))
+* **history:** review fixes for the restore pick ([b084564](https://github.com/Mirac61/ayaz/commit/b084564bc9db560bdb1f48d395aa8db8c07ab4d4))
+* **picker:** Enter opens the selected hit of a streamed search ([df184f9](https://github.com/Mirac61/ayaz/commit/df184f9e87411884d3a07388cdd9274c73887958))
+* **tasks:** quote-aware placeholder expansion, no expansion for doc builds ([12e8aa9](https://github.com/Mirac61/ayaz/commit/12e8aa923020e41eefa2b32645f351b512963ed8))
+* **tasks:** refuse ${file}/${dir} where the quoting can't be told ([0793087](https://github.com/Mirac61/ayaz/commit/07930873884df6269222758c161ae7b8fe9e049c))
+* **tasks:** treat any unquoted # as a possible comment ([e3033c7](https://github.com/Mirac61/ayaz/commit/e3033c74057bfee8af70f469f28ee5c96bd899df))
+* **terminal:** file links use cell columns, not string offsets ([0dc2605](https://github.com/Mirac61/ayaz/commit/0dc260546e81636a69551803401e025ab99113eb))
+* **terminal:** resolve a link against the cwd at its own column ([d8c2e7c](https://github.com/Mirac61/ayaz/commit/d8c2e7cd7ebf8f9c69581638c0b4851e0f8e6c4b))
+* **terminal:** resolve file links against the output's cwd, skip wrapped rows, clamp column 0 ([da6aa68](https://github.com/Mirac61/ayaz/commit/da6aa68d3d062741b51542bdf3fb2b189935a07f))
+* **terminal:** same-row cwd change, column 0 test, file links in the scratch terminal ([8d71d6e](https://github.com/Mirac61/ayaz/commit/8d71d6e9eef2f418082d12e011c0a230535a5d5e))
+
+## [0.9.0](https://github.com/Mirac61/ayaz/compare/v0.8.2...v0.9.0) (2026-11-16)
+
+
+### Features
+
+* **git:** &lt;Space&gt;go opens the line on GitHub, &lt;Space&gt;gy copies a permalink ([f30a3f4](https://github.com/Mirac61/ayaz/commit/f30a3f4a1ec732383e273ed251d0331c9b2002c1))
+* **git:** &lt;Space&gt;go opens the line on GitHub, &lt;Space&gt;gy copies a permalink ([f8e586f](https://github.com/Mirac61/ayaz/commit/f8e586f712827ff534f5070d3d56c84e45e8a9c5))
+* **tree:** c duplicates a file ([92404eb](https://github.com/Mirac61/ayaz/commit/92404eb7d84575a549f8c71a02af2dd3e5e36306))
+* **tree:** c duplicates a file ([83e0ecb](https://github.com/Mirac61/ayaz/commit/83e0ecb186eb5f34dc805c18fe3cdfe4a94e9fe9))
+
+
+### Bug Fixes
+
+* **git:** keep the token out of bad remotes, keep a leading space in the prefix, strip head:// from links ([247231a](https://github.com/Mirac61/ayaz/commit/247231a965a904a80eebd1aa9aaccfa9a827ac5a))
+* **tree:** copy writes through the handle it created, tests for backslash paths, umask and path cleaning ([4cb183e](https://github.com/Mirac61/ayaz/commit/4cb183e3b8694f95a9c7cbd2bd471208ea3a482e))
+* **tree:** duplicate reveals the canonical path out of the filter, copy never exists wider than its source, refuse backslash paths on Windows ([687c307](https://github.com/Mirac61/ayaz/commit/687c30724f74f904d5ca06566254be4270b9b131))
+* **tree:** reveal keeps the cursor on the revealed file, with a browser test for a filtered duplicate ([0146f9b](https://github.com/Mirac61/ayaz/commit/0146f9b1b7ce30c378d546ba808a8bb8a97ff325))
+* **window:** ask about the current workspace when the close button is clicked ([167fd3c](https://github.com/Mirac61/ayaz/commit/167fd3c263c7469ab0a0ac98f3fb85971cba6ea2))
+* **window:** close button does nothing after Switch folder ([191cbe2](https://github.com/Mirac61/ayaz/commit/191cbe2e43486d51ee79a79a015f7ea3e5ee3dec))
+
+## [0.8.2](https://github.com/Mirac61/ayaz/compare/v0.8.1...v0.8.2) (2026-11-15)
+
+
+### Bug Fixes
+
+* **ui:** statusline fields overlapped, flatten the project chip ([01129f1](https://github.com/Mirac61/ayaz/commit/01129f134a08b59b9103ccefd4b40cfdb2a72a98))
+* **ui:** statusline fields overlapped, flatten the project chip ([499fc16](https://github.com/Mirac61/ayaz/commit/499fc1646e4da1c7657a3e45ed62709ba5560d60))
+
 ## [0.8.1](https://github.com/Mirac61/ayaz/compare/v0.8.0...v0.8.1) (2026-11-15)
 
 
