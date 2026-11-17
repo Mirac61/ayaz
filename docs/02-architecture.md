@@ -37,7 +37,7 @@ ayaz/
     src/
       core/               # commands, keymap, backend.ts, viewer registry, buffers, quickfix, settings, tasks
       shell/              # layout, splits, tabs, tree, picker, palette, status line, debugger UI
-      editor/             # CM6 setup, vim/, Markdown live preview (mdlive), LSP transport, git gutter
+      editor/             # CM6 setup, vim/, Markdown live preview (mdlive), LSP transport, git gutter, test gutter (testgutter)
       lang/               # extension → language package + LSP server
       terminal/           # xterm.js provider, theme, stream, file:line links
       viewers/            # pdf, image, html, browser

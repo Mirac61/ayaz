@@ -1,6 +1,8 @@
 import { startDrag } from "./dnd";
 import { EditorState, Transaction, Annotation, Text } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import { testResults, type FileResults } from "../core/testResults";
+import { setTestResults } from "../editor/testgutter";
 import { redo, undo, undoDepth } from "@codemirror/commands";
 import { indentUnit } from "@codemirror/language";
 import { getCM, Vim } from "@replit/codemirror-vim";
@@ -123,6 +125,8 @@ export class Editors {
   cursors: Record<string, number> = {}; // from the session: where the cursor was when a file loads again
   bps: Record<string, Breakpoint[]> = {}; // from the session: the breakpoints a file gets when it loads again
   onBreakpointsChanged?: (path: string, bps: Breakpoint[]) => void;
+  onTestClick?: (view: EditorView, line: number) => void; // a marker in the test gutter: run that test
+  private shownResults = new Map<string, FileResults | undefined>(); // what each buffer was last given
   private jumps = new Map<number, Jumps>(); // per pane: back/forward across files
   private navigating = false; // nav() is opening a file: not a new jump
   private closed: string[] = []; // closed tabs, last on top (Cmd+Shift+T)
@@ -161,8 +165,9 @@ export class Editors {
     this.editorConfig = this.loadEditorConfig();
     this.buffers = new Buffers(files, async (path, doc) => {
       await this.editorConfig;
-      return createState(path, doc, wsId, root);
+      return createState(path, doc, wsId, root, (v, line) => this.onTestClick?.(v, line));
     });
+    testResults.subscribe(() => this.buffers.list().forEach((b) => this.pushResults(b.path)));
     setLspHost(wsId, { display: (path) => this.display(path), apply: async (e) => (await this.applyEdit(e)).length > 0 });
     this.recentKey = `ayaz.recent:${root}`;
   }
@@ -821,6 +826,8 @@ export class Editors {
     });
     if (firstDisplay) {
       void this.loadHead(path);
+      this.shownResults.delete(path);
+      this.pushResults(path);
       const lines = this.bps[path];
       if (lines?.length) {
         b.state = b.state.update({ effects: setBreakpointLines.of(lines) }).state;
@@ -1202,6 +1209,25 @@ export class Editors {
     for (const p of shown) {
       p.view!.dispatch({ effects });
     } // dispatch() keeps b.state in step
+    if (!shown.length) {
+      b.state = b.state.update({ effects }).state;
+    }
+  }
+
+  // Gives the file's buffer the test results the runner last reported, unless it has them already.
+  private pushResults(path: string) {
+    const b = this.buffers.get(path);
+    const fr = testResults.get(path);
+    if (!b || this.shownResults.get(path) === fr) {
+      return;
+    }
+    this.shownResults.set(path, fr);
+    const results = new Map([...(fr?.byName ?? [])].map(([name, r]) => [name, r.status] as const));
+    const effects = setTestResults.of(results);
+    const shown = [...this.panes.values()].filter((p) => p.buf === b);
+    for (const p of shown) {
+      p.view!.dispatch({ effects });
+    }
     if (!shown.length) {
       b.state = b.state.update({ effects }).state;
     }
