@@ -75,6 +75,8 @@ export interface Backend {
   rank(items: string[], query: string, limit: number): Promise<FileMatch[]>;
   // Calls fn for changes on disk in workspace ws, also our own saves. Returns the unsubscribe function.
   onFsChanged(ws: string, fn: (c: FsChange) => void): () => void;
+  // Finder or Dock files dropped on the file tree were copied into ws: the new workspace paths and what failed.
+  onDropped(ws: string, fn: (d: { paths: string[] | null; errors: string[] | null }) => void): () => void;
   onLspStatus(ws: string, fn: (s: LspStatus) => void): () => void;
   // HEAD, the index or the reflog of ws's repository moved (commit, checkout, stage); Go polls every second.
   onGitChanged(ws: string, fn: () => void): () => void;
@@ -210,6 +212,12 @@ export const backend: Backend = {
     }),
   onFsChanged: (ws, fn) =>
     Events.On("fs:changed", (e: { data: FsChange & { ws: string } }) => {
+      if (e.data.ws === ws) {
+        fn(e.data);
+      }
+    }),
+  onDropped: (ws, fn) =>
+    Events.On("app:dropped", (e: { data: { ws: string; paths: string[] | null; errors: string[] | null } }) => {
       if (e.data.ws === ws) {
         fn(e.data);
       }

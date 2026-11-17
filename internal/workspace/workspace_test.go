@@ -303,6 +303,42 @@ func TestCopy(t *testing.T) {
 	}
 }
 
+func TestImport(t *testing.T) {
+	w := newTestWS(t)
+	outside := filepath.Join(filepath.Dir(w.Root), "outside")
+	read := func(rel string) string { b, _ := os.ReadFile(filepath.Join(w.Root, rel)); return string(b) }
+
+	// A file lands in the folder under its own name, a folder with everything in it.
+	if rel, err := w.Import(filepath.Join(outside, "secret"), "sub"); err != nil || rel != "sub/secret" || read("sub/secret") != "s" {
+		t.Errorf("Import(file) = %q, %v, content %q", rel, err, read("sub/secret"))
+	}
+	if rel, err := w.Import(outside, ""); err != nil || rel != "outside" || read("outside/secret") != "s" {
+		t.Errorf("Import(folder) = %q, %v", rel, err)
+	}
+
+	// Nothing is replaced or merged.
+	must(t, os.WriteFile(filepath.Join(outside, "secret"), []byte("new"), 0o644))
+	for _, dir := range []string{"sub", ""} {
+		src := map[string]string{"sub": filepath.Join(outside, "secret"), "": outside}[dir]
+		if _, err := w.Import(src, dir); err == nil || !strings.Contains(err.Error(), "already exists") {
+			t.Errorf("Import(%q, %q) = %v, want already exists", src, dir, err)
+		}
+	}
+	if read("sub/secret") != "s" || read("outside/secret") != "s" {
+		t.Error("an existing target was changed")
+	}
+
+	// A folder can't go into itself, and the target folder must be inside the workspace.
+	if _, err := w.Import(filepath.Join(w.Root, "sub"), "sub"); err == nil || !strings.Contains(err.Error(), "into itself") {
+		t.Errorf("Import(sub into sub) = %v, want into itself", err)
+	}
+	for _, bad := range []string{"..", "../x", "/etc", "out"} {
+		if _, err := w.Import(outside, bad); err == nil {
+			t.Errorf("Import into %q succeeded", bad)
+		}
+	}
+}
+
 func TestCopyReadOnlySource(t *testing.T) {
 	w := newTestWS(t)
 	must(t, os.WriteFile(filepath.Join(w.Root, "ro.txt"), []byte("x"), 0o400))

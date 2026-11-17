@@ -1307,6 +1307,21 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
     [ed, ws.id],
   );
 
+  // Finder or Dock files dropped on the tree were copied (Go): the cursor goes to the first, failures are said.
+  useEffect(
+    () =>
+      backend.onDropped(ws.id, ({ paths, errors }) => {
+        if (paths?.length) {
+          void tree.current?.reveal(paths[0]);
+          say(paths.length === 1 ? `Copied "${paths[0]}"` : `Copied ${paths.length} items`);
+        }
+        if (errors?.length) {
+          fail(errors.join("; "));
+        }
+      }),
+    [ws.id],
+  );
+
   // A commit or checkout (lazygit in the terminal, too): new HEAD for the gutter, maybe a new branch.
   useEffect(() => {
     const load = () => {

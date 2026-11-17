@@ -193,6 +193,14 @@ func (s *WorkspaceService) bindWindow(ctx context.Context, ws string) {
 			win.EmitEvent("app:close-request", cur) // events reach every window: the payload says whose it is
 		}
 	})
+	win.OnWindowEvent(events.Common.WindowFilesDropped, func(e *application.WindowEvent) {
+		if dir, ok := treeDrop(e); ok {
+			s.mu.Lock()
+			ws := s.windows[id]
+			s.mu.Unlock()
+			go s.importDropped(ws, dir, e.Context().DroppedFiles())
+		}
+	})
 	win.OnWindowEvent(events.Common.WindowClosing, func(*application.WindowEvent) {
 		s.mu.Lock()
 		ws := s.windows[id]
@@ -272,9 +280,43 @@ func NewWindow(a *application.App, name, url string) *application.WebviewWindow 
 	win := a.Window.NewWithOptions(opts)
 	win.OnWindowEvent(events.Common.WindowRuntimeReady, func(*application.WindowEvent) { UncapFrameRate(win) })
 	win.OnWindowEvent(events.Common.WindowFilesDropped, func(e *application.WindowEvent) {
-		go openDropped(e.Context().DroppedFiles())
+		if _, ok := treeDrop(e); !ok { // the file tree's drops copy, see bindWindow
+			go openDropped(e.Context().DroppedFiles())
+		}
 	})
 	return win
+}
+
+// treeDrop is the workspace folder a drop on the file tree goes to: its rows and the tree carry data-drop-dir.
+func treeDrop(e *application.WindowEvent) (dir string, ok bool) {
+	if t := e.Context().DropTargetDetails(); t != nil {
+		dir, ok = t.Attributes["data-drop-dir"]
+	}
+	return dir, ok
+}
+
+// DropEvent is the "app:dropped" payload: the workspace paths a drop on the file tree created, and what failed.
+type DropEvent struct {
+	WS     string   `json:"ws"`
+	Paths  []string `json:"paths"`
+	Errors []string `json:"errors"`
+}
+
+// importDropped copies files dropped on the tree into the workspace folder dir; the tree shows them by the watcher.
+func (s *WorkspaceService) importDropped(ws, dir string, srcs []string) {
+	w, err := s.reg.Get(ws)
+	if err != nil {
+		return
+	}
+	ev := DropEvent{WS: ws}
+	for _, src := range srcs {
+		if rel, err := w.Import(src, dir); err != nil {
+			ev.Errors = append(ev.Errors, err.Error())
+		} else {
+			ev.Paths = append(ev.Paths, rel)
+		}
+	}
+	s.emit("app:dropped", ev)
 }
 
 // openDropped opens dropped files like `ayaz file` does, through the app's own socket: the window that has the file's
