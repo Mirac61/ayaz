@@ -1,6 +1,7 @@
 import { expect, test } from "vitest";
 import { EditorState } from "@codemirror/state";
 import { go } from "@codemirror/lang-go";
+import { javascript } from "@codemirror/lang-javascript";
 import { testAt, testsIn } from "./tests";
 
 const SRC = `package p
@@ -68,4 +69,45 @@ test("testsIn skips lowercase-after-Test in any script and generic tests", () =>
 test("testsIn finds tests far down in a large file", () => {
   const doc = "package p\n\n" + "var x = 1\n".repeat(5000) + "\nfunc TestLast(t *testing.T) {}\n";
   expect(testsIn(state(doc), "p_test.go").map((t) => t.name)).toEqual(["TestLast"]);
+});
+
+const JS = `describe("group", () => {
+  it("first", () => {
+    expect(1).toBe(1);
+  });
+  test.only('second', async () => {});
+  it.skip(\`third\`, () => {});
+  test.each([1, 2])("each %i", () => {});
+  test(\`has \${x}\`, () => {});
+  test(name, () => {});
+  it("it\\'s", () => {});
+  helper("not a test", () => {});
+  a.test("member", () => {});
+});
+
+test("top level", () => {});
+`;
+const js = (doc = JS) => EditorState.create({ doc, extensions: [javascript({ typescript: true })] });
+const jpos = (s: string) => JS.indexOf(s);
+
+test("testsIn (JS): test/it/describe with a plain string title, also .only and .skip", () => {
+  expect(testsIn(js(), "a.test.ts")).toEqual([
+    { name: "group", line: 1 },
+    { name: "first", line: 2 },
+    { name: "second", line: 5 },
+    { name: "third", line: 6 },
+    { name: "it's", line: 10 },
+    { name: "top level", line: 15 },
+  ]);
+  expect(testsIn(js(), "a.test.mjs")).toHaveLength(6);
+});
+
+test("testAt (JS): the innermost test, else the innermost describe", () => {
+  expect(testAt(js(), "a.test.ts", jpos("expect(1)"))).toEqual({ name: "first", line: 2 });
+  expect(testAt(js(), "a.test.ts", jpos("it(") + 1)).toEqual({ name: "first", line: 2 });
+  expect(testAt(js(), "a.test.ts", jpos("test.only") + 1)).toEqual({ name: "second", line: 5 });
+  expect(testAt(js(), "a.test.ts", jpos("test.each") + 1)).toEqual({ name: "group", line: 1 });
+  expect(testAt(js(), "a.test.ts", jpos("describe") + 1)).toEqual({ name: "group", line: 1 });
+  expect(testAt(js(), "a.test.ts", jpos("top level") + 1)).toEqual({ name: "top level", line: 15 });
+  expect(testAt(js(), "a.test.ts", JS.length)).toBeNull();
 });

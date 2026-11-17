@@ -2,7 +2,7 @@
 import type { Command } from "../../core/commands";
 import { settings } from "../../core/settings";
 import { testResults, type TestResults } from "../../core/testResults";
-import { adapterFor, testCommand, type Scope } from "../../core/tests";
+import { adapterFor, testCommand, type Scope, type TestAt } from "../../core/tests";
 import { testAt } from "../../editor/tests";
 import type { Ctx } from "./context";
 
@@ -33,20 +33,29 @@ export function testCommands(c: Ctx, results: TestResults = testResults, templat
         return c.fail("No test at the cursor");
       }
     }
-    let cmd: string;
-    try {
-      cmd = testCommand(adapter, scope, { file: path, name }, templates()[adapter.id]);
-    } catch (e) {
-      return c.fail((e as Error).message);
+    const template = templates()[adapter.id];
+    const launch = (found: Partial<TestAt>) => {
+      let cmd: string;
+      try {
+        cmd = testCommand(adapter, scope, { file: path, name, ...found }, template);
+      } catch (e) {
+        return c.fail((e as Error).message);
+      }
+      const label = scope === "nearest" ? `Test ${name}` : scope === "file" ? `Test ${path}` : "Test all";
+      const run = () =>
+        c.task(
+          { name: label, cmd },
+          { onText: (text) => results.set(path, adapter.parse(text), Date.now()) }, // the terminal hands over all of its text each time
+        );
+      last = run;
+      run();
+    };
+    // A user template needs no detection; without one the project says which runner it has.
+    if (adapter.detect && template === undefined) {
+      void adapter.detect(path, c.files).then(launch);
+    } else {
+      launch({});
     }
-    const label = scope === "nearest" ? `Test ${name}` : scope === "file" ? `Test ${path}` : "Test all";
-    const run = () =>
-      c.task(
-        { name: label, cmd },
-        { onText: (text) => results.set(path, adapter.parse(text), Date.now()) }, // the terminal hands over all of its text each time
-      );
-    last = run;
-    run();
   };
 
   return [

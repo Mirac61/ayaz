@@ -1,5 +1,6 @@
 // Test runner model: what a runner is called with and what its output means. No editor imports.
 
+import type { Files } from "./backend";
 import { escape, expandTask } from "./tasks";
 
 export type Scope = "nearest" | "file" | "all";
@@ -13,11 +14,20 @@ export interface TestResult {
   status: "pass" | "fail" | "skip";
   ms?: number;
 }
+// Where a run starts. `file` is workspace-relative; `name` is needed for "nearest"; the rest comes from `detect`.
+export interface TestAt {
+  file: string;
+  name?: string;
+  runner?: "vitest" | "jest" | "bun" | "node";
+  pm?: string; // how vitest and jest are started: `bunx`, `pnpm exec` or `npx`
+  pkgDir?: string; // the folder of the nearest package.json ("" for the workspace root)
+}
 export interface TestAdapter {
   id: string;
   exts: string[];
-  // The shell line for a scope. `file` is workspace-relative; `name` is needed for "nearest".
-  command(scope: Scope, at: { file: string; name?: string }): string;
+  // Reads the project (which runner it uses) before `command`, which stays pure.
+  detect?(file: string, files: Pick<Files, "list" | "readText">): Promise<Partial<TestAt>>;
+  command(scope: Scope, at: TestAt): string;
   parse(output: string): TestResult[];
 }
 
@@ -72,10 +82,93 @@ export const goAdapter: TestAdapter = {
   },
 };
 
-export const adapters = [goAdapter];
+const dirOf = (p: string) => p.slice(0, Math.max(p.lastIndexOf("/"), 0));
+
+// One line of vitest (`✓ a.test.ts > group > title 3ms`, maybe `|project|` after the mark), jest (`✓ title (3 ms)`, `○ skipped title`)
+// or bun (`(pass) group > title [0.5ms]`).
+const JS_LINE =
+  /^\s*(?:([✓✕×↓○])\s+(?:\|[^|]*\|\s+)?|\((pass|fail|skip|todo)\)\s+)(.*?)(?:\s+(?:\[(\d+(?:\.\d+)?)ms\]|\((\d+(?:\.\d+)?) ms\)|(\d+(?:\.\d+)?)ms))?\s*$/;
+const JS_STATUS: Record<string, TestResult["status"]> = {
+  "✓": "pass",
+  "✕": "fail",
+  "×": "fail",
+  "↓": "skip",
+  "○": "skip",
+  pass: "pass",
+  fail: "fail",
+  skip: "skip",
+  todo: "skip",
+};
+
+export const jsAdapter: TestAdapter = {
+  id: "js",
+  exts: ["ts", "tsx", "js", "jsx", "mjs"],
+  // shortcut: the lock file of the package.json's own folder decides the package manager (no hoisted workspace root lookup)
+  async detect(file, files) {
+    for (let dir = dirOf(file); ; dir = dirOf(dir)) {
+      const names = (await files.list(dir).catch(() => [])).filter((e) => !e.dir).map((e) => e.name);
+      if (names.includes("package.json")) {
+        const text = await files.readText(dir ? `${dir}/package.json` : "package.json").then(
+          (f) => f.content,
+          () => "",
+        );
+        let pkg: { dependencies?: object; devDependencies?: object; scripts?: Record<string, string> } = {};
+        try {
+          pkg = JSON.parse(text) ?? {};
+        } catch {
+          // a broken package.json still marks the folder; it just names no runner
+        }
+        const uses = (n: string) =>
+          n in { ...pkg.dependencies, ...pkg.devDependencies } ||
+          Object.values(pkg.scripts ?? {}).some((s) => String(s).includes(n));
+        const bun = names.some((n) => /^bun\.lockb?$|^bunfig\.toml$/.test(n));
+        const runner = uses("vitest") ? "vitest" : uses("jest") ? "jest" : bun ? "bun" : "node";
+        const pm = names.some((n) => n.startsWith("bun.lock")) ? "bunx" : names.includes("pnpm-lock.yaml") ? "pnpm exec" : "npx";
+        return { runner, pm, pkgDir: dir };
+      }
+      if (!dir) {
+        return {};
+      }
+    }
+  },
+  command(scope, { file, name, runner = "node", pm = "npx", pkgDir = "" }) {
+    if (scope === "nearest" && !name) {
+      throw new Error("A nearest test needs a test name");
+    }
+    const rel = pkgDir ? file.slice(pkgDir.length + 1) : file;
+    const base = {
+      vitest: `${pm} vitest run --reporter=verbose`,
+      jest: `${pm} jest --verbose`,
+      bun: "bun test",
+      node: "node --test",
+    }[runner];
+    // shortcut: the name is a pattern for the full title, so a test whose title only contains this one runs as well
+    const pattern =
+      scope === "nearest"
+        ? ` ${runner === "node" ? "--test-name-pattern" : "-t"} ${q(name!.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))}`
+        : "";
+    const target = scope === "all" ? "" : ` ${arg(runner === "bun" ? `./${rel}` : rel)}`; // bun takes a bare name as a filter
+    return `${pkgDir ? `cd ${arg(pkgDir)} && ` : ""}${base}${pattern}${target}`;
+  },
+  // shortcut: matches by title, describe blocks are ignored; two tests with one title share a result (fail wins)
+  parse(output) {
+    const out: TestResult[] = [];
+    for (const line of output.replace(ANSI, "").split(/\r?\n/)) {
+      const m = JS_LINE.exec(line);
+      if (m) {
+        const title = (m[1] === "○" ? m[3].replace(/^skipped /, "") : m[3]).split(" > ").pop()!;
+        const ms = m[4] ?? m[5] ?? m[6];
+        out.push({ name: title, status: JS_STATUS[m[1] ?? m[2]], ...(ms === undefined ? {} : { ms: Math.round(Number(ms)) }) });
+      }
+    }
+    return out;
+  },
+};
+
+export const adapters = [goAdapter, jsAdapter];
 
 // The shell line for a scope: the adapter's own, or the user's `tests` template from settings.json (all three scopes).
-export function testCommand(a: TestAdapter, scope: Scope, at: { file: string; name?: string }, template?: string): string {
+export function testCommand(a: TestAdapter, scope: Scope, at: TestAt, template?: string): string {
   if (template === undefined) {
     return a.command(scope, at);
   }

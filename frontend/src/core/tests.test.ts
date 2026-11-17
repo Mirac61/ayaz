@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { adapterFor, goAdapter, testCommand } from "./tests";
+import { adapterFor, goAdapter, jsAdapter, testCommand } from "./tests";
 
 const at = (file: string, name?: string) => ({ file, name });
 
@@ -96,4 +96,134 @@ test("adapterFor picks by extension", () => {
   expect(adapterFor("internal/git/git_test.go")).toBe(goAdapter);
   expect(adapterFor("README.md")).toBeNull();
   expect(adapterFor("Makefile")).toBeNull();
+  expect(adapterFor("src/a.test.ts")).toBe(jsAdapter);
+  expect(adapterFor("a.mjs")).toBe(jsAdapter);
+});
+
+const files = (tree: Record<string, string[]>, pkgs: Record<string, string> = {}) => ({
+  list: async (dir: string) => {
+    if (!(dir in tree)) {
+      throw new Error("no such folder");
+    }
+    return tree[dir].map((name) => ({ name, dir: name.endsWith("/") })) as never;
+  },
+  readText: async (path: string) => ({ path, content: pkgs[path] ?? "", mtime: 1 }),
+});
+
+test("js detect: vitest from the nearest package.json, run from its folder", async () => {
+  const f = files(
+    { "": ["go.mod", "frontend/"], frontend: ["package.json", "bun.lock", "src/"], "frontend/src": ["a.test.ts"] },
+    { "frontend/package.json": '{"devDependencies":{"vitest":"^5"}}' },
+  );
+  const found = await jsAdapter.detect!("frontend/src/a.test.ts", f);
+  expect(found).toEqual({ runner: "vitest", pm: "bunx", pkgDir: "frontend" });
+  expect(jsAdapter.command("nearest", { file: "frontend/src/a.test.ts", name: "adds (1)", ...found })).toBe(
+    "cd frontend && bunx vitest run --reporter=verbose -t 'adds \\(1\\)' src/a.test.ts",
+  );
+  expect(jsAdapter.command("file", { file: "frontend/src/a.test.ts", ...found })).toBe(
+    "cd frontend && bunx vitest run --reporter=verbose src/a.test.ts",
+  );
+  expect(jsAdapter.command("all", { file: "frontend/src/a.test.ts", ...found })).toBe(
+    "cd frontend && bunx vitest run --reporter=verbose",
+  );
+});
+
+test("js detect: jest, pnpm and npx by the lock file; jest named in a script counts", async () => {
+  const pnpm = files({ "": ["package.json", "pnpm-lock.yaml"] }, { "package.json": '{"scripts":{"test":"jest --ci"}}' });
+  expect(await jsAdapter.detect!("a.test.js", pnpm)).toEqual({ runner: "jest", pm: "pnpm exec", pkgDir: "" });
+  const npm = files({ "": ["package.json"] }, { "package.json": '{"dependencies":{"jest":"1"}}' });
+  expect(await jsAdapter.detect!("a.test.js", npm)).toEqual({ runner: "jest", pm: "npx", pkgDir: "" });
+});
+
+test("js detect: bun without vitest or jest, node otherwise, nothing without a package.json", async () => {
+  const bun = files({ "": ["package.json", "bunfig.toml"] }, { "package.json": "{}" });
+  expect((await jsAdapter.detect!("a.test.ts", bun)).runner).toBe("bun");
+  const node = files({ "": ["package.json"] }, { "package.json": "not json" });
+  expect((await jsAdapter.detect!("a.test.ts", node)).runner).toBe("node");
+  expect(await jsAdapter.detect!("a/b.test.ts", files({ "": ["a/"], a: ["b.test.ts"] }))).toEqual({});
+});
+
+test("js commands: jest, bun and node, with and without a package folder", () => {
+  expect(jsAdapter.command("file", { file: "a.test.js", runner: "jest", pm: "npx", pkgDir: "" })).toBe(
+    "npx jest --verbose a.test.js",
+  );
+  expect(jsAdapter.command("nearest", { file: "p/a.test.ts", name: "x", runner: "bun", pkgDir: "p" })).toBe(
+    "cd p && bun test -t 'x' ./a.test.ts",
+  );
+  expect(jsAdapter.command("nearest", { file: "a.test.mjs", name: "it's", runner: "node" })).toBe(
+    "node --test --test-name-pattern 'it'\\''s' a.test.mjs",
+  );
+  expect(jsAdapter.command("all", { file: "a.test.mjs" })).toBe("node --test");
+  expect(() => jsAdapter.command("nearest", { file: "a.test.ts" })).toThrow();
+});
+
+test("js commands: a test name cannot start a second shell command", () => {
+  const cmd = jsAdapter.command("nearest", { file: "a.test.ts", name: "x'; rm -rf ~; echo '", runner: "jest", pm: "npx" });
+  expect(cmd).toBe("npx jest --verbose -t 'x'\\''; rm -rf ~; echo '\\''' a.test.ts");
+});
+
+// Real output of `vitest run --reporter=verbose` (v5, project "node") for a passing, a failing and a skipped test.
+const VITEST_OUT = `
+ RUN  v5.1.0 /work/frontend
+
+ ✓ |node| src/fxv.test.ts > adds 1ms
+ × |node| src/fxv.test.ts > group > fails here 2ms
+   → expected 1 to be 2 // Object.is equality
+ ↓ |node| src/fxv.test.ts > group > is skipped
+ ✓ |node| src/fxv.test.ts > group > nested ok 0ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 2 passed | 1 skipped (4)
+`;
+
+test("js parse: vitest verbose output, describe paths are dropped", () => {
+  expect(jsAdapter.parse(VITEST_OUT)).toEqual([
+    { name: "adds", status: "pass", ms: 1 },
+    { name: "fails here", status: "fail", ms: 2 },
+    { name: "is skipped", status: "skip" },
+    { name: "nested ok", status: "pass", ms: 0 },
+  ]);
+});
+
+// NOT run here (bun test is not allowed in this sandbox): the format from the bun docs.
+const BUN_OUT = `bun test v1.2.0
+
+src/a.test.ts:
+(pass) adds [0.50ms]
+(fail) group > fails here [1.20ms]
+(skip) group > is skipped
+(todo) later
+`;
+
+test("js parse: bun test output", () => {
+  expect(jsAdapter.parse(BUN_OUT)).toEqual([
+    { name: "adds", status: "pass", ms: 1 },
+    { name: "fails here", status: "fail", ms: 1 },
+    { name: "is skipped", status: "skip" },
+    { name: "later", status: "skip" },
+  ]);
+});
+
+// NOT run here (jest is not installed): the format from the jest docs for `--verbose`.
+const JEST_OUT = `PASS src/a.test.js
+  group
+    ✓ adds (2 ms)
+    ✕ fails here (13 ms)
+    ○ skipped is skipped
+`;
+
+test("js parse: jest verbose output, ANSI colours first", () => {
+  expect(jsAdapter.parse(JEST_OUT)).toEqual([
+    { name: "adds", status: "pass", ms: 2 },
+    { name: "fails here", status: "fail", ms: 13 },
+    { name: "is skipped", status: "skip" },
+  ]);
+  expect(jsAdapter.parse("\x1b[32m    ✓\x1b[0m \x1b[90madds (2 ms)\x1b[0m\r\n")).toEqual([
+    { name: "adds", status: "pass", ms: 2 },
+  ]);
+});
+
+test("js parse: noise gives nothing", () => {
+  expect(jsAdapter.parse("")).toEqual([]);
+  expect(jsAdapter.parse("Tests  1 failed\n → expected 1\n")).toEqual([]);
 });
