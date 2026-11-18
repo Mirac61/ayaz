@@ -73,7 +73,7 @@ nach diesem Template:
 - (Nur wenn etwas rot bleibt: ein Satz pro Problem, sonst Abschnitt weglassen)
 
 ### Manual Check (für das Review am Morgen)
-- (1–3 Schritte, was ich in der App anklicken/prüfen soll)
+- (1–3 Schritte, was ich in der App anklicken/prüfen soll. Pflicht bei UI/Design: konkrete Schritte inkl. Randfälle, z. B. „Datei aus dem Finder aufs Dock ziehen, dann in ein zweites Fenster“. Behaupte nie, Optik oder Drag & Drop sei getestet.)
 
 Lesbarkeit geht vor Vollständigkeit, ich lese das morgens im Browser:
 - Kurze Sätze. Pro Bulletpoint höchstens ein `Code`-Stück (Dateiname oder Wert), keine Testnamen-Ketten, keine Fehlermeldungen oder Expected/Received-Werte im Fließtext.

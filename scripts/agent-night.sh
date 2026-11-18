@@ -111,9 +111,9 @@ REVIEW_OUT: $REVIEW_OUT
 
 $(cat "$REPO_ROOT/prompts/runner.md")"
 
-  # Claude im Worktree starten (Timeout: 30 Min, Max 100 Turns, Mac wachhalten).
+  # Claude im Worktree starten (Timeout: 45 Min, Max 100 Turns, Mac wachhalten).
   # Coding auf Sonnet; das Review läuft im reviewer-Subagenten auf Opus.
-  caffeinate -i perl -e 'alarm shift; exec @ARGV' 1800 \
+  caffeinate -i perl -e 'alarm shift; exec @ARGV' 2700 \
     claude -p "$PROMPT" \
     --model sonnet \
     --append-system-prompt "$(cat "$REPO_ROOT/AGENTS.md")" \
@@ -140,6 +140,10 @@ $(cat "$REPO_ROOT/prompts/runner.md")"
   # Schutzschild: Verbotene Dateien vor Commit zurücksetzen
   rm -rf frontend/dist
   git checkout -- .waypoint.json go.mod go.sum frontend/package.json frontend/bun.lock 2>/dev/null || true
+  # Der Host-Reviewer läuft in diesem Worktree und lädt dessen CLAUDE.md und
+  # .claude/: Was der Umsetzer dort anlegt, darf ihm keine Anweisungen geben.
+  git checkout -- .claude 2>/dev/null || true
+  git clean -fdqx -- .claude CLAUDE.md
 
   if [ -z "$(git status --porcelain)" ]; then
     cd "$REPO_ROOT"
@@ -154,7 +158,31 @@ $(cat "$REPO_ROOT/prompts/runner.md")"
     continue
   fi
 
-  # Review-Gate: Der Host startet den Reviewer selbst auf dem finalen Diff.
+  # Unabhängiges Host-Gate (Frontend-Build für Embed + task test + go test -race)
+  bun run --cwd frontend build >> "$LOG_FILE" 2>&1 || true
+  if ! task test >> "$LOG_FILE" 2>&1 || ! go test -race ./... >> "$LOG_FILE" 2>&1 || [ ! -s "$PR_BODY_FILE" ]; then
+    echo "Task #$TARGET_ID ist am Host-Gate gescheitert -> BLOCKED."
+    cd "$REPO_ROOT"
+    waypoint task block "$TARGET_ID"
+    {
+      echo "## ⚠️ Test-Gate fehlgeschlagen bei Task #$TARGET_ID: $TASK_TITLE ($(date "+%Y-%m-%d %H:%M"))"
+      echo "Log-Datei: \`$LOG_FILE\` — letzte 20 Zeilen:"
+      echo '```text'
+      tail -n 20 "$LOG_FILE"
+      echo '```'
+      echo ""
+      echo "---"
+      echo ""
+    } >> "$QUESTIONS_FILE"
+    continue
+  fi
+
+  # Build-Artefakte vor dem Commit wieder entfernen
+  rm -rf frontend/dist
+  git checkout -- frontend/dist 2>/dev/null || true
+
+  # Review-Gate: Der Host startet den Reviewer selbst auf dem finalen Diff, erst
+  # nach dem Test-Gate, damit rote Tasks kein Opus-Review kosten.
   # Der Bericht des Umsetzers ($REVIEW_OUT) ist kein Nachweis — er könnte ihn
   # selbst geschrieben haben. Deshalb erst jetzt eine frische Datei mit
   # zufälligem Namen anlegen, die Definition erneuern, mit `>` schreiben und
@@ -191,29 +219,6 @@ $(cat "$REPO_ROOT/prompts/runner.md")"
     continue
   fi
 
-  # Unabhängiges Host-Gate (Frontend-Build für Embed + task test + go test -race)
-  bun run --cwd frontend build >> "$LOG_FILE" 2>&1 || true
-  if ! task test >> "$LOG_FILE" 2>&1 || ! go test -race ./... >> "$LOG_FILE" 2>&1 || [ ! -s "$PR_BODY_FILE" ]; then
-    echo "Task #$TARGET_ID ist am Host-Gate gescheitert -> BLOCKED."
-    cd "$REPO_ROOT"
-    waypoint task block "$TARGET_ID"
-    {
-      echo "## ⚠️ Test-Gate fehlgeschlagen bei Task #$TARGET_ID: $TASK_TITLE ($(date "+%Y-%m-%d %H:%M"))"
-      echo "Log-Datei: \`$LOG_FILE\` — letzte 20 Zeilen:"
-      echo '```text'
-      tail -n 20 "$LOG_FILE"
-      echo '```'
-      echo ""
-      echo "---"
-      echo ""
-    } >> "$QUESTIONS_FILE"
-    continue
-  fi
-
-  # Build-Artefakte vor dem Commit wieder entfernen
-  rm -rf frontend/dist
-  git checkout -- frontend/dist 2>/dev/null || true
-
   # Für den Lauf ersetzte Reviewer-Definition zurücksetzen, damit sie nicht im Task-PR landet.
   if [ "${REVIEW_AGENT_COPIED:-0}" = 1 ]; then
     git checkout -- .claude/agents/reviewer.md 2>/dev/null || rm -f .claude/agents/reviewer.md
@@ -248,6 +253,7 @@ $(cat "$REPO_ROOT/prompts/runner.md")"
     --body-file "$PR_BODY_FILE")
   echo "$PR_URL"
   OPENED_PRS="$OPENED_PRS ${PR_URL##*/}"
+  { echo '### Host-Review'; echo; cat "$HOST_REVIEW_OUT"; } | gh pr comment "${PR_URL##*/}" --body-file - >/dev/null || true
   # Default-Branch ist main: CodeRabbit überspringt PRs gegen dev und gestapelte PRs, also immer manuell anstoßen.
   gh pr comment "${PR_URL##*/}" --body "@coderabbitai review" >/dev/null || true
 
@@ -309,6 +315,10 @@ $COMMENTS" \
 
   rm -rf frontend/dist
   git checkout -- .waypoint.json go.mod go.sum frontend/package.json frontend/bun.lock 2>/dev/null || true
+  # Der Host-Reviewer läuft in diesem Worktree und lädt dessen CLAUDE.md und
+  # .claude/: Was der Umsetzer dort anlegt, darf ihm keine Anweisungen geben.
+  git checkout -- .claude 2>/dev/null || true
+  git clean -fdqx -- .claude CLAUDE.md
   if [ -n "$(git status --porcelain)" ]; then
     bun run --cwd frontend build >> "$CR_LOG" 2>&1 || true
     if task test >> "$CR_LOG" 2>&1 && go test -race ./... >> "$CR_LOG" 2>&1; then
@@ -330,6 +340,7 @@ $COMMENTS" \
         git add -A
         git commit -m "fix: CodeRabbit-Hinweise umgesetzt" -m "Co-Authored-By: Claude <noreply@anthropic.com>"
         git push origin "$BR"
+        { echo; echo '### Host-Review'; echo; cat "$CR_REVIEW_OUT"; } >> "$CR_OUT"
       else
         echo "Die CodeRabbit-Fixes haben kein Reviewer-PASS (Exit $CR_REVIEW_EXIT), nichts committet oder gepusht." >> "$CR_OUT"
         echo "" >> "$CR_OUT"

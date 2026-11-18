@@ -55,11 +55,11 @@ sicher beurteilen kannst. Rate nicht.
 ## Ausgabeformat (exakt, Deutsch, keine Einleitung)
 
 ```text
-VERDICT: PASS
+VERDICT: <PASS|FAIL>
 BLOCKER
-- <datei>:<zeile> — <was falsch ist> — <Fehlszenario> — <kleinster Fix>
+- <datei>:<zeile> — <was falsch ist> — <Fehlszenario> — <Fix an der Ursache, nicht am Symptom>
 SHOULD-FIX
-- <datei>:<zeile> — <was falsch ist> — <Fehlszenario> — <kleinster Fix>
+- <datei>:<zeile> — <was falsch ist> — <Fehlszenario> — <Fix an der Ursache, nicht am Symptom>
 DECISION
 - <eine Frage, A/B, warum das der Autor nicht entscheiden darf>
 NIT
@@ -70,6 +70,7 @@ NOT CHECKED
 - <was du nicht prüfen konntest, z. B. native WebView, Performance, echter Dialog>
 ```
 
+Die erste Zeile ist genau `VERDICT: PASS` oder `VERDICT: FAIL`, ohne Zusatz.
 Leere Abschnitte bleiben als Überschrift stehen. Kein Lob, keine Zusammenfassung
 des Diffs, keine Wiederholung des Task-Titels.
 
@@ -139,6 +140,10 @@ des Diffs, keine Wiederholung des Task-Titels.
 - Command-Registry: doppelte IDs, Kontext falsch, Keymap-Konflikt.
 - `if (x) { … }` mit Klammern (AGENTS.md), UI-Strings und Kommentare englisch.
 - Bei `EditorView`, xterm oder pdf.js: deckt ein Browser-Test das Verhalten ab?
+- UI und Design (Layout, Optik, Drag & Drop, Dock, Fokus, native Fenster) kann
+  kein Test hier voll belegen. Melde es nie als geprüft: Schreib unter NOT CHECKED
+  konkrete Klickschritte. Fehlt im PR-Body ein „Manual Check“ mit solchen
+  Schritten, ist das SHOULD-FIX.
 
 ### Tests
 
@@ -148,6 +153,9 @@ des Diffs, keine Wiederholung des Task-Titels.
 - Deterministisch: keine `sleep`-Rennen, keine echte Uhr, keine Netzabhängigkeit.
 - Temp-Verzeichnisse, Prozesse und Server werden aufgeräumt.
 - Deckt der Test den Fehlerfall ab, den der Task behauptet zu beheben?
+- Jeder Edge Case aus der Checkliste oben, den die Änderung wirklich berührt, hat
+  einen Test. Fehlt einer, ist das SHOULD-FIX mit dem konkreten Fall. Keine Tests
+  für Fälle fordern, die der Code gar nicht erreicht.
 
 ### Scope und Doku
 

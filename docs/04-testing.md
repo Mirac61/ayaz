@@ -105,7 +105,7 @@ BLOCKER, SHOULD-FIX und offene Entscheidung.
 | `scripts/agent-night.sh` | Blockiert den Task statt eines PRs, wenn das Urteil nicht PASS ist |
 
 Im Nachtlauf startet der Host den Reviewer selbst (`claude -p --agent reviewer`)
-auf dem finalen Diff; der Bericht des Umsetzers zählt nicht als Nachweis, weil er
+auf dem finalen Diff, nach dem Test-Gate; sein Bericht landet als Kommentar am PR; der Bericht des Umsetzers zählt nicht als Nachweis, weil er
 ihn selbst schreiben könnte. Das gilt auch für den CodeRabbit-Folgepfad am Ende
 des Laufs: Fixes am PR werden ohne Host-PASS weder committet noch gepusht, der
 Reviewer-Bericht landet dann als Kommentar am PR. Der Umsetzer reviewt vorher
@@ -123,10 +123,13 @@ wird dadurch schwächer, nicht das Gate.
 Das Gate selbst ist getestet: `bash scripts/review-gate-test.sh` (läuft in
 `task test`) prüft, dass ein selbst geschriebener PASS ohne Host-Urteil
 blockiert, dass ein PASS trotz fehlgeschlagenem Reviewer blockiert und dass nur
-ein sauber beendeter Reviewer mit `VERDICT: PASS` durchkommt.
+ein sauber beendeter Reviewer, dessen erstes Urteil `VERDICT: PASS` ist,
+durchkommt. `/work` legt seine Berichte in `.reviews/` ab (gitignored).
 
 Der Reviewer ersetzt keine Tests und keine manuellen Prüfungen: native Fenster,
 WebKit, Performance und Aussehen bleiben in [07 – Manual checks](07-manual-checks.md).
+UI- und Design-Änderungen werden deshalb nie automatisch gemergt, auch mit PASS
+nicht: Sie bleiben PRs, bis sie von Hand getestet sind.
 
 ## CI
 

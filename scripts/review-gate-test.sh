@@ -42,10 +42,9 @@ expect_allow() {
   fi
 }
 
-# 1. A PASS the implementer wrote into its own report is not a host verdict.
-printf 'VERDICT: PASS\n' > "$TMP_DIR/ayaz-review-7.md"
+# 1. Empty host report (the implementer's own PASS never reaches the gate).
 : > "$TMP_DIR/host-review-fresh"
-expect_block "implementer PASS alone blocks" 0 "$TMP_DIR/host-review-fresh"
+expect_block "empty host report blocks" 0 "$TMP_DIR/host-review-fresh"
 
 # 2. The host reviewer failed, even though its report claims PASS.
 printf 'VERDICT: PASS\n' > "$TMP_DIR/host-review-failed"
@@ -59,6 +58,14 @@ expect_allow "PASS from a clean reviewer passes" 0 "$TMP_DIR/host-review-pass"
 printf 'VERDICT: FAIL\nBLOCKER: race in watcher\n' > "$TMP_DIR/host-review-verdict-fail"
 expect_block "FAIL verdict blocks" 0 "$TMP_DIR/host-review-verdict-fail"
 
+# 4b. Only the first verdict counts, a later PASS line does not.
+printf 'VERDICT: FAIL\nCHECKED\nVERDICT: PASS\n' > "$TMP_DIR/host-review-fail-then-pass"
+expect_block "FAIL followed by a PASS line blocks" 0 "$TMP_DIR/host-review-fail-then-pass"
+
+# 4c. A suffix is not a PASS.
+printf 'VERDICT: PASS WITH CHANGES\n' > "$TMP_DIR/host-review-pass-suffix"
+expect_block "PASS with a suffix blocks" 0 "$TMP_DIR/host-review-pass-suffix"
+
 # 5. No report at all (reviewer crashed, file never written).
 expect_block "missing report blocks" 0 "$TMP_DIR/host-review-missing"
 
@@ -70,9 +77,9 @@ else
   fail "night run creates its own report file"
 fi
 if grep -qF '>> "$HOST_REVIEW_OUT"' "$NIGHT"; then
-  fail "night run appends to the report file"
+  fail "night run does not append to the report file"
 else
-  pass "night run appends to the report file"
+  pass "night run does not append to the report file"
 fi
 if grep -qF 'review_gate_passes "$REVIEW_EXIT" "$HOST_REVIEW_OUT"' "$NIGHT"; then
   pass "night run gates on reviewer exit status and report"

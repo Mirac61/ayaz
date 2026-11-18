@@ -6,14 +6,14 @@
 # review report, $REVIEW_OUT, is no proof, because the implementer can write it.
 
 # review_gate_passes <reviewer-exit-status> <report-file>
-# Passes only when the reviewer exited cleanly and its report says PASS.
+# Passes only when the reviewer exited cleanly and its first verdict is PASS.
 review_gate_passes() {
   local exit_code="$1"
   local report="$2"
 
   [ "$exit_code" -eq 0 ] || return 1
   [ -s "$report" ] || return 1
-  grep -q '^VERDICT: PASS' "$report"
+  [ "$(grep -m1 '^VERDICT:' "$report")" = "VERDICT: PASS" ]
 }
 
 # collect_review_input <out-file> <description>

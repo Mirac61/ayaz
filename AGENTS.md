@@ -19,6 +19,7 @@
 - UI-Strings, Code-Kommentare und Commit-Subjects auf Englisch; Plan-Docs und PR-Beschreibungen dürfen Deutsch sein.
 - Jede Logik-Änderung braucht einen echten Unit-/Browser-Test direkt neben dem Code.
 - Unbeaufsichtigte Läufe committen nur mit `VERDICT: PASS` des Reviewers (`.claude/agents/reviewer.md`); Review-Findings werden nie durch Test-Abschwächung „gelöst“.
+- UI- und Design-Änderungen (Layout, Optik, Drag & Drop, Dock, Fenster) gehen nur als PR raus und werden erst nach meinem manuellen Test gemergt. Grüne Tests und ein Reviewer-PASS gelten dafür nicht als Nachweis; der PR-Body nennt konkrete Klickschritte unter „Manual Check“.
 - Kleinste saubere Lösung: Keine ungefragten Refactorings oder Umbenennungen außerhalb des Tasks.
 
 ## Doku

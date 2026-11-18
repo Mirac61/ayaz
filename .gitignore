@@ -15,3 +15,4 @@ frontend/.bindings-tmp*
 frontend/test-results/
 
 QUESTIONS.md
+.reviews/
