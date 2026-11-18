@@ -11,12 +11,12 @@ describe("dropCopies", () => {
     expect(copyLabel(s)).toEqual({ title: 'Copying "big.iso" into the folder: 25%', percent: 25 });
   });
 
-  it("keeps two simultaneous drops, not only the last", () => {
+  it("keeps two simultaneous drops, not only the last, weighted by bytes", () => {
     let s = copyProgress({}, { id: 1, name: "a", done: 100, total: 200 });
-    s = copyProgress(s, { id: 2, name: "b", done: 0, total: 200 });
-    expect(copyLabel(s)).toEqual({ title: "Copying 2 items into the folder: 25%", percent: 25 });
+    s = copyProgress(s, { id: 2, name: "b", done: 0, total: 600 });
+    expect(copyLabel(s)).toEqual({ title: "Copying 2 drops: 12%", percent: 12 });
     s = copyProgress(s, { id: 1, name: "a", done: 150, total: 200 });
-    expect(copyLabel(s)?.percent).toBe(37);
+    expect(copyLabel(s)?.percent).toBe(18);
   });
 
   it("a finished drop leaves the other one showing", () => {

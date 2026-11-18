@@ -10,7 +10,8 @@ export function copyDone(s: DropCopies, id: number): DropCopies {
   return rest;
 }
 
-// The status line text: the one item's name, or the count; the percentage is over all bytes together.
+// The status line text: the one drop's current item, or the number of drops, which may go to different folders. The
+// percentage is over all bytes together.
 export function copyLabel(s: DropCopies): { title: string; percent: number } | null {
   const all = Object.values(s);
   if (!all.length) {
@@ -19,6 +20,7 @@ export function copyLabel(s: DropCopies): { title: string; percent: number } | n
   const done = all.reduce((n, c) => n + c.done, 0);
   const total = all.reduce((n, c) => n + c.total, 0);
   const percent = Math.min(100, Math.floor((done * 100) / total));
-  const what = all.length === 1 ? `"${all[0].name}"` : `${all.length} items`;
-  return { title: `Copying ${what} into the folder: ${percent}%`, percent };
+  const title =
+    all.length === 1 ? `Copying "${all[0].name}" into the folder: ${percent}%` : `Copying ${all.length} drops: ${percent}%`;
+  return { title, percent };
 }
