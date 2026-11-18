@@ -138,8 +138,10 @@ wird dadurch schwächer, nicht das Gate.
 Das Gate selbst ist getestet: `bash scripts/review-gate-test.sh` (läuft in
 `task test`) prüft, dass ein leerer oder fehlender Bericht und ein PASS trotz
 fehlgeschlagenem Reviewer blockieren, dass nur ein sauber beendeter Reviewer,
-dessen erstes Urteil `VERDICT: PASS` ist, durchkommt, und welche PRs Auto-Merge
-bekommen. `/work` legt seine Berichte in `.reviews/` ab (gitignored).
+dessen erstes Urteil `VERDICT: PASS` ist, durchkommt, welche PRs Auto-Merge
+bekommen und dass ein PR-Body über 12 Zeilen, 150 Wörter oder mit fremden
+Überschriften zurück an den Umsetzer geht. Am PR landen nur Urteil und Findings
+des Reviewers, der volle Bericht steht im Log. `/work` legt seine Berichte in `.reviews/` ab (gitignored).
 
 Der Reviewer ersetzt keine Tests und keine manuellen Prüfungen: native Fenster,
 WebKit, Performance und Aussehen bleiben in [07 – Manual checks](07-manual-checks.md).

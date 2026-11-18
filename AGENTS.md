@@ -21,6 +21,7 @@
 - Unbeaufsichtigte Läufe committen nur mit `VERDICT: PASS` des Reviewers (`.claude/agents/reviewer.md`); Review-Findings werden nie durch Test-Abschwächung „gelöst“.
 - UI- und Design-Änderungen (Layout, Optik, Drag & Drop, Dock, Fenster) gehen nur als PR raus und werden erst nach meinem manuellen Test gemergt. Grüne Tests und ein Reviewer-PASS gelten dafür nicht als Nachweis; der PR-Body nennt konkrete Klickschritte unter „Manual Check“.
 - Kleinste saubere Lösung: Keine ungefragten Refactorings oder Umbenennungen außerhalb des Tasks.
+- Beschreibungen bleiben kurz: PR-Body höchstens 12 Zeilen und 150 Wörter (Template in `prompts/runner.md`, der Night-Runner prüft das), Doku und Kommentare nur so lang wie nötig, keine Wiederholung des Codes.
 
 ## Doku
 - Wer einen Ordner oder ein Modul anlegt, verschiebt oder entfernt, ändert `docs/02-architecture.md` im selben PR.

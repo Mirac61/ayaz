@@ -78,7 +78,7 @@ NOT CHECKED
 
 Die erste Zeile ist genau `VERDICT: PASS` oder `VERDICT: FAIL`, die zweite genau
 `RISK: LOW` oder `RISK: HIGH`, jeweils ohne Zusatz.
-Leere Abschnitte bleiben als Überschrift stehen. Kein Lob, keine Zusammenfassung
+Ein Finding hat höchstens zwei Sätze. Leere Abschnitte bleiben als Überschrift stehen. Kein Lob, keine Zusammenfassung
 des Diffs, keine Wiederholung des Task-Titels.
 
 ## Checkliste
