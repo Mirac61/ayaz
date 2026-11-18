@@ -19,42 +19,23 @@ Du hast vollen Zugriff auf die Test-Suite. Nutze sie aktiv nach jeder Änderung:
 - Abschluss-Prüfung: Führe zwingend `task test` aus.
 - Wenn ein Test fehlschlägt und du die Ursache nach 3 Versuchen nicht sauber lösen kannst: Schreibe das Problem in `QUESTION_OUT` und brich ab.
 
-## 3. Unabhängiges Review (Pflicht vor dem Commit)
-Du bist nicht dein eigener Reviewer. Vor dem Commit muss der Subagent `reviewer`
-deine Änderung geprüft haben.
+## 3. Review (macht der Host)
+Du bist nicht dein eigener Reviewer und startest keinen. Nach deinem Lauf prüft
+der Host den finalen Diff mit dem unabhängigen `reviewer` auf Opus. Findet er
+etwas, bekommst du seinen Bericht in dieser Session zurück. Dann gilt:
 
-1. Erzeuge den vollständigen Stand: `git status --short`, `git diff HEAD` (nicht
-   `git diff`, das lässt bereits gestagte Änderungen aus) und für jede neue Datei
-   `git diff --no-index /dev/null <datei>`.
-2. Starte `reviewer` über das Agent-Tool. Er hat nur `Read`, `Grep`, `Glob`, sieht
-   deinen Verlauf nicht und urteilt über den Diff. Übergib Task-Titel,
-   Akzeptanzkriterien bzw. den Plan-Abschnitt, Diff und neue Dateien.
-3. Schreibe seinen Bericht **unverändert** in die im Prompt genannte
-   `REVIEW_OUT`-Datei.
-4. Setze alle BLOCKER und SHOULD-FIX um, die klar richtig und im Task-Scope sind.
-   NITs nur, wenn trivial. Bei einem DECISION: schreibe die Frage nach
-   `QUESTION_OUT`, brich ab und committe nicht — das ist meine Entscheidung.
-5. Tests danach erneut: `task test`, bei UI/CodeMirror/DOM zusätzlich
-   `bun run --cwd frontend test:browser`.
-6. Höchstens zwei Review-Runden. Danach muss `VERDICT: PASS` in `REVIEW_OUT`
-   stehen. Sonst `QUESTION_OUT` schreiben und ohne Commit abbrechen.
+- Jeden BLOCKER und SHOULD-FIX an der Ursache beheben, nicht am Symptom. NITs nur,
+  wenn trivial.
+- Bei einem DECISION: Frage nach `QUESTION_OUT`, nichts ändern. Das entscheide ich.
+- Danach erneut `task test`, bei UI/CodeMirror/DOM zusätzlich
+  `bun run --cwd frontend test:browser`, und den Abschnitt „Review“ im PR-Body
+  nachziehen.
+- Findings nie durch schwächere Tests „lösen“.
 
-Jede Änderung nach einem Review macht sein Urteil ungültig, auch das Beheben
-eines NITs: Sammle den Diff neu, starte `reviewer` erneut und ersetze den Bericht.
-Committe nur, wenn das letzte Review den finalen Stand abdeckt; würde eine weitere
-Runde die zwei überschreiten, brich ohne Commit ab.
-
-Im Nachtlauf entscheidet dein Bericht nicht: der Host startet `reviewer` nach
-deinem Lauf selbst auf dem finalen Diff. Dein Review ist die Vorarbeit davor,
-damit Findings schon behoben sind.
-
-Ein Reviewer-PASS ist kein Ersatz für Tests, und Tests sind kein Ersatz für das
-Review. Startet der Reviewer nicht oder liefert er kein Urteil: `QUESTION_OUT`
-schreiben und abbrechen, niemals selbst PASS eintragen.
+Nach drei Runden ohne PASS blockiert der Host den Task für mich.
 
 ## 4. Übergabe (PR-Body schreiben)
-Wenn alle Tests grün sind und `VERDICT: PASS` vorliegt, schreibe die
-PR-Beschreibung auf Deutsch in die im Prompt genannte `PR_BODY_FILE`-Datei exakt
+Wenn alle Tests grün sind, schreibe die PR-Beschreibung auf Deutsch in die im Prompt genannte `PR_BODY_FILE`-Datei exakt
 nach diesem Template:
 
 ### Was wurde geändert?
@@ -64,7 +45,7 @@ nach diesem Template:
 - (1–3 Bulletpoints: welche Tests neu sind und was grün ist)
 
 ### Review
-- (Ein bis zwei Bulletpoints: Reviewer-Urteil, Runden, welche Findings behoben wurden. Keine langen Zitate.)
+- (Nach einer Fix-Runde: ein Satz pro behobenem Finding. Ohne Fix-Runde Abschnitt weglassen, der Bericht des Hosts kommt als Kommentar an den PR.)
 
 ### Entscheidungen
 - (Nur wenn du etwas selbst entschieden hast: ein Satz pro Punkt mit der Alternative, sonst Abschnitt weglassen)

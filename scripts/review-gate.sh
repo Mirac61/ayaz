@@ -53,3 +53,39 @@ run_host_review() {
     --max-turns 30 \
     < "$input" > "$report" 2>&1
 }
+
+# Auto-merge is only for small, low-risk changes. Every changed file must be in
+# AUTOMERGE_PATHS and none in AUTOMERGE_NEVER. Agent rules (scripts, prompts,
+# .claude, AGENTS.md, CI) are never merged by the agent: it could relax its own
+# gate. UI (.tsx, .css, ui/, shell/, editor/ …) needs a human click test.
+AUTOMERGE_MAX_LINES=100
+AUTOMERGE_PATHS='^(docs/.*|README\.md|internal/.*\.go|frontend/src/(core|lang)/.*\.ts)$'
+AUTOMERGE_NEVER='^internal/(workspace|fsserve)/'
+
+# automerge_allowed <changed-lines> <report-file>  (changed paths on stdin)
+# Passes when the change is small, every path is allowed and the reviewer's
+# first RISK line is LOW.
+automerge_allowed() {
+  local lines="$1" report="$2" f any=0
+  [ "$lines" -le "$AUTOMERGE_MAX_LINES" ] || return 1
+  [ "$(grep -m1 '^RISK:' "$report")" = "RISK: LOW" ] || return 1
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    any=1
+    [[ "$f" =~ $AUTOMERGE_PATHS ]] || return 1
+    [[ "$f" =~ $AUTOMERGE_NEVER ]] && return 1
+  done
+  [ "$any" = 1 ]
+}
+
+# plan_allows_automerge <repo-root> <task-title>
+# Fails when the task's section in its plan doc says "Auto-Merge: nein".
+# Title format: "[docs/plans/<plan>.md] <short title>", section "## Task: <short title>".
+plan_allows_automerge() {
+  local root="$1" title="$2" plan short
+  plan=$(sed -nE 's/^\[([^]]+)\].*/\1/p' <<< "$title")
+  [ -n "$plan" ] && [ -f "$root/$plan" ] || return 0
+  short=$(sed -E 's/^\[[^]]+\] *//' <<< "$title")
+  ! awk -v h="## Task: $short" '$0 == h { on = 1; next } /^## / { on = 0 } on' "$root/$plan" \
+    | grep -qiE 'auto-?merge:? *\**:? *nein'
+}
