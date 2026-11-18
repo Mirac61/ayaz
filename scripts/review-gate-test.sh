@@ -79,6 +79,11 @@ if grep -qF 'review_gate_passes "$REVIEW_EXIT" "$HOST_REVIEW_OUT"' "$NIGHT"; the
 else
   fail "night run gates on reviewer exit status and report"
 fi
+if grep -qF 'review_gate_passes "$CR_REVIEW_EXIT" "$CR_REVIEW_OUT"' "$NIGHT"; then
+  pass "CodeRabbit follow-ups are gated too"
+else
+  fail "CodeRabbit follow-ups are gated too"
+fi
 
 echo
 if [ "$FAILED" -ne 0 ]; then

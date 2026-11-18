@@ -106,8 +106,11 @@ BLOCKER, SHOULD-FIX und offene Entscheidung.
 
 Im Nachtlauf startet der Host den Reviewer selbst (`claude -p --agent reviewer`)
 auf dem finalen Diff; der Bericht des Umsetzers zählt nicht als Nachweis, weil er
-ihn selbst schreiben könnte. Der Umsetzer reviewt vorher trotzdem, damit Findings
-noch vor dem Ende behoben sind — committet wird nur nach dem Host-Urteil.
+ihn selbst schreiben könnte. Das gilt auch für den CodeRabbit-Folgepfad am Ende
+des Laufs: Fixes am PR werden ohne Host-PASS weder committet noch gepusht, der
+Reviewer-Bericht landet dann als Kommentar am PR. Der Umsetzer reviewt vorher
+trotzdem, damit Findings noch vor dem Ende behoben sind — committet wird nur nach
+dem Host-Urteil.
 
 Die Modelle sind getrennt: Umsetzen auf `sonnet` (`--model sonnet` in
 `scripts/agent-night.sh`, im Chat `sonnet` oder `opus`), Review auf `fable` mit

@@ -161,26 +161,11 @@ $(cat "$REPO_ROOT/prompts/runner.md")"
   # den Exit-Status prüfen; `>>` auf einen erratbaren Pfad wäre fälschbar.
   sync_reviewer_agent
   HOST_REVIEW_OUT=$(mktemp "${TMPDIR:-/tmp}/ayaz-review-host.XXXXXX")
-  {
-    echo "Review the change in this repository (working tree, task: $TASK_TITLE, base: $BASE_BRANCH)."
-    echo "Everything you need is below; report in the format from your instructions."
-    echo
-    echo '```diff'
-    git diff HEAD -- . ':(exclude).claude/agents/reviewer.md'
-    git ls-files --others --exclude-standard -- . ':(exclude).claude/agents/reviewer.md' \
-      | while IFS= read -r f; do
-          git diff --no-index /dev/null "$f" || true
-        done
-    echo '```'
-  } > "$REVIEW_INPUT"
+  collect_review_input "$REVIEW_INPUT" \
+    "Review the change in this repository (working tree, task: $TASK_TITLE, base: $BASE_BRANCH)."
 
   REVIEW_EXIT=0
-  caffeinate -i perl -e 'alarm shift; exec @ARGV' 900 \
-    claude -p \
-    --agent reviewer \
-    --allowedTools "Read,Grep,Glob" \
-    --max-turns 30 \
-    < "$REVIEW_INPUT" > "$HOST_REVIEW_OUT" 2>&1 || REVIEW_EXIT=$?
+  run_host_review "$REVIEW_INPUT" "$HOST_REVIEW_OUT" || REVIEW_EXIT=$?
 
   if ! review_gate_passes "$REVIEW_EXIT" "$HOST_REVIEW_OUT"; then
     echo "Task #$TARGET_ID ohne Reviewer-PASS -> BLOCKED."
@@ -327,10 +312,34 @@ $COMMENTS" \
   if [ -n "$(git status --porcelain)" ]; then
     bun run --cwd frontend build >> "$CR_LOG" 2>&1 || true
     if task test >> "$CR_LOG" 2>&1 && go test -race ./... >> "$CR_LOG" 2>&1; then
+      # Auch die CodeRabbit-Fixes gehen nur mit unabhängigem Host-PASS raus.
       rm -rf frontend/dist
-      git add -A
-      git commit -m "fix: CodeRabbit-Hinweise umgesetzt" -m "Co-Authored-By: Claude <noreply@anthropic.com>"
-      git push origin "$BR"
+      REVIEW_AGENT_COPIED=0
+      sync_reviewer_agent
+      CR_REVIEW_INPUT=$(mktemp "${TMPDIR:-/tmp}/ayaz-cr-review.XXXXXX")
+      CR_REVIEW_OUT=$(mktemp "${TMPDIR:-/tmp}/ayaz-review-host.XXXXXX")
+      collect_review_input "$CR_REVIEW_INPUT" \
+        "Review the change in this repository (CodeRabbit follow-ups, PR #$NR, branch $BR)."
+      CR_REVIEW_EXIT=0
+      run_host_review "$CR_REVIEW_INPUT" "$CR_REVIEW_OUT" || CR_REVIEW_EXIT=$?
+
+      if review_gate_passes "$CR_REVIEW_EXIT" "$CR_REVIEW_OUT"; then
+        if [ "${REVIEW_AGENT_COPIED:-0}" = 1 ]; then
+          git checkout -- .claude/agents/reviewer.md 2>/dev/null || rm -f .claude/agents/reviewer.md
+        fi
+        git add -A
+        git commit -m "fix: CodeRabbit-Hinweise umgesetzt" -m "Co-Authored-By: Claude <noreply@anthropic.com>"
+        git push origin "$BR"
+      else
+        echo "Die CodeRabbit-Fixes haben kein Reviewer-PASS (Exit $CR_REVIEW_EXIT), nichts committet oder gepusht." >> "$CR_OUT"
+        echo "" >> "$CR_OUT"
+        if [ -s "$CR_REVIEW_OUT" ]; then
+          cat "$CR_REVIEW_OUT" >> "$CR_OUT"
+        else
+          echo "Der Host-Reviewer hat keinen Bericht erzeugt. Log: \`$CR_LOG\`" >> "$CR_OUT"
+        fi
+        echo "" >> "$CR_OUT"
+      fi
     else
       echo "Nach den CodeRabbit-Fixes ist das Test-Gate rot, nichts gepusht. Log: \`$CR_LOG\`" >> "$CR_OUT"
     fi
