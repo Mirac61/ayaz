@@ -33,6 +33,7 @@ tasks:
       - go test ./...
       - '{{.PACKAGE_MANAGER}} run --cwd frontend typecheck'
       - '{{.PACKAGE_MANAGER}} run --cwd frontend test'
+      - bash scripts/review-gate-test.sh
 
   lint:
     summary: Lints and format-checks Go (golangci-lint) and the frontend (prettier, oxlint)
