@@ -140,6 +140,48 @@ else
   fail "task without plan is not vetoed"
 fi
 
+# PR body rules
+expect_body() {
+  local name="$1" want="$2" file="$3" got
+  got=$(pr_body_problem "$file")
+  if { [ "$want" = ok ] && [ -z "$got" ]; } || { [ "$want" = bad ] && [ -n "$got" ]; }; then
+    pass "$name"
+  else
+    fail "$name (got: ${got:-nothing})"
+  fi
+}
+printf '### Was wurde geändert?\n- a\n- b\n\n### Getestet\n- c\n\n### Manual Check (für das Review am Morgen)\n- d\n\n### Hinweise\n- e\n' > "$TMP_DIR/body-ok"
+expect_body "template body passes" ok "$TMP_DIR/body-ok"
+{ echo '### Was wurde geändert?'; for i in $(seq 1 13); do echo "- line $i"; done; } > "$TMP_DIR/body-long"
+expect_body "13 text lines fail" bad "$TMP_DIR/body-long"
+{ echo '### Was wurde geändert?'; for i in $(seq 1 12); do echo "- line $i"; echo; done; } > "$TMP_DIR/body-12"
+expect_body "12 text lines with blank lines pass" ok "$TMP_DIR/body-12"
+printf '### Was wurde geändert?\n- a\n\n### Entscheidungen\n- b\n' > "$TMP_DIR/body-heading"
+{ echo '### Was wurde geändert?'; for i in 1 2 3; do printf -- '- %s\n' "$(printf 'wort %.0s' $(seq 1 51))"; done; } > "$TMP_DIR/body-wordy"
+expect_body "three 51-word bullets fail" bad "$TMP_DIR/body-wordy"
+expect_body "unknown heading fails" bad "$TMP_DIR/body-heading"
+printf '### Getestet\n- a\n' > "$TMP_DIR/body-nochange"
+expect_body "missing change section fails" bad "$TMP_DIR/body-nochange"
+: > "$TMP_DIR/body-empty"
+expect_body "empty body fails" bad "$TMP_DIR/body-empty"
+
+# Host report summary for the PR comment
+printf 'VERDICT: PASS\nRISK: HIGH\nBLOCKER\nSHOULD-FIX\nDECISION\nNIT\n- a.go:1 — kurz\nCHECKED\n- lots\nNOT CHECKED\n- more\n' > "$TMP_DIR/summary-in"
+got=$(review_summary "$TMP_DIR/summary-in")
+want=$(printf 'VERDICT: PASS\nRISK: HIGH\n\n**NIT**\n- a.go:1 — kurz')
+if [ "$got" = "$want" ]; then pass "summary keeps verdict and findings only"; else fail "summary keeps verdict and findings only (got: $got)"; fi
+
+# Tree snapshot ignores the index but sees untracked files
+REPO="$TMP_DIR/repo"
+git init -q "$REPO" && (cd "$REPO" && echo a > f && git add f && git -c user.name=t -c user.email=t@t commit -qm init)
+t1=$(cd "$REPO" && worktree_tree)
+t2=$(cd "$REPO" && echo b > new && worktree_tree)
+if [ "$t1" != "$t2" ] && [ -z "$(cd "$REPO" && git diff --cached --name-only)" ]; then
+  pass "tree snapshot sees untracked files and leaves the index alone"
+else
+  fail "tree snapshot sees untracked files and leaves the index alone"
+fi
+
 echo
 if [ "$FAILED" -ne 0 ]; then
   echo "$FAILED of $CHECKS checks failed."

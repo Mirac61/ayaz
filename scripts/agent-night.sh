@@ -86,6 +86,7 @@ review_loop() {
     collect_review_input "$input" "$desc"
     REVIEW_EXIT=0
     run_host_review "$input" "$HOST_REVIEW_OUT" || REVIEW_EXIT=$?
+    { echo "--- Host-Review Runde $round (Exit $REVIEW_EXIT)"; cat "$HOST_REVIEW_OUT"; } >> "$log"
     if review_gate_passes "$REVIEW_EXIT" "$HOST_REVIEW_OUT"; then
       return 0
     fi
@@ -236,6 +237,26 @@ $(cat "$REPO_ROOT/prompts/runner.md")"
     continue
   fi
 
+  # PR-Text-Regeln (prompts/runner.md) werden geprüft, nicht nur erbeten. Der Umsetzer
+  # darf hier nur den Body kürzen; ändert er Code nach dem Review, wird blockiert.
+  reset_protected # vorher wie nachher, sonst zählt die zurückgesetzte Reviewer-Kopie als Änderung
+  REVIEWED_TREE=$(worktree_tree)
+  for attempt in 1 2 3; do
+    BODY_PROBLEM=$(pr_body_problem "$PR_BODY_FILE")
+    { [ -z "$BODY_PROBLEM" ] || [ "$attempt" = 3 ]; } && break
+    echo "PR-Body verletzt die Regeln (Versuch $attempt): $BODY_PROBLEM" | tee -a "$LOG_FILE"
+    resume_agent "$SESSION_ID" "Dein PR-Body in $PR_BODY_FILE hält das Template aus prompts/runner.md nicht ein: $BODY_PROBLEM Kürze ihn und lass Unwichtiges weg. Ändere nur diese Datei, keinen Code." "$LOG_FILE"
+    reset_protected
+  done
+  if [ "$(worktree_tree)" != "$REVIEWED_TREE" ]; then
+    block_task "$TARGET_ID" "$TASK_TITLE" "⚠️ Abbruch" "Beim Kürzen des PR-Bodys hat der Agent Code geändert, nach dem Review. Log: \`$LOG_FILE\`"
+    continue
+  fi
+  if [ -n "$BODY_PROBLEM" ]; then
+    block_task "$TARGET_ID" "$TASK_TITLE" "📝 PR-Text zu lang" "$BODY_PROBLEM Log: \`$LOG_FILE\`"
+    continue
+  fi
+
   # Für den Lauf ersetzte Reviewer-Definition zurücksetzen, damit sie nicht im Task-PR landet.
   if [ "${REVIEW_AGENT_COPIED:-0}" = 1 ]; then
     git checkout -- .claude/agents/reviewer.md 2>/dev/null || rm -f .claude/agents/reviewer.md
@@ -263,7 +284,7 @@ $(cat "$REPO_ROOT/prompts/runner.md")"
   echo "$PR_URL"
   PR_NR="${PR_URL##*/}"
   OPENED_PRS="$OPENED_PRS $PR_NR"
-  { echo "$AGENT_MARK"; echo '### Host-Review'; echo; cat "$HOST_REVIEW_OUT"; } | gh pr comment "$PR_NR" --body-file - >/dev/null || true
+  { echo "$AGENT_MARK"; echo '### Host-Review'; echo; review_summary "$HOST_REVIEW_OUT"; } | gh pr comment "$PR_NR" --body-file - >/dev/null || true
   # Kleine, risikoarme PRs darf der Agent nach grüner CI selbst mergen (siehe review-gate.sh).
   if git diff --name-only HEAD~1 HEAD | automerge_allowed "$CHANGED_LINES" "$HOST_REVIEW_OUT" \
       && plan_allows_automerge "$REPO_ROOT" "$TASK_TITLE"; then
@@ -381,7 +402,7 @@ ${COMMENTS:-(keine)}" \
           git add -A
           git commit -m "fix: PR-Hinweise umgesetzt" -m "Co-Authored-By: Claude <noreply@anthropic.com>"
           git push origin "$BR"
-          { echo; echo '### Host-Review'; echo; cat "$HOST_REVIEW_OUT"; } >> "$CR_OUT"
+          { echo; echo '### Host-Review'; echo; review_summary "$HOST_REVIEW_OUT"; } >> "$CR_OUT"
           # Automerge bleibt nur, wenn auch die Folge-Änderung klein und risikoarm ist.
           PR_LINES=$(gh pr view "$NR" --json additions,deletions --jq '.additions + .deletions')
           if ! gh pr diff "$NR" --name-only | automerge_allowed "$PR_LINES" "$HOST_REVIEW_OUT"; then
