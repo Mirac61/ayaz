@@ -112,7 +112,7 @@ REVIEW_OUT: $REVIEW_OUT
 $(cat "$REPO_ROOT/prompts/runner.md")"
 
   # Claude im Worktree starten (Timeout: 30 Min, Max 100 Turns, Mac wachhalten).
-  # Coding auf Sonnet; das Review läuft im reviewer-Subagenten auf fable.
+  # Coding auf Sonnet; das Review läuft im reviewer-Subagenten auf Opus.
   caffeinate -i perl -e 'alarm shift; exec @ARGV' 1800 \
     claude -p "$PROMPT" \
     --model sonnet \

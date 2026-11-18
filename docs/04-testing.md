@@ -113,10 +113,10 @@ trotzdem, damit Findings noch vor dem Ende behoben sind — committet wird nur n
 dem Host-Urteil.
 
 Die Modelle sind getrennt: Umsetzen auf `sonnet` (`--model sonnet` in
-`scripts/agent-night.sh`, im Chat `sonnet` oder `opus`), Review auf `fable` mit
+`scripts/agent-night.sh`, im Chat `sonnet` oder `opus`), Review auf `opus` mit
 `effort: high`. Ein Reviewer auf demselben Modell teilt die blinden Flecken des
 Umsetzers und winkt zu viel durch; `/review` und `/work` im Chat prüfen deshalb
-auch dann mit `fable`, wenn die Session auf `sonnet` läuft. Wer das Monatslimit
+auch dann mit `opus`, wenn die Session auf `sonnet` läuft. Wer das Monatslimit
 schonen muss, setzt in `.claude/agents/reviewer.md` `model: inherit`; das Review
 wird dadurch schwächer, nicht das Gate.
 

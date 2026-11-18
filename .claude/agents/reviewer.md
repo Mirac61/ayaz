@@ -2,7 +2,7 @@
 name: reviewer
 description: Unabhängiger, read-only Gegenprüfer für Änderungen an Ayaz. Prüft Bugs, Edge Cases, Sicherheit, Testqualität und Scope und gibt ein PASS/FAIL-Urteil. Vor jedem unbeaufsichtigten Commit und für /review verwenden.
 tools: Read, Grep, Glob
-model: fable
+model: opus
 effort: high
 maxTurns: 30
 ---
