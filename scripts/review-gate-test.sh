@@ -86,10 +86,58 @@ if grep -qF 'review_gate_passes "$REVIEW_EXIT" "$HOST_REVIEW_OUT"' "$NIGHT"; the
 else
   fail "night run gates on reviewer exit status and report"
 fi
-if grep -qF 'review_gate_passes "$CR_REVIEW_EXIT" "$CR_REVIEW_OUT"' "$NIGHT"; then
-  pass "CodeRabbit follow-ups are gated too"
+if [ "$(grep -c '^ *review_loop "\$' "$NIGHT")" -eq 2 ]; then
+  pass "task and follow-up path both go through review_loop"
 else
-  fail "CodeRabbit follow-ups are gated too"
+  fail "task and follow-up path both go through review_loop"
+fi
+
+# 7. Auto-merge: small, low risk, allowed paths only.
+printf 'VERDICT: PASS\nRISK: LOW\n' > "$TMP_DIR/low"
+printf 'VERDICT: PASS\nRISK: HIGH\n' > "$TMP_DIR/high"
+printf 'VERDICT: PASS\n' > "$TMP_DIR/norisk"
+expect_merge() {
+  local name="$1" want="$2" lines="$3" report="$4"
+  shift 4
+  if printf '%s\n' "$@" | automerge_allowed "$lines" "$report"; then got=yes; else got=no; fi
+  if [ "$got" = "$want" ]; then pass "$name"; else fail "$name"; fi
+}
+expect_merge "small logic fix with LOW merges" yes 40 "$TMP_DIR/low" internal/git/blame.go internal/git/blame_test.go
+expect_merge "core ts and docs merge" yes 60 "$TMP_DIR/low" frontend/src/core/indent.ts docs/04-testing.md
+expect_merge "HIGH risk never merges" no 10 "$TMP_DIR/high" internal/git/blame.go
+expect_merge "missing RISK line never merges" no 10 "$TMP_DIR/norisk" internal/git/blame.go
+expect_merge "over the line limit never merges" no 101 "$TMP_DIR/low" internal/git/blame.go
+expect_merge "UI component never merges" no 10 "$TMP_DIR/low" frontend/src/ui/Dock.tsx
+expect_merge "CSS never merges" no 10 "$TMP_DIR/low" frontend/src/core/theme.css
+expect_merge "path boundary never merges" no 10 "$TMP_DIR/low" internal/workspace/resolve.go
+expect_merge "agent rules never merge" no 5 "$TMP_DIR/low" scripts/review-gate.sh
+expect_merge "AGENTS.md never merges" no 5 "$TMP_DIR/low" AGENTS.md
+expect_merge "app bindings never merge" no 5 "$TMP_DIR/low" app/workspace.go
+expect_merge "empty file list never merges" no 0 "$TMP_DIR/low"
+
+# 8. A task can opt out in its plan section.
+mkdir -p "$TMP_DIR/docs/plans"
+cat > "$TMP_DIR/docs/plans/p.md" <<'PLAN'
+## Task: Blame cache
+Auto-Merge: nein
+
+## Task: Blame tooltip
+Nothing special.
+PLAN
+if plan_allows_automerge "$TMP_DIR" "[docs/plans/p.md] Blame cache"; then
+  fail "plan opt-out blocks auto-merge"
+else
+  pass "plan opt-out blocks auto-merge"
+fi
+if plan_allows_automerge "$TMP_DIR" "[docs/plans/p.md] Blame tooltip"; then
+  pass "opt-out is scoped to its own task section"
+else
+  fail "opt-out is scoped to its own task section"
+fi
+if plan_allows_automerge "$TMP_DIR" "Task without plan"; then
+  pass "task without plan is not vetoed"
+else
+  fail "task without plan is not vetoed"
 fi
 
 echo

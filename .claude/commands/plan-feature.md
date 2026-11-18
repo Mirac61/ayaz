@@ -13,6 +13,7 @@ Ablauf:
      - **Ziel & betroffene Dateien**
      - **Akzeptanzkriterien** (konkret prüfbar, inkl. welche Tests geschrieben werden müssen)
      - **Manual Check** (was ich morgens in 2 Minuten von Hand anklicken soll)
+     - **Auto-Merge: nein**, nur wenn ich den PR in jedem Fall selbst testen will. Ohne die Zeile darf der Agent kleine, risikoarme PRs nach grüner CI selbst mergen (Regeln in `scripts/review-gate.sh`).
 
 Regeln für Tasks:
 - Ein Task = ein PR = ein in sich geschlossenes Konzept.

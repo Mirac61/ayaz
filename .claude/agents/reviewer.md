@@ -49,6 +49,11 @@ sicher beurteilen kannst. Rate nicht.
 - Ein DECISION ist alles, was Produktverhalten, UX, Architektur, Datenformat oder
   eine neue Dependency festlegt. Das darf der Autor nicht still entscheiden.
 - Sicherheit und Robustheit werden nie gegen „Tests sind grün“ eingetauscht.
+- `RISK: LOW` nur, wenn der Agent den PR nach grüner CI selbst mergen dürfte,
+  ohne dass ich ihn anschaue: klein und lokal, Verhalten vollständig durch Tests
+  belegt, keine Nebenläufigkeit, keine Datei-Writes oder -Löschungen, keine
+  Prozesse, keine Pfad-/Sicherheitsgrenze, keine UI oder Optik, kein neues
+  Datenformat. Sonst und im Zweifel `RISK: HIGH`. Bei FAIL immer `HIGH`.
 - Fordere keine Refactorings, keine zusätzlichen Features und keine Tests für
   reine Doku-/Konfigurationsänderungen.
 
@@ -56,6 +61,7 @@ sicher beurteilen kannst. Rate nicht.
 
 ```text
 VERDICT: <PASS|FAIL>
+RISK: <LOW|HIGH>
 BLOCKER
 - <datei>:<zeile> — <was falsch ist> — <Fehlszenario> — <Fix an der Ursache, nicht am Symptom>
 SHOULD-FIX
@@ -70,7 +76,8 @@ NOT CHECKED
 - <was du nicht prüfen konntest, z. B. native WebView, Performance, echter Dialog>
 ```
 
-Die erste Zeile ist genau `VERDICT: PASS` oder `VERDICT: FAIL`, ohne Zusatz.
+Die erste Zeile ist genau `VERDICT: PASS` oder `VERDICT: FAIL`, die zweite genau
+`RISK: LOW` oder `RISK: HIGH`, jeweils ohne Zusatz.
 Leere Abschnitte bleiben als Überschrift stehen. Kein Lob, keine Zusammenfassung
 des Diffs, keine Wiederholung des Task-Titels.
 

@@ -102,15 +102,30 @@ BLOCKER, SHOULD-FIX und offene Entscheidung.
 |---|---|
 | `/review [fokus]` | Prüft den aktuellen Diff, ändert nichts |
 | `/work [task-id]` | Setzt einen Waypoint-Task um, reviewt, fixt Findings, committet (kein Push) |
-| `scripts/agent-night.sh` | Blockiert den Task statt eines PRs, wenn das Urteil nicht PASS ist |
+| `scripts/agent-night.sh` | Setzt Tasks um, reviewt bis zu drei Runden, öffnet PRs und arbeitet Nachfragen ab |
 
 Im Nachtlauf startet der Host den Reviewer selbst (`claude -p --agent reviewer`)
-auf dem finalen Diff, nach dem Test-Gate; sein Bericht landet als Kommentar am PR; der Bericht des Umsetzers zählt nicht als Nachweis, weil er
-ihn selbst schreiben könnte. Das gilt auch für den CodeRabbit-Folgepfad am Ende
-des Laufs: Fixes am PR werden ohne Host-PASS weder committet noch gepusht, der
-Reviewer-Bericht landet dann als Kommentar am PR. Der Umsetzer reviewt vorher
-trotzdem, damit Findings noch vor dem Ende behoben sind — committet wird nur nach
-dem Host-Urteil.
+auf dem finalen Diff, erst nach dem Test-Gate. Der Umsetzer reviewt nicht selbst;
+ein Bericht, den er schreibt, wäre kein Nachweis. Sagt der Reviewer FAIL, bekommt
+die Umsetzer-Session (`--resume`) seinen Bericht, fixt, und Tests und Review
+laufen neu. Nach drei Runden ohne PASS wird der Task blockiert und der Bericht
+steht in `QUESTIONS.md`. Bei PASS kommt der Bericht als Kommentar an den PR.
+
+Am Ende des Laufs gibt es einen Folgedurchlauf auf offenen Agent-PRs: einmal die
+CodeRabbit-Hinweise und jedes Mal meine Nachfragen, also PR-Kommentare, die mit
+`@agent` beginnen und nach dem letzten Commit bzw. der letzten Agent-Antwort
+kamen. Folge-Fixes gehen durch dieselbe Review-Schleife; der Agent antwortet
+immer mit einem Kommentar, damit die Nachfrage als erledigt gilt.
+
+**Auto-Merge:** Der Agent mergt nach grüner CI selbst, wenn der PR das Label
+`automerge` hat. Das setzt der Host nur, wenn alles zutrifft: höchstens 100
+Zeilen, nur Pfade aus `AUTOMERGE_PATHS` in `scripts/review-gate.sh` (Docs,
+`internal/**/*.go` ohne `workspace`/`fsserve`, `frontend/src/core|lang/*.ts`),
+der Reviewer meldet `RISK: LOW`, und der Plan-Abschnitt des Tasks sagt nicht
+`Auto-Merge: nein`. UI, Agent-Regeln (`scripts/`, `prompts/`, `.claude/`,
+`AGENTS.md`), CI und Bindings werden nie automatisch gemergt. Wer nachhakt, nimmt
+dem PR das Label: dann merge ich selbst. Reine Docs-PRs mergt der Agent wie
+bisher.
 
 Die Modelle sind getrennt: Umsetzen auf `sonnet` (`--model sonnet` in
 `scripts/agent-night.sh`, im Chat `sonnet` oder `opus`), Review auf `opus` mit
@@ -121,10 +136,10 @@ schonen muss, setzt in `.claude/agents/reviewer.md` `model: inherit`; das Review
 wird dadurch schwächer, nicht das Gate.
 
 Das Gate selbst ist getestet: `bash scripts/review-gate-test.sh` (läuft in
-`task test`) prüft, dass ein selbst geschriebener PASS ohne Host-Urteil
-blockiert, dass ein PASS trotz fehlgeschlagenem Reviewer blockiert und dass nur
-ein sauber beendeter Reviewer, dessen erstes Urteil `VERDICT: PASS` ist,
-durchkommt. `/work` legt seine Berichte in `.reviews/` ab (gitignored).
+`task test`) prüft, dass ein leerer oder fehlender Bericht und ein PASS trotz
+fehlgeschlagenem Reviewer blockieren, dass nur ein sauber beendeter Reviewer,
+dessen erstes Urteil `VERDICT: PASS` ist, durchkommt, und welche PRs Auto-Merge
+bekommen. `/work` legt seine Berichte in `.reviews/` ab (gitignored).
 
 Der Reviewer ersetzt keine Tests und keine manuellen Prüfungen: native Fenster,
 WebKit, Performance und Aussehen bleiben in [07 – Manual checks](07-manual-checks.md).

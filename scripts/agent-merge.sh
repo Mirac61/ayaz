@@ -54,8 +54,7 @@ restack "$BRANCH" "$OLD_TIP" "origin/dev"
 # Branch erst löschen, wenn alle Kinder umgezogen sind, sonst schließt GitHub ihre PRs.
 [ "$STACK_OK" = 1 ] && git push -q origin --delete "$BRANCH"
 
-git checkout dev
-git pull origin dev
+git checkout dev && git pull origin dev || echo "⚠️  Lokales dev nicht aktualisiert (Haupt-Checkout hat Änderungen)."
 
 waypoint task done "$TASK_ID"
 echo "✅ Task #$TASK_ID gemergt und in Waypoint auf DONE gesetzt."
