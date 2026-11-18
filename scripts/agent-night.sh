@@ -2,6 +2,8 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=scripts/review-gate.sh
+. "$REPO_ROOT/scripts/review-gate.sh"
 LOCK_DIR="/tmp/ayaz-agent.lock"
 WORKTREE_BASE="$REPO_ROOT/../ayaz-agent-worktrees"
 QUESTIONS_FILE="$REPO_ROOT/QUESTIONS.md"
@@ -180,7 +182,7 @@ $(cat "$REPO_ROOT/prompts/runner.md")"
     --max-turns 30 \
     < "$REVIEW_INPUT" > "$HOST_REVIEW_OUT" 2>&1 || REVIEW_EXIT=$?
 
-  if [ "$REVIEW_EXIT" -ne 0 ] || ! grep -q '^VERDICT: PASS' "$HOST_REVIEW_OUT"; then
+  if ! review_gate_passes "$REVIEW_EXIT" "$HOST_REVIEW_OUT"; then
     echo "Task #$TARGET_ID ohne Reviewer-PASS -> BLOCKED."
     cd "$REPO_ROOT"
     waypoint task block "$TARGET_ID"

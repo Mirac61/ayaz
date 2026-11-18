@@ -117,6 +117,11 @@ auch dann mit `fable`, wenn die Session auf `sonnet` läuft. Wer das Monatslimit
 schonen muss, setzt in `.claude/agents/reviewer.md` `model: inherit`; das Review
 wird dadurch schwächer, nicht das Gate.
 
+Das Gate selbst ist getestet: `bash scripts/review-gate-test.sh` (läuft in
+`task test`) prüft, dass ein selbst geschriebener PASS ohne Host-Urteil
+blockiert, dass ein PASS trotz fehlgeschlagenem Reviewer blockiert und dass nur
+ein sauber beendeter Reviewer mit `VERDICT: PASS` durchkommt.
+
 Der Reviewer ersetzt keine Tests und keine manuellen Prüfungen: native Fenster,
 WebKit, Performance und Aussehen bleiben in [07 – Manual checks](07-manual-checks.md).
 
