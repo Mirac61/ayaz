@@ -6,6 +6,10 @@ import { applyTheme, DEFAULT_THEME, parseThemeSpecs, resolveTheme, themeNames, t
 // "languages" is keyed by file extension ("go", "md", "ts") and overrides the global values for those files:
 //   { "font": "JetBrains Mono", "fontSize": 14, "tabWidth": 4, "languages": { "ts": { "tabWidth": 2 } } }
 
+// Looks of the rendered Markdown view (editor/mdskins.css), first is the default.
+export const MD_SKINS = ["github", "kairo", "document", "compact", "wide"] as const;
+const isSkin = (v: unknown): v is (typeof MD_SKINS)[number] => (MD_SKINS as readonly unknown[]).includes(v);
+
 export interface FileSettings {
   tabWidth: number; // shown width of a tab, and the indent unless tabs is on
   tabs: boolean; // indent with tabs
@@ -23,7 +27,7 @@ export interface Settings extends FileSettings {
   stickyScroll: boolean; // the functions and classes that scrolled out of view stay on top
   sidebar: "left" | "right"; // the file tree's side of the window
   statusline: "top" | "bottom"; // mode, messages and meta in the title bar, or in their own line under the code
-  markdownSkin: "github" | "kairo"; // the look of the rendered Markdown view (<Space>um cycles it)
+  markdownSkin: (typeof MD_SKINS)[number]; // the look of the rendered Markdown view (<Space>ms picks one)
   markdownReadingMode: "smart" | "always" | "never"; // how markdown files open: "smart" (edit if newly created/modified, read if opened after inactivity), "always" (always reading mode), "never" (always edit mode)
   markdownReadingTimeout: number; // in seconds, default 300 (5 minutes): if a markdown file hasn't been edited/created within this time, open in reading mode
   vim: boolean; // enable Neovim modal editing; when false, uses standard modeless editing
@@ -196,8 +200,8 @@ export function parseSettings(json: string): Settings {
   if (statusline !== undefined && statusline !== "top" && statusline !== "bottom") {
     throw new Error('settings.json: "statusline" must be "top" or "bottom"');
   }
-  if (markdownSkin !== undefined && markdownSkin !== "github" && markdownSkin !== "kairo") {
-    throw new Error('settings.json: "markdownSkin" must be "github" or "kairo"');
+  if (markdownSkin !== undefined && !isSkin(markdownSkin)) {
+    throw new Error(`settings.json: "markdownSkin" must be one of ${MD_SKINS.join(", ")}`);
   }
   if (
     markdownReadingMode !== undefined &&

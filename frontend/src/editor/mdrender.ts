@@ -2,24 +2,73 @@ import MarkdownIt from "markdown-it";
 import DOMPurify from "dompurify";
 import { ViewPlugin, type EditorView, type ViewUpdate } from "@codemirror/view";
 import { backend } from "../core/backend";
-import { settings } from "../core/settings";
+import { MD_SKINS, settings } from "../core/settings";
 import { browsable, imageSrc, isReading, mdImages, resolveLink } from "./mdlive";
 import "./mdskins.css";
 
 // The reading view of a Markdown file as rendered HTML, raw HTML included (README badges, <p align="center">), in a skin.
 // It sits over the editor of the pane while the reading view is on and follows the buffer; the live view stays for writing.
 
-export const SKINS = ["github", "kairo"] as const;
+export const SKINS = MD_SKINS;
 export type Skin = (typeof SKINS)[number];
 
-let picked: Skin | null = null; // the skin command's choice: kept until the next start, settings.json "markdownSkin" is the default
+// The skin command's choice survives restarts, until settings.json names another skin than the one it was picked over.
+// A preview (the picker's cursor) is only shown: closing the window mid-preview keeps the skin that was picked.
+const SKIN_KEY = "ayaz.mdskin";
 const boxes = new Set<HTMLElement>();
-export const skin = (): Skin => picked ?? settings().markdownSkin;
-export function setSkin(s: Skin) {
-  picked = s;
+type Picked = { pick: Skin; file: Skin };
+let preview: Skin | null = null; // the picker's cursor, this session only
+let session: Picked | null = null; // the last pick, so a blocked localStorage still keeps it until the next start
+
+const stored = (): Picked | null => {
+  try {
+    const v = JSON.parse(localStorage.getItem(SKIN_KEY) ?? "null") as Picked | null;
+    return v && SKINS.includes(v.pick) ? v : null;
+  } catch {
+    return null; // blocked or broken: settings.json decides
+  }
+};
+export function skin(): Skin {
+  if (preview) {
+    return preview;
+  }
+  const file = settings().markdownSkin,
+    pick = stored() ?? session; // session only exists when storage is blocked, so it never competes with a stored pick
+  return pick?.file === file ? pick.pick : file;
+}
+
+const paint = () => {
+  const s = skin();
   for (const b of boxes) {
     b.dataset.skin = s;
   }
+};
+
+// The picker's cursor tries a skin on every open reading view; null goes back to the picked one.
+export function previewSkin(s: Skin | null) {
+  preview = s;
+  paint();
+}
+
+export function setSkin(s: Skin) {
+  preview = null;
+  const picked = { pick: s, file: settings().markdownSkin };
+  try {
+    localStorage.setItem(SKIN_KEY, JSON.stringify(picked));
+    session = null;
+  } catch {
+    session = picked; // no storage: the pick still lasts this session
+  }
+  paint();
+}
+
+// Scrolls view's reading view to its nth Markdown heading (the outline's index); false when no reading view shows it.
+// By index, not by text: two titles can share a slug, and raw HTML can bring its own id (<h1 align="center">).
+export function revealHeading(view: EditorView, index: number): boolean {
+  const box = [...boxes].find((b) => view.dom.contains(b));
+  const h = box?.querySelector(`[data-md-heading="${index}"]`);
+  h?.scrollIntoView({ block: "start" });
+  return !!h;
 }
 
 // Opens a workspace file a link points at; the shell sets it.
@@ -33,10 +82,26 @@ const slug = (t: string) =>
     .replace(/\s/g, "-");
 
 const md = new MarkdownIt({ html: true, linkify: true });
-md.renderer.rules.heading_open = (tokens, i, o, _env, self) => {
-  tokens[i].attrSet("id", slug(tokens[i + 1]?.content ?? ""));
-  return self.renderToken(tokens, i, o);
-};
+// Duplicate titles get "…-1", "…-2" like on GitHub. data-md-heading is the heading's place among the document's
+// headings, so the outline can scroll by index: two titles can share a slug, raw HTML can carry its own id.
+md.core.ruler.after("inline", "headings", ({ tokens }) => {
+  const ids = new Map<string, number>();
+  let n = 0;
+  for (let i = 0; i < tokens.length; i++) {
+    if (tokens[i].type !== "heading_open") {
+      continue;
+    }
+    const content = tokens[i + 1]?.content ?? "",
+      base = slug(content),
+      seen = ids.get(base) ?? 0;
+    ids.set(base, seen + 1);
+    tokens[i].attrSet("id", seen ? `${base}-${seen}` : base);
+    if (content.trim()) {
+      // an empty heading ("#") is no outline entry, and skipping it keeps the indexes in step with the outline
+      tokens[i].attrSet("data-md-heading", String(n++));
+    }
+  }
+});
 // "- [ ] x" and "- [x] x" are checkboxes, like on GitHub.
 md.core.ruler.after("inline", "tasks", (state) => {
   const t = state.tokens;

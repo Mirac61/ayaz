@@ -38,6 +38,7 @@ The leader key is `Space`. Everything is a command with an ID, and `<Space>fk` l
 | `<Space>ff` / `fw` / `fk` | find files / search text / command palette |
 | `<Space>e` / `t` | file tree / terminal panel |
 | `<Space>mr` / `mp` | Markdown reading view / preview split |
+| `<Space>ms` / `mh` | Markdown skin / outline |
 | `<Space>cr` / `ca` | rename / code action |
 | `<Space>gb` / `gd` / `gg` | blame / diff / lazygit |
 | `<Space>dd` / `db` / `dc` | start debugging / breakpoint / continue |
