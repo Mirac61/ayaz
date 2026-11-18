@@ -26,4 +26,14 @@ describe("dropCopies", () => {
     expect(copyLabel(s)).toEqual({ title: 'Copying "b" into the folder: 50%', percent: 50 });
     expect(copyLabel(copyDone(s, 2))).toBeNull();
   });
+
+  it("ignores the end of a drop that never sent progress, like a small or early failed one", () => {
+    const s = copyProgress({}, { id: 1, name: "a", done: 10, total: 100 });
+    expect(copyDone(s, 7)).toEqual(s);
+    expect(copyLabel(copyDone({}, 7))).toBeNull();
+  });
+
+  it("caps the percentage at 100 when a file grew while being copied", () => {
+    expect(copyLabel(copyProgress({}, { id: 1, name: "a", done: 300, total: 200 }))?.percent).toBe(100);
+  });
 });

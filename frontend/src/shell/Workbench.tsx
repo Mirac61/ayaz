@@ -185,7 +185,8 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
   const [updateState, setUpdateState] = useState<UpdateState>(() => updaterStore.state);
   const [updateInfo, setUpdateInfo] = useState(() => updaterStore.info);
   const [updateProgress, setUpdateProgress] = useState<UpdateProgress | null>(() => updaterStore.progress);
-  const [copying, setCopying] = useState<DropCopies>({}); // big Finder drops being copied
+  // Big Finder drops being copied.
+  const [copying, setCopying] = useState<DropCopies>({});
 
   useEffect(() => {
     return updaterStore.subscribe(() => {
