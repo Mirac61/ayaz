@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/Mirac61/ayaz/internal/git"
@@ -26,6 +27,8 @@ import (
 type WorkspaceService struct {
 	reg  *workspace.Registry
 	args []string
+	// emitted, when set, gets the events instead of the app: tests listen to them without a running Wails app.
+	emitted func(name string, data any)
 
 	mu       sync.Mutex
 	indexes  map[indexKey]*lazyIndex
@@ -296,16 +299,20 @@ func treeDrop(e *application.WindowEvent) (dir string, ok bool) {
 	return dir, ok
 }
 
-// DropEvent is the "app:dropped" payload: the workspace paths a drop on the file tree created, and what failed.
+// DropEvent is the "app:dropped" payload: the workspace paths a drop on the file tree created, and what failed. ID is
+// the drop's, the same its DropProgress events carry.
 type DropEvent struct {
 	WS     string   `json:"ws"`
+	ID     int64    `json:"id"`
 	Paths  []string `json:"paths"`
 	Errors []string `json:"errors"`
 }
 
 // DropProgress is the "app:drop-progress" payload while a big drop is copied: bytes done of total for one dropped item.
+// ID is one per drop, so several drops at once do not overwrite each other.
 type DropProgress struct {
 	WS    string `json:"ws"`
+	ID    int64  `json:"id"`
 	Name  string `json:"name"`
 	Done  int64  `json:"done"`
 	Total int64  `json:"total"`
@@ -317,13 +324,16 @@ const (
 	progressEvery = 200 * time.Millisecond
 )
 
+var dropSeq atomic.Int64
+
 // importDropped copies files dropped on the tree into the workspace folder dir; the tree shows them by the watcher.
 func (s *WorkspaceService) importDropped(ws, dir string, srcs []string) {
 	w, err := s.reg.Get(ws)
 	if err != nil {
 		return
 	}
-	ev := DropEvent{WS: ws}
+	id := dropSeq.Add(1)
+	ev := DropEvent{WS: ws, ID: id}
 	for _, src := range srcs {
 		var last time.Time
 		progress := func(done, total int64) {
@@ -331,7 +341,7 @@ func (s *WorkspaceService) importDropped(ws, dir string, srcs []string) {
 				return
 			}
 			last = time.Now()
-			s.emit("app:drop-progress", DropProgress{WS: ws, Name: filepath.Base(src), Done: done, Total: total})
+			s.emit("app:drop-progress", DropProgress{WS: ws, ID: id, Name: filepath.Base(src), Done: done, Total: total})
 		}
 		if rel, err := w.Import(src, dir, progress); err != nil {
 			ev.Errors = append(ev.Errors, err.Error())
@@ -374,7 +384,9 @@ type GitChange struct {
 }
 
 func (s *WorkspaceService) emit(name string, data any) {
-	if a := application.Get(); a != nil {
+	if s.emitted != nil {
+		s.emitted(name, data)
+	} else if a := application.Get(); a != nil {
 		a.Event.Emit(name, data)
 	}
 }
