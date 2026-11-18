@@ -2,13 +2,25 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=scripts/review-gate.sh
+. "$REPO_ROOT/scripts/review-gate.sh"
 LOCK_DIR="/tmp/ayaz-agent.lock"
 WORKTREE_BASE="$REPO_ROOT/../ayaz-agent-worktrees"
 QUESTIONS_FILE="$REPO_ROOT/QUESTIONS.md"
 MAX_TASKS_PER_NIGHT="${1:-4}"
 TASKS_DONE=0
 OPENED_PRS=""
-TOOLS="Read,Edit,Write,WebFetch,WebSearch,Bash(go test:*),Bash(go build:*),Bash(bun run:*),Bash(task test),Bash(git diff:*),Bash(git status)"
+TOOLS="Read,Edit,Write,Grep,Glob,WebFetch,WebSearch,Agent,Bash(go test:*),Bash(go build:*),Bash(bun run:*),Bash(task test),Bash(git diff:*),Bash(git status:*)"
+
+# Reviewer-Definition auf den Repo-Stand bringen. Der Umsetzer darf sie nicht
+# verändern; deshalb wird sie auch direkt vor dem Host-Review nochmal erneuert.
+sync_reviewer_agent() {
+  if ! cmp -s "$REPO_ROOT/.claude/agents/reviewer.md" .claude/agents/reviewer.md 2>/dev/null; then
+    mkdir -p .claude/agents
+    cp "$REPO_ROOT/.claude/agents/reviewer.md" .claude/agents/reviewer.md
+    REVIEW_AGENT_COPIED=1
+  fi
+}
 
 # 1. Atomares Lock (verhindert doppelte Ausführung)
 if ! mkdir "$LOCK_DIR" 2>/dev/null; then
@@ -49,9 +61,11 @@ for TARGET_ID in $TODO_IDS; do
   BRANCH_NAME="feat/task-$TARGET_ID"
   PR_BODY_FILE="/tmp/ayaz-pr-$TARGET_ID.md"
   QUESTION_OUT="/tmp/ayaz-question-$TARGET_ID.md"
+  REVIEW_OUT="/tmp/ayaz-review-$TARGET_ID.md"
+  REVIEW_INPUT="/tmp/ayaz-diff-$TARGET_ID.md"
   LOG_FILE="/tmp/ayaz-run-$TARGET_ID.log"
 
-  rm -f "$PR_BODY_FILE" "$QUESTION_OUT" "$LOG_FILE"
+  rm -f "$PR_BODY_FILE" "$QUESTION_OUT" "$REVIEW_OUT" "$REVIEW_INPUT" "$LOG_FILE"
   git worktree remove --force "$WORKTREE_DIR" 2>/dev/null || true
   git branch -D "$BRANCH_NAME" 2>/dev/null || true
 
@@ -79,6 +93,11 @@ for TARGET_ID in $TODO_IDS; do
 
   cd "$WORKTREE_DIR"
 
+  # Reviewer-Definition bereitstellen: der Umsetzer reviewt damit selbst, der
+  # Host nutzt dieselbe Fassung. Vor dem Commit wird sie zurückgesetzt.
+  REVIEW_AGENT_COPIED=0
+  sync_reviewer_agent
+
   # Dependencies & Initial-Build für Go-Embed bereitstellen
   bun install --cwd frontend --frozen-lockfile >> "$LOG_FILE" 2>&1
   bun run --cwd frontend build >> "$LOG_FILE" 2>&1
@@ -88,14 +107,17 @@ Task-Titel: $TASK_TITLE
 BASIS: $BASE_BRANCH
 PR_BODY_FILE: $PR_BODY_FILE
 QUESTION_OUT: $QUESTION_OUT
+REVIEW_OUT: $REVIEW_OUT
 
 $(cat "$REPO_ROOT/prompts/runner.md")"
 
-  # Claude im Worktree starten (Timeout: 30 Min, Max 80 Turns, Mac wachhalten)
-  caffeinate -i perl -e 'alarm shift; exec @ARGV' 1800 \
+  # Claude im Worktree starten (Timeout: 45 Min, Max 100 Turns, Mac wachhalten).
+  # Coding auf Sonnet; das Review läuft im reviewer-Subagenten auf Opus.
+  caffeinate -i perl -e 'alarm shift; exec @ARGV' 2700 \
     claude -p "$PROMPT" \
+    --model sonnet \
     --append-system-prompt "$(cat "$REPO_ROOT/AGENTS.md")" \
-    --max-turns 80 \
+    --max-turns 100 \
     --permission-mode acceptEdits \
     --allowedTools "$TOOLS" \
     >> "$LOG_FILE" 2>&1 || true
@@ -118,6 +140,10 @@ $(cat "$REPO_ROOT/prompts/runner.md")"
   # Schutzschild: Verbotene Dateien vor Commit zurücksetzen
   rm -rf frontend/dist
   git checkout -- .waypoint.json go.mod go.sum frontend/package.json frontend/bun.lock 2>/dev/null || true
+  # Der Host-Reviewer läuft in diesem Worktree und lädt dessen CLAUDE.md und
+  # .claude/: Was der Umsetzer dort anlegt, darf ihm keine Anweisungen geben.
+  git checkout -- .claude 2>/dev/null || true
+  git clean -fdqx -- .claude CLAUDE.md
 
   if [ -z "$(git status --porcelain)" ]; then
     cd "$REPO_ROOT"
@@ -155,6 +181,49 @@ $(cat "$REPO_ROOT/prompts/runner.md")"
   rm -rf frontend/dist
   git checkout -- frontend/dist 2>/dev/null || true
 
+  # Review-Gate: Der Host startet den Reviewer selbst auf dem finalen Diff, erst
+  # nach dem Test-Gate, damit rote Tasks kein Opus-Review kosten.
+  # Der Bericht des Umsetzers ($REVIEW_OUT) ist kein Nachweis — er könnte ihn
+  # selbst geschrieben haben. Deshalb erst jetzt eine frische Datei mit
+  # zufälligem Namen anlegen, die Definition erneuern, mit `>` schreiben und
+  # den Exit-Status prüfen; `>>` auf einen erratbaren Pfad wäre fälschbar.
+  sync_reviewer_agent
+  HOST_REVIEW_OUT=$(mktemp "${TMPDIR:-/tmp}/ayaz-review-host.XXXXXX")
+  collect_review_input "$REVIEW_INPUT" \
+    "Review the change in this repository (working tree, task: $TASK_TITLE, base: $BASE_BRANCH)."
+
+  REVIEW_EXIT=0
+  run_host_review "$REVIEW_INPUT" "$HOST_REVIEW_OUT" || REVIEW_EXIT=$?
+
+  if ! review_gate_passes "$REVIEW_EXIT" "$HOST_REVIEW_OUT"; then
+    echo "Task #$TARGET_ID ohne Reviewer-PASS -> BLOCKED."
+    cd "$REPO_ROOT"
+    waypoint task block "$TARGET_ID"
+    {
+      echo "## 🔎 Review nicht bestanden bei Task #$TARGET_ID: $TASK_TITLE ($(date "+%Y-%m-%d %H:%M"))"
+      echo "Reviewer-Exit-Status: $REVIEW_EXIT"
+      echo ""
+      if [ -s "$HOST_REVIEW_OUT" ]; then
+        cat "$HOST_REVIEW_OUT"
+      else
+        echo "Der Host-Reviewer hat keinen Bericht erzeugt. Log: \`$LOG_FILE\`"
+      fi
+      if [ -s "$REVIEW_OUT" ]; then
+        echo ""
+        echo "Bericht des Umsetzers (nicht das Gate): \`$REVIEW_OUT\`"
+      fi
+      echo ""
+      echo "---"
+      echo ""
+    } >> "$QUESTIONS_FILE"
+    continue
+  fi
+
+  # Für den Lauf ersetzte Reviewer-Definition zurücksetzen, damit sie nicht im Task-PR landet.
+  if [ "${REVIEW_AGENT_COPIED:-0}" = 1 ]; then
+    git checkout -- .claude/agents/reviewer.md 2>/dev/null || rm -f .claude/agents/reviewer.md
+  fi
+
   # Größen-Gate prüfen (Max 450 Zeilen, inkl. neuer Dateien)
   git add -A
   CHANGED_LINES=$(git diff --cached --numstat | awk '{sum += $1 + $2} END {print sum+0}')
@@ -184,6 +253,7 @@ $(cat "$REPO_ROOT/prompts/runner.md")"
     --body-file "$PR_BODY_FILE")
   echo "$PR_URL"
   OPENED_PRS="$OPENED_PRS ${PR_URL##*/}"
+  { echo '### Host-Review'; echo; cat "$HOST_REVIEW_OUT"; } | gh pr comment "${PR_URL##*/}" --body-file - >/dev/null || true
   # Default-Branch ist main: CodeRabbit überspringt PRs gegen dev und gestapelte PRs, also immer manuell anstoßen.
   gh pr comment "${PR_URL##*/}" --body "@coderabbitai review" >/dev/null || true
 
@@ -236,6 +306,7 @@ $REVIEWS
 
 ## Kommentare
 $COMMENTS" \
+    --model sonnet \
     --append-system-prompt "$(cat "$REPO_ROOT/AGENTS.md")" \
     --max-turns 60 \
     --permission-mode acceptEdits \
@@ -244,13 +315,42 @@ $COMMENTS" \
 
   rm -rf frontend/dist
   git checkout -- .waypoint.json go.mod go.sum frontend/package.json frontend/bun.lock 2>/dev/null || true
+  # Der Host-Reviewer läuft in diesem Worktree und lädt dessen CLAUDE.md und
+  # .claude/: Was der Umsetzer dort anlegt, darf ihm keine Anweisungen geben.
+  git checkout -- .claude 2>/dev/null || true
+  git clean -fdqx -- .claude CLAUDE.md
   if [ -n "$(git status --porcelain)" ]; then
     bun run --cwd frontend build >> "$CR_LOG" 2>&1 || true
     if task test >> "$CR_LOG" 2>&1 && go test -race ./... >> "$CR_LOG" 2>&1; then
+      # Auch die CodeRabbit-Fixes gehen nur mit unabhängigem Host-PASS raus.
       rm -rf frontend/dist
-      git add -A
-      git commit -m "fix: CodeRabbit-Hinweise umgesetzt" -m "Co-Authored-By: Claude <noreply@anthropic.com>"
-      git push origin "$BR"
+      REVIEW_AGENT_COPIED=0
+      sync_reviewer_agent
+      CR_REVIEW_INPUT=$(mktemp "${TMPDIR:-/tmp}/ayaz-cr-review.XXXXXX")
+      CR_REVIEW_OUT=$(mktemp "${TMPDIR:-/tmp}/ayaz-review-host.XXXXXX")
+      collect_review_input "$CR_REVIEW_INPUT" \
+        "Review the change in this repository (CodeRabbit follow-ups, PR #$NR, branch $BR)."
+      CR_REVIEW_EXIT=0
+      run_host_review "$CR_REVIEW_INPUT" "$CR_REVIEW_OUT" || CR_REVIEW_EXIT=$?
+
+      if review_gate_passes "$CR_REVIEW_EXIT" "$CR_REVIEW_OUT"; then
+        if [ "${REVIEW_AGENT_COPIED:-0}" = 1 ]; then
+          git checkout -- .claude/agents/reviewer.md 2>/dev/null || rm -f .claude/agents/reviewer.md
+        fi
+        git add -A
+        git commit -m "fix: CodeRabbit-Hinweise umgesetzt" -m "Co-Authored-By: Claude <noreply@anthropic.com>"
+        git push origin "$BR"
+        { echo; echo '### Host-Review'; echo; cat "$CR_REVIEW_OUT"; } >> "$CR_OUT"
+      else
+        echo "Die CodeRabbit-Fixes haben kein Reviewer-PASS (Exit $CR_REVIEW_EXIT), nichts committet oder gepusht." >> "$CR_OUT"
+        echo "" >> "$CR_OUT"
+        if [ -s "$CR_REVIEW_OUT" ]; then
+          cat "$CR_REVIEW_OUT" >> "$CR_OUT"
+        else
+          echo "Der Host-Reviewer hat keinen Bericht erzeugt. Log: \`$CR_LOG\`" >> "$CR_OUT"
+        fi
+        echo "" >> "$CR_OUT"
+      fi
     else
       echo "Nach den CodeRabbit-Fixes ist das Test-Gate rot, nichts gepusht. Log: \`$CR_LOG\`" >> "$CR_OUT"
     fi
