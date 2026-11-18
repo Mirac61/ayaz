@@ -10,6 +10,9 @@ class OffscreenCanvasFactory {
     const canvas = new OffscreenCanvas(w, h);
     return { canvas, context: canvas.getContext("2d") };
   }
+  getNoAlphaContext(canvas: OffscreenCanvas) {
+    return canvas.getContext("2d"); // pdf.js >= 6.5 asks the factory for the page canvas' context
+  }
   reset(c: { canvas: OffscreenCanvas }, w: number, h: number) {
     c.canvas.width = w;
     c.canvas.height = h;
