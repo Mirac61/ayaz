@@ -182,6 +182,14 @@ else
   fail "tree snapshot sees untracked files and leaves the index alone"
 fi
 
+# Squash text keeps only the change bullets
+got=$(printf '### Was wurde geändert?\r\n- a\r\n\r\n### Getestet\r\n- b\r\n' | tr -d '\r' | pr_change_section)
+if [ "$got" = "- a" ]; then pass "squash text keeps only the change section"; else fail "squash text keeps only the change section (got: $got)"; fi
+got=$(printf '### Getestet\n- b\n' | pr_change_section)
+got2=$(printf '### Was wurde geändert?\n- a\n\n> Gestapelt auf x\n\n🤖 Generated\n' | pr_change_section)
+[ "$got2" = "- a" ] || got="trailer kept: $got2"
+if [ -z "$got" ]; then pass "squash text is empty without a change section"; else fail "squash text is empty without a change section (got: $got)"; fi
+
 echo
 if [ "$FAILED" -ne 0 ]; then
   echo "$FAILED of $CHECKS checks failed."

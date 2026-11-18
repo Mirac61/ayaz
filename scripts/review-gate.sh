@@ -138,3 +138,14 @@ worktree_tree() {
   GIT_INDEX_FILE="$idx" git write-tree
   rm -f "$idx"
 }
+
+# pr_change_section  (PR body on stdin)
+# The bullets under "### Was wurde geändert?", for the squash commit: what
+# changed is worth keeping in history, tests, manual checks and trailers are not.
+pr_change_section() {
+  awk '
+    /^#{1,6} / { on = ($0 == "### Was wurde geändert?"); next }
+    /^(🤖|> )/ { next }
+    on && NF { print }
+  '
+}

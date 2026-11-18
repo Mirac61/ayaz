@@ -9,6 +9,8 @@ fi
 TASK_ID="$1"
 BRANCH="feat/task-$TASK_ID"
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=scripts/review-gate.sh
+. "$REPO_ROOT/scripts/review-gate.sh"
 
 cd "$REPO_ROOT"
 
@@ -22,7 +24,9 @@ git fetch origin "$BRANCH"
 OLD_TIP=$(git rev-parse "origin/$BRANCH")
 
 echo "Merge PR für Branch $BRANCH nach dev..."
-gh pr merge "$BRANCH" --squash
+# Squash-Text: nur „Was wurde geändert?“, keine Commit-Liste und keine Co-authored-by-Zeilen.
+BODY=$(gh pr view "$BRANCH" --json body --jq .body | tr -d '\r' | pr_change_section)
+gh pr merge "$BRANCH" --squash --body "${BODY:- }"
 git fetch origin dev
 
 # Gestapelte PRs nachziehen: Kinder ohne die Vorgänger-Commits auf die neue Basis setzen, rekursiv.
