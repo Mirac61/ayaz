@@ -308,8 +308,8 @@ type DropEvent struct {
 	Errors []string `json:"errors"`
 }
 
-// DropProgress is the "app:drop-progress" payload while a big drop is copied: bytes done of total for one dropped item.
-// ID is one per drop, so several drops at once do not overwrite each other.
+// DropProgress is the "app:drop-progress" payload while a big drop is copied: bytes done of total over all its items,
+// Name is the item being copied. ID is one per drop, so several drops at once do not overwrite each other.
 type DropProgress struct {
 	WS    string `json:"ws"`
 	ID    int64  `json:"id"`
@@ -318,7 +318,7 @@ type DropProgress struct {
 	Total int64  `json:"total"`
 }
 
-// Copies smaller than this are done before a percentage could be read; bigger ones report at most every progressEvery.
+// Drops smaller than this are done before a percentage could be read; bigger ones report at most every progressEvery.
 const (
 	progressFrom  = 16 << 20
 	progressEvery = 200 * time.Millisecond
@@ -334,17 +334,31 @@ func (s *WorkspaceService) importDropped(ws, dir string, srcs []string) {
 	}
 	id := dropSeq.Add(1)
 	ev := DropEvent{WS: ws, ID: id}
-	for _, src := range srcs {
-		var last time.Time
-		progress := func(done, total int64) {
-			if total < progressFrom || time.Since(last) < progressEvery {
-				return
+	sizes := make([]int64, len(srcs))
+	var done, total int64
+	for i, src := range srcs {
+		sizes[i] = workspace.Size(src)
+		total += sizes[i]
+	}
+	// Decided once, so a drop that shrinks below it after a failed item does not go quiet half way.
+	report := total >= progressFrom
+	var last time.Time
+	for i, src := range srcs {
+		var add func(int)
+		if report {
+			add = func(n int) {
+				done += int64(n)
+				if time.Since(last) >= progressEvery {
+					last = time.Now()
+					s.emit("app:drop-progress", DropProgress{WS: ws, ID: id, Name: filepath.Base(src), Done: done, Total: total})
+				}
 			}
-			last = time.Now()
-			s.emit("app:drop-progress", DropProgress{WS: ws, ID: id, Name: filepath.Base(src), Done: done, Total: total})
 		}
-		if rel, err := w.Import(src, dir, progress); err != nil {
+		before := done
+		if rel, err := w.Import(src, dir, add); err != nil {
 			ev.Errors = append(ev.Errors, err.Error())
+			// The failed copy was removed again: its bytes neither count as done nor are left to do.
+			done, total, last = before, total-sizes[i], time.Time{}
 		} else {
 			ev.Paths = append(ev.Paths, rel)
 		}
