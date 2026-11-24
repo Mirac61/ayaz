@@ -104,7 +104,8 @@ test("serverFor: one server per language group", () => {
   expect(serverFor("a.css")?.[1]).toBe("css");
   expect(serverFor("package.json")?.[1]).toBe("json");
   expect(serverFor("A.java")).toEqual(["java", "jdtls"]);
-  expect(serverFor("README.md")).toBeUndefined();
+  expect(serverFor("README.md")).toEqual(["markdown", "marksman"]);
+  expect(serverFor("notes.txt")).toBeUndefined();
   expect(serverFor("file:///usr/include/stdio.h")?.[1]).toBe("clangd");
 });
 

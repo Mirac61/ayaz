@@ -32,6 +32,7 @@ var lspServers = map[string]string{
 	"texlab":              "texlab",
 	"lua-language-server": "lua-language-server",
 	"dockerfile":          "docker-langserver --stdio",
+	"marksman":            "marksman server",
 }
 
 type lspConfig struct {

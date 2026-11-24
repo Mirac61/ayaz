@@ -67,7 +67,10 @@ const langs: Record<string, { load: Loader; lsp?: [string, string] }> = {
   },
   typ: { load: typ, lsp: ["typst", "tinymist"] },
   tex: { load: latex, lsp: ["latex", "texlab"] },
-  md: { load: () => import("@codemirror/lang-markdown").then((m) => m.markdown({ base: m.markdownLanguage, codeLanguages })) }, // GFM (Q7)
+  md: {
+    load: () => import("@codemirror/lang-markdown").then((m) => m.markdown({ base: m.markdownLanguage, codeLanguages })), // GFM (Q7)
+    lsp: ["markdown", "marksman"], // link completion and broken-link diagnostics
+  },
 };
 
 // Dockerfile / Containerfile may have no extension or variants like Dockerfile.dev, *.dockerfile.
