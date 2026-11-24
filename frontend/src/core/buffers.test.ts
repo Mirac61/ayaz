@@ -68,6 +68,21 @@ const make = (init: Record<string, string>) => {
 const edit = (s: EditorState, text: string) => s.update({ changes: { from: 0, insert: text } }).state;
 
 describe("Buffers", () => {
+  test("dropIdle forgets clean closed buffers, keeps dirty, used and virtual ones", async () => {
+    const { bufs } = make({ "a.go": "a", "b.go": "b", "c.go": "c", "d.go": "d" });
+    const [a, b, c] = await Promise.all(["a.go", "b.go", "c.go"].map((p) => bufs.open(p)));
+    await bufs.open("d.go");
+    const v = await bufs.virtual("docs://x", "doc");
+    b.state = edit(b.state, "dirty ");
+    bufs.dropIdle(["a.go", "b.go", "c.go", "docs://x"], (x) => x === c);
+    expect(bufs.get("a.go")).toBeUndefined();
+    expect(bufs.get("b.go")).toBe(b);
+    expect(bufs.get("c.go")).toBe(c);
+    expect(bufs.get("d.go")).toBeDefined(); // not named, not touched
+    expect(bufs.get("docs://x")).toBe(v);
+    expect(a).toBeDefined();
+  });
+
   test("a CRLF file stays CRLF: the doc holds LF, save writes the file's ending back", async () => {
     const { bufs, disk, touch } = make({ "w.txt": "a\r\nb\r\n" });
     const b = await bufs.open("w.txt");

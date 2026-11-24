@@ -112,6 +112,8 @@ export function cursorAt(doc: Text, line: number, col: number): number {
   return Math.min(l.from + Math.max(col, 0), l.to);
 }
 
+const KEEP_CLOSED = 15;
+
 export class Editors {
   readonly buffers: Buffers;
   private panes = new Map<number, Pane>();
@@ -305,6 +307,13 @@ export class Editors {
 
   private pushClosed(...paths: string[]) {
     this.closed = [...this.closed.filter((p) => !paths.includes(p)), ...paths].slice(-50);
+    // A closed file keeps its buffer for a quick reopen, but only the last KEEP_CLOSED: every one holds its document, syntax tree and undo history.
+    const open = new Set([...this.tabs.values()].flat());
+    const shown = new Set([...this.panes.values()].map((p) => p.buf));
+    this.buffers.dropIdle(
+      this.closed.slice(0, -KEEP_CLOSED),
+      (b) => open.has(b.path) || shown.has(b) || breakpointsOf(b.state).length > 0,
+    );
   }
 
   // Opens the tab closed last; false if there is none.
@@ -364,8 +373,8 @@ export class Editors {
     return [...(this.tabs.get(id) ?? [])];
   }
 
-  // Drops a file (default: the current one) from the pane's tabs and shows its neighbor. The buffer itself stays
-  // loaded, so nothing is lost.
+  // Drops a file (default: the current one) from the pane's tabs and shows its neighbor. Its buffer stays loaded
+  // (with its edits, breakpoints and undo history) until KEEP_CLOSED newer files were closed.
   async tabClose(path?: string, id = this.active) {
     const cur = this.currentTab(id);
     const list = this.tabs.get(id),
@@ -1591,6 +1600,7 @@ export class Editors {
 
   private showTerm(id: number, el: HTMLElement, h: { term: TermHandle; box: HTMLElement; title: string; cmd: string }) {
     el.append(h.box);
+    h.term.gpu(true); // back from hidden: it is in the layout again
     const mode = h.box.dataset.mode ?? "terminal";
     this.panes.set(id, { el, term: h.term, buf: null, mode, title: h.title, cmd: h.cmd });
     if (id > 0) {

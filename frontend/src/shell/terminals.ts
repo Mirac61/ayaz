@@ -19,6 +19,7 @@ export class HiddenTerms {
       document.body.append(this.holder);
     }
     this.holder.append(h.box);
+    h.term.gpu(false);
     this.list.push(h);
   }
 

@@ -41,6 +41,7 @@ export interface TermHandle {
   setMode(m: TermMode): void;
   focus(): void;
   setFont(): void; // takes font and size from settings again
+  gpu(on: boolean): void; // WebGL on or off: a terminal nobody sees gives its canvas and glyph atlas back
   dispose(): void;
 }
 
@@ -178,9 +179,18 @@ export function openTerminal(el: HTMLElement, opts: TermOptions = {}): TermHandl
     term.registerLinkProvider(fileLinkProvider(term, opts.onOpenFile, cwd.at));
   }
   term.open(el);
-  if ((opts.renderer ?? defaultRenderer()) === "webgl") {
-    term.loadAddon(new WebglAddon());
-  }
+  const wantGl = (opts.renderer ?? defaultRenderer()) === "webgl";
+  let gl: WebglAddon | undefined;
+  // Without the addon xterm draws with the DOM renderer, so a hidden terminal stays correct and costs no GPU memory.
+  const gpu = (on: boolean) => {
+    if (on && wantGl && !gl) {
+      term.loadAddon((gl = new WebglAddon()));
+    } else if (!on && gl) {
+      gl.dispose();
+      gl = undefined;
+    }
+  };
+  gpu(true);
   el.dataset.term = "";
 
   const ws = backend.stream("pty");
@@ -351,6 +361,7 @@ export function openTerminal(el: HTMLElement, opts: TermOptions = {}): TermHandl
     cwd: cwd.now,
     setMode,
     focus: () => term.focus(),
+    gpu,
     setFont() {
       term.options.theme = terminalTheme(); // a changed theme in settings.json reaches open terminals here too
       term.options.fontFamily = getComputedStyle(document.documentElement).getPropertyValue("--font-mono");
