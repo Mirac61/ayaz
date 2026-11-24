@@ -75,7 +75,8 @@ export function fileCommands({ ws, files, ed, tree, say, fail, setPicker, prompt
     }
     const back = inTree();
     setPicker({
-      title: `"${to}" already exists. Replace it? · Enter confirms, Esc cancels`,
+      title: `"${to}" already exists. Replace it?`,
+      footer: "Enter confirms, Esc cancels",
       query: async () => [{ label: "Replace (the old one goes to the trash)", icon: fileIcon(to) }],
       pick: () =>
         void files
@@ -211,7 +212,8 @@ export function fileCommands({ ws, files, ed, tree, say, fail, setPicker, prompt
         }
         const back = inTree();
         setPicker({
-          title: `Move "${t.path}${t.dir ? "/" : ""}" to the trash? · Enter confirms, Esc cancels`,
+          title: `Move "${t.path}${t.dir ? "/" : ""}" to the trash?`,
+          footer: "Enter confirms, Esc cancels",
           query: async () => [{ label: "Move to trash", icon: t.dir ? folderIcon(false) : fileIcon(t.path) }],
           pick: () =>
             void files.trash(t.path).then(
