@@ -162,7 +162,8 @@ export function openTerminal(el: HTMLElement, opts: TermOptions = {}): TermHandl
     theme: terminalTheme(),
     fontFamily: getComputedStyle(document.documentElement).getPropertyValue("--font-mono"),
     fontSize: termFontSize(),
-    scrollback: 10_000,
+    // A shell's 10 000 lines cost ~15 MB of WebView RAM per terminal at full size; a task's output is read back at exit, so it keeps them.
+    scrollback: opts.onOutput ? 10_000 : 3_000,
     allowProposedApi: true, // unicode11
   });
   const fit = new FitAddon();
