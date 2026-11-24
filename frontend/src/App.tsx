@@ -1,16 +1,14 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { backend } from "./core/backend";
 import { loadSettings } from "./core/settings";
 import { loadSnippets } from "./core/snippets";
 import { symbolsFont } from "./theme/symbols";
 import { openTerminal } from "./terminal/terminal";
 import { Shell } from "./shell/Shell";
-import { ScrollTest } from "./spikes/ScrollTest";
-import { runS4, type Stats } from "./spikes/bindingLatency";
-import { runS6, runS7 } from "./spikes/terminalBench";
-import { runFps } from "./spikes/fps";
-import { runK8 } from "./spikes/pdfRam";
-import { runS8 } from "./spikes/pdfS8";
+import type { Stats } from "./spikes/bindingLatency";
+
+// The spikes are measurement tools: their own chunks, loaded only in those modes.
+const ScrollTest = lazy(() => import("./spikes/ScrollTest").then((m) => ({ default: m.ScrollTest })));
 
 const fmt = (s: Stats) => `p50 ${s.p50.toFixed(3)} · p95 ${s.p95.toFixed(3)} · max ${s.max.toFixed(3)} ms`;
 
@@ -55,6 +53,10 @@ export default function App() {
     }
     if (mode === "bench" && el) {
       (async () => {
+        const [{ runS4 }, { runS6, runS7 }] = await Promise.all([
+          import("./spikes/bindingLatency"),
+          import("./spikes/terminalBench"),
+        ]);
         const lines: string[] = [];
         const log = (l: string) => {
           lines.push(l);
@@ -76,13 +78,13 @@ export default function App() {
       })().catch((e) => backend.report(`bench error: ${e}`));
     }
     if (mode === "s8") {
-      runS8().catch((e) => backend.report(`s8 error: ${e}`));
+      import("./spikes/pdfS8").then((m) => m.runS8()).catch((e) => backend.report(`s8 error: ${e}`));
     }
     if (mode === "fps") {
-      runFps().catch((e) => backend.report(`fps error: ${e}`));
+      import("./spikes/fps").then((m) => m.runFps()).catch((e) => backend.report(`fps error: ${e}`));
     }
     if (mode === "k8") {
-      runK8().catch((e) => backend.report(`k8 error: ${e}`));
+      import("./spikes/pdfRam").then((m) => m.runK8()).catch((e) => backend.report(`k8 error: ${e}`));
     }
   }, [mode]);
 
@@ -95,7 +97,13 @@ export default function App() {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <div style={{ flex: 1, minHeight: 0, padding: mode === "s1" ? 0 : 4 }}>
-        {mode === "s1" ? <ScrollTest /> : <div ref={termEl} style={{ height: "100%" }} />}
+        {mode === "s1" ? (
+          <Suspense fallback={null}>
+            <ScrollTest />
+          </Suspense>
+        ) : (
+          <div ref={termEl} style={{ height: "100%" }} />
+        )}
       </div>
       {status && <div style={{ padding: "2px 8px", borderTop: "1px solid var(--bg-3)", color: "var(--fg-3)" }}>{status}</div>}
     </div>

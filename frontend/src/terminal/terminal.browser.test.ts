@@ -21,12 +21,13 @@ vi.mock("../core/backend", () => ({ backend: { stream: () => sock, openURL: () =
 const { openTerminal } = await import("./terminal");
 
 // M38: Go reads the config as the first frame; a resize or a key before it ended the shell at once.
-test("nothing goes to the shell before the config frame", () => {
+test("nothing goes to the shell before the config frame", async () => {
   const el = document.createElement("div");
   el.style.cssText = "width:400px;height:200px";
   document.body.append(el);
   const h = openTerminal(el, { renderer: "dom" });
-  h.term.resize(50, 10);
+  const term = await vi.waitFor(() => h.term); // xterm loads behind openTerminal
+  term.resize(50, 10);
   h.input("x");
   sock.onopen?.();
   expect(typeof sock.sent[0]).toBe("string");

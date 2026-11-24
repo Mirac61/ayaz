@@ -2,7 +2,7 @@ import { expect, test } from "vitest";
 import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 import { terminalTheme } from "../theme/themes";
-import { fileLinkProvider, trackCwd } from "./terminal";
+import { fileLinkProvider, trackCwd } from "./xterm";
 
 // xterm.js renders into a real WebKit DOM, without the Go backend.
 test("xterm writes and renders text in WebKit", async () => {
