@@ -55,6 +55,7 @@ export interface Backend {
   folderSummary(root: string): Promise<Summary>; // branch and changes of a folder that is not open
   clone(repoURL: string): Promise<Info | null>;
   closeWorkspace(ws: string): Promise<void>; // watcher, index, shells, servers (ADR-0014)
+  renderPlantUML(source: string): Promise<string>; // SVG from the installed plantuml; rejects when it isn't there
   closeWindow(): Promise<void>; // this window; a no-op in the server build
   newWindow(): Promise<void>;
   // The user asked to close this window; the frontend decides (unsaved buffers) and calls closeWindow.
@@ -164,6 +165,7 @@ export const backend: Backend = {
   folderSummary: (root) => WorkspaceService.FolderSummary(root),
   clone: (repoURL) => Call.ByName("github.com/Mirac61/ayaz/app.WorkspaceService.Clone", repoURL),
   closeWorkspace: (ws) => WorkspaceService.Close(ws),
+  renderPlantUML: (source) => WorkspaceService.RenderPlantUML(source),
   closeWindow: () => WorkspaceService.CloseWindow(),
   newWindow: () => WorkspaceService.NewWindow(),
   takeOpen: () => WorkspaceService.TakeOpen(),
