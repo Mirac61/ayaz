@@ -80,6 +80,13 @@ body,
   -webkit-font-smoothing: antialiased;
 }
 
+/* The app is one fixed-size window: an inner scroller hitting its end must not rubber-band or scroll the page, which pushes the titlebar off-screen and exposes the window background below. */
+html,
+body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 /* Glass: each surface carries its own alpha (themes.ts), so nothing under it may add a second layer on top of the window. */
 :root[data-glass],
 :root[data-glass] body,
