@@ -1,5 +1,5 @@
 import { expect, test, vi } from "vitest";
-import { previewSkin, renderMarkdown, setSkin, skin } from "./mdrender";
+import { drawDiagrams, previewSkin, renderMarkdown, setSkin, skin } from "./mdrender";
 
 const html = (md: string, ctx: { ws: string; file: string } | null = null) => {
   const d = document.createElement("div");
@@ -73,4 +73,25 @@ test("a picked skin lasts the session when storage is blocked", () => {
   set.mockRestore();
   setSkin("github"); // back to the default and clear the session for the tests after this one
   localStorage.removeItem("ayaz.mdskin");
+});
+
+test("a ```mermaid block is drawn as a picture, other fences stay code", async () => {
+  const d = html("```mermaid\ngraph TD\n  A[Start] --> B[End]\n```\n\n```js\nlet x\n```");
+  document.body.append(d);
+  drawDiagrams(d);
+  await vi.waitFor(() => expect(d.querySelector(".md-diagram img")).not.toBeNull(), { timeout: 15000 });
+  const src = decodeURIComponent(d.querySelector<HTMLImageElement>(".md-diagram img")!.src);
+  expect(src).toContain("<svg");
+  expect(src).toContain("Start");
+  expect(d.querySelector("pre code")?.textContent).toContain("let x");
+  d.remove();
+});
+
+test("a broken mermaid block keeps its source and shows the error", async () => {
+  const d = html("```mermaid\nnot a diagram at all\n```");
+  document.body.append(d);
+  drawDiagrams(d);
+  await vi.waitFor(() => expect(d.querySelector(".md-diagram-error")).not.toBeNull(), { timeout: 15000 });
+  expect(d.querySelector(".md-diagram pre")?.textContent).toContain("not a diagram");
+  d.remove();
 });

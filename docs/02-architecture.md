@@ -40,7 +40,7 @@ ayaz/
       editor/             # CM6 setup, vim/, Markdown live preview (mdlive), LSP transport, git gutter, test gutter (testgutter)
       lang/               # extension → language package + LSP server
       terminal/           # xterm.js provider, theme, stream, file:line links
-      viewers/            # pdf, image, html, browser
+      viewers/            # pdf, image, html, browser, diagram (Mermaid, PlantUML)
       debug/              # DAP client and adapters
       theme/              # tokens (CSS variables, CM6, xterm)
       docs/               # in-app docs, opened as `docs://` tabs
@@ -82,7 +82,7 @@ ayaz/
 | `editor` | CM6 per buffer, Vim, Markdown live preview (`mdlive`), git gutter, LSP client per language |
 | `lang` | table extension/filename → language package (lazy) + LSP server ID |
 | `terminal` | xterm.js provider, renderer choice, terminal normal mode |
-| `viewers/*` | PDF, image, HTML, browser |
+| `viewers/*` | PDF, image, HTML, browser, diagram (Mermaid, PlantUML) |
 | `debug` | DAP client and per-language adapters (Go, Python) |
 
 ## Provider interface

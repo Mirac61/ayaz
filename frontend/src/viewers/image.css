@@ -13,3 +13,7 @@
   transform-origin: 0 0;
   image-rendering: auto;
 }
+/* A drawn diagram (viewers/diagram.ts): on white, so the black lines show on dark themes. */
+.image-viewer.diagram img {
+  background: #fff;
+}

@@ -2,6 +2,7 @@ import MarkdownIt from "markdown-it";
 import DOMPurify from "dompurify";
 import { ViewPlugin, type EditorView, type ViewUpdate } from "@codemirror/view";
 import { backend } from "../core/backend";
+import { fenceKind, renderSvg, svgUrl, type DiagramKind } from "../core/diagram";
 import { MD_SKINS, settings } from "../core/settings";
 import { browsable, imageSrc, isReading, mdImages, resolveLink } from "./mdlive";
 import "./mdskins.css";
@@ -102,6 +103,14 @@ md.core.ruler.after("inline", "headings", ({ tokens }) => {
     }
   }
 });
+// ```mermaid and ```plantuml blocks are drawn after the HTML is in the page (drawDiagrams); the source stays until then.
+const fence = md.renderer.rules.fence!;
+md.renderer.rules.fence = (tokens, i, o, env, self) => {
+  const kind = fenceKind(tokens[i].info);
+  return kind
+    ? `<div class="md-diagram" data-kind="${kind}"><pre>${md.utils.escapeHtml(tokens[i].content)}</pre></div>\n`
+    : fence(tokens, i, o, env, self);
+};
 // "- [ ] x" and "- [x] x" are checkboxes, like on GitHub.
 md.core.ruler.after("inline", "tasks", (state) => {
   const t = state.tokens;
@@ -130,6 +139,30 @@ export function renderMarkdown(text: string, ctx: { ws: string; file: string } |
     }
   }
   return t;
+}
+
+// Replaces each diagram block's source by its picture; a failure shows the message under the source.
+export function drawDiagrams(root: ParentNode) {
+  for (const box of root.querySelectorAll<HTMLElement>(".md-diagram")) {
+    const src = box.querySelector("pre")?.textContent ?? "";
+    renderSvg(box.dataset.kind as DiagramKind, src).then(
+      (svg) => {
+        if (box.isConnected) {
+          box.replaceChildren(
+            Object.assign(document.createElement("img"), { src: svgUrl(svg), alt: `${box.dataset.kind} diagram` }),
+          );
+        }
+      },
+      (e) => {
+        if (box.isConnected) {
+          box.classList.add("error");
+          box.append(
+            Object.assign(document.createElement("p"), { className: "md-diagram-error", textContent: String(e?.message ?? e) }),
+          );
+        }
+      },
+    );
+  }
 }
 
 function onClick(e: MouseEvent, box: HTMLElement, ctx: { ws: string; file: string } | null) {
@@ -190,6 +223,7 @@ class Render {
     this.box.dataset.skin = skin();
     const top = this.box.scrollTop; // a redraw while typing in the source pane keeps the place
     body.replaceChildren(renderMarkdown(this.view.state.doc.toString(), this.view.state.facet(mdImages)).content);
+    drawDiagrams(body);
     this.box.scrollTop = top;
   }
 
