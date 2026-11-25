@@ -490,12 +490,8 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
             id,
             zone === "left" || zone === "top",
           );
+          // the panel stays until the new pane has taken its shell over: unmounting it first would end the shell
           moveTermNext.current.set(newPane, { fromId, title: termTitle });
-          if (isPanel) {
-            setPanel(null);
-            setMax(false);
-            setPanelTitle("");
-          }
         } else {
           const ok = ed.moveTerminal(fromId, id, termTitle);
           if (ok) {
@@ -2024,9 +2020,17 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
                 splitFrom.current.delete(id);
                 termFor.current.delete(id);
                 ed.attach(id, el);
-                ed.moveTerminal(termMove.fromId, id, termMove.title);
-                ed.focus(id);
-                say("Moved terminal to editor tab");
+                if (ed.moveTerminal(termMove.fromId, id, termMove.title)) {
+                  if (termMove.fromId === PANEL) {
+                    setPanel(null);
+                    setMax(false);
+                    setPanelTitle("");
+                  }
+                  ed.focus(id);
+                  say("Moved terminal to editor tab");
+                } else {
+                  fail("The terminal could not be moved");
+                }
                 return () => {
                   previews.current.delete(id);
                   ed.detach(id, true);
