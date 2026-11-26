@@ -71,9 +71,10 @@ Updated 2026-11-08 · Budget numbers (K1–K16) are in [00-vision.md](00-vision.
 ### Terminal (K13, K14)
 - Batch PTY output in Go instead of sending every `read()`. That was the measured bottleneck in another terminal.
 - Send when ~4–8 ms have passed or ~16 KB are waiting, whichever comes first (tuned in S6). A single keystroke echo after idle is sent immediately, never held back.
-- Renderer per platform after measuring. WebGL contexts only for visible terminals.
-- Limit scrollback (e.g. 10,000 lines, configurable).
+- Renderer per platform after measuring. WebGL contexts only for visible terminals: a hidden terminal and the closed scratch terminal drop their WebGL addon (`TermHandle.gpu(false)`) and get it back when shown.
+- Limit scrollback: 3,000 lines per shell (10,000 lines cost ~15 MB of WebView RAM each), 10,000 for tasks, whose output is read back at exit.
 - Hidden terminals don't render but keep buffering.
+- A closed file keeps its buffer (document, syntax tree, undo history) for a quick reopen, but only the last 15 closed files do. Dirty buffers and files with breakpoints stay.
 
 ### Languages and LSP (K3, K16)
 - Language packages via `import()` on the first file of that language.

@@ -111,7 +111,8 @@ export function openXterm(el: HTMLElement, opts: TermOptions = {}): TermHandle {
     theme: terminalTheme(),
     fontFamily: getComputedStyle(document.documentElement).getPropertyValue("--font-mono"),
     fontSize: termFontSize(),
-    scrollback: 10_000,
+    // A shell's 10 000 lines cost ~15 MB of WebView RAM per terminal at full size; a task's output is read back at exit, so it keeps them.
+    scrollback: opts.onOutput ? 10_000 : 3_000,
     allowProposedApi: true, // unicode11
   });
   const fit = new FitAddon();
@@ -126,9 +127,18 @@ export function openXterm(el: HTMLElement, opts: TermOptions = {}): TermHandle {
     term.registerLinkProvider(fileLinkProvider(term, opts.onOpenFile, cwd.at));
   }
   term.open(el);
-  if ((opts.renderer ?? defaultRenderer()) === "webgl") {
-    term.loadAddon(new WebglAddon());
-  }
+  const wantGl = (opts.renderer ?? defaultRenderer()) === "webgl";
+  let gl: WebglAddon | undefined;
+  // Without the addon xterm draws with the DOM renderer, so a hidden terminal stays correct and costs no GPU memory.
+  const gpu = (on: boolean) => {
+    if (on && wantGl && !gl) {
+      term.loadAddon((gl = new WebglAddon()));
+    } else if (!on && gl) {
+      gl.dispose();
+      gl = undefined;
+    }
+  };
+  gpu(true);
   el.dataset.term = "";
 
   const ws = backend.stream("pty");
@@ -299,6 +309,7 @@ export function openXterm(el: HTMLElement, opts: TermOptions = {}): TermHandle {
     cwd: cwd.now,
     setMode,
     focus: () => term.focus(),
+    gpu,
     setFont() {
       term.options.theme = terminalTheme(); // a changed theme in settings.json reaches open terminals here too
       term.options.fontFamily = getComputedStyle(document.documentElement).getPropertyValue("--font-mono");

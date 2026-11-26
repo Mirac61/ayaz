@@ -134,8 +134,13 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       const next = !open;
       if (next) {
         setFloatMounted(true);
-        requestAnimationFrame(() => floatHandle.current?.focus());
+        requestAnimationFrame(() => {
+          // after the dialog is in the layout again
+          floatHandle.current?.gpu(true);
+          floatHandle.current?.focus();
+        });
       } else {
+        floatHandle.current?.gpu(false);
         ed.focus(ed.active);
       }
       return next;

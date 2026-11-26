@@ -80,6 +80,19 @@ export class Buffers {
   drop(path: string) {
     this.m.delete(path);
   }
+  // Forgets the clean, non-virtual buffers among paths that inUse() doesn't claim (a closed file: document, syntax tree, undo history).
+  // Returns the ones it forgot.
+  dropIdle(paths: string[], inUse: (b: Buffer) => boolean): Buffer[] {
+    const gone: Buffer[] = [];
+    for (const path of paths) {
+      const b = this.m.get(path);
+      if (b && !isVirtual(path) && !isDirty(b) && !inUse(b)) {
+        this.m.delete(path);
+        gone.push(b);
+      }
+    }
+    return gone;
+  }
 
   // Returns the loaded buffer, or reads the file. A missing file gives an empty new buffer (like `:e new.txt`).
   async open(path: string): Promise<Buffer> {

@@ -59,3 +59,26 @@ test("closed before xterm loaded: ready rejects, later calls do nothing", async 
   expect(el.childElementCount).toBe(0);
   el.remove();
 });
+
+// A hidden terminal gives its WebGL canvas back and gets it again, with its text intact.
+test("gpu(false) drops the WebGL canvas, gpu(true) brings it back", async () => {
+  const el = document.createElement("div");
+  el.style.cssText = "width:400px;height:200px";
+  document.body.append(el);
+  const h = openTerminal(el, { renderer: "webgl" });
+  // xterm loads behind openTerminal
+  await vi.waitFor(() => h.term);
+  const canvases = () => el.querySelectorAll(".xterm-screen canvas").length;
+  const withGl = canvases();
+  await new Promise<void>((r) => h.term.write("hello", r));
+  h.gpu(false);
+  expect(withGl).toBeGreaterThan(0);
+  expect(canvases()).toBe(0);
+  h.gpu(true);
+  // twice is no second context
+  h.gpu(true);
+  expect(canvases()).toBe(withGl);
+  expect(h.term.buffer.active.getLine(0)?.translateToString(true)).toBe("hello");
+  h.dispose();
+  el.remove();
+});

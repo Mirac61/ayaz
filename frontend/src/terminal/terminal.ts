@@ -31,6 +31,8 @@ export interface TermHandle {
   setMode(m: TermMode): void;
   focus(): void;
   setFont(): void; // takes font and size from settings again
+  // WebGL on or off: a terminal nobody sees gives its canvas and glyph atlas back
+  gpu(on: boolean): void;
   dispose(): void;
 }
 
@@ -106,6 +108,7 @@ export function openTerminal(el: HTMLElement, opts: TermOptions = {}): TermHandl
     setMode: (m) => later((h) => h.setMode(m)),
     focus: () => later((h) => h.focus()),
     setFont: () => later((h) => h.setFont()),
+    gpu: (on) => later((h) => h.gpu(on)),
     dispose() {
       gone = true;
       impl?.dispose();
