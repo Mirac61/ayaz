@@ -315,6 +315,14 @@ export function Reveal(ws: string, path: string): $CancellablePromise<void> {
 }
 
 /**
+ * SetAppearance makes the calling window's native backdrop light or dark, to match the theme.
+ * Without a window (server build) it does nothing.
+ */
+export function SetAppearance(light: boolean): $CancellablePromise<void> {
+    return $Call.ByID(1544543293, light);
+}
+
+/**
  * ShouldQuit runs on Cmd+Q. It quits only once no window is left; otherwise each window with a workspace gets the
  * same "app:close-request" as its close button (unsaved buffers stop it), the others close right away.
  * The app then quits after the last window (ApplicationShouldTerminateAfterLastWindowClosed).

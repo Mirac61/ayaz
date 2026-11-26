@@ -262,6 +262,14 @@ func (s *WorkspaceService) CloseWindow(ctx context.Context) {
 	win.Close()
 }
 
+// SetAppearance makes the calling window's native backdrop light or dark, to match the theme.
+// Without a window (server build) it does nothing.
+func (s *WorkspaceService) SetAppearance(ctx context.Context, light bool) {
+	if win, _ := ctx.Value(application.WindowKey).(application.Window); win != nil {
+		setWindowLight(win, light)
+	}
+}
+
 // NewWindow opens another window on the welcome screen.
 func (s *WorkspaceService) NewWindow() { NewWindow(application.Get(), "", "/?new") }
 

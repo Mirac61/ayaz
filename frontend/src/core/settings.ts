@@ -1,3 +1,4 @@
+import { backend } from "./backend";
 import { extOf } from "../lang/registry";
 import { adapters } from "./tests";
 import { applyTheme, DEFAULT_THEME, parseThemeSpecs, resolveTheme, themeNames, type ThemeSpec } from "../theme/themes";
@@ -352,6 +353,8 @@ export function toggleVim(): boolean {
 function paintTheme() {
   applyTheme(resolveTheme(themeName(), current.themes), glassOn());
   document.documentElement.toggleAttribute("data-glass", glassOn());
+  // The glass shows the window's native backdrop, which macOS draws light or dark by the system: make it follow the theme.
+  void backend.setAppearance(document.documentElement.style.colorScheme === "light").catch(() => {});
   const root = document.documentElement.style;
   for (const k of STATUS_COLORS) {
     const c = current.statusColors[k];
