@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.12.0](https://github.com/Mirac61/ayaz/compare/v0.11.0...v0.12.0) (2026-11-26)
+
+
+### Features
+
+* complete file links in Markdown and check them with marksman ([#94](https://github.com/Mirac61/ayaz/issues/94)) ([2e3c7bb](https://github.com/Mirac61/ayaz/commit/2e3c7bbf5b1935b064ea11d0b84ad4625a858b92))
+* Drop-Fortschritt ([#76](https://github.com/Mirac61/ayaz/issues/76)): Screenshot der Statusleisten-Anzeige für PR, echter Finder-Test mit großem Ordner, mehrere gleichzeitige Drops zeigen nur den letzten [[#46](https://github.com/Mirac61/ayaz/issues/46)] ([#87](https://github.com/Mirac61/ayaz/issues/87)) ([efbd1d4](https://github.com/Mirac61/ayaz/commit/efbd1d4adf827aedfab5f4798931bdd9763f42db))
+* enforce short PR bodies and post only the review verdict ([#89](https://github.com/Mirac61/ayaz/issues/89)) ([2931df6](https://github.com/Mirac61/ayaz/commit/2931df6b92b6df78bf8bce418441310b8c8dc68f))
+* fix loop, auto-merge and [@agent](https://github.com/agent) follow-ups for night runs ([#85](https://github.com/Mirac61/ayaz/issues/85)) ([a500d79](https://github.com/Mirac61/ayaz/commit/a500d79a288e3d47e75a810768da057005372d79))
+* gate unattended agent runs behind an independent review ([#84](https://github.com/Mirac61/ayaz/issues/84)) ([8323223](https://github.com/Mirac61/ayaz/commit/8323223e0741b0a62a2c59532d7830c74f502cd9))
+* Markdown: lesbare Tabellen, neue Skins, Skin-Picker und Inhaltsverzeichnis ([31bc2d3](https://github.com/Mirac61/ayaz/commit/31bc2d30648f3f3b8e96e14b9fd314b3836f35c1))
+* view Mermaid and PlantUML files and Markdown blocks ([#96](https://github.com/Mirac61/ayaz/issues/96)) ([37d3b70](https://github.com/Mirac61/ayaz/commit/37d3b70a19f8ee1e7785ca8d2a16350cfe1de102))
+* Vitest WebKit: pdfRender.browser.test.ts 5 Fehler (canvasFactory.getNoAlphaContext is not a function) [[#45](https://github.com/Mirac61/ayaz/issues/45)] ([#86](https://github.com/Mirac61/ayaz/issues/86)) ([335e577](https://github.com/Mirac61/ayaz/commit/335e57735c17d55128b84c82455a7e27f7bc690d))
+
+
+### Bug Fixes
+
+* **ci:** HTTPS for the EC2 Ubuntu mirror and fall back when packages trickle ([#88](https://github.com/Mirac61/ayaz/issues/88)) ([b45e300](https://github.com/Mirac61/ayaz/commit/b45e300f62e21bf62a82ddc357ebcbbfc2509110))
+* close the sidebar gap after a PDF and move the panel terminal into splits ([#99](https://github.com/Mirac61/ayaz/issues/99)) ([fc33ed0](https://github.com/Mirac61/ayaz/commit/fc33ed0ac0f38c9629cd4f68c34f9514b330c973))
+* count drop progress in bytes over the whole drop ([#90](https://github.com/Mirac61/ayaz/issues/90)) ([d714991](https://github.com/Mirac61/ayaz/commit/d71499192ae656ce4db257a74e2ba9f1aa078ed4))
+* keep the trash confirmation inside the picker ([#93](https://github.com/Mirac61/ayaz/issues/93)) ([c9e20e7](https://github.com/Mirac61/ayaz/commit/c9e20e7ab76fb476591ca6fb77e6f2c8fdb9c2d8))
+
 ## [0.11.0](https://github.com/Mirac61/ayaz/compare/v0.10.0...v0.11.0) (2026-11-17)
 
 
