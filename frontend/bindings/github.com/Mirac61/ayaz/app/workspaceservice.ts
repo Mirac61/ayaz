@@ -308,6 +308,14 @@ export function Rename(ws: string, $from: string, to: string): $CancellablePromi
 }
 
 /**
+ * RenderPlantUML renders PlantUML source to SVG with the installed `plantuml` (nothing leaves the machine).
+ * A diagram with a syntax error still comes back as an SVG: PlantUML draws the error into it.
+ */
+export function RenderPlantUML(source: string): $CancellablePromise<string> {
+    return $Call.ByID(840660800, source);
+}
+
+/**
  * Reveal shows the file in Finder (selected), on Windows in File Explorer, on Linux opens its folder.
  */
 export function Reveal(ws: string, path: string): $CancellablePromise<void> {
