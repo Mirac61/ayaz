@@ -373,14 +373,14 @@
   display: block;
   max-width: 100%;
   height: auto;
-  background: #fff;
+  background: white;
   border-radius: var(--radius-sm);
 }
 .md-diagram.error pre {
-  border-left: 3px solid var(--error, #e06c75);
+  border-left: 3px solid var(--error);
 }
 .md-diagram-error {
-  color: var(--error, #e06c75);
+  color: var(--error);
   font-family: var(--font-mono);
   font-size: var(--text-sm);
 }
