@@ -385,20 +385,15 @@ func TestImportProgress(t *testing.T) {
 	must(t, os.WriteFile(filepath.Join(src, "deep", "b"), make([]byte, 5), 0o644))
 	must(t, os.Symlink("a", filepath.Join(src, "link"))) // links are copied as links, not counted
 
-	// The count only grows, the total stays, and the last call is everything.
+	// The reads add up to Size, so a drop's total matches what its copies count.
 	check := func(name string, rel string, want int64) {
-		var calls, last, total int64
-		progress := func(done, tot int64) {
-			if done < last || (calls > 0 && tot != total) {
-				t.Errorf("%s: done %d after %d, total %d after %d", name, done, last, tot, total)
-			}
-			calls, last, total = calls+1, done, tot
-		}
-		if _, err := w.Import(rel, "", progress); err != nil {
+		var calls, done int64
+		add := func(n int) { calls, done = calls+1, done+int64(n) }
+		if _, err := w.Import(rel, "", add); err != nil {
 			t.Fatal(err)
 		}
-		if calls < 2 || last != want || total != want {
-			t.Errorf("%s: %d calls, last %d of %d, want %d", name, calls, last, total, want)
+		if size := Size(rel); calls < 2 || done != want || size != want {
+			t.Errorf("%s: %d calls, %d bytes read, Size %d, want %d", name, calls, done, size, want)
 		}
 	}
 	check("folder", src, 300_005)

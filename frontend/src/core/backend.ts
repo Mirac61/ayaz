@@ -55,6 +55,8 @@ export interface Backend {
   folderSummary(root: string): Promise<Summary>; // branch and changes of a folder that is not open
   clone(repoURL: string): Promise<Info | null>;
   closeWorkspace(ws: string): Promise<void>; // watcher, index, shells, servers (ADR-0014)
+  // SVG from the installed plantuml; rejects when it isn't there
+  renderPlantUML(source: string): Promise<string>;
   closeWindow(): Promise<void>; // this window; a no-op in the server build
   newWindow(): Promise<void>;
   // The user asked to close this window; the frontend decides (unsaved buffers) and calls closeWindow.
@@ -76,9 +78,10 @@ export interface Backend {
   // Calls fn for changes on disk in workspace ws, also our own saves. Returns the unsubscribe function.
   onFsChanged(ws: string, fn: (c: FsChange) => void): () => void;
   // Finder or Dock files dropped on the file tree were copied into ws: the new workspace paths and what failed.
-  onDropped(ws: string, fn: (d: { paths: string[] | null; errors: string[] | null }) => void): () => void;
+  onDropped(ws: string, fn: (d: { id: number; paths: string[] | null; errors: string[] | null }) => void): () => void;
   // While a big drop (16 MB and up) is copied: bytes done of total for one dropped item, a few times a second.
-  onDropProgress(ws: string, fn: (p: { name: string; done: number; total: number }) => void): () => void;
+  // `id` is the drop, the same one onDropped reports at its end.
+  onDropProgress(ws: string, fn: (p: { id: number; name: string; done: number; total: number }) => void): () => void;
   onLspStatus(ws: string, fn: (s: LspStatus) => void): () => void;
   // HEAD, the index or the reflog of ws's repository moved (commit, checkout, stage); Go polls every second.
   onGitChanged(ws: string, fn: () => void): () => void;
@@ -163,6 +166,7 @@ export const backend: Backend = {
   folderSummary: (root) => WorkspaceService.FolderSummary(root),
   clone: (repoURL) => Call.ByName("github.com/Mirac61/ayaz/app.WorkspaceService.Clone", repoURL),
   closeWorkspace: (ws) => WorkspaceService.Close(ws),
+  renderPlantUML: (source) => WorkspaceService.RenderPlantUML(source),
   closeWindow: () => WorkspaceService.CloseWindow(),
   newWindow: () => WorkspaceService.NewWindow(),
   takeOpen: () => WorkspaceService.TakeOpen(),
@@ -219,13 +223,13 @@ export const backend: Backend = {
       }
     }),
   onDropped: (ws, fn) =>
-    Events.On("app:dropped", (e: { data: { ws: string; paths: string[] | null; errors: string[] | null } }) => {
+    Events.On("app:dropped", (e: { data: { ws: string; id: number; paths: string[] | null; errors: string[] | null } }) => {
       if (e.data.ws === ws) {
         fn(e.data);
       }
     }),
   onDropProgress: (ws, fn) =>
-    Events.On("app:drop-progress", (e: { data: { ws: string; name: string; done: number; total: number } }) => {
+    Events.On("app:drop-progress", (e: { data: { ws: string; id: number; name: string; done: number; total: number } }) => {
       if (e.data.ws === ws) {
         fn(e.data);
       }

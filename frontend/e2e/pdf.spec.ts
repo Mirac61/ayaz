@@ -36,6 +36,23 @@ test("pdf: open, page, search", async ({ page }) => {
   await expect(status).toContainText('no match for "nothinglikethis"', { timeout: 10_000 });
 });
 
+// pdf.js' stylesheet has its own .sidebar (round, shadow, 239px wide): it must stay inside the viewer.
+test("pdf: its stylesheet leaves the file tree alone", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("tree", { name: "Files" }).getByRole("treeitem", { name: "big.pdf" }).click();
+  await expect(page.locator(".statusline")).toContainText("page 1/200");
+  const box = await page.evaluate(() => {
+    const side = document.querySelector(".sidebar")!;
+    return {
+      right: side.getBoundingClientRect().right,
+      panes: document.querySelector(".panes")!.getBoundingClientRect().left,
+      radius: getComputedStyle(side).borderTopRightRadius,
+    };
+  });
+  expect(box.right).toBe(box.panes);
+  expect(box.radius).toBe("0px");
+});
+
 // A PDF changed on disk reloads in place, on the same page and zoom.
 test("pdf: reload on change keeps page and zoom", async ({ page }) => {
   const file = join(e2eWorkspace, "reload.pdf");

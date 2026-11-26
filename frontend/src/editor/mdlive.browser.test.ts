@@ -1,8 +1,10 @@
 import { afterEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { EditorView } from "@codemirror/view";
+import { StateEffect } from "@codemirror/state";
 import { createState } from "./editor";
-import { toggleReading } from "./mdlive";
+import { isMarkdown, mdOutline, toggleReading } from "./mdlive";
+import { revealHeading } from "./mdrender";
 import { installVim } from "./vim/setup";
 import { defaultKeymap } from "../core/keymap";
 
@@ -176,4 +178,70 @@ test("an image shows as <img> through /fs/, raw while the cursor is on it", asyn
   await userEvent.keyboard("k");
   expect(view!.contentDOM.querySelector(".cm-md-img")).toBeNull();
   expect(lines()[0]).toBe("![logo](a/pic.png)");
+});
+
+test("only Markdown gets the live preview, and with it the outline", async () => {
+  const go = await createState("main.go", "package main\n");
+  expect(isMarkdown(go)).toBe(false);
+  expect(mdOutline(go).headings).toEqual([]);
+  const md = await createState("note.md", "# One\n");
+  expect(isMarkdown(md)).toBe(true);
+  expect(mdOutline(md).headings.map((h) => h.text)).toEqual(["One"]);
+});
+
+test("table cells show code and emphasis, links, images and raw HTML stay text", async () => {
+  await mount(
+    "above\n\n| key | what |\n|---|---|\n| `<Space>cr` | **rename** [doc](https://x.org) <b>no</b> ![logo](https://x.org/p.png) |\n\nbelow",
+  );
+  const td = [...tableEl()!.querySelectorAll("td")];
+  expect(td[0].querySelector("code")?.textContent).toBe("<Space>cr");
+  expect(td[1].querySelector("strong")?.textContent).toBe("rename");
+  expect(td[1].querySelector("a")).toBeNull(); // no link to navigate the webview away from the app
+  expect(td[1].textContent).toContain("doc");
+  expect(td[1].querySelector("img")).toBeNull(); // nothing loads from the app origin or the network
+  expect(td[1].textContent).toContain("logo"); // the alt text stays
+  expect(td[1].querySelector("b")).toBeNull();
+  expect(td[1].textContent).toContain("<b>no</b>");
+});
+
+test("a reading view table keeps every column readable next to a long one", async () => {
+  const long = "a long description that goes on and on ".repeat(8);
+  await mount(`| Area | What you get |\n|:---:|:---:|\n| Languages | ${long} |\n`);
+  toggleReading(view!);
+  const th = view!.dom.querySelector<HTMLElement>(".md-render th")!;
+  expect(th.getBoundingClientRect().width).toBeGreaterThan(th.scrollWidth - 1);
+  expect(th.getBoundingClientRect().height).toBeLessThan(40); // "Area" on one line, not a letter per line
+});
+
+test("the outline's headings scroll the reading view, also the second of two equal ones", async () => {
+  const body = "text\n\n".repeat(30);
+  await mount(`# Top\n\n${body}## Features\n\n${body}## Features\n\n${body}`);
+  toggleReading(view!);
+  const box = view!.dom.querySelector<HTMLElement>(".md-render")!;
+  expect(mdOutline(view!.state).headings.map((h) => h.text)).toEqual(["Top", "Features", "Features"]);
+  expect(revealHeading(view!, 2)).toBe(true); // the second "Features"
+  const second = box.querySelectorAll("h2")[1];
+  expect(Math.abs(second.getBoundingClientRect().top - box.getBoundingClientRect().top)).toBeLessThan(40);
+  expect(revealHeading(view!, 9)).toBe(false);
+});
+
+test("a heading whose slug another one shares still scrolls to its own place", async () => {
+  const body = "text\n\n".repeat(30);
+  await mount(`# API\n\n${body}## API?\n\n${body}## C++\n\n${body}## C\n\n${body}`);
+  toggleReading(view!);
+  const box = view!.dom.querySelector<HTMLElement>(".md-render")!;
+  const at = (h: Element) => Math.abs(h.getBoundingClientRect().top - box.getBoundingClientRect().top) < 40;
+  expect([...box.querySelectorAll("h1, h2")].map((h) => h.id)).toEqual(["api", "api-1", "c", "c-1"]); // unique
+  expect(revealHeading(view!, 1)).toBe(true); // "API?", not "API"
+  expect(at(box.querySelectorAll("h1, h2")[1])).toBe(true);
+  expect(revealHeading(view!, 3)).toBe(true); // "C", not "C++"
+  expect(at(box.querySelectorAll("h1, h2")[3])).toBe(true);
+});
+
+test("a live table keeps every column readable next to a long one, also with line wrap", async () => {
+  const long = "a long description that goes on and on ".repeat(8);
+  await mount(`above\n\n| Area | What you get |\n|---|---|\n| Languages | ${long} |\n`);
+  view!.dispatch({ effects: StateEffect.appendConfig.of(EditorView.lineWrapping) });
+  const th = tableEl()!.querySelector<HTMLElement>("th")!;
+  expect(th.getBoundingClientRect().height).toBeLessThan(40); // "Area" on one line
 });

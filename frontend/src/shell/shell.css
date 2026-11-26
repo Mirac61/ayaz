@@ -338,6 +338,10 @@
 .pane:has(> .tabbar:not(.ghost)) > .ghost {
   display: none;
 }
+/* React adds the strip only once the pane is one of several, after the editor already in it, so the flex order puts it on top. */
+.pane > .tabbar.ghost {
+  order: -1;
+}
 .panel[hidden] {
   display: none;
 }
@@ -1834,6 +1838,9 @@
   display: flex;
   align-items: center;
   white-space: nowrap;
+  /* a long path must not push the input out of the head */
+  min-width: 0;
+  overflow: hidden;
 }
 .picker-input {
   flex: 1;

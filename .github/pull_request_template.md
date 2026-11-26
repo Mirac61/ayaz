@@ -1,8 +1,11 @@
 ### Was wurde geändert?
-- 
+-
 
-### Wie wurde getestet?
-- 
+### Getestet
+-
 
 ### Manual Check (für das Review am Morgen)
-- 
+-
+
+### Hinweise
+-

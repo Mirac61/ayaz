@@ -176,3 +176,29 @@ test("title bar: palette and sidebar buttons, the path of the open file", async 
   await page.getByRole("button", { name: "Sidebar" }).dispatchEvent("mousedown");
   await expect(sidebar).toBeHidden();
 });
+
+// The panel's tab dropped on an editor's top edge: the shell moves into the new split above, the panel goes.
+// Unmounting the panel first ended the shell and left two empty panes, the old one with its tab strip at the bottom.
+test("panel terminal dragged to a split", async ({ page }) => {
+  await page.goto("/?renderer=dom");
+  await expect(page.getByRole("tree", { name: "Files" })).toBeFocused();
+  await page.keyboard.type(" t");
+  await expect(page.locator(".panel .xterm-rows")).toBeVisible();
+  const tab = (await page.locator(".panel-head .tab").boundingBox())!;
+  const pane = (await page.locator(".panes .pane").boundingBox())!;
+  await page.mouse.move(tab.x + 20, tab.y + 10);
+  await page.mouse.down();
+  await page.mouse.move(pane.x + pane.width / 2, pane.y + 20, { steps: 10 });
+  await page.mouse.up();
+
+  await expect(page.locator(".panes .pane")).toHaveCount(2);
+  await expect(page.locator(".panes .pane-term")).toHaveCount(1);
+  await expect(page.locator(".panel")).toHaveCount(0);
+  await page.keyboard.type("echo $PWD\n");
+  await expect(page.locator(".panes .xterm-rows")).toContainText("ayaz-e2e-ws", { timeout: 10_000 });
+  // the empty pane below: its tab strip sits above its editor
+  const empty = page.locator(".panes .pane", { has: page.locator(".cm-editor") });
+  const strip = (await empty.locator(":scope > .tabbar").boundingBox())!;
+  const editor = (await empty.locator(":scope > .cm-editor").boundingBox())!;
+  expect(strip.y).toBeLessThan(editor.y);
+});

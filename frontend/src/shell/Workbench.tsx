@@ -27,6 +27,7 @@ import { Picker, type Item, type PickerSource } from "./Picker";
 import { Tree, type TreeHandle } from "./Tree";
 import { GitChanges } from "./GitChanges";
 import { gitMarks, single } from "./gitstatus";
+import { copyDone, copyLabel, copyProgress, type DropCopies } from "./dropCopies";
 import { loadSession, mergeBreakpoints, mergeCursors, saveSession, type Session } from "./session";
 import { extOf, serverFor } from "../lang/registry";
 import { commandIcon, folderIcon } from "../theme/icons";
@@ -184,7 +185,8 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
   const [updateState, setUpdateState] = useState<UpdateState>(() => updaterStore.state);
   const [updateInfo, setUpdateInfo] = useState(() => updaterStore.info);
   const [updateProgress, setUpdateProgress] = useState<UpdateProgress | null>(() => updaterStore.progress);
-  const [copying, setCopying] = useState<{ name: string; percent: number } | null>(null); // a big Finder drop
+  // Big Finder drops being copied.
+  const [copying, setCopying] = useState<DropCopies>({});
 
   useEffect(() => {
     return updaterStore.subscribe(() => {
@@ -488,12 +490,8 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
             id,
             zone === "left" || zone === "top",
           );
+          // the panel stays until the new pane has taken its shell over: unmounting it first would end the shell
           moveTermNext.current.set(newPane, { fromId, title: termTitle });
-          if (isPanel) {
-            setPanel(null);
-            setMax(false);
-            setPanelTitle("");
-          }
         } else {
           const ok = ed.moveTerminal(fromId, id, termTitle);
           if (ok) {
@@ -1309,11 +1307,9 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
   // Finder or Dock files dropped on the tree were copied (Go): the cursor goes to the first, failures are said. A big
   // copy shows its percentage in the status line until then.
   useEffect(() => {
-    const progress = backend.onDropProgress(ws.id, ({ name, done, total }) =>
-      setCopying({ name, percent: Math.min(100, Math.floor((done * 100) / total)) }),
-    );
-    const dropped = backend.onDropped(ws.id, ({ paths, errors }) => {
-      setCopying(null);
+    const progress = backend.onDropProgress(ws.id, (p) => setCopying((s) => copyProgress(s, p)));
+    const dropped = backend.onDropped(ws.id, ({ id, paths, errors }) => {
+      setCopying((s) => copyDone(s, id));
       if (paths?.length) {
         void tree.current?.reveal(paths[0]);
         say(paths.length === 1 ? `Copied "${paths[0]}"` : `Copied ${paths.length} items`);
@@ -1465,7 +1461,13 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       backend.onLspStatus(ws.id, (s) => {
         if (s.state === "missing") {
           setLspMissing((m) => new Set(m).add(s.lang));
-          fail(`${s.command} not found in PATH, no language features from it. Install: ${installHint(s.lang)}`);
+          const text = `${s.command} not found in PATH, no language features from it. Install: ${installHint(s.lang)}`;
+          // marksman is an extra on top of the Markdown support: opening a README is no error without it
+          if (s.lang === "marksman") {
+            setMsg({ text });
+          } else {
+            fail(text);
+          }
         }
         if (s.state === "nocdb") {
           setMsg({
@@ -1669,6 +1671,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       <span className={diag.warnings ? "w" : "w zero"}>{diag.warnings}</span>
     </Seg>
   );
+  const copy = copyLabel(copying);
   // Left: mode, branch and diagnostics; then the message; right: language server, indent, line ending, filetype, position.
   const line = (
     <>
@@ -1715,9 +1718,7 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
           </Seg>
         )}
         {status.plain && <Seg title="A line over 20,000 characters: syntax highlighting is off for this file">plain text</Seg>}
-        {copying && (
-          <Seg title={`Copying "${copying.name}" into the folder: ${copying.percent}%`}>⇣ Copying {copying.percent}%</Seg>
-        )}
+        {copy && <Seg title={copy.title}>⇣ Copying {copy.percent}%</Seg>}
         {updateState === "ready" ? (
           <Seg className="update-ready" onPress={() => setShowUpdateDialog(true)} title="Update ready! Click to restart Ayaz">
             ↻ Restart to update
@@ -2025,9 +2026,17 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
                 splitFrom.current.delete(id);
                 termFor.current.delete(id);
                 ed.attach(id, el);
-                ed.moveTerminal(termMove.fromId, id, termMove.title);
-                ed.focus(id);
-                say("Moved terminal to editor tab");
+                if (ed.moveTerminal(termMove.fromId, id, termMove.title)) {
+                  if (termMove.fromId === PANEL) {
+                    setPanel(null);
+                    setMax(false);
+                    setPanelTitle("");
+                  }
+                  ed.focus(id);
+                  say("Moved terminal to editor tab");
+                } else {
+                  fail("The terminal could not be moved");
+                }
                 return () => {
                   previews.current.delete(id);
                   ed.detach(id, true);
