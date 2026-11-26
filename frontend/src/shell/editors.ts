@@ -7,7 +7,7 @@ import { redo, undo, undoDepth } from "@codemirror/commands";
 import { indentUnit } from "@codemirror/language";
 import { getCM, Vim } from "@replit/codemirror-vim";
 import type { Files } from "../core/backend";
-import { Buffers, diff, isDirty, isVirtual, type Buffer } from "../core/buffers";
+import { Buffers, DOCS, diff, isDirty, isVirtual, type Buffer } from "../core/buffers";
 import { setLspHost, formatBeforeSave, fileOps, toChanges, type WorkspaceEdit } from "../editor/lsp";
 import {
   createState,
@@ -56,7 +56,6 @@ import { UndoSteps } from "./undoSteps";
 import { HiddenTerms } from "./terminals";
 import { isVim, settings, toggleVim } from "../core/settings";
 import { extOf } from "../lang/registry";
-import { DOCS, docText } from "../docs/docsData";
 
 export interface Status {
   pane: number;
@@ -816,6 +815,7 @@ export class Editors {
       return id;
     }
     if (path.startsWith(DOCS)) {
+      const { docText } = await import("../docs/docsData");
       await this.buffers.virtual(path, docText(path));
     }
     const firstDisplay = !this.sourceOpened.has(path);
@@ -826,6 +826,10 @@ export class Editors {
       } // a retry is still the first display
       throw e;
     });
+    // the pane may have been closed while the file (or the docs chunk) was loading
+    if (!this.panes.has(id)) {
+      return id;
+    }
     if (firstDisplay) {
       void this.loadHead(path);
       this.shownResults.delete(path);

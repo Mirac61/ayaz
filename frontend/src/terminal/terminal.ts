@@ -1,17 +1,8 @@
-// xterm.js on a Wails "pty" stream (ADR-0013): the terminal provider for panes and the bottom panel.
-import { Terminal, type ILink, type ILinkProvider, type IMarker } from "@xterm/xterm";
-import { FitAddon } from "@xterm/addon-fit";
-import { SearchAddon } from "@xterm/addon-search";
-import { Unicode11Addon } from "@xterm/addon-unicode11";
-import { WebLinksAddon } from "@xterm/addon-web-links";
-import { WebglAddon } from "@xterm/addon-webgl";
-import "@xterm/xterm/css/xterm.css";
-import { backend } from "../core/backend";
-import { isMac } from "../core/keymap";
+// The terminal provider for panes and the bottom panel. xterm.js on a Wails "pty" stream (ADR-0013) lives in xterm.ts and
+// loads with the first terminal; everything here stays small enough for the start chunk.
+import type { Terminal } from "@xterm/xterm";
+import { notify } from "../core/notifications";
 import { settings } from "../core/settings";
-import { terminalTheme } from "../theme/themes";
-import { fileLinks } from "./links";
-import { parseOsc7 } from "./osc";
 
 // "terminal": keys go to the shell (nvim's terminal mode); "normal": scrollback, search, copy (Ctrl-\ Ctrl-n).
 export type TermMode = "terminal" | "normal";
@@ -44,14 +35,6 @@ export interface TermHandle {
   dispose(): void;
 }
 
-const enc = new TextEncoder();
-const frame = (kind: number, body: Uint8Array) => {
-  const f = new Uint8Array(body.length + 1);
-  f[0] = kind;
-  f.set(body, 1);
-  return f;
-};
-
 // Zoom with a terminal focused changes this many px on top of the terminal's size, for every terminal.
 const ZOOM_KEY = "ayaz.termZoom";
 export function termZoom(): number {
@@ -72,301 +55,88 @@ export function setTermZoom(z: number) {
 // settings.json's terminalFontSize (else fontSize), plus the terminal zoom.
 export const termFontSize = () => Math.max(6, (settings().terminalFontSize ?? settings().fontSize) + termZoom());
 
-const defaultRenderer = () => (new URLSearchParams(location.search).get("renderer") === "dom" || !isMac ? "dom" : "webgl");
-
-// The buffer as text; a line the terminal wrapped joins the one before it.
-function bufferText(t: Terminal): string {
-  const b = t.buffer.active;
-  let out = "";
-  for (let i = 0; i < b.length; i++) {
-    const l = b.getLine(i)!;
-    out += (i && !l.isWrapped ? "\n" : "") + l.translateToString(true);
-  }
-  return out;
-}
-
-// path:line:col in the output as links. Plain clicks, like the URLs next to them.
-// A row that continues a wrapped line is no link: its path would be cut off at the wrap.
-// cwdAt(row, col): the directory the shell was in when the text there was written.
-export function fileLinkProvider(
-  term: Terminal,
-  onOpenFile: (path: string, line: number, col?: number, cwd?: string) => void,
-  cwdAt: (row: number, col: number) => string = () => "",
-): ILinkProvider {
-  return {
-    provideLinks(y, callback) {
-      const line = term.buffer.active.getLine(y - 1);
-      if (line?.isWrapped) {
-        return callback(undefined);
-      }
-      if (!line) {
-        return callback(undefined);
-      }
-      const text = line.translateToString(true);
-      // The cell column of each UTF-16 index: a wide character takes two cells, an emoji two code units.
-      const cols: number[] = [];
-      for (let x = 0; x < line.length; x++) {
-        const c = line.getCell(x)!;
-        if (c.getWidth()) {
-          cols.push(...Array<number>((c.getChars() || " ").length).fill(x));
-        }
-      }
-      const links: ILink[] = fileLinks(text).map((l) => ({
-        range: { start: { x: cols[l.start] + 1, y }, end: { x: cols[l.end - 1] + 1, y } },
-        text: text.slice(l.start, l.end),
-        activate: () => onOpenFile(l.path, l.line, l.col, cwdAt(y - 1, cols[l.start])),
-      }));
-      callback(links.length ? links : undefined);
-    },
-  };
-}
-
-// OSC 7 as it arrives, kept per row: a link in old output resolves against where the shell was then.
-export function trackCwd(term: Terminal) {
-  let base = "",
-    now = "";
-  const marks: { m: IMarker; cwd: string; x: number }[] = []; // x: the column the shell was at when it said so
-  term.parser.registerOscHandler(7, (data) => {
-    const c = parseOsc7(data);
-    if (c && c !== now) {
-      now = c;
-      const m = term.registerMarker(0);
-      if (m) {
-        const k = { m, cwd: c, x: term.buffer.active.cursorX };
-        marks.push(k);
-        m.onDispose(() => {
-          // scrolled out of the scrollback
-          base = k.cwd;
-          marks.splice(marks.indexOf(k), 1);
-        });
-      }
-    }
-    return true;
-  });
-  return {
-    now: () => now,
-    at(row: number, col = 0) {
-      let c = base;
-      for (const k of marks) {
-        if (k.m.line < row || (k.m.line === row && k.x <= col)) {
-          c = k.cwd;
-        }
-      }
-      return c || now;
-    },
-  };
-}
-
+// Returns at once; xterm loads behind it. Calls made before that wait for it in order, `term` and `ws` exist after `ready`.
 export function openTerminal(el: HTMLElement, opts: TermOptions = {}): TermHandle {
-  const term = new Terminal({
-    theme: terminalTheme(),
-    fontFamily: getComputedStyle(document.documentElement).getPropertyValue("--font-mono"),
-    fontSize: termFontSize(),
-    scrollback: 10_000,
-    allowProposedApi: true, // unicode11
-  });
-  const fit = new FitAddon();
-  const search = new SearchAddon();
-  term.loadAddon(fit);
-  term.loadAddon(search);
-  term.loadAddon(new Unicode11Addon());
-  term.unicode.activeVersion = "11";
-  term.loadAddon(new WebLinksAddon((_e, uri) => void backend.openURL(uri)));
-  const cwd = trackCwd(term);
-  if (opts.onOpenFile) {
-    term.registerLinkProvider(fileLinkProvider(term, opts.onOpenFile, cwd.at));
-  }
-  term.open(el);
-  if ((opts.renderer ?? defaultRenderer()) === "webgl") {
-    term.loadAddon(new WebglAddon());
-  }
-  el.dataset.term = "";
-
-  const ws = backend.stream("pty");
-  // Go reads the config as the first frame (onopen below); keys or a resize before it would end the shell.
-  let started = false;
-  const live = () => started && ws.readyState === WebSocket.OPEN;
-  const input = (data: string) => live() && ws.send(frame(0, enc.encode(data)));
-  term.onData(input);
-  term.onResize(({ cols, rows }) => live() && ws.send(frame(1, enc.encode(JSON.stringify({ cols, rows })))));
-  let liveTimer: ReturnType<typeof setTimeout> | undefined;
-  ws.onmessage = (ev) => {
-    term.write(new Uint8Array(ev.data as ArrayBuffer), () => {
-      if (opts.onLiveOutput && !disposed) {
-        if (liveTimer) {
-          clearTimeout(liveTimer);
-        }
-        liveTimer = setTimeout(() => {
-          if (!disposed && opts.onLiveOutput) {
-            opts.onLiveOutput(bufferText(term));
-          }
-        }, 150);
-      }
-    });
-  };
-  let disposed = false;
-  ws.onclose = () => {
-    if (disposed) {
-      return;
+  let impl: TermHandle | undefined;
+  let gone = false;
+  // The mode xterm starts in; a pane shown right away reads it.
+  el.dataset.mode = "terminal";
+  const loaded = import("./xterm").then(({ openXterm }) => {
+    if (!gone) {
+      impl = openXterm(el, opts);
     }
-    // After the write callback, the last output is in the buffer too.
-    term.write("\r\n[process exited]\r\n", () => {
-      if (disposed) {
-        return;
-      }
-      if (opts.onOutput) {
-        opts.onOutput(bufferText(term));
-      }
+    return impl;
+  });
+  const ready = loaded.then((h) => {
+    if (!h) {
+      throw new Error("terminal closed before it opened");
+    }
+    return h.ready;
+  });
+  // A stream that failed rejects `ready`; whoever awaits it handles that, the calls below don't need to.
+  ready.catch(() => {});
+  // xterm didn't load or open: say so and leave the way an ended shell does, so no blank terminal stays behind.
+  loaded.catch((e) => {
+    if (!gone) {
+      notify.fail(`Terminal failed to start: ${e instanceof Error ? e.message : String(e)}`);
       opts.onExit?.();
-    });
-  };
-
-  // Panes resize on splits and when the panel shows; a hidden element has no size to fit to.
-  const ro = new ResizeObserver(() => el.clientWidth && el.clientHeight && fit.fit());
-  ro.observe(el);
-
-  let mode: TermMode = "terminal";
-  const setMode = (m: TermMode) => {
-    mode = m;
-    el.dataset.mode = m;
-    term.options.disableStdin = m === "normal"; // also blocks paste
-    if (m === "terminal") {
-      term.scrollToBottom();
     }
-    opts.onMode?.(m);
-  };
-  setMode("terminal");
-
-  // Normal mode: Vim-like keys move through the scrollback; nothing reaches the shell.
-  let last = "";
-  const half = () => Math.max(1, Math.floor(term.rows / 2));
-  term.attachCustomKeyEventHandler((e) => {
-    if (mode === "terminal") {
-      return true;
-    }
-    if (e.metaKey || (e.ctrlKey && e.shiftKey && (e.key === "C" || e.key === "V" || e.key === "c" || e.key === "v"))) {
-      return true;
-    } // Cmd+C/V on macOS, Ctrl+Shift+C/V on Windows/Linux
-    if (e.type !== "keydown") {
-      return false;
-    }
-    const k = e.ctrlKey ? `C-${e.key}` : e.key;
-    switch (k) {
-      case "i":
-      case "a":
-      case "I":
-      case "A":
-        setMode("terminal");
-        break;
-      case "j":
-      case "ArrowDown":
-        term.scrollLines(1);
-        break;
-      case "k":
-      case "ArrowUp":
-        term.scrollLines(-1);
-        break;
-      case "C-d":
-        term.scrollLines(half());
-        break;
-      case "C-u":
-        term.scrollLines(-half());
-        break;
-      case "g":
-        term.scrollToTop();
-        break;
-      case "G":
-        term.scrollToBottom();
-        break;
-      case "y":
-        void navigator.clipboard.writeText(term.getSelection()).catch(() => {});
-        term.clearSelection();
-        break;
-      case "/":
-        ask();
-        break;
-      case "n":
-        if (last) {
-          search.findNext(last);
-        }
-        break;
-      case "N":
-        if (last) {
-          search.findPrevious(last);
-        }
-        break;
-    }
-    e.preventDefault();
-    return false;
   });
-
-  // "/" opens a one-line search box over the terminal, like Vim's search prompt.
-  const ask = () => {
-    const box = document.createElement("input");
-    box.className = "term-search";
-    box.setAttribute("aria-label", "Search terminal");
-    box.value = last;
-    el.append(box);
-    box.focus();
-    box.select();
-    box.onkeydown = (e) => {
-      e.stopPropagation();
-      if (e.key === "Enter" && box.value) {
-        search.findPrevious((last = box.value));
-      } // from the bottom up, like ?
-      if (e.key === "Enter" || e.key === "Escape") {
-        box.remove();
-        term.focus();
-      }
-    };
-    box.onblur = () => box.remove();
+  // At once when xterm is there, else in the order the calls came.
+  const later = (f: (h: TermHandle) => void) =>
+    impl
+      ? f(impl)
+      : void loaded.then(
+          (h) => h && f(h),
+          () => {},
+        );
+  const need = <K extends "term" | "ws">(k: K): TermHandle[K] => {
+    if (!impl) {
+      throw new Error(`terminal.${k} is there after ready`);
+    }
+    return impl[k];
   };
-
-  const ready = new Promise<void>((resolve, reject) => {
-    ws.onopen = () => {
-      fit.fit();
-      ws.send(
-        JSON.stringify({
-          cols: term.cols,
-          rows: term.rows,
-          ws: opts.ws ?? "",
-          cmd: opts.cmd ?? "",
-          dir: opts.dir ?? "",
-          windowMs: opts.windowMs ?? 0,
-          maxBytes: opts.maxBytes ?? 0,
-        }),
-      );
-      started = true;
-      resolve();
-    };
-    ws.onerror = () => reject(new Error("pty stream failed"));
-  });
-
   return {
-    term,
-    ws,
-    ready,
-    input,
-    cwd: cwd.now,
-    setMode,
-    focus: () => term.focus(),
-    setFont() {
-      term.options.theme = terminalTheme(); // a changed theme in settings.json reaches open terminals here too
-      term.options.fontFamily = getComputedStyle(document.documentElement).getPropertyValue("--font-mono");
-      term.options.fontSize = termFontSize();
-      if (el.clientWidth && el.clientHeight) {
-        fit.fit();
-      }
+    get term() {
+      return need("term");
     },
-    dispose: () => {
-      disposed = true;
-      if (liveTimer) {
-        clearTimeout(liveTimer);
+    get ws() {
+      return need("ws");
+    },
+    ready: ready as Promise<void>,
+    // Input waits for the shell, not just for xterm: nothing is sent before the config frame, so it would be lost.
+    input: (data) =>
+      void ready.then(
+        () => impl?.input(data),
+        () => {},
+      ),
+    cwd: () => impl?.cwd() ?? "",
+    setMode: (m) => later((h) => h.setMode(m)),
+    focus() {
+      if (impl) {
+        return impl.focus();
       }
-      ro.disconnect();
-      ws.close(); // Go hangs up the shell's process group
-      term.dispose();
-      delete el.dataset.term;
+      // While xterm loads, the user may go elsewhere; focusing then would take their next keys.
+      const before = document.activeElement;
+      let clickedAway = false;
+      const onDown = (e: Event) => (clickedAway ||= !el.contains(e.target as Node));
+      document.addEventListener("pointerdown", onDown, true);
+      void loaded
+        .then(
+          (h) => {
+            const now = document.activeElement;
+            if (h && !clickedAway && (now === before || now === document.body || el.contains(now))) {
+              h.focus();
+            }
+          },
+          () => {},
+        )
+        .finally(() => document.removeEventListener("pointerdown", onDown, true));
+    },
+    setFont: () => later((h) => h.setFont()),
+    dispose() {
+      gone = true;
+      impl?.dispose();
       delete el.dataset.mode;
     },
   };

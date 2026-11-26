@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import { DOCS } from "../core/buffers";
 import { Compass, Key, Code, FileText, Terminal, GitBranch, Bug, Cpu, Layers, CheckCircle, Map, Sliders } from "lucide-react";
 
 export interface DocItem {
@@ -332,7 +333,7 @@ const noImages = (md: string) => md.replace(/^\[?!\[[^\]]*\]\([^)]*\)(\]\([^)]*\
 
 export const DOC_ITEMS: DocItem[] = ITEMS.map((d) => ({ ...d, content: noImages(d.content) }));
 
-export const DOCS = "docs://";
+export { DOCS };
 export const DOCS_INDEX = `${DOCS}index.md`;
 export const docPath = (id: string) => `${DOCS}${id}.md`;
 

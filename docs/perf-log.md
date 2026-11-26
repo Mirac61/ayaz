@@ -2,6 +2,20 @@
 
 Measurements against the budgets in [00-vision.md](00-vision.md#performance-budgets). Newest first. Machine: M-series MacBook (ProMotion), macOS 27.2.
 
+## 2026-11-25 · Start chunk (macOS)
+
+xterm, the docs text and the rarely opened dialogs moved out of the start chunk (`import()`), the spikes too. `AYAZ_EXIT_ON_READY=1 ./bin/ayaz testdata/e2e-ws`, 40 runs each, `origin/dev` against the change, taken one after the other on a busy machine (load ~4.7).
+
+| | Before | After |
+|---|---|---|
+| Start chunk (`index-*.js`) | 2,037 KB, 649 KB gzip | 1,014 KB, 339 KB gzip |
+| K1 start → `app:ready`, median / p25 | 637 / 605 ms | 611 / 592 ms |
+
+Notes:
+- K1 is above the 500 ms budget in both builds (M14 read 398 ms); about a quarter of the runs take 2.2 s with either build. Not looked into.
+- Waiting for the symbols font before the first frame, or not, made no difference (median 608 ms). Left as it was; the font can't be cut down, shell prompts use any Nerd Font glyph.
+- The first terminal now waits for its chunk (xterm, 510 KB) before it draws. Not timed.
+
 ## 2026-11-08 · M3 file watching (macOS)
 | | Value | Budget | How |
 |---|---|---|---|
