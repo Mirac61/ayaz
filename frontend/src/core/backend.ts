@@ -55,7 +55,8 @@ export interface Backend {
   folderSummary(root: string): Promise<Summary>; // branch and changes of a folder that is not open
   clone(repoURL: string): Promise<Info | null>;
   closeWorkspace(ws: string): Promise<void>; // watcher, index, shells, servers (ADR-0014)
-  renderPlantUML(source: string): Promise<string>; // SVG from the installed plantuml; rejects when it isn't there
+  // SVG from the installed plantuml; rejects when it isn't there
+  renderPlantUML(source: string): Promise<string>;
   closeWindow(): Promise<void>; // this window; a no-op in the server build
   newWindow(): Promise<void>;
   // The user asked to close this window; the frontend decides (unsaved buffers) and calls closeWindow.

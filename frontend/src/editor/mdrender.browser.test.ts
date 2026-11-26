@@ -84,6 +84,12 @@ test("a ```mermaid block is drawn as a picture, other fences stay code", async (
   expect(src).toContain("<svg");
   expect(src).toContain("Start");
   expect(d.querySelector("pre code")?.textContent).toContain("let x");
+  // the same block again is drawn at once, with its size set
+  const again = html("```mermaid\ngraph TD\n  A[Start] --> B[End]\n```");
+  document.body.append(again);
+  drawDiagrams(again);
+  expect(again.querySelector(".md-diagram img")?.getAttribute("height")).toMatch(/^\d+$/);
+  again.remove();
   d.remove();
 });
 
@@ -93,5 +99,7 @@ test("a broken mermaid block keeps its source and shows the error", async () => 
   drawDiagrams(d);
   await vi.waitFor(() => expect(d.querySelector(".md-diagram-error")).not.toBeNull(), { timeout: 15000 });
   expect(d.querySelector(".md-diagram pre")?.textContent).toContain("not a diagram");
+  // mermaid leaves no scratch elements behind
+  expect(document.querySelector('[id^="dmermaid-"], [id^="imermaid-"]')).toBeNull();
   d.remove();
 });

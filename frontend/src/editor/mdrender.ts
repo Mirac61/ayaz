@@ -2,7 +2,7 @@ import MarkdownIt from "markdown-it";
 import DOMPurify from "dompurify";
 import { ViewPlugin, type EditorView, type ViewUpdate } from "@codemirror/view";
 import { backend } from "../core/backend";
-import { fenceKind, renderSvg, svgUrl, type DiagramKind } from "../core/diagram";
+import { cachedSvg, fenceKind, renderSvg, svgSize, svgUrl, type DiagramKind } from "../core/diagram";
 import { MD_SKINS, settings } from "../core/settings";
 import { browsable, imageSrc, isReading, mdImages, resolveLink } from "./mdlive";
 import "./mdskins.css";
@@ -145,12 +145,21 @@ export function renderMarkdown(text: string, ctx: { ws: string; file: string } |
 export function drawDiagrams(root: ParentNode) {
   for (const box of root.querySelectorAll<HTMLElement>(".md-diagram")) {
     const src = box.querySelector("pre")?.textContent ?? "";
-    renderSvg(box.dataset.kind as DiagramKind, src).then(
+    const kind = box.dataset.kind as DiagramKind;
+    const show = (svg: string) =>
+      box.replaceChildren(
+        Object.assign(document.createElement("img"), { src: svgUrl(svg), alt: `${kind} diagram`, ...svgSize(svg) }),
+      );
+    // Already drawn: put it in at once, so the redraw after typing keeps its height and the scroll position.
+    const ready = cachedSvg(kind, src);
+    if (ready !== undefined) {
+      show(ready);
+      continue;
+    }
+    renderSvg(kind, src).then(
       (svg) => {
         if (box.isConnected) {
-          box.replaceChildren(
-            Object.assign(document.createElement("img"), { src: svgUrl(svg), alt: `${box.dataset.kind} diagram` }),
-          );
+          show(svg);
         }
       },
       (e) => {

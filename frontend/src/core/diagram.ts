@@ -6,17 +6,22 @@ import { extOf } from "../lang/registry";
 
 export type DiagramKind = "mermaid" | "plantuml";
 
-const FILES: Record<string, DiagramKind> = {
-  mmd: "mermaid",
-  mermaid: "mermaid",
-  puml: "plantuml",
-  plantuml: "plantuml",
-  pu: "plantuml",
-};
-const FENCES: Record<string, DiagramKind> = { mermaid: "mermaid", plantuml: "plantuml", puml: "plantuml" };
+// Maps, not objects: a ```constructor block must not find Object.prototype.constructor.
+const FILES = new Map<string, DiagramKind>([
+  ["mmd", "mermaid"],
+  ["mermaid", "mermaid"],
+  ["puml", "plantuml"],
+  ["plantuml", "plantuml"],
+  ["pu", "plantuml"],
+]);
+const FENCES = new Map<string, DiagramKind>([
+  ["mermaid", "mermaid"],
+  ["plantuml", "plantuml"],
+  ["puml", "plantuml"],
+]);
 
-export const diagramKind = (path: string): DiagramKind | undefined => FILES[extOf(path)];
-export const fenceKind = (info: string): DiagramKind | undefined => FENCES[info.trim().split(/\s/)[0].toLowerCase()];
+export const diagramKind = (path: string): DiagramKind | undefined => FILES.get(extOf(path));
+export const fenceKind = (info: string): DiagramKind | undefined => FENCES.get(info.trim().split(/\s/)[0].toLowerCase());
 
 type Mermaid = typeof import("mermaid").default;
 let loaded: Promise<Mermaid> | undefined;
@@ -57,7 +62,19 @@ export function sized(svg: string): string {
 }
 
 const cache = new Map<string, Promise<string>>();
+// the finished ones, for a redraw without a frame of source text
+const done = new Map<string, string>();
 const CACHE = 40;
+
+export const cachedSvg = (kind: DiagramKind, text: string) => done.get(kind + "\0" + text);
+
+// The pixel size in the <svg> tag: set on the <img>, it holds the room before the picture is decoded.
+export function svgSize(svg: string): { width: number; height: number } | undefined {
+  const tag = /<svg\b[^>]*>/.exec(svg)?.[0] ?? "";
+  const w = /\swidth="([\d.]+)(?:px)?"/.exec(tag),
+    h = /\sheight="([\d.]+)(?:px)?"/.exec(tag);
+  return w && h ? { width: Math.round(+w[1]), height: Math.round(+h[1]) } : undefined;
+}
 
 // The SVG for source text; the same text again comes from the cache (the reading view redraws on every pause in typing).
 export function renderSvg(kind: DiagramKind, text: string): Promise<string> {
@@ -66,9 +83,15 @@ export function renderSvg(kind: DiagramKind, text: string): Promise<string> {
   if (!hit) {
     hit = kind === "mermaid" ? mermaidSvg(text).then(sized) : backend.renderPlantUML(text);
     cache.set(key, hit);
-    hit.catch(() => cache.delete(key)); // a failure (plantuml missing) is tried again next time
+    hit.then(
+      (svg) => cache.has(key) && done.set(key, svg),
+      // a failure (plantuml missing) is tried again next time
+      () => cache.delete(key),
+    );
     if (cache.size > CACHE) {
-      cache.delete(cache.keys().next().value!);
+      const oldest = cache.keys().next().value!;
+      cache.delete(oldest);
+      done.delete(oldest);
     }
   }
   return hit;

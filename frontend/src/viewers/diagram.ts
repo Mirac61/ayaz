@@ -10,7 +10,12 @@ export function mountDiagram(el: HTMLElement, ctx: ViewContext): ViewHandle {
   let svg = BLANK;
   // The image viewer shows `.svg` files from their live text: hand it the drawn SVG that way.
   const image = mountImage(el, { ...ctx, url: ctx.url + ".svg", getContent: () => svg });
-  el.querySelector(".image-viewer")?.classList.add("diagram");
+  const box = el.querySelector(".image-viewer");
+  box?.classList.add("diagram");
+  // the image viewer named it after the made-up ".svg" address
+  const name = decodeURIComponent(ctx.url.slice(ctx.url.lastIndexOf("/") + 1));
+  box?.setAttribute("aria-label", name);
+  box?.querySelector("img")?.setAttribute("alt", name);
   let seq = 0,
     gone = false;
   const draw = async () => {
