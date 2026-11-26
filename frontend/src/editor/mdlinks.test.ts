@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { linkAt, relPath } from "./mdlinks";
+import { encodeLink, linkAt, relPath } from "./mdlinks";
 
 test("relPath writes the link from one file to another", () => {
   expect(relPath("docs/spec/test-design.md", "docs/spec/assets/a.png")).toBe("./assets/a.png");
@@ -7,6 +7,12 @@ test("relPath writes the link from one file to another", () => {
   expect(relPath("docs/spec/test-design.md", "backend/x/y.go")).toBe("../../backend/x/y.go");
   expect(relPath("README.md", "docs/a.md")).toBe("./docs/a.md");
   expect(relPath("docs/a.md", "docs/b.md")).toBe("./b.md");
+});
+
+test("encodeLink keeps a file name from breaking its link", () => {
+  expect(encodeLink("./my file (1).md")).toBe("./my%20file%20%281%29.md");
+  expect(encodeLink("./c# 100%.md")).toBe("./c%23%20100%25.md");
+  expect(decodeURIComponent(encodeLink("../a?<b>.md"))).toBe("../a?<b>.md");
 });
 
 test("linkAt finds the path being typed and whether it is an image", () => {

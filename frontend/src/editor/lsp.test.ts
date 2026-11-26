@@ -162,6 +162,7 @@ test("installHint: platform-specific installation commands for Windows, macOS, a
   expect(installHint("tinymist", "linux-fedora")).toBe("sudo dnf install tinymist");
   expect(installHint("tinymist", "linux-debian")).toBe("cargo install --locked tinymist, or brew install tinymist");
   expect(installHint("tinymist", "linux")).toBe("cargo install --locked tinymist");
+  expect(installHint("marksman", "darwin")).toBe("brew install marksman");
 
   // Typst compiler
   expect(installHint("typst", "darwin")).toBe("brew install typst");

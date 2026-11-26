@@ -177,7 +177,13 @@ export async function createState(
       path && runTest && !path.startsWith("/") && !isVirtual(path) ? testGutter(path, runTest) : [],
       path && SWATCHED.has(extOf(path)) ? swatches : [],
       path && (extOf(path) === "md" || path.startsWith("docs://"))
-        ? [mdlive, mdRender, ws ? [mdImages.of({ ws, file: path }), pasteImage(ws, path), mdLinkCompletion(ws, path)] : []]
+        ? [
+            mdlive,
+            mdRender,
+            ws ? [mdImages.of({ ws, file: path }), pasteImage(ws, path)] : [],
+            // links are written relative to a workspace file, so not in the docs or a file outside the folder
+            ws && !path.startsWith("/") && !isVirtual(path) ? mdLinkCompletion(ws, path) : [],
+          ]
         : [],
     ],
   });

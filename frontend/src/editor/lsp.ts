@@ -689,6 +689,12 @@ const INSTALL_TABLE: Record<string, PlatformMap> = {
     "linux-debian": "sudo apt install lldb",
     linux: "install lldb with your package manager",
   },
+  marksman: {
+    darwin: "brew install marksman",
+    windows: "scoop install marksman",
+    "linux-arch": "sudo pacman -S marksman",
+    linux: "brew install marksman, or download it from github.com/artempyanykh/marksman/releases",
+  },
   "lua-language-server": {
     darwin: "brew install lua-language-server",
     windows: "winget install sumneko.lua or scoop install lua-language-server",

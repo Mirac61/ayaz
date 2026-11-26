@@ -8,8 +8,10 @@ import { backend } from "../core/backend";
 const LIMIT = 40;
 const POOL = 400;
 const IMAGE = /\.(png|jpe?g|gif|svg|webp|avif)$/i;
-const TRIGGER = /(?:\]\(|\[\[)([^\]\)\s]*)$/; // 1: what is typed of the path
-const IMAGE_LINK = /!(?:\[[^\]]*\]\(|\[\[)[^\]\)\s]*$/; // ![alt](path or ![[path
+// 1: what is typed of the path
+const TRIGGER = /(?:\]\(|\[\[)([^\]\)\s]*)$/;
+// ![alt](path or ![[path
+const IMAGE_LINK = /!(?:\[[^\]]*\]\(|\[\[)[^\]\)\s]*$/;
 
 // The link text from the file `from` to the workspace path `to`: "./assets/a.png", "../b.md".
 export function relPath(from: string, to: string): string {
@@ -22,6 +24,10 @@ export function relPath(from: string, to: string): string {
   const up = dir.length - i;
   return (up ? "../".repeat(up) : "./") + dst.slice(i).join("/");
 }
+
+// A file name as a link target: what would end or cut the link (space, brackets, # and ?) and "%" itself is encoded.
+export const encodeLink = (path: string) =>
+  path.replace(/[ %#?()<>]/g, (c) => "%" + c.charCodeAt(0).toString(16).toUpperCase().padStart(2, "0"));
 
 // What the cursor is typing after the line's text `before`: a link path, and whether it belongs to an image.
 export function linkAt(before: string): { typed: string; image: boolean } | null {
@@ -38,7 +44,7 @@ export const mdLinkCompletion = (ws: string, file: string): Extension => {
     }
     const { typed, image } = at;
     // The fuzzy search knows workspace paths, not "./" or "../": search the part after them.
-    const query = typed.replace(/^(\.{1,2}\/)+/, "");
+    const query = typed.replace(/^(\.{1,2}\/)+/, "").replace(/%20/g, " ");
     // shortcut: the search is cut at POOL paths, so an empty query in a huge repo may miss files next to this one; type a few letters.
     const found = await backend.files(ws).find(query, POOL, false);
     // An image link takes images only; a file never links to itself; files next to this one come first, the rest keeps its rank.
@@ -49,8 +55,9 @@ export const mdLinkCompletion = (ws: string, file: string): Extension => {
       .sort((a, b) => Number(b.startsWith(dir)) - Number(a.startsWith(dir)));
     return {
       from: cx.pos - typed.length,
-      filter: false, // already ranked by the search
-      options: paths.slice(0, LIMIT).map((p) => ({ label: relPath(file, p).replace(/ /g, "%20"), type: "file" })),
+      // already ranked by the search
+      filter: false,
+      options: paths.slice(0, LIMIT).map((p) => ({ label: encodeLink(relPath(file, p)), type: "file" })),
     };
   };
   return [autocompletion(), EditorState.languageData.of(() => [{ autocomplete: source }])];
