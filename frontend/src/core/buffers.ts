@@ -33,6 +33,8 @@ export function hasLongLine(doc: string): boolean {
 export const lf = (text: string) => text.replace(/\r\n/g, "\n");
 
 // Buffers with no file: the debugger's output, git HEAD snapshots, or the in-app docs.
+// The scheme of the in-app docs; here, not in docs/docsData.ts, so asking "is this a docs path" doesn't load all the text.
+export const DOCS = "docs://";
 export const isVirtual = (path: string) => /^(debug|head|docs):\/\//.test(path);
 
 export const isDirty = (b: Buffer) => !b.state.doc.eq(b.saved);

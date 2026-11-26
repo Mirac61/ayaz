@@ -2,7 +2,7 @@ import { mdLinks } from "../editor/mdrender";
 import { setDropHandler } from "./dnd";
 import { AyazLogo } from "./AyazLogo";
 import { StartHub } from "./StartHub";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { FilePlus, FolderOpen, FolderPlus, GitBranch, GitCommitHorizontal, ListChevronsDownUp } from "lucide-react";
 import { flushSync } from "react-dom";
 import { EditorView } from "@codemirror/view";
@@ -45,7 +45,6 @@ import { harpoonCommands } from "./commands/harpoon";
 import { testCommands } from "./commands/tests";
 import { recentFolders } from "./folders";
 import { updaterStore, type UpdateProgress, type UpdateState } from "../core/updater";
-import { UpdateDialog } from "./UpdateDialog";
 import { applyDiagText } from "./diagText";
 import { recentCommands, rememberCommand } from "./recentCommands";
 import { forget, remember } from "./resume";
@@ -53,9 +52,11 @@ import { startDrag } from "./dnd";
 import { notify } from "../core/notifications";
 import { Notifications } from "./Notifications";
 import { Cmdline } from "./Cmdline";
-import { WhatsNewDialog } from "./WhatsNewDialog";
-import { DocsHub } from "./DocsHub";
-import { DOC_ITEMS, findDoc } from "../docs/docsData";
+
+// Opened rarely: their own chunks, so the docs text and the dialogs don't weigh on the start.
+const UpdateDialog = lazy(() => import("./UpdateDialog").then((m) => ({ default: m.UpdateDialog })));
+const WhatsNewDialog = lazy(() => import("./WhatsNewDialog").then((m) => ({ default: m.WhatsNewDialog })));
+const DocsHub = lazy(() => import("./DocsHub").then((m) => ({ default: m.DocsHub })));
 import { Handle, Hints, Pane } from "./parts";
 import { ContextMenu, IconButton, Seg, type MenuItem } from "../ui/ui";
 import "./shell.css";
@@ -178,10 +179,11 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
   const [showUpdateDialog, setShowUpdateDialog] = useState(false);
   const [showCmdline, setShowCmdline] = useState(false);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
-  const [showDocs, setShowDocs] = useState<string | false>(false);
+  // true: open at the first topic
+  const [showDocs, setShowDocs] = useState<string | boolean>(false);
   const lastActivePaneRef = useRef<number | null>(null);
 
-  const openDocs = (docId: string | false) => {
+  const openDocs = (docId: string | boolean) => {
     if (docId !== false) {
       lastActivePaneRef.current = ed.active;
     }
@@ -980,16 +982,16 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       {
         id: "app.docs",
         title: "Docs (<F1>, :help, :help <topic>)",
-        run(a) {
+        async run(a) {
           if (a) {
-            const doc = findDoc(a);
+            const doc = (await import("../docs/docsData")).findDoc(a);
             if (doc) {
               openDocs(doc.id);
             } else {
               run("app.docsTopics", a);
             }
           } else {
-            openDocs(DOC_ITEMS[0].id);
+            openDocs(true);
           }
         },
       },
@@ -1003,12 +1005,13 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
             placeholder: "Filter topics",
             async query(q) {
               const ql = q.toLowerCase();
+              const { DOC_ITEMS } = await import("../docs/docsData");
               return DOC_ITEMS.filter((d) => d.title.toLowerCase().includes(ql) || d.id.includes(ql)).map((d) => ({
                 label: d.title,
                 hint: d.id,
               }));
             },
-            pick: (it) => openDocs(it.hint ?? DOC_ITEMS[0].id),
+            pick: (it) => openDocs(it.hint ?? true),
           }),
       },
       {
@@ -2292,20 +2295,22 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
           }}
         />
       )}
-      {showUpdateDialog && <UpdateDialog onClose={() => setShowUpdateDialog(false)} />}
-      {showWhatsNew && <WhatsNewDialog version="v0.5.0" onClose={() => setShowWhatsNew(false)} />}
-      {showDocs && (
-        <DocsHub
-          initialDocId={typeof showDocs === "string" ? showDocs : undefined}
-          onClose={() => {
-            setShowDocs(false);
-            ed.focus(lastActivePaneRef.current ?? ed.active);
-          }}
-          onCloseAutoFocus={() => {
-            ed.focus(lastActivePaneRef.current ?? ed.active);
-          }}
-        />
-      )}
+      <Suspense fallback={null}>
+        {showUpdateDialog && <UpdateDialog onClose={() => setShowUpdateDialog(false)} />}
+        {showWhatsNew && <WhatsNewDialog version="v0.5.0" onClose={() => setShowWhatsNew(false)} />}
+        {showDocs && (
+          <DocsHub
+            initialDocId={typeof showDocs === "string" ? showDocs : undefined}
+            onClose={() => {
+              setShowDocs(false);
+              ed.focus(lastActivePaneRef.current ?? ed.active);
+            }}
+            onCloseAutoFocus={() => {
+              ed.focus(lastActivePaneRef.current ?? ed.active);
+            }}
+          />
+        )}
+      </Suspense>
     </div>
   );
 }

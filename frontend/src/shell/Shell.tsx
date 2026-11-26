@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { backend, type Info, type Summary } from "../core/backend";
 import { defaultKeymap, isMac } from "../core/keymap";
 import { closeLsp } from "../editor/lsp";
@@ -9,8 +9,9 @@ import { setZoom, zoomLevel } from "./zoom";
 import { Workbench } from "./Workbench";
 import { CHART, MAX_STARS, stars } from "./constellation";
 import { ago, branchText, changedNames, changesText, clip, sky } from "./startPage";
-import { DocsHub } from "./DocsHub";
 import { availableThemes, setThemeOverride, themeName } from "../core/settings";
+
+const DocsHub = lazy(() => import("./DocsHub").then((m) => ({ default: m.DocsHub })));
 
 interface GitHubItem {
   id: number;
@@ -568,12 +569,14 @@ export function Shell() {
       )}
 
       {showDocs && (
-        <DocsHub
-          onClose={() => {
-            setShowDocs(false);
-            focusPage();
-          }}
-        />
+        <Suspense fallback={null}>
+          <DocsHub
+            onClose={() => {
+              setShowDocs(false);
+              focusPage();
+            }}
+          />
+        </Suspense>
       )}
     </div>
   );
