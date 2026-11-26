@@ -28,6 +28,8 @@ import { BROWSER, PREVIEW, fsUrl, viewerFor, type ViewHandle } from "../core/vie
 import "../viewers/browser";
 import "../viewers/html";
 import "../viewers/image";
+import "../viewers/diagram";
+import { diagramKind } from "../core/diagram";
 import "../viewers/pdf";
 import { backend } from "../core/backend";
 import { Jumps, type Spot } from "./jumps";
@@ -416,7 +418,7 @@ export class Editors {
     const path = this.currentTab(id) ?? "";
     const clean = path.startsWith(PREVIEW) ? path.slice(PREVIEW.length) : path;
     let btn = p.el.querySelector<HTMLElement>(":scope > .render-toggle");
-    if (!/\.(md|svg|html|htm)$/.test(clean)) {
+    if (!/\.(md|svg|html|htm)$/.test(clean) && !diagramKind(clean)) {
       return void btn?.remove();
     }
     if (btn) {
@@ -734,7 +736,7 @@ export class Editors {
     return !!v && isReading(v.state);
   }
 
-  // Rendered view and source: Markdown's reading view, SVG image viewer/text, or HTML browser preview/source. False for other files.
+  // Rendered view and source: Markdown's reading view, SVG and diagram image viewer/text, or HTML browser preview/source. False for other files.
   toggleRendered(): boolean {
     const p = this.panes.get(this.active),
       path = this.currentTab(this.active);
@@ -754,7 +756,7 @@ export class Editors {
       }
       return true;
     }
-    if (!path.endsWith(".svg")) {
+    if (!path.endsWith(".svg") && !diagramKind(path)) {
       return this.toggleReading();
     }
     if (p?.viewer) {
