@@ -26,12 +26,36 @@ test("nothing goes to the shell before the config frame", async () => {
   el.style.cssText = "width:400px;height:200px";
   document.body.append(el);
   const h = openTerminal(el, { renderer: "dom" });
-  const term = await vi.waitFor(() => h.term); // xterm loads behind openTerminal
+  // "send line to terminal" can be faster than xterm and the shell: it waits
+  h.input("early");
+  // xterm loads behind openTerminal
+  const term = await vi.waitFor(() => h.term);
   term.resize(50, 10);
   h.input("x");
+  expect(sock.sent).toHaveLength(0);
   sock.onopen?.();
+  await h.ready;
   expect(typeof sock.sent[0]).toBe("string");
   expect(JSON.parse(sock.sent[0] as string)).toMatchObject({ cols: expect.any(Number), rows: expect.any(Number) });
+  // frame byte 0 is input
+  const typed = await vi.waitFor(() => {
+    const frames = (sock.sent.slice(1) as Uint8Array[]).filter((f) => f[0] === 0);
+    expect(frames).toHaveLength(2);
+    return frames.map((f) => new TextDecoder().decode(f.subarray(1)));
+  });
+  expect(typed).toEqual(["early", "x"]);
   h.dispose();
+  el.remove();
+});
+
+test("closed before xterm loaded: ready rejects, later calls do nothing", async () => {
+  const el = document.createElement("div");
+  document.body.append(el);
+  const h = openTerminal(el, { renderer: "dom" });
+  h.focus();
+  h.input("x");
+  h.dispose();
+  await expect(h.ready).rejects.toThrow("closed before");
+  expect(el.childElementCount).toBe(0);
   el.remove();
 });

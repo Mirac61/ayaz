@@ -824,6 +824,10 @@ export class Editors {
       } // a retry is still the first display
       throw e;
     });
+    // the pane may have been closed while the file (or the docs chunk) was loading
+    if (!this.panes.has(id)) {
+      return id;
+    }
     if (firstDisplay) {
       void this.loadHead(path);
       this.shownResults.delete(path);

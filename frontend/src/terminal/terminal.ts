@@ -66,11 +66,22 @@ export function openTerminal(el: HTMLElement, opts: TermOptions = {}): TermHandl
     }
     return impl;
   });
-  const ready = loaded.then((h) => h?.ready);
+  const ready = loaded.then((h) => {
+    if (!h) {
+      throw new Error("terminal closed before it opened");
+    }
+    return h.ready;
+  });
   // A stream that failed rejects `ready`; whoever awaits it handles that, the calls below don't need to.
   ready.catch(() => {});
   // At once when xterm is there, else in the order the calls came.
-  const later = (f: (h: TermHandle) => void) => (impl ? f(impl) : void loaded.then((h) => h && f(h)));
+  const later = (f: (h: TermHandle) => void) =>
+    impl
+      ? f(impl)
+      : void loaded.then(
+          (h) => h && f(h),
+          () => {},
+        );
   const need = <K extends "term" | "ws">(k: K): TermHandle[K] => {
     if (!impl) {
       throw new Error(`terminal.${k} is there after ready`);
@@ -85,7 +96,12 @@ export function openTerminal(el: HTMLElement, opts: TermOptions = {}): TermHandl
       return need("ws");
     },
     ready: ready as Promise<void>,
-    input: (data) => later((h) => h.input(data)),
+    // Input waits for the shell, not just for xterm: nothing is sent before the config frame, so it would be lost.
+    input: (data) =>
+      void ready.then(
+        () => impl?.input(data),
+        () => {},
+      ),
     cwd: () => impl?.cwd() ?? "",
     setMode: (m) => later((h) => h.setMode(m)),
     focus: () => later((h) => h.focus()),
