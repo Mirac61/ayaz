@@ -1,6 +1,7 @@
 // The terminal provider for panes and the bottom panel. xterm.js on a Wails "pty" stream (ADR-0013) lives in xterm.ts and
 // loads with the first terminal; everything here stays small enough for the start chunk.
 import type { Terminal } from "@xterm/xterm";
+import { notify } from "../core/notifications";
 import { settings } from "../core/settings";
 
 // "terminal": keys go to the shell (nvim's terminal mode); "normal": scrollback, search, copy (Ctrl-\ Ctrl-n).
@@ -74,6 +75,13 @@ export function openTerminal(el: HTMLElement, opts: TermOptions = {}): TermHandl
   });
   // A stream that failed rejects `ready`; whoever awaits it handles that, the calls below don't need to.
   ready.catch(() => {});
+  // xterm didn't load or open: say so and leave the way an ended shell does, so no blank terminal stays behind.
+  loaded.catch((e) => {
+    if (!gone) {
+      notify.fail(`Terminal failed to start: ${e instanceof Error ? e.message : String(e)}`);
+      opts.onExit?.();
+    }
+  });
   // At once when xterm is there, else in the order the calls came.
   const later = (f: (h: TermHandle) => void) =>
     impl
@@ -104,7 +112,27 @@ export function openTerminal(el: HTMLElement, opts: TermOptions = {}): TermHandl
       ),
     cwd: () => impl?.cwd() ?? "",
     setMode: (m) => later((h) => h.setMode(m)),
-    focus: () => later((h) => h.focus()),
+    focus() {
+      if (impl) {
+        return impl.focus();
+      }
+      // While xterm loads, the user may go elsewhere; focusing then would take their next keys.
+      const before = document.activeElement;
+      let clickedAway = false;
+      const onDown = (e: Event) => (clickedAway ||= !el.contains(e.target as Node));
+      document.addEventListener("pointerdown", onDown, true);
+      void loaded
+        .then(
+          (h) => {
+            const now = document.activeElement;
+            if (h && !clickedAway && (now === before || now === document.body || el.contains(now))) {
+              h.focus();
+            }
+          },
+          () => {},
+        )
+        .finally(() => document.removeEventListener("pointerdown", onDown, true));
+    },
     setFont: () => later((h) => h.setFont()),
     dispose() {
       gone = true;

@@ -2,7 +2,7 @@ import { mdLinks } from "../editor/mdrender";
 import { setDropHandler } from "./dnd";
 import { AyazLogo } from "./AyazLogo";
 import { StartHub } from "./StartHub";
-import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { lazy, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { FilePlus, FolderOpen, FolderPlus, GitBranch, GitCommitHorizontal, ListChevronsDownUp } from "lucide-react";
 import { flushSync } from "react-dom";
 import { EditorView } from "@codemirror/view";
@@ -51,6 +51,7 @@ import { forget, remember } from "./resume";
 import { startDrag } from "./dnd";
 import { notify } from "../core/notifications";
 import { Notifications } from "./Notifications";
+import { Deferred } from "./Deferred";
 import { Cmdline } from "./Cmdline";
 
 // Opened rarely: their own chunks, so the docs text and the dialogs don't weigh on the start.
@@ -2290,10 +2291,18 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
           }}
         />
       )}
-      <Suspense fallback={null}>
-        {showUpdateDialog && <UpdateDialog onClose={() => setShowUpdateDialog(false)} />}
-        {showWhatsNew && <WhatsNewDialog version="v0.5.0" onClose={() => setShowWhatsNew(false)} />}
-        {showDocs && (
+      {showUpdateDialog && (
+        <Deferred onFail={() => setShowUpdateDialog(false)}>
+          <UpdateDialog onClose={() => setShowUpdateDialog(false)} />
+        </Deferred>
+      )}
+      {showWhatsNew && (
+        <Deferred onFail={() => setShowWhatsNew(false)}>
+          <WhatsNewDialog version="v0.5.0" onClose={() => setShowWhatsNew(false)} />
+        </Deferred>
+      )}
+      {showDocs && (
+        <Deferred onFail={() => setShowDocs(false)}>
           <DocsHub
             initialDocId={typeof showDocs === "string" ? showDocs : undefined}
             onClose={() => {
@@ -2304,8 +2313,8 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
               ed.focus(lastActivePaneRef.current ?? ed.active);
             }}
           />
-        )}
-      </Suspense>
+        </Deferred>
+      )}
     </div>
   );
 }

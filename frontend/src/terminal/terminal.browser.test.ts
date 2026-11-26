@@ -17,7 +17,19 @@ const sock = {
   close(): void;
   onopen?: () => void;
 };
-vi.mock("../core/backend", () => ({ backend: { stream: () => sock, openURL: () => {} } }));
+// set to make the next terminal fail while it opens
+const broken = vi.hoisted(() => ({ stream: false }));
+vi.mock("../core/backend", () => ({
+  backend: {
+    stream: () => {
+      if (broken.stream) {
+        throw new Error("no stream");
+      }
+      return sock;
+    },
+    openURL: () => {},
+  },
+}));
 const { openTerminal } = await import("./terminal");
 
 // M38: Go reads the config as the first frame; a resize or a key before it ended the shell at once.
@@ -58,4 +70,38 @@ test("closed before xterm loaded: ready rejects, later calls do nothing", async 
   await expect(h.ready).rejects.toThrow("closed before");
   expect(el.childElementCount).toBe(0);
   el.remove();
+});
+
+test("a terminal that fails to open ends like an exited shell", async () => {
+  const el = document.createElement("div");
+  document.body.append(el);
+  const onExit = vi.fn();
+  broken.stream = true;
+  const h = openTerminal(el, { renderer: "dom", onExit });
+  await expect(h.ready).rejects.toThrow("no stream");
+  broken.stream = false;
+  expect(onExit).toHaveBeenCalledOnce();
+  h.dispose();
+  el.remove();
+});
+
+test.each([
+  ["nothing moved", () => {}, true],
+  ["focus went to another field", (other: HTMLElement) => other.focus(), false],
+  // a click into what already had the focus moves nothing, but says where the user is
+  ["a click elsewhere", (other: HTMLElement) => other.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })), false],
+])("focus asked for before xterm loaded: %s", async (_name, meanwhile, takes) => {
+  const el = document.createElement("div");
+  el.style.cssText = "width:400px;height:200px";
+  const other = document.createElement("input");
+  document.body.append(el, other);
+  const h = openTerminal(el, { renderer: "dom" });
+  h.focus();
+  meanwhile(other);
+  await vi.waitFor(() => h.term);
+  await new Promise((r) => setTimeout(r));
+  expect(el.contains(document.activeElement)).toBe(takes);
+  h.dispose();
+  el.remove();
+  other.remove();
 });

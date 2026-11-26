@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import React, { lazy, useCallback, useEffect, useRef, useState } from "react";
 import { backend, type Info, type Summary } from "../core/backend";
 import { defaultKeymap, isMac } from "../core/keymap";
 import { closeLsp } from "../editor/lsp";
@@ -7,6 +7,7 @@ import { rememberFolder, recentFolders } from "./folders";
 import { Picker, type PickerSource } from "./Picker";
 import { setZoom, zoomLevel } from "./zoom";
 import { Workbench } from "./Workbench";
+import { Deferred } from "./Deferred";
 import { CHART, MAX_STARS, stars } from "./constellation";
 import { ago, branchText, changedNames, changesText, clip, sky } from "./startPage";
 import { availableThemes, setThemeOverride, themeName } from "../core/settings";
@@ -569,14 +570,14 @@ export function Shell() {
       )}
 
       {showDocs && (
-        <Suspense fallback={null}>
+        <Deferred onFail={() => setShowDocs(false)}>
           <DocsHub
             onClose={() => {
               setShowDocs(false);
               focusPage();
             }}
           />
-        </Suspense>
+        </Deferred>
       )}
     </div>
   );
