@@ -1465,7 +1465,13 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       backend.onLspStatus(ws.id, (s) => {
         if (s.state === "missing") {
           setLspMissing((m) => new Set(m).add(s.lang));
-          fail(`${s.command} not found in PATH, no language features from it. Install: ${installHint(s.lang)}`);
+          const text = `${s.command} not found in PATH, no language features from it. Install: ${installHint(s.lang)}`;
+          // marksman is an extra on top of the Markdown support: opening a README is no error without it
+          if (s.lang === "marksman") {
+            setMsg({ text });
+          } else {
+            fail(text);
+          }
         }
         if (s.state === "nocdb") {
           setMsg({

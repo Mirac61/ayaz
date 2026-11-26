@@ -156,7 +156,11 @@ async function source(cx: CompletionContext): Promise<CompletionResult | null> {
   if (!res) {
     return null;
   }
-  const result = Array.isArray(res) ? { items: res } : res;
+  const result = Array.isArray(res) ? { items: res } : { ...res };
+  // marksman offers every file again as a path from the root, which Ayaz can't follow; mdlinks.ts has the relative one.
+  if (plugin.uri.endsWith(".md")) {
+    result.items = result.items.filter((i) => !textOf(i).startsWith("/"));
+  }
   const { from, to } = replaced(cx, result);
   const defaults = result.itemDefaults?.commitCharacters;
   return {
