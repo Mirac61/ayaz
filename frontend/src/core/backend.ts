@@ -56,7 +56,8 @@ export interface Backend {
   clone(repoURL: string): Promise<Info | null>;
   closeWorkspace(ws: string): Promise<void>; // watcher, index, shells, servers (ADR-0014)
   closeWindow(): Promise<void>; // this window; a no-op in the server build
-  setAppearance(light: boolean): Promise<void>; // the window's native backdrop follows the theme; a no-op in the server build
+  // the window's native backdrop follows the theme; a no-op in the server build
+  setAppearance(light: boolean): Promise<void>;
   newWindow(): Promise<void>;
   // The user asked to close this window; the frontend decides (unsaved buffers) and calls closeWindow.
   onCloseRequest(ws: string, fn: () => void): () => void;
