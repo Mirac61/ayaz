@@ -41,7 +41,8 @@ export interface TermHandle {
   setMode(m: TermMode): void;
   focus(): void;
   setFont(): void; // takes font and size from settings again
-  gpu(on: boolean): void; // WebGL on or off: a terminal nobody sees gives its canvas and glyph atlas back
+  // WebGL on or off: a terminal nobody sees gives its canvas and glyph atlas back
+  gpu(on: boolean): void;
   dispose(): void;
 }
 

@@ -134,7 +134,8 @@ export function Workbench({ ws, onSwitch, initial }: { ws: Info; onSwitch(root: 
       if (next) {
         setFloatMounted(true);
         requestAnimationFrame(() => {
-          floatHandle.current?.gpu(true); // after the dialog is in the layout again
+          // after the dialog is in the layout again
+          floatHandle.current?.gpu(true);
           floatHandle.current?.focus();
         });
       } else {

@@ -74,11 +74,13 @@ describe("Buffers", () => {
     await bufs.open("d.go");
     const v = await bufs.virtual("docs://x", "doc");
     b.state = edit(b.state, "dirty ");
-    bufs.dropIdle(["a.go", "b.go", "c.go", "docs://x"], (x) => x === c);
+    const gone = bufs.dropIdle(["a.go", "b.go", "c.go", "docs://x"], (x) => x === c);
+    expect(gone.map((x) => x.path)).toEqual(["a.go"]);
     expect(bufs.get("a.go")).toBeUndefined();
     expect(bufs.get("b.go")).toBe(b);
     expect(bufs.get("c.go")).toBe(c);
-    expect(bufs.get("d.go")).toBeDefined(); // not named, not touched
+    // not named, not touched
+    expect(bufs.get("d.go")).toBeDefined();
     expect(bufs.get("docs://x")).toBe(v);
     expect(a).toBeDefined();
   });

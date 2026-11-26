@@ -48,7 +48,8 @@ test("gpu(false) drops the WebGL canvas, gpu(true) brings it back", async () => 
   expect(withGl).toBeGreaterThan(0);
   expect(canvases()).toBe(0);
   h.gpu(true);
-  h.gpu(true); // twice is no second context
+  // twice is no second context
+  h.gpu(true);
   expect(canvases()).toBe(withGl);
   expect(h.term.buffer.active.getLine(0)?.translateToString(true)).toBe("hello");
   h.dispose();

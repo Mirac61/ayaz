@@ -310,10 +310,17 @@ export class Editors {
     // A closed file keeps its buffer for a quick reopen, but only the last KEEP_CLOSED: every one holds its document, syntax tree and undo history.
     const open = new Set([...this.tabs.values()].flat());
     const shown = new Set([...this.panes.values()].map((p) => p.buf));
-    this.buffers.dropIdle(
+    const gone = this.buffers.dropIdle(
       this.closed.slice(0, -KEEP_CLOSED),
       (b) => open.has(b.path) || shown.has(b) || breakpointsOf(b.state).length > 0,
     );
+    for (const b of gone) {
+      // opening it again is a first display: cursor, git gutter and test marks come back
+      this.sourceOpened.delete(b.path);
+      this.cursors[b.path] = b.state.selection.main.head;
+      // it had none, an older list from the session must not return
+      delete this.bps[b.path];
+    }
   }
 
   // Opens the tab closed last; false if there is none.
@@ -1600,7 +1607,8 @@ export class Editors {
 
   private showTerm(id: number, el: HTMLElement, h: { term: TermHandle; box: HTMLElement; title: string; cmd: string }) {
     el.append(h.box);
-    h.term.gpu(true); // back from hidden: it is in the layout again
+    // back from hidden: it is in the layout again
+    h.term.gpu(true);
     const mode = h.box.dataset.mode ?? "terminal";
     this.panes.set(id, { el, term: h.term, buf: null, mode, title: h.title, cmd: h.cmd });
     if (id > 0) {
