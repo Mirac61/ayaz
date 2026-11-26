@@ -24,6 +24,9 @@ function ago(t: number): string {
 
 const dirOf = (p: string) => p.slice(0, Math.max(p.lastIndexOf("/"), 0));
 
+// A path for a confirmation title: cut at the front, so the file's name and the question after it stay readable.
+const tail = (p: string) => (p.length > 40 ? "…" + p.slice(-39) : p);
+
 export function fileCommands({ ws, files, ed, tree, say, fail, setPicker, prompt, closePane }: Ctx): Command[] {
   const save = async (force: boolean) => {
     const b = ed.current();
@@ -75,7 +78,7 @@ export function fileCommands({ ws, files, ed, tree, say, fail, setPicker, prompt
     }
     const back = inTree();
     setPicker({
-      title: `"${to}" already exists. Replace it?`,
+      title: `"${tail(to)}" already exists. Replace it?`,
       footer: "Enter confirms, Esc cancels",
       query: async () => [{ label: "Replace (the old one goes to the trash)", icon: fileIcon(to) }],
       pick: () =>
@@ -212,7 +215,7 @@ export function fileCommands({ ws, files, ed, tree, say, fail, setPicker, prompt
         }
         const back = inTree();
         setPicker({
-          title: `Move "${t.path}${t.dir ? "/" : ""}" to the trash?`,
+          title: `Move "${tail(t.path + (t.dir ? "/" : ""))}" to the trash?`,
           footer: "Enter confirms, Esc cancels",
           query: async () => [{ label: "Move to trash", icon: t.dir ? folderIcon(false) : fileIcon(t.path) }],
           pick: () =>
