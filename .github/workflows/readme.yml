@@ -1,0 +1,25 @@
+name: readme
+
+on:
+  push:
+    paths: [README.md]
+  pull_request:
+    paths: [README.md]
+
+permissions:
+  contents: read
+
+jobs:
+  readmecheck:
+    name: README check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: stable
+
+      - uses: Mirac61/readmecheck@main
